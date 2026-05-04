@@ -75,17 +75,28 @@ async function main() {
   const rVer = await sandbox.runCommand("R", ["--version"]);
   console.log(await rVer.stdout());
 
+  console.log("→ ensuring system R library is writable for sudo install…");
+  await sandbox.runCommand("sh", [
+    "-c",
+    "sudo mkdir -p /usr/local/lib/R/site-library && sudo chmod -R a+w /usr/local/lib/R /usr/lib64/R/library 2>/dev/null || true",
+  ]);
+
   console.log(`→ installing ${R_PACKAGES.length} R packages (this takes 10–20 min)…`);
   const installScript = [
     `options(repos = c(CRAN = 'https://cloud.r-project.org'))`,
-    `install.packages(c(${R_PACKAGES.map((p) => `'${p}'`).join(", ")}), Ncpus = 4)`,
+    `.libPaths(c('/usr/local/lib/R/site-library', .libPaths()))`,
+    `install.packages(c(${R_PACKAGES.map((p) => `'${p}'`).join(", ")}), lib = '/usr/local/lib/R/site-library', Ncpus = 4)`,
     `for (p in c(${R_PACKAGES.map((p) => `'${p}'`).join(", ")})) {`,
     `  if (!requireNamespace(p, quietly = TRUE)) stop('FAILED: ', p)`,
     `}`,
     `cat('all packages OK\\n')`,
   ].join("; ");
 
-  const installResult = await sandbox.runCommand("Rscript", ["-e", installScript]);
+  const installResult = await sandbox.runCommand("sudo", [
+    "Rscript",
+    "-e",
+    installScript,
+  ]);
   console.log(await installResult.stdout());
   if ((installResult.exitCode ?? 0) !== 0) {
     console.error(await installResult.stderr());

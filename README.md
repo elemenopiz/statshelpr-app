@@ -1,6 +1,10 @@
-# statshelpr web
+# statshelpr-app
 
-Canvas-embedded stats tutor. Chrome extension scrapes the active quiz question (text + images), sends it to a Next.js API on Vercel, which classifies it as conceptual or code-required. Conceptual → Claude answers directly. Code-required → Claude writes R, code runs in a Vercel Sandbox microVM with tidyverse + mosaic + moderndive pre-installed, output is interpreted into a final answer. Side panel shows the answer, explanation, R code, and output. The student picks the radio button themselves.
+Canvas-embedded stats tutor — Chrome extension + Next.js API.
+
+The extension scrapes the active quiz question (text + images), sends it to a Next.js API on Vercel, which classifies it as conceptual or code-required. Conceptual → Claude answers directly. Code-required → Claude writes R, code runs in a Vercel Sandbox microVM with tidyverse + mosaic + moderndive pre-installed, output is interpreted into a final answer. The extension renders the answer inline below each question and visually highlights the matching answer choice — the student still clicks it themselves.
+
+**Live:** https://statshelpr.com (landing page) — extension installs from this repo.
 
 ## Architecture
 
@@ -18,12 +22,22 @@ Chrome extension (Canvas)
 ## Layout
 
 ```
-web/
-├── packages/core/       # Shared TS — system prompt, stats reference, response parser, Anthropic client
-├── apps/api/            # Next.js App Router — /api/solve route handler + R sandbox runner
-├── apps/extension/      # Chrome MV3 extension — content script, panel, background proxy, popup
+statshelpr-app/
+├── apps/api/                        # Next.js App Router
+│   ├── app/api/solve/route.ts       # streaming SSE endpoint
+│   ├── app/api/health/route.ts      # status probe used by popup
+│   ├── app/api/auth/validate-license/route.ts  # Lemon Squeezy gate
+│   ├── lib/core/                    # system prompt, stats reference, parsers (TS port of exam_assistant.R)
+│   ├── lib/sandbox.ts               # Vercel Sandbox R runner
+│   └── lib/license.ts, lib/sse.ts, lib/data-summary.ts
+├── apps/extension/                  # Chrome MV3 extension
+│   ├── public/manifest.json         # Classic + New Quizzes matches
+│   ├── src/content.ts               # per-question Solve buttons + inline answer cards
+│   ├── src/popup.ts                 # status dot, license + API URL config
+│   ├── src/background.ts
+│   └── src/markdown.ts              # tiny markdown→DOM + R syntax highlighter
 └── scripts/
-    └── create-r-snapshot.ts   # One-time Vercel Sandbox snapshot builder
+    └── create-r-snapshot.ts         # One-time Vercel Sandbox snapshot builder
 ```
 
 ## Local dev
