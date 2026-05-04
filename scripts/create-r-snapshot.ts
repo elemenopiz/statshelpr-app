@@ -4,11 +4,15 @@
  * snapshot ID goes into R_SANDBOX_SNAPSHOT_ID so production /api/solve calls
  * boot in <1s instead of installing R from scratch every request.
  *
- * Run from web/ directory:
+ * Run from repo root:
  *   pnpm tsx scripts/create-r-snapshot.ts
  *
  * Required env (or `vercel link` first so OIDC works):
  *   VERCEL_TOKEN, VERCEL_TEAM_ID, VERCEL_PROJECT_ID
+ *
+ * Strategy: tidyverse + friends takes ~15 min to install, longer than any
+ * single HTTP runCommand can stay open. We start the install as a detached
+ * job inside the VM, then poll a sentinel file via short runCommand calls.
  */
 
 import { Sandbox } from "@vercel/sandbox";
@@ -58,7 +62,7 @@ async function main() {
   const sandbox = await Sandbox.create({
     ...getCredentials(),
     runtime: "node24",
-    timeout: 1_800_000, // 30 min — R package installs are slow
+    timeout: 2_700_000, // 45 min — install + verification + snapshot
   });
 
   console.log("→ installing system dependencies…");
@@ -73,37 +77,93 @@ async function main() {
 
   console.log("→ verifying R is available…");
   const rVer = await sandbox.runCommand("R", ["--version"]);
-  console.log(await rVer.stdout());
+  console.log((await rVer.stdout()).split("\n")[0]);
 
-  console.log("→ ensuring system R library is writable for sudo install…");
+  console.log("→ preparing writable site-library + install script…");
   await sandbox.runCommand("sh", [
     "-c",
-    "sudo mkdir -p /usr/local/lib/R/site-library && sudo chmod -R a+w /usr/local/lib/R /usr/lib64/R/library 2>/dev/null || true",
+    "sudo mkdir -p /usr/local/lib/R/site-library && sudo chmod -R a+w /usr/local/lib/R 2>/dev/null || true",
   ]);
 
-  console.log(`→ installing ${R_PACKAGES.length} R packages (this takes 10–20 min)…`);
-  const installScript = [
+  // Install script: writes DONE / FAILED:<pkg> to a sentinel file when complete.
+  const installR = [
     `options(repos = c(CRAN = 'https://cloud.r-project.org'))`,
     `.libPaths(c('/usr/local/lib/R/site-library', .libPaths()))`,
-    `install.packages(c(${R_PACKAGES.map((p) => `'${p}'`).join(", ")}), lib = '/usr/local/lib/R/site-library', Ncpus = 4)`,
-    `for (p in c(${R_PACKAGES.map((p) => `'${p}'`).join(", ")})) {`,
-    `  if (!requireNamespace(p, quietly = TRUE)) stop('FAILED: ', p)`,
-    `}`,
-    `cat('all packages OK\\n')`,
-  ].join("; ");
+    `pkgs <- c(${R_PACKAGES.map((p) => `'${p}'`).join(", ")})`,
+    `tryCatch({`,
+    `  install.packages(pkgs, lib = '/usr/local/lib/R/site-library', Ncpus = 4)`,
+    `  for (p in pkgs) {`,
+    `    if (!requireNamespace(p, quietly = TRUE)) {`,
+    `      writeLines(paste0('FAILED:', p), '/tmp/install.done'); quit(save='no', status=1)`,
+    `    }`,
+    `  }`,
+    `  writeLines('DONE', '/tmp/install.done')`,
+    `}, error = function(e) {`,
+    `  writeLines(paste0('FAILED:', conditionMessage(e)), '/tmp/install.done')`,
+    `  quit(save='no', status=1)`,
+    `})`,
+  ].join("\n");
 
-  const installResult = await sandbox.runCommand("sudo", [
-    "Rscript",
-    "-e",
-    installScript,
+  const installB64 = Buffer.from(installR, "utf-8").toString("base64");
+  await sandbox.runCommand("sh", [
+    "-c",
+    `echo ${JSON.stringify(installB64)} | base64 -d > /tmp/install.R`,
   ]);
-  console.log(await installResult.stdout());
-  if ((installResult.exitCode ?? 0) !== 0) {
-    console.error(await installResult.stderr());
-    throw new Error(`R package install failed (exit ${installResult.exitCode})`);
+
+  console.log("→ launching detached install job inside VM…");
+  await sandbox.runCommand("sh", [
+    "-c",
+    `rm -f /tmp/install.done /tmp/install.log && nohup sudo Rscript /tmp/install.R > /tmp/install.log 2>&1 < /dev/null & disown; sleep 1; echo started`,
+  ]);
+
+  console.log(`→ polling for completion (typically 10–20 min)…`);
+  const startTime = Date.now();
+  let done = false;
+  let lastReportSec = 0;
+  let result = "";
+
+  while (!done) {
+    await sleep(20_000);
+
+    try {
+      const probe = await sandbox.runCommand("sh", [
+        "-c",
+        `cat /tmp/install.done 2>/dev/null || echo RUNNING`,
+      ]);
+      result = (await probe.stdout()).trim();
+    } catch (e) {
+      // Transient socket error during a poll — keep going. The install runs
+      // independently inside the VM regardless.
+      console.log(`  (poll error, will retry: ${(e as Error).message.slice(0, 80)})`);
+      continue;
+    }
+
+    const elapsedSec = Math.round((Date.now() - startTime) / 1000);
+    if (elapsedSec - lastReportSec >= 60) {
+      lastReportSec = elapsedSec;
+      console.log(`  …${Math.floor(elapsedSec / 60)}m${elapsedSec % 60}s elapsed, status: ${result}`);
+    }
+
+    if (result === "DONE") {
+      done = true;
+    } else if (result.startsWith("FAILED:")) {
+      // Pull the install log so we can see what blew up
+      try {
+        const logProbe = await sandbox.runCommand("sh", [
+          "-c",
+          "tail -60 /tmp/install.log",
+        ]);
+        console.error("--- install log tail ---");
+        console.error(await logProbe.stdout());
+      } catch {
+        /* ignore */
+      }
+      throw new Error(`R install ${result}`);
+    }
+    // else still RUNNING — keep polling
   }
 
-  console.log("→ snapshotting sandbox…");
+  console.log("→ all packages installed; snapshotting sandbox…");
   const snapshot = await sandbox.snapshot();
   console.log("");
   console.log("=================================================");
@@ -114,6 +174,10 @@ async function main() {
   console.log("=================================================");
 
   await sandbox.stop();
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 main().catch((e) => {
