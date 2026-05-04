@@ -19,16 +19,44 @@ import { Sandbox } from "@vercel/sandbox";
 
 const SYSTEM_DEPS = [
   "R",
+  // Build tools (some R packages need C/C++ compiler headers)
+  "gcc",
+  "gcc-c++",
+  "make",
+  "pkgconf",
+  "pkgconf-pkg-config",
+  // Network / crypto
   "openssl-devel",
   "libxml2-devel",
   "libcurl-devel",
+  "libssh2-devel",
+  // Compression
+  "zlib-devel",
+  "bzip2-devel",
+  "xz-devel",
+  // Fonts / text shaping (ragg, systemfonts, textshaping)
   "fontconfig-devel",
   "freetype-devel",
   "harfbuzz-devel",
   "fribidi-devel",
+  // Image formats (ragg, magick)
   "libpng-devel",
   "libtiff-devel",
   "libjpeg-turbo-devel",
+  "libwebp-devel",
+  // Cairo (svglite, ragg)
+  "cairo-devel",
+  // ICU (stringi)
+  "libicu-devel",
+  // libuv (fs package)
+  "libuv-devel",
+  // Sodium (auth-related crypto)
+  "libsodium-devel",
+  // GMP / MPFR (some stats packages)
+  "gmp-devel",
+  "mpfr-devel",
+  // Git (git2r if any package needs it)
+  "libgit2-devel",
 ];
 
 const R_PACKAGES = [
@@ -65,15 +93,25 @@ async function main() {
     timeout: 2_700_000, // 45 min — install + verification + snapshot
   });
 
-  console.log("→ installing system dependencies…");
+  console.log(`→ installing ${SYSTEM_DEPS.length} system dependencies…`);
+  // Don't use --skip-broken: silently skipping freetype-devel etc. is what
+  // burned us on the prior attempt. Fail loud if a required dep can't install.
   const sysResult = await sandbox.runCommand("sh", [
     "-c",
-    `sudo dnf clean all 2>&1 && sudo dnf install -y --skip-broken ${SYSTEM_DEPS.join(" ")} 2>&1 && sudo ldconfig 2>&1`,
+    `sudo dnf clean all 2>&1 && sudo dnf install -y ${SYSTEM_DEPS.join(" ")} 2>&1 && sudo ldconfig 2>&1`,
   ]);
   if ((sysResult.exitCode ?? 0) !== 0) {
-    console.error(await sysResult.stderr());
+    const tail = (await sysResult.stdout()).split("\n").slice(-30).join("\n");
+    console.error("--- dnf tail ---\n" + tail);
+    console.error("--- stderr ---\n" + (await sysResult.stderr()));
     throw new Error(`dnf install failed (exit ${sysResult.exitCode})`);
   }
+  // Sanity check: confirm freetype headers are actually on disk
+  const headerCheck = await sandbox.runCommand("sh", [
+    "-c",
+    "ls /usr/include/freetype2/ft2build.h && pkg-config --exists freetype2 && echo OK_FREETYPE; pkg-config --exists libwebp && echo OK_WEBP",
+  ]);
+  console.log((await headerCheck.stdout()).trim());
 
   console.log("→ verifying R is available…");
   const rVer = await sandbox.runCommand("R", ["--version"]);
@@ -89,6 +127,8 @@ async function main() {
   const installR = [
     `options(repos = c(CRAN = 'https://cloud.r-project.org'))`,
     `.libPaths(c('/usr/local/lib/R/site-library', .libPaths()))`,
+    // Fallback: build libuv from source if missing system lib
+    `Sys.setenv(USE_BUNDLED_LIBUV = '1')`,
     `pkgs <- c(${R_PACKAGES.map((p) => `'${p}'`).join(", ")})`,
     `tryCatch({`,
     `  install.packages(pkgs, lib = '/usr/local/lib/R/site-library', Ncpus = 4)`,
