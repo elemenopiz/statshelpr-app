@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>statshelpr</title>
+    <style>
+      :root {
+        --green: #137333;
+        --red: #c5221f;
+        --amber: #b06000;
+        --gray: #9aa0a6;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        margin: 0;
+        padding: 16px;
+        width: 300px;
+        font-size: 13px;
+        color: #1a1a1a;
+      }
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+      }
+      h1 {
+        font-size: 14px;
+        margin: 0;
+        font-weight: 600;
+      }
+      .dot {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        color: var(--gray);
+      }
+      .dot::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--gray);
+      }
+      .dot.ok { color: var(--green); }
+      .dot.ok::before { background: var(--green); }
+      .dot.warn { color: var(--amber); }
+      .dot.warn::before { background: var(--amber); }
+      .dot.err { color: var(--red); }
+      .dot.err::before { background: var(--red); }
+      label {
+        display: block;
+        font-size: 11px;
+        color: #5f6368;
+        margin-bottom: 4px;
+        font-weight: 500;
+      }
+      input {
+        width: 100%;
+        padding: 7px 9px;
+        border: 1px solid #dadce0;
+        border-radius: 4px;
+        font-size: 12px;
+        box-sizing: border-box;
+        margin-bottom: 10px;
+        font-family: inherit;
+      }
+      input:focus {
+        outline: none;
+        border-color: #1a73e8;
+      }
+      button {
+        width: 100%;
+        padding: 8px;
+        background: #1a73e8;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        font-size: 12px;
+        cursor: pointer;
+        font-weight: 600;
+      }
+      button:hover { background: #1557b0; }
+      .status {
+        margin-top: 8px;
+        font-size: 11px;
+        color: #5f6368;
+        min-height: 14px;
+      }
+      .status.ok { color: var(--green); }
+      .status.err { color: var(--red); }
+      .meta {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid #f1f3f4;
+        font-size: 10.5px;
+        color: var(--gray);
+      }
+      .meta div { padding: 2px 0; }
+      .meta b { color: #5f6368; }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>statshelpr</h1>
+      <span id="status-dot" class="dot">checking…</span>
+    </div>
+    <label for="apiUrl">API URL</label>
+    <input id="apiUrl" type="text" placeholder="https://api.statshelpr.com" />
+    <label for="licenseKey">License key</label>
+    <input id="licenseKey" type="password" placeholder="leave blank in dev" />
+    <button id="save">Save</button>
+    <div id="status" class="status"></div>
+    <div id="meta" class="meta" style="display:none"></div>
+    <script src="popup.js"></script>
+  </body>
+</html>

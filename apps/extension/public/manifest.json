@@ -1,0 +1,36 @@
+{
+  "manifest_version": 3,
+  "name": "statshelpr",
+  "version": "0.3.0",
+  "description": "Stats quiz tutor — solve Canvas quiz questions inline with answer + R code + output.",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": [
+    "https://*.instructure.com/*",
+    "https://quizzes.next.instructure.com/*",
+    "http://localhost:3030/*",
+    "http://127.0.0.1:3030/*"
+  ],
+  "optional_host_permissions": ["https://*/*"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "statshelpr"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.instructure.com/courses/*/quizzes/*",
+        "https://*.instructure.com/courses/*/assignments/*",
+        "https://*.instructure.com/courses/*/modules/*",
+        "https://quizzes.next.instructure.com/*"
+      ],
+      "js": ["content.js"],
+      "css": ["panel.css"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ]
+}

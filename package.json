@@ -1,0 +1,15 @@
+{
+  "name": "statshelpr-web",
+  "version": "0.0.1",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev": "pnpm --filter @statshelpr/api dev",
+    "build": "pnpm --filter @statshelpr/api build",
+    "build:extension": "pnpm --filter @statshelpr/extension build",
+    "snapshot:r": "pnpm --filter @statshelpr/api exec tsx ../../scripts/create-r-snapshot.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}
