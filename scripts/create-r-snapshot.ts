@@ -23,6 +23,7 @@ const SYSTEM_DEPS = [
   "gcc",
   "gcc-c++",
   "make",
+  "cmake",
   "pkgconf",
   "pkgconf-pkg-config",
   // Network / crypto
