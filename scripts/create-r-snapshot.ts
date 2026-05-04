@@ -110,11 +110,28 @@ async function main() {
     `echo ${JSON.stringify(installB64)} | base64 -d > /tmp/install.R`,
   ]);
 
-  console.log("→ launching detached install job inside VM…");
+  console.log("→ starting R install (will run for 10–20 min)…");
+  // Strategy: run install synchronously. The HTTP connection will probably
+  // time out before it finishes, but the process keeps running in the VM.
+  // Once the runCommand call resolves OR throws, we poll the sentinel file.
   await sandbox.runCommand("sh", [
     "-c",
-    `rm -f /tmp/install.done /tmp/install.log && nohup sudo Rscript /tmp/install.R > /tmp/install.log 2>&1 < /dev/null & disown; sleep 1; echo started`,
+    "rm -f /tmp/install.done /tmp/install.log",
   ]);
+
+  // Fire and forget: kick off install, don't wait for the HTTP response
+  const installPromise = sandbox
+    .runCommand("sh", [
+      "-c",
+      "sudo Rscript /tmp/install.R > /tmp/install.log 2>&1; echo $? > /tmp/install.exit",
+    ])
+    .catch((e) => {
+      console.log(`  (install runCommand connection dropped: ${(e as Error).message.slice(0, 100)})`);
+      return null;
+    });
+
+  // Don't await installPromise — it may never resolve cleanly. Just poll.
+  void installPromise;
 
   console.log(`→ polling for completion (typically 10–20 min)…`);
   const startTime = Date.now();
@@ -123,7 +140,7 @@ async function main() {
   let result = "";
 
   while (!done) {
-    await sleep(20_000);
+    await sleep(30_000);
 
     try {
       const probe = await sandbox.runCommand("sh", [
