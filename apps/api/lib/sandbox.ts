@@ -94,9 +94,12 @@ export async function runR(rCode: string, files: RFile[] = []): Promise<RunRResu
       `echo ${JSON.stringify(scriptB64)} | base64 -d > ${scriptPath}`,
     ]);
 
+    // Snapshot installs packages to /usr/local/lib/R/site-library (a writable
+    // path). With --vanilla R skips Rprofile.site, so set R_LIBS_SITE explicitly
+    // so installed packages are found at runtime.
     const result = await sandbox.runCommand("sh", [
       "-c",
-      `cd /tmp/work && Rscript --vanilla script.R`,
+      `cd /tmp/work && R_LIBS_SITE=/usr/local/lib/R/site-library Rscript --vanilla script.R`,
     ]);
 
     return {
