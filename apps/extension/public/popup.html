@@ -3,20 +3,40 @@
   <head>
     <meta charset="utf-8" />
     <title>statshelpr</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400&display=swap"
+      rel="stylesheet"
+    />
     <style>
       :root {
-        --green: #137333;
-        --red: #c5221f;
-        --amber: #b06000;
-        --gray: #9aa0a6;
+        --bg: #0b0b0f;
+        --bg-raised: #111116;
+        --bg-card: #16161c;
+        --text: #e8e2d6;
+        --text-dim: #8a8578;
+        --text-muted: #5c584f;
+        --accent: #d4a843;
+        --accent-dim: rgba(212, 168, 67, 0.12);
+        --border: rgba(232, 226, 214, 0.08);
+        --border-hover: rgba(212, 168, 67, 0.3);
+        --ok: #a8c875;
+        --err: #d97373;
+        --warn: #d4a843;
+        --font-display: "Instrument Serif", Georgia, serif;
+        --font-body: "DM Sans", system-ui, -apple-system, sans-serif;
+        --font-mono: "JetBrains Mono", "SF Mono", monospace;
       }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
       body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        margin: 0;
-        padding: 16px;
-        width: 300px;
+        font-family: var(--font-body);
+        background: var(--bg);
+        color: var(--text);
+        padding: 18px;
+        width: 340px;
         font-size: 13px;
-        color: #1a1a1a;
+        -webkit-font-smoothing: antialiased;
       }
       .header {
         display: flex;
@@ -24,95 +44,263 @@
         justify-content: space-between;
         margin-bottom: 14px;
       }
-      h1 {
-        font-size: 14px;
-        margin: 0;
-        font-weight: 600;
+      .logo {
+        font-family: var(--font-display);
+        font-size: 1.4rem;
+        letter-spacing: -0.3px;
       }
+      .logo em { color: var(--accent); font-style: italic; }
       .dot {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        font-size: 11px;
-        color: var(--gray);
+        font-size: 10.5px;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
       }
       .dot::before {
         content: "";
         width: 8px;
         height: 8px;
         border-radius: 50%;
-        background: var(--gray);
+        background: var(--text-muted);
       }
-      .dot.ok { color: var(--green); }
-      .dot.ok::before { background: var(--green); }
-      .dot.warn { color: var(--amber); }
-      .dot.warn::before { background: var(--amber); }
-      .dot.err { color: var(--red); }
-      .dot.err::before { background: var(--red); }
+      .dot.ok { color: var(--ok); }
+      .dot.ok::before { background: var(--ok); }
+      .dot.warn { color: var(--warn); }
+      .dot.warn::before { background: var(--warn); }
+      .dot.err { color: var(--err); }
+      .dot.err::before { background: var(--err); }
+
+      .section-label {
+        font-size: 10px;
+        color: var(--text-dim);
+        margin: 0 0 8px 0;
+        font-weight: 500;
+        font-family: var(--font-mono);
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+      }
       label {
         display: block;
-        font-size: 11px;
-        color: #5f6368;
-        margin-bottom: 4px;
+        font-size: 10px;
+        color: var(--text-dim);
+        margin-bottom: 5px;
         font-weight: 500;
+        font-family: var(--font-mono);
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
       }
-      input {
+      input[type="text"], input[type="password"] {
         width: 100%;
-        padding: 7px 9px;
-        border: 1px solid #dadce0;
-        border-radius: 4px;
+        padding: 8px 10px;
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 6px;
         font-size: 12px;
-        box-sizing: border-box;
-        margin-bottom: 10px;
+        color: var(--text);
         font-family: inherit;
+        margin-bottom: 10px;
+        transition: border-color 0.15s;
       }
-      input:focus {
+      input[type="text"]:focus, input[type="password"]:focus {
         outline: none;
-        border-color: #1a73e8;
+        border-color: var(--border-hover);
       }
+      input::placeholder { color: var(--text-muted); }
       button {
         width: 100%;
-        padding: 8px;
-        background: #1a73e8;
-        color: white;
-        border: none;
-        border-radius: 4px;
+        padding: 9px;
+        background: var(--accent);
+        color: var(--bg);
+        border: 1px solid var(--accent);
+        border-radius: 6px;
         font-size: 12px;
         cursor: pointer;
         font-weight: 600;
+        font-family: inherit;
+        transition: all 0.15s;
+        letter-spacing: 0.2px;
       }
-      button:hover { background: #1557b0; }
+      button:hover { background: transparent; color: var(--accent); }
       .status {
         margin-top: 8px;
-        font-size: 11px;
-        color: #5f6368;
+        font-size: 10.5px;
+        color: var(--text-dim);
         min-height: 14px;
+        font-family: var(--font-mono);
       }
-      .status.ok { color: var(--green); }
-      .status.err { color: var(--red); }
+      .status.ok { color: var(--ok); }
+      .status.err { color: var(--err); }
+
+      /* CSV section */
+      .dropzone {
+        border: 1.5px dashed rgba(232, 226, 214, 0.18);
+        border-radius: 8px;
+        padding: 18px 14px;
+        text-align: center;
+        font-size: 11.5px;
+        color: var(--text-dim);
+        cursor: pointer;
+        background: var(--bg-card);
+        transition: all 0.15s;
+      }
+      .dropzone:hover, .dropzone.drag-over {
+        border-color: var(--accent);
+        background: var(--accent-dim);
+        color: var(--accent);
+      }
+      .dropzone .hint {
+        display: block;
+        margin-top: 4px;
+        font-size: 9.5px;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+      }
+      .files-list {
+        margin-top: 10px;
+        font-size: 11.5px;
+      }
+      .files-list .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 6px 0;
+        border-bottom: 1px solid rgba(232, 226, 214, 0.05);
+      }
+      .files-list .row:last-child { border-bottom: none; }
+      .files-list .name {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--text);
+        font-weight: 500;
+      }
+      .files-list .size {
+        color: var(--text-muted);
+        margin: 0 8px;
+        font-size: 10px;
+        font-family: var(--font-mono);
+      }
+      .files-list .remove {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        font-size: 14px;
+        padding: 0 4px;
+        line-height: 1;
+        width: auto;
+        font-weight: normal;
+      }
+      .files-list .remove:hover { color: var(--err); background: none; }
+      .files-empty {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 10px;
+        font-style: italic;
+        text-align: center;
+      }
+
+      details {
+        margin-top: 16px;
+        font-size: 11px;
+      }
+      summary {
+        cursor: pointer;
+        color: var(--text-dim);
+        font-family: var(--font-mono);
+        font-size: 10px;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        padding: 4px 0;
+        user-select: none;
+        list-style: none;
+      }
+      summary::-webkit-details-marker { display: none; }
+      summary::before { content: "▸ "; font-size: 9px; }
+      details[open] summary::before { content: "▾ "; }
+      summary:hover { color: var(--accent); }
+      details > .settings-body { margin-top: 10px; }
+
       .meta {
         margin-top: 10px;
-        padding-top: 10px;
-        border-top: 1px solid #f1f3f4;
-        font-size: 10.5px;
-        color: var(--gray);
+        padding-top: 8px;
+        border-top: 1px solid var(--border);
+        font-size: 10px;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
       }
-      .meta div { padding: 2px 0; }
-      .meta b { color: #5f6368; }
+      .meta div {
+        padding: 2px 0;
+        display: flex;
+        justify-content: space-between;
+      }
+      .meta b { color: var(--text-dim); font-weight: 500; }
+      .meta .v.ok { color: var(--ok); }
+      .meta .v.warn { color: var(--warn); }
+
+      .links {
+        margin-top: 14px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 11px;
+      }
+      .links a {
+        color: var(--text-dim);
+        text-decoration: none;
+        transition: color 0.15s;
+        cursor: pointer;
+      }
+      .links a:hover { color: var(--accent); }
     </style>
   </head>
   <body>
     <div class="header">
-      <h1>statshelpr</h1>
+      <div class="logo">stats<em>helpr</em></div>
       <span id="status-dot" class="dot">checking…</span>
     </div>
-    <label for="apiUrl">API URL</label>
-    <input id="apiUrl" type="text" placeholder="https://api.statshelpr.com" />
-    <label for="licenseKey">License key</label>
-    <input id="licenseKey" type="password" placeholder="leave blank in dev" />
-    <button id="save">Save</button>
-    <div id="status" class="status"></div>
-    <div id="meta" class="meta" style="display:none"></div>
+
+    <div class="section-label">Data files</div>
+    <div class="dropzone" id="dropzone">
+      drop CSV or click to upload
+      <span class="hint">.csv · .tsv · .txt — persists 7 days</span>
+    </div>
+    <input
+      type="file"
+      id="file-input"
+      accept=".csv,.tsv,.txt"
+      multiple
+      style="display: none"
+    />
+    <div id="files-list" class="files-list"></div>
+    <div id="files-empty" class="files-empty" style="display: none">
+      no data files yet
+    </div>
+
+    <details id="settings-details">
+      <summary>Settings &amp; status</summary>
+      <div class="settings-body">
+        <label for="apiUrl">API URL</label>
+        <input id="apiUrl" type="text" placeholder="https://api.statshelpr.com" />
+        <label for="licenseKey">License key</label>
+        <input id="licenseKey" type="password" placeholder="leave blank in dev" />
+        <button id="save">Save</button>
+        <div id="status" class="status"></div>
+        <div id="meta" class="meta" style="display: none"></div>
+      </div>
+    </details>
+
+    <div class="links">
+      <a id="open-tutorial">↻ open tutorial</a>
+      <span style="color: var(--text-muted); font-family: var(--font-mono); font-size: 9.5px"
+        >v0.5.0</span
+      >
+    </div>
     <script src="popup.js"></script>
   </body>
 </html>

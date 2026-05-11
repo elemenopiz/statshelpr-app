@@ -38,10 +38,13 @@ export function buildQuestionPrompt(body: SolveBody): string {
   const isDropdown = choices.every((c) => c.type === "dropdown");
   const multi = choices.some((c) => c.type === "checkbox");
   const choiceLines = choices.map((c) => `${c.label}. ${c.text}`);
+  // Dropdown options can be any text (numbers, ranges, statistical test names,
+  // T/F, etc.) — don't bias the model toward any particular set of values.
+  const header = isDropdown ? "Dropdown options (pick exactly one):" : "Answer choices:";
   return [
     base,
     "",
-    isDropdown ? "Dropdown options:" : "Answer choices:",
+    header,
     ...choiceLines,
     "",
     multi

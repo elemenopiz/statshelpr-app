@@ -1,93 +1,98 @@
 /* =========================================================================
- * Tiny inline "solve" button — sits next to each question header
- * Brand colors: dark bg + gold accent (matches statshelpr.com).
+ * Inline "solve" button — designed to be near-invisible on the page so a
+ * bystander glancing at the screen wouldn't notice it. Reveals on hover.
+ *
+ * Default: 14px square, opacity 0.2, gray, just a dot inside.
+ * Hover (or hovering anywhere over the question container): opacity 0.85.
+ * Loading: spinner.
+ * Success: brief green ✓ (1.8s) then fades back.
+ * Error: red !.
  * ========================================================================= */
 
 .statshelpr-btn-solve {
-  --sh-bg: #0b0b0f;
-  --sh-accent: #d4a843;
-  --sh-ok: #137333;
-  --sh-warn: #b06000;
-  --sh-err: #c5221f;
-
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 56px;
-  height: 22px;
-  padding: 0 11px;
-  margin-left: 6px;
-  background: var(--sh-bg);
-  color: var(--sh-accent);
-  border: 1px solid rgba(212, 168, 67, 0.4);
-  border-radius: 4px;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  margin-left: 4px;
+  background: transparent;
+  color: #888;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 50%;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.3px;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1;
   cursor: pointer;
   vertical-align: middle;
-  line-height: 1;
   user-select: none;
-  transition: background 0.12s, color 0.12s, border-color 0.12s, transform 0.05s;
+  opacity: 0.2;
+  transition: opacity 0.18s ease, background 0.18s ease, color 0.18s ease,
+    border-color 0.18s ease;
+}
+
+/* Reveal when the user hovers the question (parent) — so they can find it,
+   but it stays nearly invisible at idle. */
+.question_holder:hover .statshelpr-btn-solve,
+.display_question:hover .statshelpr-btn-solve,
+.question-container:hover .statshelpr-btn-solve,
+.QuestionItem:hover .statshelpr-btn-solve,
+.item-body:hover .statshelpr-btn-solve,
+[data-testid="question-container"]:hover .statshelpr-btn-solve,
+[data-testid="quiz-question"]:hover .statshelpr-btn-solve {
+  opacity: 0.55;
 }
 
 .statshelpr-btn-solve:hover:not(:disabled) {
-  background: var(--sh-accent);
-  color: var(--sh-bg);
-  border-color: var(--sh-accent);
-}
-
-.statshelpr-btn-solve:active:not(:disabled) {
-  transform: translateY(1px);
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.06);
+  color: #333;
+  border-color: rgba(0, 0, 0, 0.3);
 }
 
 .statshelpr-btn-solve.loading {
-  background: rgba(212, 168, 67, 0.08);
-  border-color: rgba(212, 168, 67, 0.25);
+  opacity: 1;
   cursor: progress;
+  background: transparent;
+  border-color: transparent;
 }
 
 .statshelpr-btn-solve.success {
-  background: var(--sh-ok);
+  opacity: 1;
+  background: #137333;
   color: white;
-  border-color: var(--sh-ok);
-  min-width: 22px;
-  padding: 0 8px;
-}
-
-.statshelpr-btn-solve.success-med {
-  background: var(--sh-warn);
-  color: white;
-  border-color: var(--sh-warn);
-  min-width: 22px;
-  padding: 0 8px;
+  border-color: #137333;
+  font-size: 9px;
+  font-weight: 700;
 }
 
 .statshelpr-btn-solve.error {
-  background: var(--sh-err);
+  opacity: 1;
+  background: #c5221f;
   color: white;
-  border-color: var(--sh-err);
-  min-width: 22px;
-  padding: 0 8px;
+  border-color: #c5221f;
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .statshelpr-btn-solve:disabled { cursor: progress; }
 
 .statshelpr-solve-wrap {
-  margin: 4px 0 6px 0;
+  display: inline-block;
 }
 
 /* =========================================================================
- * Spinner (used inside the loading button)
+ * Spinner (inside the loading button)
  * ========================================================================= */
 
 .statshelpr-spinner {
   display: inline-block;
-  width: 11px;
-  height: 11px;
-  border: 2px solid rgba(212, 168, 67, 0.2);
-  border-top-color: #d4a843;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid rgba(0, 0, 0, 0.15);
+  border-top-color: #555;
   border-radius: 50%;
   animation: statshelpr-spin 0.7s linear infinite;
 }
@@ -97,139 +102,15 @@
 }
 
 /* =========================================================================
- * Visual marker on the selected answer choice (subtle, on the chosen row)
+ * Visual marker on the selected answer choice — also subtle. Just a tiny
+ * left-border accent on the chosen row; no background flash.
  * ========================================================================= */
 
 .statshelpr-correct,
 .answer.statshelpr-correct,
 .answer_row.statshelpr-correct {
   position: relative;
-  background: linear-gradient(90deg, rgba(19, 115, 51, 0.10) 0%, transparent 100%);
-  border-left: 3px solid #137333;
-  padding-left: 8px !important;
-  transition: background 0.2s, border-color 0.2s;
-}
-
-/* =========================================================================
- * Floating CSV widget (bottom-right) — dark brand palette
- * ========================================================================= */
-
-.statshelpr-files-widget {
-  position: fixed;
-  bottom: 16px;
-  right: 16px;
-  width: 280px;
-  background: #0b0b0f;
-  border: 1px solid rgba(232, 226, 214, 0.08);
-  border-radius: 10px;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
-  z-index: 99999;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 12px;
-  color: #e8e2d6;
-  overflow: hidden;
-}
-
-.statshelpr-files-widget.collapsed .statshelpr-files-body { display: none; }
-.statshelpr-files-widget.collapsed { width: auto; }
-
-.statshelpr-files-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 9px 13px;
-  background: #111116;
-  border-bottom: 1px solid rgba(232, 226, 214, 0.08);
-  cursor: pointer;
-  user-select: none;
-  font-weight: 500;
-  font-size: 11.5px;
-  color: #e8e2d6;
-  letter-spacing: 0.2px;
-}
-
-.statshelpr-files-header .count {
-  background: #d4a843;
-  color: #0b0b0f;
-  font-size: 10px;
-  padding: 1px 7px;
-  border-radius: 8px;
-  margin-left: 6px;
-  min-width: 14px;
-  text-align: center;
-  font-weight: 600;
-}
-
-.statshelpr-files-header .count:empty { display: none; }
-
-.statshelpr-files-body { padding: 11px 13px; }
-
-.statshelpr-dropzone {
-  border: 1.5px dashed rgba(232, 226, 214, 0.15);
-  border-radius: 6px;
-  padding: 14px;
-  text-align: center;
-  font-size: 11px;
-  color: #8a8578;
-  cursor: pointer;
-  transition: all 0.15s;
-  background: #16161c;
-}
-
-.statshelpr-dropzone:hover,
-.statshelpr-dropzone.drag-over {
-  border-color: rgba(212, 168, 67, 0.4);
-  background: rgba(212, 168, 67, 0.06);
-  color: #d4a843;
-}
-
-.statshelpr-files-list {
-  margin-top: 10px;
-  font-size: 11.5px;
-}
-
-.statshelpr-files-list .row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 0;
-  border-bottom: 1px solid rgba(232, 226, 214, 0.05);
-}
-
-.statshelpr-files-list .row:last-child { border-bottom: none; }
-
-.statshelpr-files-list .name {
-  font-weight: 500;
-  color: #e8e2d6;
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.statshelpr-files-list .size {
-  color: #5c584f;
-  margin: 0 8px;
-  font-size: 10px;
-  font-family: ui-monospace, "SF Mono", Menlo, monospace;
-}
-
-.statshelpr-files-list .remove {
-  background: none;
-  border: none;
-  color: #5c584f;
-  cursor: pointer;
-  font-size: 14px;
-  padding: 0 4px;
-  line-height: 1;
-}
-.statshelpr-files-list .remove:hover { color: #d97373; }
-
-/* First-run hint pulsing on initial button */
-.statshelpr-btn-solve.first-hint {
-  animation: statshelpr-first-pulse 2s ease-in-out 2;
-}
-@keyframes statshelpr-first-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(212, 168, 67, 0); }
-  50% { box-shadow: 0 0 0 6px rgba(212, 168, 67, 0.25); }
+  border-left: 2px solid rgba(19, 115, 51, 0.5);
+  padding-left: 6px !important;
+  transition: border-color 0.2s;
 }

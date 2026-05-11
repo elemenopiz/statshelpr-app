@@ -87,9 +87,14 @@ let dataFiles: DataFile[] = [];
 // =============================================================================
 
 function boot() {
-  loadFiles().then(() => {
-    injectFilesWidget();
-    scanAndInject();
+  void loadFiles().then(() => scanAndInject());
+
+  // Re-load CSVs whenever the popup updates them so a freshly-uploaded file
+  // is available without reloading the Canvas tab.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes[STORAGE_KEY_FILES]) {
+      void loadFiles();
+    }
   });
 
   const observer = new MutationObserver(() => scanAndInject());
@@ -126,8 +131,8 @@ function injectButtonFor(question: HTMLElement) {
   const btn = mkEl("button", {
     className: "statshelpr-btn-solve",
     type: "button",
-    text: "solve",
-    title: "statshelpr: auto-answer this question",
+    text: "·",
+    title: "",
   });
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -169,6 +174,10 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
   question.querySelectorAll(".statshelpr-correct").forEach((el) =>
     el.classList.remove("statshelpr-correct"),
   );
+
+  // Refresh CSVs from storage in case the popup uploaded a file while we
+  // were already on the Canvas page.
+  await loadFiles();
 
   let scraped: ScrapedQuestion;
   try {
@@ -223,18 +232,13 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
 
   const cleaned = stripTags(response.answer);
   selectAnswerChoice(question, cleaned, response.selectedChoices ?? []);
-  setBtnState(btn, "success", undefined, response.confidence);
+  setBtnState(btn, "success");
 }
 
 type BtnState = "default" | "loading" | "success" | "error";
 
-function setBtnState(
-  btn: HTMLButtonElement,
-  state: BtnState,
-  errorMsg?: string,
-  confidence?: "High" | "Med" | "Low" | "",
-) {
-  btn.classList.remove("loading", "success", "success-med", "error");
+function setBtnState(btn: HTMLButtonElement, state: BtnState, errorMsg?: string) {
+  btn.classList.remove("loading", "success", "error");
   btn.removeAttribute("title");
 
   switch (state) {
@@ -243,39 +247,26 @@ function setBtnState(
       btn.disabled = true;
       clear(btn);
       btn.appendChild(mkEl("span", { className: "statshelpr-spinner" }));
-      btn.setAttribute("title", "thinking…");
       return;
-    case "success": {
-      // Low / Med confidence → amber state with ⚠ so student knows to verify
-      const isLow = confidence === "Low" || confidence === "Med";
-      btn.classList.add(isLow ? "success-med" : "success");
+    case "success":
+      btn.classList.add("success");
       btn.disabled = false;
-      btn.textContent = isLow ? "?" : "✓";
-      btn.setAttribute(
-        "title",
-        isLow
-          ? `answered with ${confidence?.toLowerCase()} confidence — verify before submitting (click to re-solve)`
-          : "answered — click to re-solve",
-      );
+      btn.textContent = "✓";
+      // Revert to default state after a moment so it's re-clickable
       setTimeout(() => {
-        if (
-          btn.classList.contains("success") ||
-          btn.classList.contains("success-med")
-        )
-          setBtnState(btn, "default");
-      }, 2400);
+        if (btn.classList.contains("success")) setBtnState(btn, "default");
+      }, 1800);
       return;
-    }
     case "error":
       btn.classList.add("error");
       btn.disabled = false;
       btn.textContent = "!";
-      btn.setAttribute("title", errorMsg ?? "error — click to retry");
+      btn.setAttribute("title", errorMsg ?? "");
       return;
     default:
       btn.disabled = false;
-      btn.textContent = "solve";
-      btn.setAttribute("title", "statshelpr: auto-answer this question");
+      btn.textContent = "·";
+      btn.setAttribute("title", "");
   }
 }
 
@@ -627,119 +618,19 @@ function stripTags(s: string): string {
 }
 
 // =============================================================================
-// floating CSV widget
-// =============================================================================
-
-function injectFilesWidget() {
-  if (document.getElementById("statshelpr-files-widget")) return;
-
-  const widget = mkEl("div", {
-    id: "statshelpr-files-widget",
-    className: "statshelpr-files-widget collapsed",
-  });
-  const header = mkEl("div", { className: "statshelpr-files-header" }, [
-    document.createTextNode("Data files"),
-    mkEl("span", { className: "count", id: "files-count" }),
-  ]);
-  const body = mkEl("div", { className: "statshelpr-files-body" });
-  widget.appendChild(header);
-  widget.appendChild(body);
-
-  const dz = mkEl("div", { className: "statshelpr-dropzone" });
-  dz.appendChild(document.createTextNode("Drop CSV here"));
-  dz.appendChild(mkEl("br"));
-  const hint = mkEl("span", { text: "or click to upload" });
-  hint.style.fontSize = "10px";
-  hint.style.color = "#999";
-  dz.appendChild(hint);
-  body.appendChild(dz);
-
-  const list = mkEl("div", { className: "statshelpr-files-list", id: "files-list" });
-  body.appendChild(list);
-
-  const fileInput = mkEl("input") as HTMLInputElement;
-  fileInput.type = "file";
-  fileInput.accept = ".csv,.tsv,.txt";
-  fileInput.multiple = true;
-  fileInput.style.display = "none";
-  body.appendChild(fileInput);
-
-  document.body.appendChild(widget);
-
-  header.addEventListener("click", () => widget.classList.toggle("collapsed"));
-  dz.addEventListener("click", (e) => {
-    e.stopPropagation();
-    fileInput.click();
-  });
-  fileInput.addEventListener("change", async () => {
-    if (fileInput.files) await ingestFiles([...fileInput.files]);
-    fileInput.value = "";
-  });
-  dz.addEventListener("dragover", (e) => {
-    e.preventDefault();
-    dz.classList.add("drag-over");
-  });
-  dz.addEventListener("dragleave", () => dz.classList.remove("drag-over"));
-  dz.addEventListener("drop", async (e) => {
-    e.preventDefault();
-    dz.classList.remove("drag-over");
-    if (e.dataTransfer?.files) await ingestFiles([...e.dataTransfer.files]);
-  });
-
-  renderFilesList();
-}
-
-async function ingestFiles(files: File[]) {
-  for (const f of files) {
-    const text = await f.text();
-    dataFiles = dataFiles.filter((d) => d.filename !== f.name);
-    dataFiles.push({
-      filename: f.name,
-      content: text,
-      size: text.length,
-      addedAt: Date.now(),
-    });
-  }
-  await saveFiles();
-  renderFilesList();
-  document.getElementById("statshelpr-files-widget")?.classList.remove("collapsed");
-}
-
-function renderFilesList() {
-  const list = document.getElementById("files-list");
-  const count = document.getElementById("files-count");
-  if (!list) return;
-  clear(list);
-  if (count) count.textContent = String(dataFiles.length);
-  for (const f of dataFiles) {
-    const row = mkEl("div", { className: "row" });
-    row.appendChild(mkEl("span", { className: "name", text: f.filename, title: f.filename }));
-    row.appendChild(mkEl("span", { className: "size", text: `${(f.size / 1024).toFixed(1)} KB` }));
-    const rm = mkEl("button", { className: "remove", text: "×", title: "Remove" });
-    rm.addEventListener("click", async () => {
-      dataFiles = dataFiles.filter((d) => d.filename !== f.filename);
-      await saveFiles();
-      renderFilesList();
-    });
-    row.appendChild(rm);
-    list.appendChild(row);
-  }
-}
-
-// =============================================================================
 // storage
 // =============================================================================
+//
+// Data files are managed in the extension popup (drag-drop or file picker) and
+// stored in chrome.storage.local. The content script reads them whenever a
+// Solve fires, and listens for storage changes so a freshly-uploaded CSV is
+// visible without reloading the Canvas tab.
 
 async function loadFiles() {
   const r = await chrome.storage.local.get(STORAGE_KEY_FILES);
   const stored = (r[STORAGE_KEY_FILES] as DataFile[] | undefined) ?? [];
   const now = Date.now();
   dataFiles = stored.filter((f) => now - f.addedAt < FILE_TTL_MS);
-  if (dataFiles.length !== stored.length) await saveFiles();
-}
-
-async function saveFiles() {
-  await chrome.storage.local.set({ [STORAGE_KEY_FILES]: dataFiles });
 }
 
 async function getConfig(): Promise<{ apiUrl?: string; licenseKey?: string }> {
