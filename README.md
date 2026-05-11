@@ -2,7 +2,7 @@
 
 Canvas-embedded stats tutor — Chrome extension + Next.js API.
 
-The extension scrapes the active quiz question (text + images), sends it to a Next.js API on Vercel, which classifies it as conceptual or code-required. Conceptual → Claude answers directly. Code-required → Claude writes R, code runs in a Vercel Sandbox microVM with tidyverse + mosaic + moderndive pre-installed, output is interpreted into a final answer. The extension renders the answer inline below each question and selects the matching answer choice.
+The extension scrapes the active quiz question (text + images), sends it to a Next.js API on Vercel, which classifies it as conceptual or code-required. Conceptual → Kimi answers directly. Code-required → Kimi writes R, code runs in a Vercel Sandbox microVM with tidyverse + mosaic + moderndive pre-installed, output is interpreted into a final answer. The extension renders the answer inline below each question and selects the matching answer choice.
 
 **Live:** https://statshelpr.com (landing page) — extension installs from this repo.
 
@@ -15,8 +15,8 @@ Chrome extension (Canvas)
   └─ POST /api/solve  (SSE, streaming)  →  Next.js on Vercel
         ├─ POST /api/auth/validate-license → Lemon Squeezy
         ├─ classify (streaming) → [CONCEPT] | [RCODE]
-        ├─ [CONCEPT] → Claude streams answer → done
-        └─ [RCODE]   → Claude writes R → Vercel Sandbox runs R → Claude streams interpretation → done
+        ├─ [CONCEPT] → Kimi streams answer → done
+        └─ [RCODE]   → Kimi writes R → Vercel Sandbox runs R → Kimi streams interpretation → done
 ```
 
 ## Layout
@@ -56,7 +56,7 @@ If you've already linked a Vercel project, pull from there:
 ```bash
 cd apps/api
 vercel link --yes
-vercel env pull .env.local --yes        # pulls ANTHROPIC_API_KEY, R_SANDBOX_SNAPSHOT_ID,
+vercel env pull .env.local --yes        # pulls MOONSHOT_API_KEY, R_SANDBOX_SNAPSHOT_ID,
                                         # VERCEL_OIDC_TOKEN (auto-refreshed for sandbox auth)
 ```
 
@@ -65,7 +65,7 @@ Otherwise, start from the template:
 ```bash
 cp apps/api/.env.example apps/api/.env.local
 # fill in:
-#   ANTHROPIC_API_KEY=sk-ant-...
+#   MOONSHOT_API_KEY=sk-...
 #   R_SANDBOX_SNAPSHOT_ID=    (leave blank initially; runs slow until snapshot built)
 #   VERCEL_TOKEN, VERCEL_TEAM_ID, VERCEL_PROJECT_ID  (only for sandbox auth in local dev)
 ```
@@ -135,7 +135,7 @@ Subsequent `/api/solve` calls boot from the snapshot in <1s.
 ```bash
 cd web/apps/api
 vercel link        # link to Vercel project
-vercel env add ANTHROPIC_API_KEY production
+vercel env add MOONSHOT_API_KEY production
 vercel env add R_SANDBOX_SNAPSHOT_ID production
 vercel deploy --prod
 ```

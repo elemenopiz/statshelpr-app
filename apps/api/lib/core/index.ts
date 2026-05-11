@@ -14,10 +14,19 @@ export {
   type BuildContextOptions,
 } from "./data-context";
 export {
-  solveQuestion,
   DEFAULT_MODEL,
-  DEFAULT_MAX_TOKENS,
-  DEFAULT_THINKING_BUDGET,
-  type SolveImage,
-  type SolveInput,
-} from "./anthropic";
+  type ChatMessage,
+  type ContentPart,
+} from "./providers";
+export type {
+  LlmChatMessage,
+  LlmChatRequest,
+  LlmChatResult,
+  LlmChatUsage,
+  LlmContentPart,
+  LlmImagePart,
+  LlmProvider,
+  LlmStreamDelta,
+  LlmTextPart,
+} from "./providers";
+export { type SolveImage } from "./types";

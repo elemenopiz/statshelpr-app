@@ -1,24 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
 import {
   buildDataContext,
   buildSystemPrompt,
   extractRCode,
   parseResponse,
-  type SolveImage,
 } from "@/lib/core";
-import { createAnthropicClient } from "@/lib/core/client";
+import { chatStream } from "@/lib/core/providers";
 import { summarizeCsv } from "@/lib/data-summary";
 import { runR } from "@/lib/sandbox";
 import { validateLicense } from "@/lib/license";
 import { makeSseStream, sseHeaders } from "@/lib/sse";
+import {
+  buildFollowupContent,
+  buildQuestionPrompt,
+  buildUserContent,
+  deriveSelectedChoices,
+  MAX_TOKENS_FIRST,
+  MAX_TOKENS_SECOND,
+  MODEL,
+  repairRCode,
+  solveNonStreaming,
+  type DataFile,
+  type SolveBody,
+} from "@/lib/solver";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
-
-const MODEL = "claude-sonnet-4-6";
-const MAX_TOKENS = 14_000;
-const THINKING_BUDGET = 10_000;
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -26,26 +33,16 @@ const CORS_HEADERS = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
 
-interface DataFile {
-  filename: string;
-  content: string;
-}
-
-interface SolveBody {
-  questionText?: string;
-  images?: SolveImage[];
-  dataFiles?: DataFile[];
-  stream?: boolean;
-}
-
 export function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 }
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env["ANTHROPIC_API_KEY"];
+  // Allow either MOONSHOT_API_KEY (preferred) or KIMI_API_KEY as alias.
+  const apiKey =
+    process.env["MOONSHOT_API_KEY"] || process.env["KIMI_API_KEY"];
   if (!apiKey) {
-    return jsonError("ANTHROPIC_API_KEY not configured", 500);
+    return jsonError("MOONSHOT_API_KEY not configured", 500);
   }
 
   // License gate
@@ -76,51 +73,30 @@ export async function POST(req: NextRequest) {
 
   if (body.stream) {
     const stream = makeSseStream(async (write) => {
-      await solveStreaming({
-        write,
-        apiKey,
-        body,
-        dataContext,
-        dataFiles,
-      });
+      await solveStreaming({ write, apiKey, body, dataContext, dataFiles });
     });
-    return new Response(stream, { status: 200, headers: { ...CORS_HEADERS, ...sseHeaders() } });
+    return new Response(stream, {
+      status: 200,
+      headers: { ...CORS_HEADERS, ...sseHeaders() },
+    });
   }
 
-  // Non-streaming JSON path (used by the extension and curl)
   try {
-    const result = await solveNonStreaming({ apiKey, body, dataContext, dataFiles });
+    const result = await solveNonStreaming({
+      apiKey,
+      body,
+      dataContext,
+      dataFiles,
+    });
     return NextResponse.json(result, { status: 200, headers: CORS_HEADERS });
   } catch (e) {
-    return jsonError(humanizeError(e), anthropicStatus(e) ?? 500);
+    return jsonError(humanizeError(e), kimiStatus(e) ?? 500);
   }
 }
 
-function anthropicStatus(e: unknown): number | undefined {
-  const obj = e as { status?: number };
-  return typeof obj?.status === "number" ? obj.status : undefined;
-}
-
-function humanizeError(e: unknown): string {
-  const obj = e as {
-    status?: number;
-    error?: { error?: { message?: string }; message?: string };
-    message?: string;
-  };
-  const inner =
-    obj?.error?.error?.message ??
-    obj?.error?.message ??
-    obj?.message ??
-    "Unknown error";
-  // Surface the most common ones with clearer language for the extension UI
-  if (/credit balance is too low/i.test(inner)) {
-    return "Anthropic account out of credits — top up at console.anthropic.com/settings/billing.";
-  }
-  if (obj?.status === 401) return "Anthropic API key invalid or revoked.";
-  if (obj?.status === 429) return "Rate limited by Anthropic — wait a moment and retry.";
-  if (obj?.status === 529) return "Anthropic overloaded — retry in a moment.";
-  return inner;
-}
+// =============================================================================
+// streaming path (Server-Sent Events)
+// =============================================================================
 
 interface StreamArgs {
   write: (evt: import("@/lib/sse").SseEvent) => Promise<void>;
@@ -130,36 +106,36 @@ interface StreamArgs {
   dataFiles: DataFile[];
 }
 
-async function solveStreaming({ write, apiKey, body, dataContext, dataFiles }: StreamArgs) {
-  const client = createAnthropicClient(apiKey);
-  const hasImage = (body.images?.length ?? 0) > 0;
-  const system = buildSystemPrompt({ dataContext, imageMode: hasImage });
-  const userContent = buildUserContent(body.questionText, body.images);
+async function solveStreaming({
+  write,
+  apiKey,
+  body,
+  dataContext,
+  dataFiles,
+}: StreamArgs) {
+  try {
+    const hasImage = (body.images?.length ?? 0) > 0;
+    const system = buildSystemPrompt({ dataContext, imageMode: hasImage });
+    const questionPrompt = buildQuestionPrompt(body);
+    const userContent = buildUserContent(questionPrompt, body.images);
 
-  await write({ type: "phase", label: "Thinking…" });
+    await write({ type: "phase", label: "Thinking…" });
 
-  // First pass — stream classification + answer (or R code).
-  // We buffer the routing tag + one line so we can decide whether to keep streaming
-  // text deltas to the client (concept path) or hide them (calc path → run R first).
-  let buf = "";
-  let mode: "concept" | "calc" | "unknown" = "unknown";
-  let userVisibleSent = "";
+    let buf = "";
+    let mode: "concept" | "calc" | "unknown" = "unknown";
+    let userVisibleSent = "";
 
-  const stream = await client.messages.stream({
-    model: MODEL,
-    max_tokens: MAX_TOKENS,
-    temperature: 1.0,
-    system,
-    thinking: { type: "enabled", budget_tokens: THINKING_BUDGET },
-    messages: [{ role: "user", content: userContent }],
-  });
-
-  for await (const event of stream) {
-    if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-      buf += event.delta.text;
+    for await (const delta of chatStream(apiKey, {
+      model: MODEL,
+      system,
+      messages: [{ role: "user", content: userContent }],
+      maxTokens: MAX_TOKENS_FIRST,
+      thinking: { type: "enabled" },
+    })) {
+      if (!delta.text) continue;
+      buf += delta.text;
 
       if (mode === "unknown") {
-        // Need first non-empty line to detect routing tag.
         const firstLineMatch = buf.match(/^\s*([^\n]+)/);
         if (firstLineMatch && firstLineMatch[1]) {
           const first = firstLineMatch[1].trim().toUpperCase();
@@ -171,13 +147,11 @@ async function solveStreaming({ write, apiKey, body, dataContext, dataFiles }: S
             first === "CALC"
           )
             mode = "calc";
-          // If line ended without matching tag, fall back to concept on stream end.
           if (mode === "unknown" && buf.includes("\n")) mode = "concept";
         }
       }
 
       if (mode === "concept") {
-        // Stream cleaned text to user (strip tag, strip CONFIDENCE line for now)
         const cleaned = buf.replace(/^\s*\[(CONCEPT|RCODE|CALC)\]\s*\n?/i, "");
         const display = cleaned.replace(/\n?CONFIDENCE:\s*\w+\s*$/i, "");
         const newSlice = display.slice(userVisibleSent.length);
@@ -186,81 +160,84 @@ async function solveStreaming({ write, apiKey, body, dataContext, dataFiles }: S
           await write({ type: "delta", text: newSlice });
         }
       }
-      // calc: don't stream — student doesn't need to watch R code being typed
     }
-  }
 
-  await stream.finalMessage();
-  const parsed = parseResponse(buf);
+    const parsed = parseResponse(buf);
 
-  if (parsed.mode === "concept") {
-    await write({
-      type: "result",
-      result: {
-        mode: "concept",
-        answer: parsed.body,
-        confidence: parsed.confidence,
-        lowConfidence: parsed.lowConfidence,
-      },
-    });
-    return;
-  }
+    if (parsed.mode === "concept") {
+      await write({
+        type: "result",
+        result: {
+          mode: "concept",
+          answer: parsed.body,
+          selectedChoices: deriveSelectedChoices(parsed.body, body.choices),
+          confidence: parsed.confidence,
+          lowConfidence: parsed.lowConfidence,
+        },
+      });
+      return;
+    }
 
-  // Calc path — run R, then stream interpretation
-  const rCode = extractRCode(parsed.body);
-  await write({ type: "phase", label: "Running R…" });
+    // Calc path
+    const rCode = extractRCode(parsed.body);
+    let finalRCode = rCode;
+    await write({ type: "phase", label: "Running R…" });
 
-  let runResult;
-  try {
-    runResult = await runR(
-      rCode,
-      dataFiles.map((f) => ({ filename: f.filename, content: f.content })),
-    );
-  } catch (e) {
-    await write({
-      type: "error",
-      message: `R execution failed: ${(e as Error).message}`,
-    });
-    return;
-  }
+    let runResult;
+    try {
+      runResult = await runR(
+        finalRCode,
+        dataFiles.map((f) => ({ filename: f.filename, content: f.content })),
+      );
+      if (runResult.exitCode !== 0) {
+        await write({ type: "phase", label: "Repairing R…" });
+        const repaired = await repairRCode(
+          apiKey,
+          system,
+          buildQuestionPrompt(body),
+          finalRCode,
+          runResult,
+        );
+        if (repaired) {
+          finalRCode = repaired;
+          runResult = await runR(
+            finalRCode,
+            dataFiles.map((f) => ({
+              filename: f.filename,
+              content: f.content,
+            })),
+          );
+        }
+      }
+    } catch (e) {
+      await write({
+        type: "error",
+        message: `R execution failed: ${(e as Error).message}`,
+      });
+      return;
+    }
 
-  await write({ type: "phase", label: "Interpreting result…" });
+    await write({ type: "phase", label: "Interpreting result…" });
 
-  // Second pass — stream the final answer
-  const followup = `The R code below was executed. Use the output to choose the correct answer to the question.
-
-R CODE:
-\`\`\`r
-${rCode}
-\`\`\`
-
-R OUTPUT:
-\`\`\`
-${runResult.stdout.slice(0, 6000)}
-\`\`\`
-
-Now respond with the routing tag [CONCEPT] followed by:
-Answer: <best answer>
-CONFIDENCE: <High/Med/Low>`;
-
-  const followupContent = buildUserContent(
-    `${body.questionText ?? "(see image)"}\n\n${followup}`,
-    body.images,
-  );
-
-  let fbuf = "";
-  let fSent = "";
-  const stream2 = await client.messages.stream({
-    model: MODEL,
-    max_tokens: 4_000,
-    temperature: 0.5,
-    system: buildSystemPrompt({ dataContext, imageMode: (body.images?.length ?? 0) > 0 }),
-    messages: [{ role: "user", content: followupContent }],
-  });
-
-  for await (const event of stream2) {
-    if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
-      fbuf += event.delta.text;
+    let fbuf = "";
+    let fSent = "";
+    for await (const delta of chatStream(apiKey, {
+      model: MODEL,
+      system,
+      messages: [
+        { role: "user", content: userContent },
+        { role: "assistant", content: parsed.body },
+        {
+          role: "user",
+          content: buildFollowupContent(body, finalRCode, runResult.stdout),
+        },
+      ],
+      temperature: 0.6,
+      maxTokens: MAX_TOKENS_SECOND,
+      thinking: { type: "disabled" },
+    })) {
+      if (!delta.text) continue;
+      fbuf += delta.text;
       const cleaned = fbuf.replace(/^\s*\[(CONCEPT|RCODE|CALC)\]\s*\n?/i, "");
       const display = cleaned.replace(/\n?CONFIDENCE:\s*\w+\s*$/i, "");
       const newSlice = display.slice(fSent.length);
@@ -269,131 +246,40 @@ CONFIDENCE: <High/Med/Low>`;
         await write({ type: "delta", text: newSlice });
       }
     }
-  }
 
-  await stream2.finalMessage();
-  const finalParsed = parseResponse(fbuf);
-
-  await write({
-    type: "result",
-    result: {
-      mode: "calc",
-      rCode,
-      rOutput: runResult.stdout,
-      rExitCode: runResult.exitCode,
-      rDurationMs: runResult.durationMs,
-      answer: finalParsed.body,
-      confidence: finalParsed.confidence,
-      lowConfidence: finalParsed.lowConfidence,
-    },
-  });
-}
-
-interface NonStreamArgs {
-  apiKey: string;
-  body: SolveBody;
-  dataContext: string;
-  dataFiles: DataFile[];
-}
-
-async function solveNonStreaming({
-  apiKey,
-  body,
-  dataContext,
-  dataFiles,
-}: NonStreamArgs) {
-  const client = createAnthropicClient(apiKey);
-  const hasImage = (body.images?.length ?? 0) > 0;
-  const userContent = buildUserContent(body.questionText, body.images);
-
-  const first = await client.messages.create({
-    model: MODEL,
-    max_tokens: MAX_TOKENS,
-    temperature: 1.0,
-    system: buildSystemPrompt({ dataContext, imageMode: hasImage }),
-    thinking: { type: "enabled", budget_tokens: THINKING_BUDGET },
-    messages: [{ role: "user", content: userContent }],
-  });
-
-  const firstText = first.content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("\n");
-  const parsed = parseResponse(firstText);
-
-  if (parsed.mode === "concept") {
-    return {
-      mode: "concept",
-      answer: parsed.body,
-      confidence: parsed.confidence,
-      lowConfidence: parsed.lowConfidence,
-    };
-  }
-
-  const rCode = extractRCode(parsed.body);
-  const runResult = await runR(
-    rCode,
-    dataFiles.map((f) => ({ filename: f.filename, content: f.content })),
-  );
-
-  const followup = `The R code below was executed. Use the output to choose the correct answer.
-
-R CODE:
-\`\`\`r
-${rCode}
-\`\`\`
-
-R OUTPUT:
-\`\`\`
-${runResult.stdout.slice(0, 6000)}
-\`\`\`
-
-Respond with [CONCEPT] then Answer: ... and CONFIDENCE: ...`;
-
-  const followupContent = buildUserContent(
-    `${body.questionText ?? "(see image)"}\n\n${followup}`,
-    body.images,
-  );
-
-  const second = await client.messages.create({
-    model: MODEL,
-    max_tokens: 4_000,
-    temperature: 0.5,
-    system: buildSystemPrompt({ dataContext, imageMode: hasImage }),
-    messages: [{ role: "user", content: followupContent }],
-  });
-  const secondText = second.content
-    .filter((b): b is Anthropic.TextBlock => b.type === "text")
-    .map((b) => b.text)
-    .join("\n");
-  const finalParsed = parseResponse(secondText);
-
-  return {
-    mode: "calc",
-    rCode,
-    rOutput: runResult.stdout,
-    rExitCode: runResult.exitCode,
-    rDurationMs: runResult.durationMs,
-    answer: finalParsed.body,
-    confidence: finalParsed.confidence,
-    lowConfidence: finalParsed.lowConfidence,
-  };
-}
-
-function buildUserContent(
-  text: string | undefined,
-  images: SolveImage[] | undefined,
-): Anthropic.ContentBlockParam[] {
-  const out: Anthropic.ContentBlockParam[] = [];
-  for (const img of images ?? []) {
-    out.push({
-      type: "image",
-      source: { type: "base64", media_type: img.mediaType, data: img.data },
+    const finalParsed = parseResponse(fbuf);
+    await write({
+      type: "result",
+      result: {
+        mode: "calc",
+        rCode: finalRCode,
+        rOutput: runResult.stdout,
+        rExitCode: runResult.exitCode,
+        rDurationMs: runResult.durationMs,
+        answer: finalParsed.body,
+        selectedChoices: deriveSelectedChoices(finalParsed.body, body.choices),
+        confidence: finalParsed.confidence,
+        lowConfidence: finalParsed.lowConfidence,
+      },
     });
+  } catch (e) {
+    await write({ type: "error", message: humanizeError(e) });
   }
-  const t = text?.trim();
-  if (t) out.push({ type: "text", text: t });
-  return out;
+}
+
+function kimiStatus(e: unknown): number | undefined {
+  const obj = e as { status?: number };
+  return typeof obj?.status === "number" ? obj.status : undefined;
+}
+
+function humanizeError(e: unknown): string {
+  const obj = e as { status?: number; message?: string };
+  const msg = obj?.message ?? "Unknown error";
+  if (/credit balance|insufficient|quota/i.test(msg))
+    return "Moonshot account out of credits — top up at platform.moonshot.ai.";
+  if (obj?.status === 401) return "Moonshot API key invalid or revoked.";
+  if (obj?.status === 429) return "Rate limited by Moonshot — wait a moment and retry.";
+  return msg;
 }
 
 function jsonError(msg: string, status: number) {

@@ -1,0 +1,32 @@
+{
+  "name": "graph summary: boxplot interpretation",
+  "request": {
+    "questionText": "A boxplot of commute times has a median near 24 minutes, Q1 near 18 minutes, Q3 near 36 minutes, and a long upper whisker ending near 70 minutes. Which summary is best supported by the graph?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "The distribution is roughly symmetric with no long tail.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "About half of commute times fall between 18 and 36 minutes, and the distribution is right-skewed.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "Most commute times are less than 18 minutes.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "The mean commute time must be exactly 24 minutes.",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": ["B"]
+  }
+}

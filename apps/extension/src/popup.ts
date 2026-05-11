@@ -6,7 +6,8 @@ interface StoredConfig {
 interface HealthResponse {
   ok?: boolean;
   version?: string;
-  anthropicConfigured?: boolean;
+  kimiConfigured?: boolean;
+  moonshotConfigured?: boolean;
   sandboxConfigured?: boolean;
   lemonsqueezyConfigured?: boolean;
 }
@@ -52,7 +53,8 @@ async function pingHealth(apiUrl: string) {
     clearTimeout(timer);
     if (!res.ok) return setDot(`API ${res.status}`, "err");
     const data = (await res.json()) as HealthResponse;
-    if (!data.anthropicConfigured) {
+    const kimiReady = data.kimiConfigured ?? data.moonshotConfigured ?? false;
+    if (!kimiReady) {
       setDot("api key missing", "warn");
     } else {
       setDot("ready", "ok");
@@ -70,9 +72,10 @@ function setDot(label: string, kind: "ok" | "warn" | "err" | "") {
 
 function renderMeta(data: HealthResponse) {
   while (metaEl.firstChild) metaEl.removeChild(metaEl.firstChild);
+  const kimiReady = data.kimiConfigured ?? data.moonshotConfigured ?? false;
   const rows: Array<[string, string]> = [
     ["Version", data.version ?? "—"],
-    ["Anthropic", data.anthropicConfigured ? "✓" : "✗"],
+    ["Kimi", kimiReady ? "✓" : "✗"],
     ["R Sandbox", data.sandboxConfigured ? "✓" : "—"],
     ["Lemon Squeezy", data.lemonsqueezyConfigured ? "✓ gated" : "— ungated"],
   ];

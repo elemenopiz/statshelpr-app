@@ -1,0 +1,32 @@
+{
+  "name": "concept radio: correlation sign",
+  "request": {
+    "questionText": "A scatterplot shows points trending upward from left to right. Which statement best describes the association?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "The variables have a negative association.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "The variables have a positive association.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "The variables have no association.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "The association is impossible to determine from a scatterplot.",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": ["B"]
+  }
+}

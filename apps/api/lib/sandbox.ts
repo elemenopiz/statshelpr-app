@@ -88,7 +88,13 @@ export async function runR(rCode: string, files: RFile[] = []): Promise<RunRResu
     }
 
     const scriptPath = "/tmp/work/script.R";
-    const scriptB64 = Buffer.from(rCode, "utf-8").toString("base64");
+    const wrappedRCode = [
+      "options(warn = 1)",
+      "options(width = 160)",
+      "set.seed(123)",
+      rCode,
+    ].join("\n");
+    const scriptB64 = Buffer.from(wrappedRCode, "utf-8").toString("base64");
     await sandbox.runCommand("sh", [
       "-c",
       `echo ${JSON.stringify(scriptB64)} | base64 -d > ${scriptPath}`,

@@ -29,6 +29,7 @@ interface ImageBlock {
 interface SolveResponse {
   mode: "concept" | "calc";
   answer: string;
+  selectedChoices?: string[];
   confidence: "High" | "Med" | "Low" | "";
   lowConfidence: boolean;
   rCode?: string;
@@ -182,6 +183,11 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
       },
       body: JSON.stringify({
         questionText: scraped.text,
+        choices: scraped.choices.map((c) => ({
+          label: c.label,
+          text: c.text,
+          type: c.input.type === "checkbox" ? "checkbox" : "radio",
+        })),
         images: scraped.images,
         dataFiles: dataFiles.map((f) => ({ filename: f.filename, content: f.content })),
         // stream:false (default) — we don't need progress events, just the result
@@ -207,7 +213,7 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
   }
 
   const cleaned = stripTags(response.answer);
-  selectAnswerChoice(question, cleaned);
+  selectAnswerChoice(question, cleaned, response.selectedChoices ?? []);
   setBtnState(btn, "success");
 }
 
@@ -254,6 +260,7 @@ function setBtnState(btn: HTMLButtonElement, state: BtnState, errorMsg?: string)
 
 interface ScrapedQuestion {
   text: string;
+  choices: AnswerChoice[];
   images: ImageBlock[];
 }
 
@@ -267,28 +274,24 @@ async function scrapeQuestion(question: HTMLElement): Promise<ScrapedQuestion> {
   const images = await collectImages(stem);
   const choices = collectAnswerChoices(question);
 
-  // Always tell the model the choice letters. The system prompt expects an
-  // answer like "Answer: B" — we then match B to the corresponding radio.
-  const choiceText = choices.length
-    ? [
-        "",
-        "Answer choices:",
-        ...choices.map((c) => `${c.label}. ${c.text}`),
-        "",
-        "Respond with just the correct choice letter(s).",
-      ].join("\n")
-    : "";
-
-  return { text: `${stemText}${choiceText}`, images };
+  return { text: stemText, choices, images };
 }
 
 // =============================================================================
 // answer-choice selection (the click)
 // =============================================================================
 
-function selectAnswerChoice(question: HTMLElement, answer: string) {
+function selectAnswerChoice(question: HTMLElement, answer: string, selectedLabels: string[] = []) {
   const choices = collectAnswerChoices(question);
   if (choices.length === 0) return;
+
+  const selectedByBackend = selectedLabels
+    .map((label) => choices.find((c) => c.label.toUpperCase() === label.toUpperCase()))
+    .filter((c): c is AnswerChoice => Boolean(c));
+  if (selectedByBackend.length > 0) {
+    for (const c of selectedByBackend) selectChoice(c.input);
+    return;
+  }
 
   // Multi-select: any checkboxes means "select all that apply"
   const checkboxes = choices.filter((c) => c.input.type === "checkbox");
