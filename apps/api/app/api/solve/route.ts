@@ -7,6 +7,7 @@ import {
   parseResponse,
   type SolveImage,
 } from "@/lib/core";
+import { createAnthropicClient } from "@/lib/core/client";
 import { summarizeCsv } from "@/lib/data-summary";
 import { runR } from "@/lib/sandbox";
 import { validateLicense } from "@/lib/license";
@@ -86,9 +87,39 @@ export async function POST(req: NextRequest) {
     return new Response(stream, { status: 200, headers: { ...CORS_HEADERS, ...sseHeaders() } });
   }
 
-  // Non-streaming JSON path (kept for popup test / curl)
-  const result = await solveNonStreaming({ apiKey, body, dataContext, dataFiles });
-  return NextResponse.json(result, { status: 200, headers: CORS_HEADERS });
+  // Non-streaming JSON path (used by the extension and curl)
+  try {
+    const result = await solveNonStreaming({ apiKey, body, dataContext, dataFiles });
+    return NextResponse.json(result, { status: 200, headers: CORS_HEADERS });
+  } catch (e) {
+    return jsonError(humanizeError(e), anthropicStatus(e) ?? 500);
+  }
+}
+
+function anthropicStatus(e: unknown): number | undefined {
+  const obj = e as { status?: number };
+  return typeof obj?.status === "number" ? obj.status : undefined;
+}
+
+function humanizeError(e: unknown): string {
+  const obj = e as {
+    status?: number;
+    error?: { error?: { message?: string }; message?: string };
+    message?: string;
+  };
+  const inner =
+    obj?.error?.error?.message ??
+    obj?.error?.message ??
+    obj?.message ??
+    "Unknown error";
+  // Surface the most common ones with clearer language for the extension UI
+  if (/credit balance is too low/i.test(inner)) {
+    return "Anthropic account out of credits — top up at console.anthropic.com/settings/billing.";
+  }
+  if (obj?.status === 401) return "Anthropic API key invalid or revoked.";
+  if (obj?.status === 429) return "Rate limited by Anthropic — wait a moment and retry.";
+  if (obj?.status === 529) return "Anthropic overloaded — retry in a moment.";
+  return inner;
 }
 
 interface StreamArgs {
@@ -100,7 +131,7 @@ interface StreamArgs {
 }
 
 async function solveStreaming({ write, apiKey, body, dataContext, dataFiles }: StreamArgs) {
-  const client = new Anthropic({ apiKey });
+  const client = createAnthropicClient(apiKey);
   const hasImage = (body.images?.length ?? 0) > 0;
   const system = buildSystemPrompt({ dataContext, imageMode: hasImage });
   const userContent = buildUserContent(body.questionText, body.images);
@@ -271,7 +302,7 @@ async function solveNonStreaming({
   dataContext,
   dataFiles,
 }: NonStreamArgs) {
-  const client = new Anthropic({ apiKey });
+  const client = createAnthropicClient(apiKey);
   const hasImage = (body.images?.length ?? 0) > 0;
   const userContent = buildUserContent(body.questionText, body.images);
 

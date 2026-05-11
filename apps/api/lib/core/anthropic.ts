@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { buildSystemPrompt } from "./system-prompt";
 import { parseResponse, type ParsedResponse } from "./parse-response";
+import { createAnthropicClient } from "./client";
 
 export const DEFAULT_MODEL = "claude-sonnet-4-6";
 export const DEFAULT_MAX_TOKENS = 14_000;
@@ -20,7 +21,7 @@ export interface SolveInput {
 }
 
 export async function solveQuestion(input: SolveInput): Promise<ParsedResponse> {
-  const client = new Anthropic({ apiKey: input.apiKey });
+  const client = createAnthropicClient(input.apiKey);
 
   const hasImage = (input.images?.length ?? 0) > 0;
   const system = buildSystemPrompt({

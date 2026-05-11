@@ -1,18 +1,18 @@
 /**
- * Canvas content script — per-question Solve buttons + inline answer cards.
+ * Canvas content script — tiny inline "solve" button next to each question.
  *
- * Architecture:
- *  1. MutationObserver scans the DOM for question containers and injects a
- *     "Solve" button above each one (idempotent — won't double-inject).
- *  2. A floating CSV widget in the bottom-right manages course-wide data files,
- *     persisted to chrome.storage.local so the user only uploads each CSV once.
- *  3. On Solve click: scrape that question's text + images, stream from /api/solve
- *     via Server-Sent Events, render an answer card directly under the question.
- *  4. After the answer arrives, visually highlight the matching answer choice
- *     in the question (the student still clicks it themselves).
+ * Flow on click:
+ *   1. Set button to spinner (visual "thinking" feedback)
+ *   2. Scrape question text + answer choices + any images
+ *   3. POST /api/solve (non-streaming JSON)
+ *   4. Parse the answer letter, find the matching radio/checkbox, click it
+ *   5. Set button to ✓ briefly, then back to "solve" (re-clickable)
+ *
+ * No answer card, no explanation, no R code display.
+ *
+ * A small floating CSV widget in the bottom-right manages course-wide data
+ * files, persisted in chrome.storage.local across sessions.
  */
-
-import { renderMarkdown } from "./markdown";
 
 interface DataFile {
   filename: string;
@@ -26,7 +26,7 @@ interface ImageBlock {
   mediaType: "image/png" | "image/jpeg" | "image/webp";
 }
 
-interface FinalResult {
+interface SolveResponse {
   mode: "concept" | "calc";
   answer: string;
   confidence: "High" | "Med" | "Low" | "";
@@ -35,14 +35,9 @@ interface FinalResult {
   rOutput?: string;
 }
 
-// Classic Quizzes uses .question_holder, .question_text. New Quizzes (LTI tool,
-// iframed from quizzes.next.instructure.com) uses data-testid attributes and
-// different class names. Both sets are tried in order.
 const SELECTORS_QUESTION = [
-  // Classic
   ".question_holder",
   ".display_question",
-  // New Quizzes
   "[data-testid='question-container']",
   "[data-testid='quiz-question']",
   ".question-container",
@@ -51,18 +46,28 @@ const SELECTORS_QUESTION = [
 ];
 
 const SELECTORS_STEM = [
-  // Classic
   ".question_text",
   ".user_content",
-  // New Quizzes
   "[data-testid='question-text']",
   "[data-testid='question-stem']",
   ".question-text-container",
   ".stem",
 ];
 
+// Where to place the tiny button relative to the question. We try these in
+// order — first match wins. Fall back to prepending into the question container.
+const SELECTORS_HEADER = [
+  ".question_name",                  // Classic Quizzes — the "Question 1" span
+  ".header .question_name",
+  ".question .header",
+  "[data-testid='question-number']", // New Quizzes (guess)
+  "[data-testid='question-header']",
+];
+
+const QUESTION_SELECTOR = SELECTORS_QUESTION.join(",");
+const CHOICE_INPUT_SELECTOR = 'input[type="radio"], input[type="checkbox"]';
+
 const STORAGE_KEY_FILES = "statshelpr.files";
-const STORAGE_KEY_CONFIG = "statshelpr.config";
 const FILE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 let dataFiles: DataFile[] = [];
@@ -95,7 +100,6 @@ let pendingScan = false;
 function scanAndInject() {
   if (pendingScan) return;
   pendingScan = true;
-  // Coalesce rapid mutations
   setTimeout(() => {
     pendingScan = false;
     for (const sel of SELECTORS_QUESTION) {
@@ -106,81 +110,147 @@ function scanAndInject() {
 
 function injectButtonFor(question: HTMLElement) {
   if (question.dataset["statshelprAttached"] === "1") return;
-  if (!findStem(question)) return; // skip if no stem (might be a wrapper)
+  if (hasQuestionAncestor(question)) return;
+  if (!findStem(question)) return;
 
-  const bar = mkEl("div", { className: "statshelpr-solve-bar" });
-  const btn = mkEl("button", { className: "statshelpr-btn-solve", type: "button" });
-  btn.appendChild(mkSolveIcon());
-  btn.appendChild(document.createTextNode("Solve"));
-  const status = mkEl("span", { className: "statshelpr-btn-status" });
+  const btn = mkEl("button", {
+    className: "statshelpr-btn-solve",
+    type: "button",
+    text: "solve",
+    title: "statshelpr: auto-answer this question",
+  });
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    void onSolve(question, btn);
+  });
 
-  bar.appendChild(btn);
-  bar.appendChild(status);
-  question.insertBefore(bar, question.firstChild);
+  const anchor = findHeader(question);
+  if (anchor) {
+    // Inline next to "Question 1" — append after the header text node
+    anchor.appendChild(document.createTextNode(" "));
+    anchor.appendChild(btn);
+  } else {
+    // Fallback: small wrapper at top of question container
+    const wrap = mkEl("div", { className: "statshelpr-solve-wrap" });
+    wrap.appendChild(btn);
+    question.insertBefore(wrap, question.firstChild);
+  }
+
   question.dataset["statshelprAttached"] = "1";
-
-  btn.addEventListener("click", () => onSolve(question, btn, status));
 }
 
-function mkSolveIcon(): SVGElement {
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("class", "icon");
-  svg.setAttribute("viewBox", "0 0 16 16");
-  svg.setAttribute("fill", "currentColor");
-  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path.setAttribute("d", "M3 1.5l11 6.5-11 6.5v-13z");
-  svg.appendChild(path);
-  return svg;
+function findHeader(question: HTMLElement): HTMLElement | null {
+  for (const sel of SELECTORS_HEADER) {
+    const el = question.querySelector<HTMLElement>(sel);
+    if (el) return el;
+  }
+  return null;
 }
 
 // =============================================================================
-// solve flow (streaming)
+// solve flow (single non-streaming request)
 // =============================================================================
 
-async function onSolve(
-  question: HTMLElement,
-  btn: HTMLButtonElement,
-  status: HTMLSpanElement,
-) {
-  btn.setAttribute("disabled", "");
-  status.textContent = "";
-
-  // Remove any prior card and prior highlight for this question
-  const prior = question.querySelector(":scope > .statshelpr-card");
-  if (prior) prior.remove();
+async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
+  if (btn.disabled) return;
+  setBtnState(btn, "loading");
+  // Clear any prior visual marker on this question
   question.querySelectorAll(".statshelpr-correct").forEach((el) =>
     el.classList.remove("statshelpr-correct"),
   );
 
-  const retryFn = () => onSolve(question, btn, status);
-  const card = createCard(question, retryFn);
-  question.appendChild(card.root);
-  card.setPhase("Reading question…");
-
-  let scraped;
+  let scraped: ScrapedQuestion;
   try {
     scraped = await scrapeQuestion(question);
   } catch (e) {
-    card.setError((e as Error).message);
-    btn.removeAttribute("disabled");
+    setBtnState(btn, "error", (e as Error).message);
     return;
   }
 
   const cfg = await getConfig();
-  const apiUrl = cfg.apiUrl ?? "http://localhost:3030";
+  const apiUrl = (cfg.apiUrl ?? "http://localhost:3030").replace(/\/$/, "");
   const licenseKey = cfg.licenseKey ?? "";
 
-  card.setPhase("Thinking…");
-
+  let response: SolveResponse;
   try {
-    await streamSolve(`${apiUrl}/api/solve`, licenseKey, scraped, card);
+    const res = await fetch(`${apiUrl}/api/solve`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(licenseKey ? { Authorization: `Bearer ${licenseKey}` } : {}),
+      },
+      body: JSON.stringify({
+        questionText: scraped.text,
+        images: scraped.images,
+        dataFiles: dataFiles.map((f) => ({ filename: f.filename, content: f.content })),
+        // stream:false (default) — we don't need progress events, just the result
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      // Try to extract the {error: "..."} field from a JSON error response
+      let msg = body.slice(0, 200);
+      try {
+        const parsed = JSON.parse(body) as { error?: string };
+        if (parsed.error) msg = parsed.error;
+      } catch {
+        /* not JSON — use raw body */
+      }
+      throw new Error(msg);
+    }
+    response = (await res.json()) as SolveResponse;
   } catch (e) {
-    card.setError((e as Error).message);
-  } finally {
-    btn.removeAttribute("disabled");
-    status.textContent = "";
+    setBtnState(btn, "error", (e as Error).message);
+    return;
+  }
+
+  const cleaned = stripTags(response.answer);
+  selectAnswerChoice(question, cleaned);
+  setBtnState(btn, "success");
+}
+
+type BtnState = "default" | "loading" | "success" | "error";
+
+function setBtnState(btn: HTMLButtonElement, state: BtnState, errorMsg?: string) {
+  btn.classList.remove("loading", "success", "error");
+  btn.removeAttribute("title");
+
+  switch (state) {
+    case "loading":
+      btn.classList.add("loading");
+      btn.disabled = true;
+      clear(btn);
+      btn.appendChild(mkEl("span", { className: "statshelpr-spinner" }));
+      btn.setAttribute("title", "thinking…");
+      return;
+    case "success":
+      btn.classList.add("success");
+      btn.disabled = false;
+      btn.textContent = "✓";
+      btn.setAttribute("title", "answered — click to re-solve");
+      // Revert to "solve" after a moment so user can re-click
+      setTimeout(() => {
+        if (btn.classList.contains("success")) setBtnState(btn, "default");
+      }, 2000);
+      return;
+    case "error":
+      btn.classList.add("error");
+      btn.disabled = false;
+      btn.textContent = "!";
+      btn.setAttribute("title", errorMsg ?? "error — click to retry");
+      return;
+    default:
+      btn.disabled = false;
+      btn.textContent = "solve";
+      btn.setAttribute("title", "statshelpr: auto-answer this question");
   }
 }
+
+// =============================================================================
+// scraping
+// =============================================================================
 
 interface ScrapedQuestion {
   text: string;
@@ -189,252 +259,49 @@ interface ScrapedQuestion {
 
 async function scrapeQuestion(question: HTMLElement): Promise<ScrapedQuestion> {
   const stem = findStem(question);
-  if (!stem) throw new Error("Could not find question text in this question container.");
+  if (!stem) throw new Error("Could not find question text.");
 
-  const text = (stem.innerText ?? stem.textContent ?? "").replace(/\s+/g, " ").trim();
-  if (!text) throw new Error("Question text appears empty.");
+  const stemText = normalizeText(stem.innerText ?? stem.textContent ?? "");
+  if (!stemText) throw new Error("Question text is empty.");
 
   const images = await collectImages(stem);
-  return { text, images };
+  const choices = collectAnswerChoices(question);
+
+  // Always tell the model the choice letters. The system prompt expects an
+  // answer like "Answer: B" — we then match B to the corresponding radio.
+  const choiceText = choices.length
+    ? [
+        "",
+        "Answer choices:",
+        ...choices.map((c) => `${c.label}. ${c.text}`),
+        "",
+        "Respond with just the correct choice letter(s).",
+      ].join("\n")
+    : "";
+
+  return { text: `${stemText}${choiceText}`, images };
 }
 
-async function streamSolve(
-  url: string,
-  licenseKey: string,
-  scraped: ScrapedQuestion,
-  card: AnswerCard,
-) {
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "text/event-stream",
-      ...(licenseKey ? { Authorization: `Bearer ${licenseKey}` } : {}),
-    },
-    body: JSON.stringify({
-      questionText: scraped.text,
-      images: scraped.images,
-      dataFiles: dataFiles.map((f) => ({ filename: f.filename, content: f.content })),
-      stream: true,
-    }),
-  });
+// =============================================================================
+// answer-choice selection (the click)
+// =============================================================================
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`API ${res.status}: ${body.slice(0, 300)}`);
-  }
-  if (!res.body) throw new Error("Empty response stream.");
+function selectAnswerChoice(question: HTMLElement, answer: string) {
+  const choices = collectAnswerChoices(question);
+  if (choices.length === 0) return;
 
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let buf = "";
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += decoder.decode(value, { stream: true });
-
-    let nl;
-    while ((nl = buf.indexOf("\n\n")) !== -1) {
-      const eventBlock = buf.slice(0, nl);
-      buf = buf.slice(nl + 2);
-      handleSseEvent(eventBlock, card);
-    }
-  }
-}
-
-function handleSseEvent(block: string, card: AnswerCard) {
-  // Each block is `data: <json>` lines (we ignore other SSE fields).
-  const dataLines = block
-    .split("\n")
-    .filter((ln) => ln.startsWith("data:"))
-    .map((ln) => ln.slice(5).trim())
-    .filter((ln) => ln.length > 0);
-  if (dataLines.length === 0) return;
-  const payload = dataLines.join("\n");
-
-  let evt: { type: string; [k: string]: unknown };
-  try {
-    evt = JSON.parse(payload);
-  } catch {
+  // Multi-select: any checkboxes means "select all that apply"
+  const checkboxes = choices.filter((c) => c.input.type === "checkbox");
+  if (checkboxes.length > 0) {
+    const selected = findSelectedChoices(answer, choices, true);
+    for (const c of selected) selectChoice(c.input);
     return;
   }
 
-  switch (evt.type) {
-    case "phase":
-      card.setPhase(String(evt["label"] ?? ""));
-      break;
-    case "delta":
-      card.appendDelta(String(evt["text"] ?? ""));
-      break;
-    case "result":
-      card.setFinal(evt["result"] as FinalResult);
-      break;
-    case "error":
-      card.setError(String(evt["message"] ?? "Unknown error"));
-      break;
-  }
-}
-
-// =============================================================================
-// answer card
-// =============================================================================
-
-interface AnswerCard {
-  root: HTMLElement;
-  setPhase: (label: string) => void;
-  appendDelta: (text: string) => void;
-  setFinal: (r: FinalResult) => void;
-  setError: (msg: string) => void;
-}
-
-function createCard(question: HTMLElement, retry: () => void): AnswerCard {
-  const root = mkEl("div", { className: "statshelpr-card" });
-  const headerLeft = mkEl("span", {}, [document.createTextNode("statshelpr")]);
-  const confTag = mkEl("span", { className: "conf-tag", id: "conf-tag", style: "display:none" });
-  const headerActions = mkEl("span", { className: "card-actions", id: "card-actions", style: "display:none" });
-  const headerRight = mkEl("span", { className: "header-right" }, [confTag, headerActions]);
-  const header = mkEl("div", { className: "statshelpr-card-header" }, [headerLeft, headerRight]);
-  const body = mkEl("div", { className: "statshelpr-card-body" });
-  root.appendChild(header);
-  root.appendChild(body);
-
-  let phase: HTMLElement | null = null;
-  let answerEl: HTMLElement | null = null;
-  let streamingBuf = "";
-
-  function setPhase(label: string) {
-    clear(body);
-    phase = mkEl("div", { className: "statshelpr-phase" }, [
-      mkEl("span", { className: "statshelpr-spinner" }),
-      document.createTextNode(label),
-    ]);
-    body.appendChild(phase);
-    answerEl = null;
-    streamingBuf = "";
-  }
-
-  function appendDelta(text: string) {
-    if (!answerEl) {
-      clear(body);
-      answerEl = mkEl("p", { className: "statshelpr-answer-text" });
-      body.appendChild(answerEl);
-    }
-    streamingBuf += text;
-    // Strip the routing tag from streamed display
-    const cleaned = streamingBuf.replace(/^\s*\[(CONCEPT|RCODE|CALC)\]\s*\n?/i, "");
-    answerEl.textContent = cleaned;
-  }
-
-  function setFinal(r: FinalResult) {
-    clear(body);
-    if (confTag && r.confidence) {
-      confTag.style.display = "";
-      confTag.textContent = r.confidence;
-      confTag.className = `conf-tag ${r.confidence.toLowerCase()}`;
-    }
-    if (r.lowConfidence) root.classList.add("low-conf");
-
-    const ansBox = mkEl("div", { className: "statshelpr-answer-text statshelpr-md" });
-    const answerStripped = stripTags(r.answer);
-    renderMarkdown(answerStripped, ansBox);
-    body.appendChild(ansBox);
-
-    // Header action buttons
-    clear(headerActions);
-    headerActions.appendChild(makeIconButton("⎘", "Copy answer", () => copyText(answerStripped)));
-    if (r.mode === "calc" && r.rCode) {
-      headerActions.appendChild(makeIconButton("⎘R", "Copy R code", () => copyText(r.rCode ?? "")));
-    }
-    headerActions.appendChild(makeIconButton("↻", "Re-solve", () => retry()));
-    headerActions.style.display = "";
-
-    if (r.mode === "calc" && r.rCode) {
-      const det = mkEl("details", { className: "statshelpr-detail" });
-      det.appendChild(mkEl("summary", { text: "R code" }));
-      const codeBlock = mkEl("pre", { className: "statshelpr-code" });
-      renderMarkdown("```r\n" + r.rCode + "\n```", codeBlock);
-      det.appendChild(codeBlock);
-      body.appendChild(det);
-    }
-    if (r.mode === "calc" && r.rOutput) {
-      const det = mkEl("details", { className: "statshelpr-detail" });
-      det.appendChild(mkEl("summary", { text: "R output" }));
-      det.appendChild(mkEl("div", { className: "statshelpr-output", text: r.rOutput.slice(0, 4000) }));
-      body.appendChild(det);
-    }
-
-    highlightAnswerChoice(question, answerStripped);
-  }
-
-  function setError(msg: string) {
-    clear(body);
-    const wrap = mkEl("div", { className: "statshelpr-card-error" });
-    wrap.appendChild(mkEl("div", { text: msg, style: "margin-bottom:8px" }));
-    const retryBtn = mkEl("button", {
-      className: "statshelpr-btn-inline",
-      type: "button",
-      text: "↻ Retry",
-    });
-    retryBtn.addEventListener("click", () => retry());
-    wrap.appendChild(retryBtn);
-    body.appendChild(wrap);
-    headerActions.style.display = "none";
-  }
-
-  return { root, setPhase, appendDelta, setFinal, setError };
-}
-
-function stripTags(s: string): string {
-  return s.replace(/^\s*\[(CONCEPT|RCODE|CALC)\]\s*\n?/i, "").trim();
-}
-
-function makeIconButton(label: string, title: string, onClick: () => void): HTMLButtonElement {
-  const btn = mkEl("button", {
-    className: "statshelpr-icon-btn",
-    type: "button",
-    title,
-    text: label,
-  });
-  btn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    onClick();
-    const orig = btn.textContent ?? "";
-    btn.textContent = "✓";
-    setTimeout(() => (btn.textContent = orig), 900);
-  });
-  return btn;
-}
-
-async function copyText(text: string) {
-  try {
-    await navigator.clipboard.writeText(text);
-  } catch {
-    // Fallback: textarea trick
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
-    document.body.appendChild(ta);
-    ta.select();
-    try {
-      document.execCommand("copy");
-    } catch {
-      /* ignore */
-    }
-    document.body.removeChild(ta);
-  }
-}
-
-// =============================================================================
-// answer choice highlighting (visual mark only — student still clicks)
-// =============================================================================
-
-function highlightAnswerChoice(question: HTMLElement, answer: string) {
-  const radios = [...question.querySelectorAll<HTMLInputElement>('input[type="radio"]')];
+  const radios = choices.filter((c) => c.input.type === "radio");
   if (radios.length === 0) return;
 
-  // Try to extract a letter (A-E) or number (1-5) from the start of the answer
+  // Try letter (A-E) or number (1-5) at start of answer
   const letterMatch = answer.match(/^\s*(?:Answer\s*:?\s*)?\(?([A-Ea-e1-5])\)?[\s.,)]?/);
   if (letterMatch && letterMatch[1]) {
     const ch = letterMatch[1].toUpperCase();
@@ -442,9 +309,9 @@ function highlightAnswerChoice(question: HTMLElement, answer: string) {
     if (/[A-E]/.test(ch)) idx = ch.charCodeAt(0) - 65;
     else if (/[1-5]/.test(ch)) idx = parseInt(ch, 10) - 1;
     if (idx >= 0 && idx < radios.length) {
-      const target = radios[idx];
+      const target = radios[idx]?.input;
       if (target) {
-        markChoice(target);
+        selectChoice(target);
         return;
       }
     }
@@ -452,28 +319,88 @@ function highlightAnswerChoice(question: HTMLElement, answer: string) {
 
   // Fallback: substring match against each choice's visible text
   const answerLower = answer.toLowerCase();
-  let bestRadio: HTMLInputElement | null = null;
+  let best: HTMLInputElement | null = null;
   let bestScore = 0;
-  for (const radio of radios) {
-    const choiceText = getChoiceText(radio).toLowerCase().trim();
-    if (!choiceText) continue;
+  for (const c of radios) {
+    const choiceLower = c.text.toLowerCase().trim();
+    if (!choiceLower) continue;
     let score = 0;
-    if (answerLower.includes(choiceText) && choiceText.length >= 4) score = choiceText.length;
-    else if (choiceText.includes(answerLower.slice(0, 40))) score = answerLower.length / 2;
+    if (answerLower.includes(choiceLower) && choiceLower.length >= 4) score = choiceLower.length;
+    else if (choiceLower.includes(answerLower.slice(0, 40))) score = answerLower.length / 2;
     if (score > bestScore) {
       bestScore = score;
-      bestRadio = radio;
+      best = c.input;
     }
   }
-  if (bestRadio) markChoice(bestRadio);
+  if (best) selectChoice(best);
 }
 
-function getChoiceText(radio: HTMLInputElement): string {
-  if (radio.id) {
-    const label = document.querySelector(`label[for="${cssEscape(radio.id)}"]`);
+interface AnswerChoice {
+  input: HTMLInputElement;
+  label: string;
+  text: string;
+}
+
+function collectAnswerChoices(question: HTMLElement): AnswerChoice[] {
+  const inputs = [...question.querySelectorAll<HTMLInputElement>(CHOICE_INPUT_SELECTOR)];
+  const choices: AnswerChoice[] = [];
+  const seenRows = new Set<Element>();
+
+  inputs.forEach((input, index) => {
+    const row = getChoiceRow(input);
+    if (row && seenRows.has(row)) return;
+    if (row) seenRows.add(row);
+
+    const text = normalizeText(getChoiceText(input));
+    if (!text) return;
+    choices.push({
+      input,
+      label: choiceLabel(index),
+      text,
+    });
+  });
+
+  return choices;
+}
+
+function findSelectedChoices(
+  answer: string,
+  choices: AnswerChoice[],
+  allowMultiple: boolean,
+): AnswerChoice[] {
+  const byLabel = new Map(choices.map((c) => [c.label.toUpperCase(), c]));
+  const selected = new Map<HTMLInputElement, AnswerChoice>();
+
+  const answerLine =
+    answer.match(/^\s*Answer\s*:?\s*(.+)$/im)?.[1] ??
+    answer.match(/correct(?:\s+interpretation)?(?:\(s\))?\s*:?\s*(.+)$/im)?.[1] ??
+    answer;
+
+  for (const m of answerLine.matchAll(/\b([A-Z])\b/g)) {
+    const c = byLabel.get(m[1].toUpperCase());
+    if (c) {
+      selected.set(c.input, c);
+      if (!allowMultiple) return [c];
+    }
+  }
+
+  const answerLower = answer.toLowerCase();
+  for (const c of choices) {
+    const choiceLower = c.text.toLowerCase();
+    if (choiceLower.length >= 12 && answerLower.includes(choiceLower)) {
+      selected.set(c.input, c);
+    }
+  }
+
+  return [...selected.values()];
+}
+
+function getChoiceText(input: HTMLInputElement): string {
+  if (input.id) {
+    const label = document.querySelector(`label[for="${cssEscape(input.id)}"]`);
     if (label) return label.textContent ?? "";
   }
-  const row = radio.closest(".answer, .answer_row, label");
+  const row = getChoiceRow(input);
   if (row) {
     const at = row.querySelector(".answer_text, .answer_html");
     if (at?.textContent) return at.textContent;
@@ -482,19 +409,55 @@ function getChoiceText(radio: HTMLInputElement): string {
   return "";
 }
 
-function markChoice(radio: HTMLInputElement) {
-  const row =
-    (radio.closest(".answer") as HTMLElement | null) ??
-    (radio.closest(".answer_row") as HTMLElement | null) ??
-    (radio.closest("label") as HTMLElement | null) ??
-    (radio.parentElement as HTMLElement | null);
-  if (!row) return;
-  row.classList.add("statshelpr-correct");
+function getChoiceRow(input: HTMLInputElement): HTMLElement | null {
+  return (
+    (input.closest(".answer") as HTMLElement | null) ??
+    (input.closest(".answer_row") as HTMLElement | null) ??
+    (input.closest("label") as HTMLElement | null) ??
+    (input.parentElement as HTMLElement | null)
+  );
+}
+
+function selectChoice(input: HTMLInputElement) {
+  const row = getChoiceRow(input);
+  if (input.disabled) {
+    row?.classList.add("statshelpr-correct");
+    return;
+  }
+
+  if (!input.checked) input.click();
+  if (!input.checked) {
+    // Some React-based UIs (New Quizzes) don't react to .click() — set the
+    // checked property via the native descriptor + dispatch input/change.
+    const proto = Object.getPrototypeOf(input);
+    const setter = Object.getOwnPropertyDescriptor(proto, "checked")?.set;
+    setter?.call(input, true);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+  row?.classList.add("statshelpr-correct");
+}
+
+function hasQuestionAncestor(question: HTMLElement): boolean {
+  const ancestor = question.parentElement?.closest<HTMLElement>(QUESTION_SELECTOR);
+  return Boolean(ancestor && findStem(ancestor));
+}
+
+function choiceLabel(index: number): string {
+  return String.fromCharCode(65 + index);
+}
+
+function normalizeText(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
 }
 
 function cssEscape(s: string): string {
   if (typeof CSS !== "undefined" && CSS.escape) return CSS.escape(s);
   return s.replace(/[^a-zA-Z0-9_-]/g, (c) => `\\${c}`);
+}
+
+function stripTags(s: string): string {
+  return s.replace(/^\s*\[(CONCEPT|RCODE|CALC)\]\s*\n?/i, "").trim();
 }
 
 // =============================================================================
@@ -573,7 +536,6 @@ async function ingestFiles(files: File[]) {
   }
   await saveFiles();
   renderFilesList();
-  // Auto-expand widget when files are added
   document.getElementById("statshelpr-files-widget")?.classList.remove("collapsed");
 }
 
@@ -605,7 +567,6 @@ function renderFilesList() {
 async function loadFiles() {
   const r = await chrome.storage.local.get(STORAGE_KEY_FILES);
   const stored = (r[STORAGE_KEY_FILES] as DataFile[] | undefined) ?? [];
-  // Drop any older than TTL
   const now = Date.now();
   dataFiles = stored.filter((f) => now - f.addedAt < FILE_TTL_MS);
   if (dataFiles.length !== stored.length) await saveFiles();
@@ -633,7 +594,7 @@ async function collectImages(root: HTMLElement): Promise<ImageBlock[]> {
       const block = await urlToImageBlock(img.src);
       if (block) out.push(block);
     } catch {
-      // skip
+      /* skip */
     }
   }
   for (const c of [...root.querySelectorAll<HTMLCanvasElement>("canvas")]) {
@@ -642,7 +603,7 @@ async function collectImages(root: HTMLElement): Promise<ImageBlock[]> {
       const data = dataUrl.split(",")[1];
       if (data) out.push({ data, mediaType: "image/png" });
     } catch {
-      // tainted canvas — skip
+      /* tainted canvas — skip */
     }
   }
   return out;

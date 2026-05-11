@@ -2,7 +2,7 @@
 
 Canvas-embedded stats tutor — Chrome extension + Next.js API.
 
-The extension scrapes the active quiz question (text + images), sends it to a Next.js API on Vercel, which classifies it as conceptual or code-required. Conceptual → Claude answers directly. Code-required → Claude writes R, code runs in a Vercel Sandbox microVM with tidyverse + mosaic + moderndive pre-installed, output is interpreted into a final answer. The extension renders the answer inline below each question and visually highlights the matching answer choice — the student still clicks it themselves.
+The extension scrapes the active quiz question (text + images), sends it to a Next.js API on Vercel, which classifies it as conceptual or code-required. Conceptual → Claude answers directly. Code-required → Claude writes R, code runs in a Vercel Sandbox microVM with tidyverse + mosaic + moderndive pre-installed, output is interpreted into a final answer. The extension renders the answer inline below each question and selects the matching answer choice.
 
 **Live:** https://statshelpr.com (landing page) — extension installs from this repo.
 
@@ -96,7 +96,7 @@ Load `web/apps/extension/dist/` as an unpacked extension in `chrome://extensions
 
 Open any Canvas quiz on `*.instructure.com/courses/*/quizzes/*`.
 
-- A **Solve** button appears above every question. Click it → answer streams in directly under that question, with R code + output collapsed below.
+- A **Solve** button appears above every question. Click it → answer streams in directly under that question, with R code + output collapsed below, and the matching answer choice is selected.
 - A small **Data files** widget sits in the bottom-right. Drop CSVs in once; they persist across all quizzes (7-day TTL) and are sent automatically with each Solve.
 
 ## Lemon Squeezy

@@ -8,12 +8,12 @@
     "start": "next start -p 3030"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.40.0",
+    "@anthropic-ai/sdk": "^0.95.0",
     "@vercel/sandbox": "^1.0.0",
     "next": "^16.0.0",
+    "papaparse": "^5.4.1",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "papaparse": "^5.4.1"
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
