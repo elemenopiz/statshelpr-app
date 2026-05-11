@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Welcome to statshelpr</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="welcome.css" />
+  </head>
+  <body>
+    <div class="noise"></div>
+
+    <header>
+      <div class="logo">stats<em>helpr</em></div>
+      <button class="skip-btn" id="skip-btn" type="button">Skip tour</button>
+    </header>
+
+    <main>
+      <section class="step" data-step="1">
+        <div class="step-pill">step 1 of 5</div>
+        <h1 class="serif"><em>Welcome</em> to statshelpr.</h1>
+        <p class="lede">
+          A tiny tutor that lives inside Canvas. Click one button per question and
+          we'll work out the answer — concept questions or R-code calculations
+          alike — and select it for you.
+        </p>
+        <p class="muted">
+          Built on the same R toolkit your course uses: tidyverse, mosaic,
+          moderndive, infer.
+        </p>
+        <div class="nav-row">
+          <span></span>
+          <button class="next-btn" data-go="2" type="button">Continue →</button>
+        </div>
+      </section>
+
+      <section class="step hidden" data-step="2">
+        <div class="step-pill">step 2 of 5</div>
+        <h2 class="serif">Set your <em>API URL</em>.</h2>
+        <p class="lede">
+          Click the statshelpr icon in your Chrome toolbar (you may need to pin
+          it from the puzzle-piece menu). Paste the production API URL:
+        </p>
+        <div class="code-block">
+          <code id="api-url-sample"
+            >https://statshelpr-co4kzmola-elemenopizs-projects.vercel.app</code
+          >
+          <button class="copy-btn" id="copy-api-url" type="button">copy</button>
+        </div>
+        <p class="muted">
+          Leave the license key blank for now — the dev API runs ungated.
+        </p>
+        <div class="nav-row">
+          <button class="back-btn" data-go="1" type="button">← Back</button>
+          <button class="next-btn" data-go="3" type="button">Continue →</button>
+        </div>
+      </section>
+
+      <section class="step hidden" data-step="3">
+        <div class="step-pill">step 3 of 5</div>
+        <h2 class="serif">Open a <em>Canvas quiz</em>.</h2>
+        <p class="lede">
+          On UT Canvas, navigate to any quiz page. Wait for the questions to
+          load — you should see a small
+          <span class="inline-btn">solve</span> button appear next to each
+          question heading.
+        </p>
+        <div class="demo-card">
+          <div class="demo-q-header">
+            Question 1
+            <span class="demo-btn">solve</span>
+          </div>
+          <div class="demo-q-stem">
+            Which measure of center is most robust to outliers?
+          </div>
+          <div class="demo-choices">
+            <div class="demo-choice">A. mean</div>
+            <div class="demo-choice highlight">
+              <span class="check">✓</span> B. median
+            </div>
+            <div class="demo-choice">C. mode</div>
+            <div class="demo-choice">D. range</div>
+          </div>
+        </div>
+        <p class="muted">
+          Click <span class="inline-btn">solve</span> → spinner → the correct
+          choice is selected automatically.
+        </p>
+        <div class="nav-row">
+          <button class="back-btn" data-go="2" type="button">← Back</button>
+          <button class="next-btn" data-go="4" type="button">Continue →</button>
+        </div>
+      </section>
+
+      <section class="step hidden" data-step="4">
+        <div class="step-pill">step 4 of 5</div>
+        <h2 class="serif">For questions that need <em>data files</em>.</h2>
+        <p class="lede">
+          Some questions reference a CSV (e.g., "Using the houses dataset,
+          compute…"). Drop your data files into the small panel in the
+          bottom-right of the Canvas page — once per course, not once per
+          question.
+        </p>
+        <div class="demo-widget">
+          <div class="demo-widget-header">
+            Data files <span class="demo-pill">2</span>
+          </div>
+          <div class="demo-widget-row">
+            <span>houses.csv</span><span class="dim">12.3 KB</span>
+          </div>
+          <div class="demo-widget-row">
+            <span>sat_data.csv</span><span class="dim">5.8 KB</span>
+          </div>
+        </div>
+        <p class="muted">
+          Files persist for 7 days in your browser. They never leave your
+          machine except attached to a single solve request.
+        </p>
+        <div class="nav-row">
+          <button class="back-btn" data-go="3" type="button">← Back</button>
+          <button class="next-btn" data-go="5" type="button">Continue →</button>
+        </div>
+      </section>
+
+      <section class="step hidden" data-step="5">
+        <div class="step-pill">step 5 of 5</div>
+        <h2 class="serif">You're <em>set</em>.</h2>
+        <p class="lede">A quick reference for as you go:</p>
+        <ul class="tips">
+          <li>
+            <span class="tip-tag">solve</span> the button next to each question
+            — click to auto-answer
+          </li>
+          <li>
+            <span class="tip-tag spin"></span> spinner — Kimi is thinking
+            (concept ≈ 2-3 sec, calc ≈ 6-12 sec)
+          </li>
+          <li>
+            <span class="tip-tag ok">✓</span> green — answered (the correct
+            choice is selected for you)
+          </li>
+          <li>
+            <span class="tip-tag err">!</span> red — something failed (hover
+            for the message)
+          </li>
+        </ul>
+        <p class="muted">
+          Re-open this guide anytime from the extension popup.
+        </p>
+        <div class="nav-row">
+          <button class="back-btn" data-go="4" type="button">← Back</button>
+          <button class="next-btn done" id="finish-btn" type="button">
+            Open Canvas →
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span class="muted">statshelpr · made for stats students</span>
+    </footer>
+
+    <script src="welcome.js"></script>
+  </body>
+</html>

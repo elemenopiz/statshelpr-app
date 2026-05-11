@@ -73,19 +73,29 @@ function setDot(label: string, kind: "ok" | "warn" | "err" | "") {
 function renderMeta(data: HealthResponse) {
   while (metaEl.firstChild) metaEl.removeChild(metaEl.firstChild);
   const kimiReady = data.kimiConfigured ?? data.moonshotConfigured ?? false;
-  const rows: Array<[string, string]> = [
-    ["Version", data.version ?? "—"],
-    ["Kimi", kimiReady ? "✓" : "✗"],
-    ["R Sandbox", data.sandboxConfigured ? "✓" : "—"],
-    ["Lemon Squeezy", data.lemonsqueezyConfigured ? "✓ gated" : "— ungated"],
+  const rows: Array<[string, string, "ok" | "warn" | ""]> = [
+    ["Version", data.version ?? "—", ""],
+    ["Kimi", kimiReady ? "ready" : "not set", kimiReady ? "ok" : "warn"],
+    ["R Sandbox", data.sandboxConfigured ? "ready" : "not set", data.sandboxConfigured ? "ok" : ""],
+    ["License", data.lemonsqueezyConfigured ? "gated" : "open", data.lemonsqueezyConfigured ? "ok" : ""],
   ];
-  for (const [k, v] of rows) {
+  for (const [k, v, kind] of rows) {
     const row = document.createElement("div");
     const b = document.createElement("b");
-    b.textContent = `${k}: `;
+    b.textContent = k;
     row.appendChild(b);
-    row.appendChild(document.createTextNode(v));
+    const val = document.createElement("span");
+    val.className = `v${kind ? ` ${kind}` : ""}`;
+    val.textContent = v;
+    row.appendChild(val);
     metaEl.appendChild(row);
   }
   metaEl.style.display = "";
 }
+
+// Re-open tutorial
+document.getElementById("open-tutorial")?.addEventListener("click", (e) => {
+  e.preventDefault();
+  void chrome.runtime.sendMessage({ type: "openWelcome" });
+  window.close();
+});

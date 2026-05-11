@@ -24,12 +24,24 @@ export function buildQuestionPrompt(body: SolveBody): string {
   const choices = normalizeChoices(body.choices);
   if (choices.length === 0) return base;
 
-  const choiceLines = choices.map((c) => `${c.label}. ${c.text}`);
+  // Text-fill (numerical / short-answer) — no labeled choices, just one slot
+  if (choices.length === 1 && choices[0]?.type === "text") {
+    return [
+      base,
+      "",
+      "This is a FILL-IN answer (no multiple choice).",
+      "Return the final value on the last line as: Answer: <value>",
+      "For numerical answers, give the number with no units (e.g. `Answer: 42.5`).",
+    ].join("\n");
+  }
+
+  const isDropdown = choices.every((c) => c.type === "dropdown");
   const multi = choices.some((c) => c.type === "checkbox");
+  const choiceLines = choices.map((c) => `${c.label}. ${c.text}`);
   return [
     base,
     "",
-    "Answer choices:",
+    isDropdown ? "Dropdown options:" : "Answer choices:",
     ...choiceLines,
     "",
     multi

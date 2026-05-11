@@ -8,7 +8,7 @@ export interface DataFile {
 export interface AnswerChoice {
   label: string;
   text: string;
-  type?: "radio" | "checkbox";
+  type?: "radio" | "checkbox" | "dropdown" | "text";
 }
 
 export interface SolveBody {

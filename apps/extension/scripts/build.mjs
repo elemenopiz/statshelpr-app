@@ -19,6 +19,7 @@ const buildOpts = {
     content: path.resolve(root, "src/content.ts"),
     background: path.resolve(root, "src/background.ts"),
     popup: path.resolve(root, "src/popup.ts"),
+    welcome: path.resolve(root, "src/welcome.ts"),
   },
   bundle: true,
   format: "iife",

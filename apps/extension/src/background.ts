@@ -1,6 +1,11 @@
 /**
- * Background service worker. Acts as the network proxy so the content script
- * can call our API without CORS preflight friction.
+ * Background service worker.
+ *
+ *  - Opens the welcome/tutorial page on first install.
+ *  - Listens for an "openWelcome" message from the popup so the user can
+ *    re-open the tutorial anytime.
+ *  - Legacy: proxies /api/solve calls (currently the content script fetches
+ *    directly, but the proxy is kept as a fallback for restricted hosts).
  */
 
 interface SolveRequest {
@@ -12,10 +17,27 @@ interface SolveRequest {
   };
 }
 
-type ExtensionMessage = SolveRequest;
+interface OpenWelcomeMessage {
+  type: "openWelcome";
+}
+
+type ExtensionMessage = SolveRequest | OpenWelcomeMessage;
+
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === "install") {
+    void chrome.tabs.create({
+      url: chrome.runtime.getURL("welcome.html"),
+    });
+  }
+});
 
 chrome.runtime.onMessage.addListener(
   (msg: ExtensionMessage, _sender, sendResponse: (response: unknown) => void) => {
+    if (msg.type === "openWelcome") {
+      void chrome.tabs.create({ url: chrome.runtime.getURL("welcome.html") });
+      sendResponse({ ok: true });
+      return false;
+    }
     if (msg.type === "solve") {
       handleSolve(msg.payload)
         .then((result) => sendResponse({ ok: true, result }))
