@@ -10,3 +10,5 @@ dist/
 .vercel
 .turbo
 extension-build/
+
+.worktrees/
