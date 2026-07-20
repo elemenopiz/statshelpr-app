@@ -1,0 +1,31 @@
+name = "statshelpr-api"
+main = "src/index.ts"
+compatibility_date = "2026-07-20"
+compatibility_flags = ["nodejs_compat"]
+
+# Runtime env vars (non-secret). Secrets set via `wrangler secret put NAME`.
+[vars]
+LLM_PROVIDER = "gemini"
+FREE_TIER_DAILY_LIMIT = "5"
+LEMONSQUEEZY_STORE_ID = "300628"
+LEMONSQUEEZY_VARIANT_ID = "1929562"
+
+# KV binding for licenses, rate limiting, feedback, LS webhook idempotency.
+# Create with: wrangler kv namespace create statshelpr
+# Then replace the id below with the printed id.
+[[kv_namespaces]]
+binding = "STATSHELPR_KV"
+id = "23d6ef6041854bec96fd277cb013e7e6"
+
+# Secrets set at deploy time (not committed):
+#   wrangler secret put GEMINI_API_KEY
+#   wrangler secret put LEMONSQUEEZY_API_KEY
+#   wrangler secret put LEMONSQUEEZY_WEBHOOK_SECRET
+#   wrangler secret put LEMONSQUEEZY_STORE_ID       (optional; enforces store match)
+#   wrangler secret put LEMONSQUEEZY_VARIANT_ID     (optional; enforces variant match)
+
+# Custom domain — statshelpr.com is already in this Cloudflare account so
+# `custom_domain = true` auto-creates the AAAA record + provisions SSL.
+[[routes]]
+pattern = "api.statshelpr.com"
+custom_domain = true
