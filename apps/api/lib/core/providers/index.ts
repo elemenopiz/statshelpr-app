@@ -1,14 +1,21 @@
-import { moonshotProvider } from "./moonshot";
+import { geminiProvider, DEFAULT_MODEL as GEMINI_DEFAULT_MODEL } from "./gemini";
 import type { LlmChatRequest } from "./types";
 
-export {
-  DEFAULT_CACHE_KEY,
-  DEFAULT_MODEL,
-  MOONSHOT_BASE_URL,
-  moonshotProvider,
-} from "./moonshot";
+export { GEMINI_BASE_URL, geminiProvider } from "./gemini";
 
-export const defaultLlmProvider = moonshotProvider;
+export const defaultLlmProvider = geminiProvider;
+export const DEFAULT_MODEL: string = GEMINI_DEFAULT_MODEL;
+
+/**
+ * Resolve the Gemini API key. Kept as a function (rather than reading the env
+ * inline at each caller) so tests and future providers can override it.
+ */
+export function resolveApiKey(): { apiKey: string | undefined; envName: string } {
+  return {
+    apiKey: process.env["GEMINI_API_KEY"],
+    envName: "GEMINI_API_KEY",
+  };
+}
 
 export function chat(apiKey: string, req: LlmChatRequest) {
   return defaultLlmProvider.chat(apiKey, req);

@@ -18,16 +18,12 @@ export function OPTIONS() {
  * subsystems are configured.
  */
 export function GET() {
-  const moonshotConfigured = Boolean(
-    process.env["MOONSHOT_API_KEY"] || process.env["KIMI_API_KEY"],
-  );
-
   return NextResponse.json(
     {
       ok: true,
       version: "0.2.0",
-      kimiConfigured: moonshotConfigured,
-      moonshotConfigured,
+      provider: "gemini",
+      geminiConfigured: Boolean(process.env["GEMINI_API_KEY"]),
       sandboxConfigured: Boolean(process.env["R_SANDBOX_SNAPSHOT_ID"]),
       lemonsqueezyConfigured: Boolean(process.env["LEMONSQUEEZY_API_KEY"]),
       time: new Date().toISOString(),

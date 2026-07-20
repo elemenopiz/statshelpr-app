@@ -5,7 +5,7 @@ import {
   extractRCode,
   parseResponse,
 } from "@/lib/core";
-import { chatStream } from "@/lib/core/providers";
+import { chatStream, resolveApiKey } from "@/lib/core/providers";
 import { summarizeCsv } from "@/lib/data-summary";
 import { runR } from "@/lib/sandbox";
 import { validateLicense } from "@/lib/license";
@@ -38,11 +38,9 @@ export function OPTIONS() {
 }
 
 export async function POST(req: NextRequest) {
-  // Allow either MOONSHOT_API_KEY (preferred) or KIMI_API_KEY as alias.
-  const apiKey =
-    process.env["MOONSHOT_API_KEY"] || process.env["KIMI_API_KEY"];
+  const { apiKey, envName } = resolveApiKey();
   if (!apiKey) {
-    return jsonError("MOONSHOT_API_KEY not configured", 500);
+    return jsonError(`${envName} not configured`, 500);
   }
 
   // License gate
@@ -90,7 +88,7 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json(result, { status: 200, headers: CORS_HEADERS });
   } catch (e) {
-    return jsonError(humanizeError(e), kimiStatus(e) ?? 500);
+    return jsonError(humanizeError(e), providerHttpStatus(e) ?? 500);
   }
 }
 
@@ -267,7 +265,7 @@ async function solveStreaming({
   }
 }
 
-function kimiStatus(e: unknown): number | undefined {
+function providerHttpStatus(e: unknown): number | undefined {
   const obj = e as { status?: number };
   return typeof obj?.status === "number" ? obj.status : undefined;
 }
@@ -275,10 +273,12 @@ function kimiStatus(e: unknown): number | undefined {
 function humanizeError(e: unknown): string {
   const obj = e as { status?: number; message?: string };
   const msg = obj?.message ?? "Unknown error";
-  if (/credit balance|insufficient|quota/i.test(msg))
-    return "Moonshot account out of credits — top up at platform.moonshot.ai.";
-  if (obj?.status === 401) return "Moonshot API key invalid or revoked.";
-  if (obj?.status === 429) return "Rate limited by Moonshot — wait a moment and retry.";
+  if (/credit balance|insufficient|quota|resource exhausted/i.test(msg))
+    return "Gemini quota exhausted — check billing at aistudio.google.com.";
+  if (obj?.status === 401 || obj?.status === 403)
+    return "Gemini API key invalid, revoked, or missing permissions.";
+  if (obj?.status === 429)
+    return "Rate limited by Gemini — wait a moment and retry.";
   return msg;
 }
 
