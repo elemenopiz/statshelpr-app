@@ -1,3 +1,5 @@
+import { UT_BUNDLE } from "./packages";
+
 interface StoredConfig {
   apiUrl?: string;
   licenseKey?: string;
@@ -27,6 +29,8 @@ const FILE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_FILE_BYTES = 5 * 1024 * 1024;     // 5MB per file
 const MAX_TOTAL_BYTES = 8 * 1024 * 1024;    // chrome.storage.local has ~10MB
 
+const STORAGE_KEY_EXTRA_PACKAGES = "extraPackages";
+
 const apiUrlInput = document.getElementById("apiUrl") as HTMLInputElement;
 const licenseKeyInput = document.getElementById("licenseKey") as HTMLInputElement;
 const opacityInput = document.getElementById("buttonOpacity") as HTMLInputElement | null;
@@ -39,8 +43,14 @@ const dropzone = document.getElementById("dropzone") as HTMLDivElement;
 const fileInput = document.getElementById("file-input") as HTMLInputElement;
 const filesList = document.getElementById("files-list") as HTMLDivElement;
 const filesEmpty = document.getElementById("files-empty") as HTMLDivElement;
+const utBundleChipsEl = document.getElementById("ut-bundle-chips") as HTMLDivElement;
+const pkgInput = document.getElementById("pkg-input") as HTMLInputElement;
+const pkgAddBtn = document.getElementById("pkg-add") as HTMLButtonElement;
+const extraPkgChipsEl = document.getElementById("extra-pkg-chips") as HTMLDivElement;
+const pkgEmptyEl = document.getElementById("pkg-empty") as HTMLDivElement;
 
 let dataFiles: DataFile[] = [];
+let extraPackages: string[] = [];
 
 // =============================================================================
 // settings + health
@@ -245,4 +255,89 @@ function flashStatus(msg: string, kind: "ok" | "err") {
     statusEl.textContent = "";
     statusEl.className = "status";
   }, 2400);
+}
+
+// =============================================================================
+// R libraries (UT bundle + user extras)
+// =============================================================================
+
+renderUtBundleChips();
+void loadExtraPackages().then(() => renderExtraPackages());
+
+pkgAddBtn.addEventListener("click", async () => {
+  await addPackagesFromInput();
+});
+pkgInput.addEventListener("keydown", async (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    await addPackagesFromInput();
+  }
+});
+
+function renderUtBundleChips() {
+  for (const pkg of UT_BUNDLE) {
+    const chip = document.createElement("span");
+    chip.className = "chip locked";
+    chip.textContent = pkg;
+    utBundleChipsEl.appendChild(chip);
+  }
+}
+
+async function addPackagesFromInput() {
+  // Split on commas/whitespace so pasting a list ("dplyr, rpart car") in one
+  // go works, not just a single name.
+  const candidates = pkgInput.value
+    .split(/[,\s]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  pkgInput.value = "";
+  if (candidates.length === 0) return;
+
+  let changed = false;
+  for (const pkg of candidates) {
+    if (!extraPackages.includes(pkg) && !UT_BUNDLE.includes(pkg)) {
+      extraPackages.push(pkg);
+      changed = true;
+    }
+  }
+  if (changed) {
+    await saveExtraPackages();
+    renderExtraPackages();
+  }
+}
+
+function renderExtraPackages() {
+  while (extraPkgChipsEl.firstChild) extraPkgChipsEl.removeChild(extraPkgChipsEl.firstChild);
+  if (extraPackages.length === 0) {
+    pkgEmptyEl.style.display = "";
+    return;
+  }
+  pkgEmptyEl.style.display = "none";
+  for (const pkg of extraPackages) {
+    const chip = document.createElement("span");
+    chip.className = "chip extra";
+    const label = document.createElement("span");
+    label.textContent = pkg;
+    const rm = document.createElement("button");
+    rm.className = "remove";
+    rm.textContent = "×";
+    rm.title = "remove";
+    rm.addEventListener("click", async () => {
+      extraPackages = extraPackages.filter((p) => p !== pkg);
+      await saveExtraPackages();
+      renderExtraPackages();
+    });
+    chip.appendChild(label);
+    chip.appendChild(rm);
+    extraPkgChipsEl.appendChild(chip);
+  }
+}
+
+async function loadExtraPackages() {
+  const r = await chrome.storage.sync.get(STORAGE_KEY_EXTRA_PACKAGES);
+  extraPackages = (r[STORAGE_KEY_EXTRA_PACKAGES] as string[] | undefined) ?? [];
+}
+
+async function saveExtraPackages() {
+  await chrome.storage.sync.set({ [STORAGE_KEY_EXTRA_PACKAGES]: extraPackages });
 }

@@ -203,6 +203,60 @@
         text-align: center;
       }
 
+      /* R libraries section */
+      .chip-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 8px;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 9px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-family: var(--font-mono);
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+      }
+      .chip.locked { color: var(--text-dim); }
+      .chip.extra { color: var(--text); border-color: var(--border-hover); }
+      .chip .remove {
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        cursor: pointer;
+        font-size: 13px;
+        padding: 0;
+        line-height: 1;
+        width: auto;
+        font-weight: normal;
+      }
+      .chip .remove:hover { color: var(--err); background: none; }
+      .pkg-add-row {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 8px;
+      }
+      .pkg-add-row input {
+        flex: 1;
+        margin-bottom: 0;
+      }
+      .pkg-add-row button {
+        width: auto;
+        padding: 8px 12px;
+        flex-shrink: 0;
+      }
+      .note {
+        font-size: 9.5px;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+        line-height: 1.4;
+        margin-top: 2px;
+      }
+
       details {
         margin-top: 16px;
         font-size: 11px;
@@ -280,6 +334,20 @@
     <div id="files-list" class="files-list"></div>
     <div id="files-empty" class="files-empty" style="display: none">
       no data files yet
+    </div>
+
+    <div class="section-label" style="margin-top: 16px">R libraries</div>
+    <div id="ut-bundle-chips" class="chip-list"></div>
+    <div class="pkg-add-row">
+      <input type="text" id="pkg-input" placeholder="add a package, e.g. rpart" />
+      <button id="pkg-add" type="button">Add</button>
+    </div>
+    <div id="extra-pkg-chips" class="chip-list"></div>
+    <div id="pkg-empty" class="files-empty" style="display: none">
+      no extra packages added
+    </div>
+    <div class="note">
+      changes apply after the extension reloads — WebR boots once and caches
     </div>
 
     <details id="settings-details">

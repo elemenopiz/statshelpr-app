@@ -25,23 +25,38 @@
  * (vendoring an R package repo) that's out of scope here; if that repo
  * becomes a CSP/offline concern later, mirror it and pass `repoUrl` in the
  * WebROptions below.
+ *
+ * Package set at boot = INFRA (internal-only, e.g. openssl/base64enc) +
+ * UT_BUNDLE (the default "UT bundle" of stats packages, shown read-only in
+ * the popup) + the user's own extras (typed into the popup's "R libraries"
+ * section, persisted to chrome.storage.sync under `extraPackages`). INFRA
+ * and UT_BUNDLE failures are real boot errors; extras are best-effort —
+ * see bootWebR() below.
  */
 
 import { WebR, type WebRError } from "@r-wasm/webr";
+import { UT_BUNDLE } from "./packages";
 
-/** Packages preloaded (installed + attached) so generated R code can call
- * their functions directly without its own library() calls — mirrors how
- * the old server-side sandbox environment was pre-sourced. */
-const PACKAGES = [
-  "tidyverse",
-  "mosaic",
-  "moderndive",
-  "infer",
-  "broom",
-  "ggplot2",
-  "openssl",
-  "base64enc",
-];
+/** Packages the extension itself depends on internally (not shown in the
+ * popup's "R libraries" section, not user-configurable) — always loaded
+ * alongside the UT bundle. A failure here is a real boot error, same as
+ * this whole list was treated before user extras existed. */
+const INFRA = ["openssl", "base64enc"];
+
+/** chrome.storage.sync key for the user's own extra packages, edited in
+ * the popup's "R libraries" section — see popup.ts. */
+const STORAGE_KEY_EXTRA_PACKAGES = "extraPackages";
+
+/** chrome.storage.local key we mirror extra-package failures to, so the
+ * popup (a separate execution context that never imports this module) can
+ * read which of the user's extras failed to load. */
+const STORAGE_KEY_PACKAGE_ERRORS = "packageErrors";
+
+/** One user-added package that failed to install/attach during boot. */
+export interface PackageError {
+  pkg: string;
+  message: string;
+}
 
 let webRPromise: Promise<WebR> | null = null;
 
@@ -54,19 +69,58 @@ function getWebR(): Promise<WebR> {
   return webRPromise;
 }
 
+/** Read the user's own extra packages (added in the popup's "R libraries"
+ * section) from sync storage. Defaults to []. */
+async function getExtraPackages(): Promise<string[]> {
+  const stored = await chrome.storage.sync.get(STORAGE_KEY_EXTRA_PACKAGES);
+  const extra = stored[STORAGE_KEY_EXTRA_PACKAGES];
+  return Array.isArray(extra) ? extra.filter((p): p is string => typeof p === "string") : [];
+}
+
+/** Install then attach a single package so R code can reference its
+ * functions without an explicit library() call. */
+async function installAndAttach(webR: WebR, pkg: string): Promise<void> {
+  await webR.installPackages([pkg], true);
+  await webR.evalRVoid(`suppressMessages(suppressWarnings(library(${pkg})))`);
+}
+
 async function bootWebR(): Promise<WebR> {
   const webR = new WebR({
     baseUrl: chrome.runtime.getURL("webr/"),
   });
   await webR.init();
 
-  // Install then attach every package we need so R code can reference their
-  // functions (e.g. %>%, gf_histogram, prop_test) without an explicit
-  // library() call.
-  await webR.installPackages(PACKAGES, true);
-  for (const pkg of PACKAGES) {
+  // Install then attach the packages every install needs: our own internals
+  // (INFRA) plus the default "UT bundle" of stats packages, so R code can
+  // reference their functions (e.g. %>%, gf_histogram, prop_test) without an
+  // explicit library() call. Both are required — failure here is a real
+  // boot error, same as this whole list was treated before user extras
+  // existed.
+  const core = [...INFRA, ...UT_BUNDLE];
+  await webR.installPackages(core, true);
+  for (const pkg of core) {
     await webR.evalRVoid(`suppressMessages(suppressWarnings(library(${pkg})))`);
   }
+
+  // The user's own extras (added per-course in the popup) are best-effort:
+  // WebR's package repo (repo.r-wasm.org) doesn't mirror every CRAN package,
+  // and users can simply mistype a name. One bad extra must never abort the
+  // whole boot, so each is installed independently and a failure is only
+  // logged + recorded, never thrown.
+  const packageErrors: PackageError[] = [];
+  const extras = await getExtraPackages();
+  for (const pkg of extras) {
+    try {
+      await installAndAttach(webR, pkg);
+    } catch (e) {
+      const message = (e as WebRError | Error).message ?? "install failed";
+      console.warn(`[webr] extra package "${pkg}" failed to load: ${message}`);
+      packageErrors.push({ pkg, message });
+    }
+  }
+  // Mirror to storage so the popup — a separate execution context that
+  // never shares this module's state — can surface which extras failed.
+  await chrome.storage.local.set({ [STORAGE_KEY_PACKAGE_ERRORS]: packageErrors });
 
   // Data files are written to the FS root (see runR below). Set the working
   // directory to match so R code that does read.csv("file.csv") with a bare
