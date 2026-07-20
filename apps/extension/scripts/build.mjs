@@ -25,6 +25,7 @@ await cp(path.resolve(root, "public"), out, { recursive: true });
 const buildOpts = {
   entryPoints: {
     content: path.resolve(root, "src/content.ts"),
+    activate: path.resolve(root, "src/activate.ts"),
     background: path.resolve(root, "src/background.ts"),
     popup: path.resolve(root, "src/popup.ts"),
     welcome: path.resolve(root, "src/welcome.ts"),

@@ -55,6 +55,11 @@
       "css": ["panel.css"],
       "run_at": "document_idle",
       "all_frames": true
+    },
+    {
+      "matches": ["https://statshelpr.com/*", "https://www.statshelpr.com/*"],
+      "js": ["activate.js"],
+      "run_at": "document_idle"
     }
   ]
 }

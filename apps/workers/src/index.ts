@@ -8,6 +8,7 @@ import { validateLicenseRoute } from "./routes/validate-license";
 import { feedback } from "./routes/feedback";
 import { user } from "./routes/user";
 import { lsWebhook } from "./routes/lemonsqueezy-webhook";
+import { licenseFromOrder } from "./routes/license-from-order";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -20,6 +21,7 @@ app.route("/api/auth/validate-license", validateLicenseRoute);
 app.route("/api/feedback", feedback);
 app.route("/api/user", user);
 app.route("/api/webhooks/lemonsqueezy", lsWebhook);
+app.route("/api/license-from-order", licenseFromOrder);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 
