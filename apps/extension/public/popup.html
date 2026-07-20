@@ -289,6 +289,11 @@
         <input id="apiUrl" type="text" placeholder="https://api.statshelpr.com" />
         <label for="licenseKey">License key</label>
         <input id="licenseKey" type="password" placeholder="leave blank in dev" />
+        <label for="buttonOpacity" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>Button opacity</span>
+          <span id="opacityValue" style="font-family:var(--font-mono,monospace);color:var(--text-muted);font-size:0.75rem;">0.20</span>
+        </label>
+        <input id="buttonOpacity" type="range" min="0.05" max="1" step="0.05" value="0.2" style="width:100%;" />
         <button id="save">Save</button>
         <div id="status" class="status"></div>
         <div id="meta" class="meta" style="display: none"></div>

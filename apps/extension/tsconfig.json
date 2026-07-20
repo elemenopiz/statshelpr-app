@@ -2,7 +2,11 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "types": ["chrome"],
-    "noEmit": true
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@r-wasm/webr": ["./node_modules/@r-wasm/webr/dist/webR/webr-main"]
+    }
   },
   "include": ["src/**/*"]
 }

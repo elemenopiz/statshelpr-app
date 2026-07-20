@@ -1,7 +1,10 @@
 interface StoredConfig {
   apiUrl?: string;
   licenseKey?: string;
+  buttonOpacity?: number;
 }
+
+const DEFAULT_OPACITY = 0.2;
 
 interface HealthResponse {
   ok?: boolean;
@@ -26,6 +29,8 @@ const MAX_TOTAL_BYTES = 8 * 1024 * 1024;    // chrome.storage.local has ~10MB
 
 const apiUrlInput = document.getElementById("apiUrl") as HTMLInputElement;
 const licenseKeyInput = document.getElementById("licenseKey") as HTMLInputElement;
+const opacityInput = document.getElementById("buttonOpacity") as HTMLInputElement | null;
+const opacityValueEl = document.getElementById("opacityValue") as HTMLSpanElement | null;
 const saveBtn = document.getElementById("save") as HTMLButtonElement;
 const statusEl = document.getElementById("status") as HTMLDivElement;
 const statusDot = document.getElementById("status-dot") as HTMLSpanElement;
@@ -41,16 +46,31 @@ let dataFiles: DataFile[] = [];
 // settings + health
 // =============================================================================
 
-chrome.storage.sync.get(["apiUrl", "licenseKey"], (cfg: StoredConfig) => {
-  apiUrlInput.value = cfg.apiUrl ?? "http://localhost:3030";
+chrome.storage.sync.get(["apiUrl", "licenseKey", "buttonOpacity"], (cfg: StoredConfig) => {
+  apiUrlInput.value = cfg.apiUrl ?? "https://api.statshelpr.com";
   licenseKeyInput.value = cfg.licenseKey ?? "";
+  const opacity = typeof cfg.buttonOpacity === "number" ? cfg.buttonOpacity : DEFAULT_OPACITY;
+  if (opacityInput) opacityInput.value = String(opacity);
+  if (opacityValueEl) opacityValueEl.textContent = opacity.toFixed(2);
   void pingHealth(apiUrlInput.value);
+});
+
+// Live-preview the opacity readout as the user drags the slider — the
+// actual value is persisted on Save (same as the other fields).
+opacityInput?.addEventListener("input", () => {
+  if (!opacityValueEl) return;
+  const v = Number(opacityInput.value);
+  opacityValueEl.textContent = Number.isFinite(v) ? v.toFixed(2) : String(opacityInput.value);
 });
 
 saveBtn.addEventListener("click", () => {
   const apiUrl = apiUrlInput.value.trim().replace(/\/$/, "");
   const licenseKey = licenseKeyInput.value.trim();
-  chrome.storage.sync.set({ apiUrl, licenseKey }, () => {
+  const rawOpacity = opacityInput ? Number(opacityInput.value) : DEFAULT_OPACITY;
+  const buttonOpacity = Number.isFinite(rawOpacity)
+    ? Math.min(1, Math.max(0.05, rawOpacity))
+    : DEFAULT_OPACITY;
+  chrome.storage.sync.set({ apiUrl, licenseKey, buttonOpacity }, () => {
     statusEl.textContent = "saved";
     statusEl.className = "status ok";
     setTimeout(() => {

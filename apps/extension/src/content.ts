@@ -4,15 +4,25 @@
  * Flow on click:
  *   1. Set button to spinner (visual "thinking" feedback)
  *   2. Scrape question text + answer choices + any images
- *   3. POST /api/solve (non-streaming JSON)
+ *   3. POST /api/solve (SSE) — either a "concept" result, or a "rcode"
+ *      hand-off that's run locally via WebR and interpreted by /api/interpret
+ *      (SSE) — see onSolve() for the full branch.
  *   4. Parse the answer letter, find the matching radio/checkbox, click it
  *   5. Set button to ✓ briefly, then back to "solve" (re-clickable)
  *
- * No answer card, no explanation, no R code display.
+ * No answer card, no explanation, no R code display — status during the
+ * (rare, R-only) multi-step path surfaces only as the button's hover title.
  *
  * A small floating CSV widget in the bottom-right manages course-wide data
  * files, persisted in chrome.storage.local across sessions.
+ *
+ * RCODE questions (server hands back R code instead of a final answer): WebR
+ * (R compiled to WebAssembly, see ./webr-runner) runs the code right here in
+ * the content script, then the stdout is POSTed to /api/interpret for the
+ * LLM to turn into a final answer — see the RCODE branch in onSolve().
  */
+
+import { initWebR, runR } from "./webr-runner";
 
 interface DataFile {
   filename: string;
@@ -26,16 +36,50 @@ interface ImageBlock {
   mediaType: "image/png" | "image/jpeg" | "image/webp";
 }
 
-interface SolveResponse {
-  mode: "concept" | "calc";
+// =============================================================================
+// /api/solve + /api/interpret — both stream Server-Sent Events. "phase" and
+// "delta" events exist for a richer streaming UI; the stealth button UX here
+// doesn't render them (no panel to update) so they're consumed and ignored —
+// only the terminal "result"/"error" event matters to onSolve.
+// =============================================================================
+
+interface ConceptResult {
+  mode: "concept";
   answer: string;
   selectedChoices?: string[];
-  fillValues?: string[];
   confidence: "High" | "Med" | "Low" | "";
   lowConfidence: boolean;
-  rCode?: string;
-  rOutput?: string;
 }
+
+/** /api/solve hands off to the client when the question needs R: the server
+ * sends back the R code to run (via WebR) instead of running it itself. */
+interface RCodeResult {
+  mode: "rcode";
+  rCode: string;
+  assistantBody: string;
+}
+
+/** Final answer after WebR ran the R code and /api/interpret reasoned over
+ * its stdout. */
+interface CalcResult {
+  mode: "calc";
+  rCode: string;
+  rOutput: string;
+  rExitCode: number;
+  rDurationMs: number;
+  answer: string;
+  selectedChoices?: string[];
+  confidence: "High" | "Med" | "Low" | "";
+  lowConfidence: boolean;
+}
+
+type SolveResult = ConceptResult | RCodeResult | CalcResult;
+
+type SseEvent =
+  | { type: "phase"; label: string }
+  | { type: "delta"; text: string }
+  | { type: "result"; result: SolveResult }
+  | { type: "error"; message: string };
 
 const FIRST_HINT_KEY = "statshelpr.firstHintShown";
 
@@ -89,11 +133,32 @@ let dataFiles: DataFile[] = [];
 function boot() {
   void loadFiles().then(() => scanAndInject());
 
-  // Re-load CSVs whenever the popup updates them so a freshly-uploaded file
-  // is available without reloading the Canvas tab.
+  // Load user's button-opacity preference and apply it as a CSS variable
+  // (--sh-idle-opacity) that panel.css reads. The variable is set on the
+  // document root so it applies to every injected button, and re-applied
+  // whenever the user drags the popup slider.
+  void applyButtonOpacityFromStorage();
+
+  // Preload WebR in the background the moment we mount on a Canvas page, so
+  // the (one-time, ~15s) boot happens invisibly while the user reads the
+  // quiz instead of blocking their first RCODE solve. Fire-and-forget: we
+  // swallow failures here rather than surface them before the user has even
+  // asked for a solve — a real RCODE attempt will call initWebR()/runR()
+  // itself and report the same (cached) failure through the button's error
+  // state instead.
+  initWebR().catch(() => {
+    /* swallowed — see comment above */
+  });
+
+  // Re-load CSVs (and re-apply opacity) whenever the popup updates them so
+  // freshly-uploaded files / settings changes are picked up without reload.
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "local" && changes[STORAGE_KEY_FILES]) {
       void loadFiles();
+    }
+    if (area === "sync" && changes["buttonOpacity"]) {
+      const next = changes["buttonOpacity"].newValue;
+      if (typeof next === "number") applyButtonOpacity(next);
     }
   });
 
@@ -129,7 +194,7 @@ function injectButtonFor(question: HTMLElement) {
   if (!findStem(question)) return;
 
   const btn = mkEl("button", {
-    className: "statshelpr-btn-solve",
+    className: "statshelpr-btn-tutor",
     type: "button",
     text: "·",
     title: "",
@@ -147,7 +212,7 @@ function injectButtonFor(question: HTMLElement) {
     anchor.appendChild(btn);
   } else {
     // Fallback: small wrapper at top of question container
-    const wrap = mkEl("div", { className: "statshelpr-solve-wrap" });
+    const wrap = mkEl("div", { className: "statshelpr-tutor-wrap" });
     wrap.appendChild(btn);
     question.insertBefore(wrap, question.firstChild);
   }
@@ -164,15 +229,21 @@ function findHeader(question: HTMLElement): HTMLElement | null {
 }
 
 // =============================================================================
-// solve flow (single non-streaming request)
+// solve flow
 // =============================================================================
+//
+// /api/solve always streams SSE. Two outcomes:
+//   - mode "concept" — done, render like any other result.
+//   - mode "rcode"   — server wants R run client-side. We boot WebR (lazy,
+//     cached — see webr-runner.ts), run the code, then POST the stdout to
+//     /api/interpret (also SSE) for the LLM to turn into a final answer.
 
 async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
   if (btn.disabled) return;
   setBtnState(btn, "loading");
   // Clear any prior visual marker on this question
-  question.querySelectorAll(".statshelpr-correct").forEach((el) =>
-    el.classList.remove("statshelpr-correct"),
+  question.querySelectorAll(".statshelpr-suggested").forEach((el) =>
+    el.classList.remove("statshelpr-suggested"),
   );
 
   // Refresh CSVs from storage in case the popup uploaded a file while we
@@ -188,51 +259,147 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
   }
 
   const cfg = await getConfig();
-  const apiUrl = (cfg.apiUrl ?? "http://localhost:3030").replace(/\/$/, "");
+  const apiUrl = (cfg.apiUrl ?? "https://api.statshelpr.com").replace(/\/$/, "");
   const licenseKey = cfg.licenseKey ?? "";
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    ...(licenseKey ? { Authorization: `Bearer ${licenseKey}` } : {}),
+  };
+  const apiChoices = scraped.choices.map((c) => ({
+    label: c.label,
+    text: c.text,
+    type: choiceTypeForApi(c),
+  }));
+  const apiDataFiles = dataFiles.map((f) => ({ filename: f.filename, content: f.content }));
 
-  let response: SolveResponse;
+  let final: ConceptResult | CalcResult;
   try {
-    const res = await fetch(`${apiUrl}/api/solve`, {
+    const solveRes = await fetch(`${apiUrl}/api/solve`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(licenseKey ? { Authorization: `Bearer ${licenseKey}` } : {}),
-      },
+      headers,
       body: JSON.stringify({
         questionText: scraped.text,
-        choices: scraped.choices.map((c) => ({
-          label: c.label,
-          text: c.text,
-          type: choiceTypeForApi(c),
-        })),
+        choices: apiChoices,
         images: scraped.images,
-        dataFiles: dataFiles.map((f) => ({ filename: f.filename, content: f.content })),
-        // stream:false (default) — we don't need progress events, just the result
+        dataFiles: apiDataFiles,
       }),
     });
+    if (!solveRes.ok) throw new Error(await readErrorBody(solveRes));
+    const solveResult = await consumeSseResult(solveRes);
 
-    if (!res.ok) {
-      const body = await res.text();
-      // Try to extract the {error: "..."} field from a JSON error response
-      let msg = body.slice(0, 200);
-      try {
-        const parsed = JSON.parse(body) as { error?: string };
-        if (parsed.error) msg = parsed.error;
-      } catch {
-        /* not JSON — use raw body */
+    if (solveResult.mode === "concept") {
+      final = solveResult;
+    } else if (solveResult.mode === "rcode") {
+      // RCODE — run R locally via WebR, then have the server interpret it.
+      // No panel in this stealth UI, so the button's title attribute (a
+      // native hover tooltip) is the only status surface we have.
+      btn.setAttribute("title", "Running R…");
+
+      // Race a short timeout so we only show the "first-time setup" message
+      // when the (one-time, ~15s) WebR boot is actually happening — repeat
+      // solves reuse the already-booted instance and this resolves instantly.
+      const raceOutcome = await Promise.race([
+        initWebR().then(() => "ready" as const),
+        sleep(500).then(() => "slow" as const),
+      ]);
+      if (raceOutcome === "slow") {
+        btn.setAttribute("title", "First-time setup, ~15s…");
+        await initWebR(); // same cached boot promise — just waiting it out
+        btn.setAttribute("title", "Running R…");
       }
-      throw new Error(msg);
+
+      const runResult = await runR(solveResult.rCode, apiDataFiles);
+
+      btn.setAttribute("title", "Interpreting result…");
+      const interpretRes = await fetch(`${apiUrl}/api/interpret`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          questionText: scraped.text,
+          choices: apiChoices,
+          images: scraped.images,
+          dataFiles: apiDataFiles,
+          rCode: solveResult.rCode,
+          stdout: runResult.stdout,
+          exitCode: runResult.exitCode,
+          durationMs: runResult.durationMs,
+          assistantBody: solveResult.assistantBody,
+        }),
+      });
+      if (!interpretRes.ok) throw new Error(await readErrorBody(interpretRes));
+      const interpretResult = await consumeSseResult(interpretRes);
+      if (interpretResult.mode !== "calc") {
+        throw new Error("Unexpected response from interpreter.");
+      }
+      final = interpretResult;
+    } else {
+      throw new Error("Unexpected response from solve.");
     }
-    response = (await res.json()) as SolveResponse;
   } catch (e) {
     setBtnState(btn, "error", (e as Error).message);
     return;
   }
 
-  const cleaned = stripTags(response.answer);
-  selectAnswerChoice(question, cleaned, response.selectedChoices ?? []);
+  const cleaned = stripTags(final.answer);
+  selectAnswerChoice(question, cleaned, final.selectedChoices ?? []);
   setBtnState(btn, "success");
+}
+
+async function readErrorBody(res: Response): Promise<string> {
+  const body = await res.text();
+  // Try to extract the {error: "..."} field from a JSON error response
+  let msg = body.slice(0, 200);
+  try {
+    const parsed = JSON.parse(body) as { error?: string };
+    if (parsed.error) msg = parsed.error;
+  } catch {
+    /* not JSON — use raw body */
+  }
+  return msg;
+}
+
+/**
+ * Read an SSE response stream down to its terminal "result" event.
+ * "phase"/"delta" events are consumed and ignored — this stealth UI has no
+ * panel to stream text into, only the button's spinner/title.
+ */
+async function consumeSseResult(res: Response): Promise<SolveResult> {
+  const reader = res.body?.getReader();
+  if (!reader) throw new Error("Empty response stream.");
+  const decoder = new TextDecoder();
+  let buf = "";
+  let result: SolveResult | null = null;
+  let errorMsg: string | null = null;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const frames = buf.split("\n\n");
+    buf = frames.pop() ?? "";
+    for (const frame of frames) {
+      const dataLine = frame.split("\n").find((l) => l.startsWith("data:"));
+      if (!dataLine) continue;
+      const jsonStr = dataLine.slice(5).trim();
+      if (!jsonStr) continue;
+      let evt: SseEvent;
+      try {
+        evt = JSON.parse(jsonStr) as SseEvent;
+      } catch {
+        continue; // malformed frame — skip it
+      }
+      if (evt.type === "result") result = evt.result;
+      else if (evt.type === "error") errorMsg = evt.message;
+    }
+  }
+
+  if (errorMsg) throw new Error(errorMsg);
+  if (!result) throw new Error("No result received from server.");
+  return result;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 type BtnState = "default" | "loading" | "success" | "error";
@@ -381,7 +548,7 @@ function applyChoice(choice: AnswerChoice) {
 function selectDropdownOption(choice: AnswerChoice) {
   const sel = choice.input as HTMLSelectElement;
   if (sel.disabled) {
-    sel.classList.add("statshelpr-correct");
+    sel.classList.add("statshelpr-suggested");
     return;
   }
   // React-aware setter so New Quizzes / Canvas reacts to the change
@@ -394,12 +561,12 @@ function selectDropdownOption(choice: AnswerChoice) {
   }
   sel.dispatchEvent(new Event("input", { bubbles: true }));
   sel.dispatchEvent(new Event("change", { bubbles: true }));
-  sel.classList.add("statshelpr-correct");
+  sel.classList.add("statshelpr-suggested");
 }
 
 function fillTextInput(input: HTMLInputElement, answer: string) {
   if (input.disabled || input.readOnly) {
-    input.classList.add("statshelpr-correct");
+    input.classList.add("statshelpr-suggested");
     return;
   }
   // Try to extract just the value from "Answer: 12.34" or "Final answer: 12.34"
@@ -416,7 +583,7 @@ function fillTextInput(input: HTMLInputElement, answer: string) {
   else input.value = value;
   input.dispatchEvent(new Event("input", { bubbles: true }));
   input.dispatchEvent(new Event("change", { bubbles: true }));
-  input.classList.add("statshelpr-correct");
+  input.classList.add("statshelpr-suggested");
 }
 
 interface AnswerChoice {
@@ -526,7 +693,7 @@ function findSelectedChoices(
   allowMultiple: boolean,
 ): AnswerChoice[] {
   const byLabel = new Map(choices.map((c) => [c.label.toUpperCase(), c]));
-  const selected = new Map<HTMLInputElement, AnswerChoice>();
+  const selected = new Map<HTMLInputElement | HTMLSelectElement, AnswerChoice>();
 
   const answerLine =
     answer.match(/^\s*Answer\s*:?\s*(.+)$/im)?.[1] ??
@@ -534,7 +701,9 @@ function findSelectedChoices(
     answer;
 
   for (const m of answerLine.matchAll(/\b([A-Z])\b/g)) {
-    const c = byLabel.get(m[1].toUpperCase());
+    const letter = m[1];
+    if (!letter) continue;
+    const c = byLabel.get(letter.toUpperCase());
     if (c) {
       selected.set(c.input, c);
       if (!allowMultiple) return [c];
@@ -578,7 +747,7 @@ function getChoiceRow(input: HTMLInputElement): HTMLElement | null {
 function selectChoice(input: HTMLInputElement) {
   const row = getChoiceRow(input);
   if (input.disabled) {
-    row?.classList.add("statshelpr-correct");
+    row?.classList.add("statshelpr-suggested");
     return;
   }
 
@@ -592,7 +761,7 @@ function selectChoice(input: HTMLInputElement) {
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.dispatchEvent(new Event("change", { bubbles: true }));
   }
-  row?.classList.add("statshelpr-correct");
+  row?.classList.add("statshelpr-suggested");
 }
 
 function hasQuestionAncestor(question: HTMLElement): boolean {
@@ -631,6 +800,20 @@ async function loadFiles() {
   const stored = (r[STORAGE_KEY_FILES] as DataFile[] | undefined) ?? [];
   const now = Date.now();
   dataFiles = stored.filter((f) => now - f.addedAt < FILE_TTL_MS);
+}
+
+async function applyButtonOpacityFromStorage(): Promise<void> {
+  const r = (await chrome.storage.sync.get(["buttonOpacity"])) as {
+    buttonOpacity?: number;
+  };
+  applyButtonOpacity(typeof r.buttonOpacity === "number" ? r.buttonOpacity : 0.2);
+}
+
+function applyButtonOpacity(value: number): void {
+  // Clamp to a sane range so a bad stored value can't hide the button entirely
+  // or blow past 1.0. Matches the popup slider's min/max.
+  const clamped = Math.min(1, Math.max(0.05, value));
+  document.documentElement.style.setProperty("--sh-idle-opacity", String(clamped));
 }
 
 async function getConfig(): Promise<{ apiUrl?: string; licenseKey?: string }> {
@@ -735,7 +918,8 @@ function mkEl<K extends keyof HTMLElementTagNameMap>(
   if (opts.id) node.id = opts.id;
   if (opts.title) node.title = opts.title;
   if (opts.style) node.setAttribute("style", opts.style);
-  if (opts.type && tag === "button") (node as HTMLButtonElement).type = opts.type;
+  if (opts.type && tag === "button")
+    (node as HTMLButtonElement).type = opts.type as HTMLButtonElement["type"];
   if (opts.text !== undefined) node.textContent = opts.text;
   for (const c of children) {
     node.appendChild(typeof c === "string" ? document.createTextNode(c) : c);

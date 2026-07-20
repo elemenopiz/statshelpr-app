@@ -50,7 +50,7 @@ chrome.runtime.onMessage.addListener(
 
 async function handleSolve(payload: SolveRequest["payload"]) {
   const cfg = await chrome.storage.sync.get(["apiUrl", "licenseKey"]);
-  const apiUrl = (cfg["apiUrl"] as string | undefined) ?? "http://localhost:3030";
+  const apiUrl = (cfg["apiUrl"] as string | undefined) ?? "https://api.statshelpr.com";
   const licenseKey = (cfg["licenseKey"] as string | undefined) ?? "";
 
   const res = await fetch(`${apiUrl}/api/solve`, {

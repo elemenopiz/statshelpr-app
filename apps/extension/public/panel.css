@@ -1,15 +1,16 @@
 /* =========================================================================
- * Inline "solve" button — designed to be near-invisible on the page so a
- * bystander glancing at the screen wouldn't notice it. Reveals on hover.
- *
- * Default: 14px square, opacity 0.2, gray, just a dot inside.
- * Hover (or hovering anywhere over the question container): opacity 0.85.
- * Loading: spinner.
- * Success: brief green ✓ (1.8s) then fades back.
- * Error: red !.
+ * Inline tutor button. Idle opacity is user-controlled via a slider in the
+ * extension popup (0.05 = very subtle, 1.0 = fully visible). Default 0.2.
+ * The value is applied via the --sh-idle-opacity CSS custom property, set
+ * on document.documentElement in content.ts on inject and whenever storage
+ * changes.
  * ========================================================================= */
 
-.statshelpr-btn-solve {
+:root {
+  --sh-idle-opacity: 0.2;
+}
+
+.statshelpr-btn-tutor {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -28,38 +29,38 @@
   cursor: pointer;
   vertical-align: middle;
   user-select: none;
-  opacity: 0.2;
+  opacity: var(--sh-idle-opacity, 0.2);
   transition: opacity 0.18s ease, background 0.18s ease, color 0.18s ease,
     border-color 0.18s ease;
 }
 
-/* Reveal when the user hovers the question (parent) — so they can find it,
-   but it stays nearly invisible at idle. */
-.question_holder:hover .statshelpr-btn-solve,
-.display_question:hover .statshelpr-btn-solve,
-.question-container:hover .statshelpr-btn-solve,
-.QuestionItem:hover .statshelpr-btn-solve,
-.item-body:hover .statshelpr-btn-solve,
-[data-testid="question-container"]:hover .statshelpr-btn-solve,
-[data-testid="quiz-question"]:hover .statshelpr-btn-solve {
-  opacity: 0.55;
+/* Hover reveal — scales with the user's idle preference: half-way between
+   idle and full when the parent question is hovered. */
+.question_holder:hover .statshelpr-btn-tutor,
+.display_question:hover .statshelpr-btn-tutor,
+.question-container:hover .statshelpr-btn-tutor,
+.QuestionItem:hover .statshelpr-btn-tutor,
+.item-body:hover .statshelpr-btn-tutor,
+[data-testid="question-container"]:hover .statshelpr-btn-tutor,
+[data-testid="quiz-question"]:hover .statshelpr-btn-tutor {
+  opacity: calc((var(--sh-idle-opacity, 0.2) + 1) / 2);
 }
 
-.statshelpr-btn-solve:hover:not(:disabled) {
+.statshelpr-btn-tutor:hover:not(:disabled) {
   opacity: 1;
   background: rgba(0, 0, 0, 0.06);
   color: #333;
   border-color: rgba(0, 0, 0, 0.3);
 }
 
-.statshelpr-btn-solve.loading {
+.statshelpr-btn-tutor.loading {
   opacity: 1;
   cursor: progress;
   background: transparent;
   border-color: transparent;
 }
 
-.statshelpr-btn-solve.success {
+.statshelpr-btn-tutor.success {
   opacity: 1;
   background: #137333;
   color: white;
@@ -68,7 +69,7 @@
   font-weight: 700;
 }
 
-.statshelpr-btn-solve.error {
+.statshelpr-btn-tutor.error {
   opacity: 1;
   background: #c5221f;
   color: white;
@@ -77,9 +78,9 @@
   font-weight: 700;
 }
 
-.statshelpr-btn-solve:disabled { cursor: progress; }
+.statshelpr-btn-tutor:disabled { cursor: progress; }
 
-.statshelpr-solve-wrap {
+.statshelpr-tutor-wrap {
   display: inline-block;
 }
 
@@ -106,9 +107,9 @@
  * left-border accent on the chosen row; no background flash.
  * ========================================================================= */
 
-.statshelpr-correct,
-.answer.statshelpr-correct,
-.answer_row.statshelpr-correct {
+.statshelpr-suggested,
+.answer.statshelpr-suggested,
+.answer_row.statshelpr-suggested {
   position: relative;
   border-left: 2px solid rgba(19, 115, 51, 0.5);
   padding-left: 6px !important;
