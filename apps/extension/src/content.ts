@@ -38,7 +38,7 @@ interface ImageBlock {
 
 // =============================================================================
 // /api/solve + /api/interpret — both stream Server-Sent Events. "phase" and
-// "delta" events exist for a richer streaming UI; the stealth button UX here
+// "delta" events exist for a richer streaming UI; the inline button UX here
 // doesn't render them (no panel to update) so they're consumed and ignored —
 // only the terminal "result"/"error" event matters to onSolve.
 // =============================================================================
@@ -291,7 +291,7 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
       final = solveResult;
     } else if (solveResult.mode === "rcode") {
       // RCODE — run R locally via WebR, then have the server interpret it.
-      // No panel in this stealth UI, so the button's title attribute (a
+      // No panel in this button-only UI, so the button's title attribute (a
       // native hover tooltip) is the only status surface we have.
       btn.setAttribute("title", "Running R…");
 
@@ -360,7 +360,7 @@ async function readErrorBody(res: Response): Promise<string> {
 
 /**
  * Read an SSE response stream down to its terminal "result" event.
- * "phase"/"delta" events are consumed and ignored — this stealth UI has no
+ * "phase"/"delta" events are consumed and ignored — this button-only UI has no
  * panel to stream text into, only the button's spinner/title.
  */
 async function consumeSseResult(res: Response): Promise<SolveResult> {
