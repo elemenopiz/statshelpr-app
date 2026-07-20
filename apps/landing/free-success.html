@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>statshelpr — Check Your Email</title>
+  <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300..700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0B0B0F; --text: #E8E2D6; --text-dim: #8A8578;
+      --accent: #D4A843; --accent-dim: rgba(212,168,67,0.12);
+      --border: rgba(232,226,214,0.06);
+      --font-display: 'Instrument Serif', Georgia, serif;
+      --font-body: 'DM Sans', system-ui, sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-body);
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 24px; text-align: center;
+    }
+    .icon { font-size: 3rem; margin-bottom: 24px; }
+    h1 { font-family: var(--font-display); font-size: 2rem; margin-bottom: 12px; }
+    h1 em { color: var(--accent); font-style: italic; }
+    p { color: var(--text-dim); font-size: 1rem; max-width: 420px; line-height: 1.6; margin-bottom: 12px; }
+    .note {
+      margin-top: 28px; background: var(--accent-dim);
+      border: 1px solid rgba(212,168,67,0.2); border-radius: 10px;
+      padding: 16px 20px; font-size: 0.85rem; color: var(--text-dim);
+      max-width: 420px; text-align: left;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="icon">&#10003;</div>
+  <h1>You're <em>upgraded</em></h1>
+  <p>Payment received. Your license key is on its way &mdash; check your inbox (and spam folder) for an email from Lemon Squeezy / statshelpr.</p>
+  <div class="note">
+    <strong>Next steps:</strong><br/>
+    1. Open the email and copy your license key<br/>
+    2. Click the statshelpr extension icon in Chrome<br/>
+    3. Paste your license key in the popup and save<br/>
+    4. Open any Canvas stats quiz and click Solve
+  </div>
+  <p style="margin-top: 28px; font-size: 0.85rem;">
+    Haven't installed yet? <a href="/free.html">Get the extension</a><br/>
+    Questions? <a href="mailto:helpr451@gmail.com">helpr451@gmail.com</a>
+  </p>
+</body>
+</html>

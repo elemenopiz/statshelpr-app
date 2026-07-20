@@ -1,0 +1,11 @@
+{
+  "name": "@statshelpr/landing",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler pages deploy . --project-name statshelpr-landing"
+  },
+  "devDependencies": {
+    "wrangler": "^3.90.0"
+  }
+}

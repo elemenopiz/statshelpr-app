@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>statshelpr &mdash; Upgrade to Unlimited | Stats tutor for Canvas</title>
+  <meta name="description" content="Upgrade to statshelpr Unlimited — unlimited solves for Canvas stats quizzes, $15/month, cancel anytime." />
+  <link rel="canonical" href="https://statshelpr.com/checkout" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://statshelpr.com/checkout" />
+  <meta property="og:title" content="statshelpr — Upgrade to Unlimited" />
+  <meta property="og:description" content="Unlimited solves for Canvas stats quizzes. $15/month, cancel anytime." />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="statshelpr — Upgrade to Unlimited" />
+  <meta name="twitter:description" content="Unlimited solves for Canvas stats quizzes. $15/month, cancel anytime." />
+  <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+  <link rel="shortcut icon" href="/favicon.ico?v=3" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0B0B0F;
+      --bg-raised: #111116;
+      --text: #E8E2D6;
+      --text-dim: #8A8578;
+      --text-muted: #5C584F;
+      --accent: #D4A843;
+      --accent-dim: rgba(212,168,67,0.12);
+      --accent-glow: rgba(212,168,67,0.25);
+      --border: rgba(232,226,214,0.06);
+      --font-display: 'Instrument Serif', Georgia, serif;
+      --font-body: 'DM Sans', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+    }
+    *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 24px;
+      position: relative;
+    }
+    body::before {
+      content: "";
+      position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, var(--accent-dim) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    body::after {
+      content: "";
+      position: fixed; inset: 0; z-index: 9999;
+      pointer-events: none; opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+    }
+    .back-link {
+      position: absolute; top: 24px; left: 24px;
+      color: var(--text-dim); text-decoration: none; font-size: 0.9rem; font-weight: 500;
+      display: flex; align-items: center; gap: 6px;
+      transition: color 0.25s;
+    }
+    .back-link:hover { color: var(--text); }
+    .logo {
+      font-family: var(--font-display); font-size: 1.6rem;
+      color: var(--text); margin-bottom: 32px;
+    }
+    .logo em { color: var(--accent); font-style: italic; }
+    .wrap {
+      width: 100%; max-width: 580px;
+      background: var(--bg-raised);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 36px 32px;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.4);
+    }
+    .wrap h1 {
+      font-family: var(--font-display);
+      font-size: 1.8rem; font-weight: 400; color: var(--text);
+      margin: 0 0 4px; letter-spacing: -0.3px;
+    }
+    .wrap h1 em { color: var(--accent); font-style: italic; }
+    .muted { color: var(--text-dim); font-size: 0.9rem; margin-bottom: 28px; }
+    .muted strong { color: var(--accent); }
+    .notice {
+      background: rgba(212,168,67,0.06);
+      border: 1px solid rgba(212,168,67,0.2);
+      border-radius: 12px;
+      padding: 14px 14px;
+      color: var(--accent);
+      font-size: 0.9rem;
+      line-height: 1.55;
+      margin-bottom: 18px;
+    }
+    .notice-paused {
+      background: rgba(220,80,60,0.08);
+      border: 1px solid rgba(220,80,60,0.3);
+      color: #FCA5A5;
+    }
+    .status {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 18px;
+      color: var(--text-dim);
+      line-height: 1.65;
+      font-size: 0.92rem;
+    }
+    .status strong { color: var(--text); }
+    .status a { color: var(--accent); text-decoration: none; }
+    .status a:hover { text-decoration: underline; }
+    .upgrade-warning {
+      border: 1px solid rgba(212,168,67,0.3);
+      background: rgba(212,168,67,0.06);
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      color: var(--accent);
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+    .upgrade-warning strong { color: var(--accent); }
+    .help-link {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin: 6px 0 0;
+    }
+    .help-link a { color: var(--accent); text-decoration: none; }
+    .help-link a:hover { text-decoration: underline; }
+    .field-group {
+      margin-bottom: 16px;
+    }
+    .field-group label {
+      display: block;
+      font-family: var(--font-body);
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .field-group input[type="email"] {
+      width: 100%;
+      font-family: var(--font-body);
+      background: var(--bg);
+      border: 1px solid rgba(232,226,214,0.1);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 0.95rem;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.25s;
+    }
+    .field-group input[type="email"]:focus {
+      border-color: var(--accent);
+    }
+    .field-group input::placeholder {
+      color: var(--text-muted);
+    }
+    .checkbox-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-top: 16px;
+      color: var(--text-dim);
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+    .checkbox-row input {
+      margin-top: 2px;
+      accent-color: var(--accent);
+    }
+    .checkbox-row a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .checkbox-row a:hover {
+      text-decoration: underline;
+    }
+    .buy-btn {
+      width: 100%;
+      margin-top: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 18px;
+      border: 0;
+      border-radius: 10px;
+      font-family: var(--font-body);
+      font-size: 1rem;
+      font-weight: 600;
+      text-decoration: none;
+      color: var(--bg);
+      background: var(--accent);
+      box-shadow: 0 4px 24px var(--accent-glow);
+      transition: all 0.25s ease;
+      cursor: pointer;
+    }
+    .buy-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 40px var(--accent-glow);
+    }
+    .buy-btn[disabled] {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    .checkout-form {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+    }
+    .legal-links {
+      text-align: center; margin-top: 14px; font-size: 0.8rem; color: var(--text-muted);
+    }
+    .legal-links a { color: var(--text-dim); text-decoration: none; }
+    .legal-links a:hover { color: var(--accent); }
+    @media (max-width: 600px) {
+      .wrap { padding: 28px 20px; }
+      .back-link { top: 16px; left: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <a class="back-link" href="/">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+    Back
+  </a>
+
+  <div class="logo">stats<em>helpr</em></div>
+
+  <div class="wrap">
+    <h1>Upgrade to <em>Unlimited</em></h1>
+    <p class="muted">Monthly subscription &mdash; <strong>$15.00 / month</strong> &middot; cancel anytime</p>
+
+    <div class='notice'><strong>Ready:</strong> Secure checkout is handled by Lemon Squeezy.</div>
+    <div class='status'>You will be redirected to Lemon Squeezy to complete payment. Card details never touch this server.</div>
+    <div class='checkbox-row'><input id='agree' type='checkbox' /><label for='agree'>I have read and understood the <a href='/legal.html#terms' target='_blank' rel='noopener'>Terms</a>, <a href='/legal.html#privacy' target='_blank' rel='noopener'>Privacy</a>, and <a href='/legal.html#refunds' target='_blank' rel='noopener'>Refund Policy</a>.</label></div>
+    <div class='checkout-form'>
+      <a id='buy-btn' class='buy-btn' href='https://statshelpr.lemonsqueezy.com/checkout/buy/8ded2ea7-979f-4027-afb2-f03036e12015' target='_blank' rel='noopener' style='display:block;text-align:center;text-decoration:none;'>Continue to secure checkout</a>
+    </div>
+
+    <div class="legal-links">
+      <a href="/legal.html#terms" target="_blank" rel="noopener">Terms</a> &middot;
+      <a href="/legal.html#privacy" target="_blank" rel="noopener">Privacy</a> &middot;
+      <a href="/legal.html#refunds" target="_blank" rel="noopener">Refunds</a> &middot;
+      <a href="mailto:helpr451@gmail.com">helpr451@gmail.com</a>
+    </div>
+  </div>
+  <script>
+    (function() {
+      const checkbox = document.getElementById("agree");
+      const btn = document.getElementById("buy-btn");
+      if (!checkbox || !btn) return;
+      btn.style.opacity = "0.4";
+      btn.style.pointerEvents = "none";
+      checkbox.addEventListener("change", function() {
+        if (checkbox.checked) {
+          btn.style.opacity = "1";
+          btn.style.pointerEvents = "auto";
+        } else {
+          btn.style.opacity = "0.4";
+          btn.style.pointerEvents = "none";
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

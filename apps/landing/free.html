@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>statshelpr &mdash; Install | Stats tutor for Canvas quizzes</title>
+  <meta name="description" content="Install statshelpr — the Chrome extension for stats students. 5 free solves per day, no signup required. Sideload from statshelpr.com." />
+  <link rel="canonical" href="https://statshelpr.com/free" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://statshelpr.com/free" />
+  <meta property="og:title" content="statshelpr — Install" />
+  <meta property="og:description" content="Install statshelpr for Chrome. 5 free solves per day on Canvas stats quizzes." />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="statshelpr — Install" />
+  <meta name="twitter:description" content="Install statshelpr for Chrome. 5 free solves per day on Canvas stats quizzes." />
+  <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+  <link rel="shortcut icon" href="/favicon.ico?v=3" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0B0B0F;
+      --bg-raised: #111116;
+      --text: #E8E2D6;
+      --text-dim: #8A8578;
+      --text-muted: #5C584F;
+      --accent: #D4A843;
+      --accent-dim: rgba(212,168,67,0.12);
+      --accent-glow: rgba(212,168,67,0.25);
+      --border: rgba(232,226,214,0.06);
+      --font-display: 'Instrument Serif', Georgia, serif;
+      --font-body: 'DM Sans', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+    }
+    *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-body);
+      background: var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 24px;
+      position: relative;
+    }
+    body::before {
+      content: "";
+      position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, var(--accent-dim) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    body::after {
+      content: "";
+      position: fixed; inset: 0; z-index: 9999;
+      pointer-events: none; opacity: 0.03;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+    }
+    .back-link {
+      position: absolute; top: 24px; left: 24px;
+      color: var(--text-dim); text-decoration: none; font-size: 0.9rem; font-weight: 500;
+      display: flex; align-items: center; gap: 6px;
+      transition: color 0.25s;
+    }
+    .back-link:hover { color: var(--text); }
+    .logo {
+      font-family: var(--font-display); font-size: 1.6rem;
+      color: var(--text); margin-bottom: 32px;
+    }
+    .logo em { color: var(--accent); font-style: italic; }
+    .wrap {
+      width: 100%; max-width: 520px;
+      background: var(--bg-raised);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 36px 32px;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.4);
+    }
+    .wrap h1 {
+      font-family: var(--font-display);
+      font-size: 1.8rem; font-weight: 400; color: var(--text);
+      margin: 0 0 6px; letter-spacing: -0.3px;
+    }
+    .wrap h1 em { color: var(--accent); font-style: italic; }
+    .muted {
+      color: var(--text-dim); font-size: 0.9rem; margin-bottom: 28px;
+    }
+    .field-group {
+      margin-bottom: 18px;
+    }
+    .field-group label {
+      display: block;
+      font-family: var(--font-body);
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .field-group input[type="text"],
+    .field-group input[type="email"] {
+      width: 100%;
+      font-family: var(--font-body);
+      background: var(--bg);
+      border: 1px solid rgba(232,226,214,0.1);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 0.95rem;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.25s;
+    }
+    .field-group input[type="text"]:focus,
+    .field-group input[type="email"]:focus {
+      border-color: var(--accent);
+    }
+    .field-group input::placeholder {
+      color: var(--text-muted);
+    }
+    .checkbox-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-top: 16px;
+      color: var(--text-dim);
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+    .checkbox-row input {
+      margin-top: 3px;
+      flex-shrink: 0;
+      accent-color: var(--accent);
+    }
+    .checkbox-row a { color: var(--accent); text-decoration: none; }
+    .checkbox-row a:hover { text-decoration: underline; }
+    .legal-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .legal-list li {
+      padding: 3px 0;
+      padding-left: 14px;
+      position: relative;
+    }
+    .legal-list li::before {
+      content: "\2022";
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+    }
+    .submit-btn {
+      width: 100%;
+      margin-top: 20px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 14px 18px;
+      border: 0;
+      border-radius: 10px;
+      font-family: var(--font-body);
+      font-size: 1rem;
+      font-weight: 600;
+      text-decoration: none;
+      color: var(--bg);
+      background: var(--accent);
+      box-shadow: 0 4px 24px var(--accent-glow);
+      transition: all 0.25s ease;
+      cursor: pointer;
+    }
+    .submit-btn:hover:not([disabled]) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 40px var(--accent-glow);
+    }
+    .submit-btn[disabled] {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    .legal-links {
+      text-align: center; margin-top: 14px; font-size: 0.8rem; color: var(--text-muted);
+    }
+    .legal-links a { color: var(--text-dim); text-decoration: none; }
+    .legal-links a:hover { color: var(--accent); }
+    @media (max-width: 600px) {
+      .wrap { padding: 28px 20px; }
+      .back-link { top: 16px; left: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <a class="back-link" href="/">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+    Back
+  </a>
+
+  <div class="logo">stats<em>helpr</em></div>
+
+  <div class="wrap">
+    <h1>Install <em>statshelpr</em></h1>
+    <p class="muted">5 free solves per day, no signup needed. Upgrade anytime for unlimited.</p>
+
+    <div class="field-group" style="text-align:center;margin:32px 0 24px;">
+      <a class="submit-btn" href="https://pub-6c115f98cf02440c88a106e9cdb6a6d3.r2.dev/statshelpr-extension.zip" style="display:inline-block;text-decoration:none;text-align:center;padding:14px 32px;">
+        Download the extension &darr;
+      </a>
+      <p class="muted" style="margin-top:10px;font-size:0.8rem;">Chrome / Edge / Arc / Brave &middot; ~30 MB</p>
+    </div>
+
+    <div class="checkbox-row" style="border:1px solid var(--border);border-radius:10px;padding:20px 22px;background:var(--bg-raised);">
+      <div>
+        <strong style="color:var(--text);display:block;margin-bottom:10px;">Install steps</strong>
+        <ol class="legal-list" style="padding-left:18px;">
+          <li>Unzip the downloaded file to any folder you'll remember.</li>
+          <li>Open <code>chrome://extensions</code> in a new tab.</li>
+          <li>Enable <strong>Developer mode</strong> (top-right toggle).</li>
+          <li>Click <strong>Load unpacked</strong> and select the unzipped folder.</li>
+          <li>Open any stats quiz on Canvas &mdash; a Solve button appears next to each question.</li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="checkbox-row" style="margin-top:16px;">
+      <div>
+        <ul class="legal-list">
+          <li>Free tier: 5 solves per rolling 24 hours, no card, no email.</li>
+          <li>Only install from <strong>statshelpr.com</strong>. Do not install copies from anywhere else.</li>
+          <li>By installing you agree to the <a href="/legal.html#terms" target="_blank" rel="noopener">Terms</a> and <a href="/legal.html#privacy" target="_blank" rel="noopener">Privacy Policy</a>.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="legal-links">
+      <a href="/legal.html#terms" target="_blank" rel="noopener">Terms</a> &middot;
+      <a href="/legal.html#privacy" target="_blank" rel="noopener">Privacy</a> &middot;
+      <a href="/legal.html#refunds" target="_blank" rel="noopener">Refunds</a> &middot;
+      <a href="/checkout.html">Upgrade to Unlimited &mdash; $15/mo</a>
+    </div>
+  </div>
+</body>
+</html>
