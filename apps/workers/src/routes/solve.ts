@@ -39,16 +39,18 @@ solve.post("/", async (c) => {
   const lic = await validateLicense(c.env, licenseKey);
   if (!lic.ok) return c.json({ error: lic.reason ?? "Unauthorized" }, 401);
 
-  // Rate limit — 5/day free tier. Uses licenseKey (or "anon") as bucket.
-  const rl = await checkAndIncrement(c.env, licenseKey);
-  if (!rl.allowed) {
-    return c.json(
-      {
-        error: `Daily limit reached (${rl.count}/${rl.limit}). Upgrade for unlimited.`,
-        resetAt: rl.resetAt,
-      },
-      402,
-    );
+  // Paid licenses are unlimited; only the free tier hits the daily counter.
+  if (lic.tier !== "paid") {
+    const rl = await checkAndIncrement(c.env, licenseKey);
+    if (!rl.allowed) {
+      return c.json(
+        {
+          error: `Daily limit reached (${rl.count}/${rl.limit}). Upgrade for unlimited.`,
+          resetAt: rl.resetAt,
+        },
+        402,
+      );
+    }
   }
 
   let body: SolveBody;

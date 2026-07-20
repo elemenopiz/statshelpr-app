@@ -15,6 +15,9 @@ import type { Env } from "../types";
 
 export interface LicenseCheck {
   ok: boolean;
+  /** Entitlement tier. "paid" skips the free-tier rate limit (unlimited);
+   * "free" is subject to it. Absent on ok:false results. */
+  tier?: "free" | "paid";
   reason?: string;
 }
 
@@ -29,16 +32,22 @@ export async function validateLicense(
 
   // If LS isn't configured, allow access (dev mode). Production must set.
   if (!apiKey) {
-    return { ok: true, reason: "LS_NOT_CONFIGURED" };
+    return { ok: true, tier: "free", reason: "LS_NOT_CONFIGURED" };
   }
 
-  if (!licenseKey) return { ok: false, reason: "Missing license key" };
+  // No key = free tier: allowed, but subject to the daily rate limit. Only a
+  // NON-EMPTY, invalid key returns ok:false (401) — handled below.
+  if (!licenseKey) return { ok: true, tier: "free" };
 
   // Check KV cache first
   const cacheKey = `${KV_PREFIX}${licenseKey}`;
   const cached = await env.STATSHELPR_KV.get(cacheKey, "json");
   if (cached) {
-    return cached as LicenseCheck;
+    const hit = cached as LicenseCheck;
+    // Legacy/webhook-written entries lack `tier`; a cached ok:true under a
+    // non-empty key is a valid paid license, so default it to "paid".
+    if (hit.ok && !hit.tier) hit.tier = "paid";
+    return hit;
   }
 
   try {
@@ -87,7 +96,7 @@ export async function validateLicense(
     ) {
       result = { ok: false, reason: "License for wrong product" };
     } else {
-      result = { ok: true };
+      result = { ok: true, tier: "paid" };
     }
 
     await putCache(env, cacheKey, result);

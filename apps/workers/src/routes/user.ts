@@ -20,6 +20,13 @@ user.delete("/", async (c) => {
   const auth = c.req.header("authorization") ?? "";
   const licenseKey = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
 
+  // Deletion requires an actual license key that identifies the caller's data.
+  // Without this guard, an empty key would validate as free-tier and then purge
+  // the shared "anon" rate-limit bucket (resetting every free user's counter).
+  if (!licenseKey) {
+    return c.json({ error: "A license key is required to delete account data." }, 400);
+  }
+
   // Validate the caller owns the license before we delete anything.
   const lic = await validateLicense(c.env, licenseKey);
   if (!lic.ok) return c.json({ error: lic.reason ?? "Unauthorized" }, 401);

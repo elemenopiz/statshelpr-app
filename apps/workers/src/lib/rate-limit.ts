@@ -1,9 +1,13 @@
 /**
  * KV-backed 24h rolling rate limiter, keyed on a hash of the license key.
  *
- * Free tier: N solves/day (from FREE_TIER_DAILY_LIMIT env). Paid tier: unlimited
- * (skip the check). Currently every license goes through the counter — if we
- * add tier metadata later, skip based on tier.
+ * Free tier: N solves/day (from FREE_TIER_DAILY_LIMIT env). Paid tier: unlimited —
+ * solve.ts skips this call entirely when validateLicense returns tier "paid".
+ *
+ * KNOWN LIMITATION: free users with no license key all hash to one "anon"
+ * bucket, so the free tier is currently GLOBAL (N/day shared across all anon
+ * users), not per-user. Per-user free limits need a per-install identifier
+ * sent by the extension (see planning §4 alt-account/abuse prevention).
  */
 
 import type { Env } from "../types";
