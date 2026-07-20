@@ -3,18 +3,18 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>statshelpr &mdash; Stats tutor for Canvas quizzes</title>
-  <meta name="description" content="statshelpr is a Chrome extension that shows worked solutions and R code for stats problems, right inside Canvas. 5 free solves per day; unlimited for $15/mo." />
-  <meta name="keywords" content="Canvas stats tutor, statistics homework help, R programming help, stats quiz solver, Canvas extension, study aid" />
+  <title>statshelpr &mdash; Stats tutor for students</title>
+  <meta name="description" content="statshelpr is a Chrome extension that shows worked solutions and R code for your stats coursework. 5 free solves per day; unlimited for $15/mo." />
+  <meta name="keywords" content="stats tutor, statistics homework help, R programming help, stats problem solver, Chrome extension, study aid" />
   <link rel="canonical" href="https://statshelpr.com/" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://statshelpr.com/" />
-  <meta property="og:title" content="statshelpr — Stats tutor for Canvas quizzes" />
-  <meta property="og:description" content="Chrome extension for Canvas quizzes. See worked solutions with runnable R code, right on the question. 5 free solves/day." />
+  <meta property="og:title" content="statshelpr — Stats tutor for students" />
+  <meta property="og:description" content="Chrome extension for stats students. See worked solutions with runnable R code, right on the question. 5 free solves/day." />
   <meta property="og:site_name" content="statshelpr" />
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="statshelpr — Stats tutor for Canvas quizzes" />
-  <meta name="twitter:description" content="Chrome extension for Canvas quizzes. See worked solutions with runnable R code, right on the question." />
+  <meta name="twitter:title" content="statshelpr — Stats tutor for students" />
+  <meta name="twitter:description" content="Chrome extension for stats students. See worked solutions with runnable R code, right on the question." />
   <link rel="icon" type="image/png" href="/favicon.png?v=3" />
   <link rel="shortcut icon" href="/favicon.ico?v=3" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -627,7 +627,7 @@
     "url": "https://statshelpr.com",
     "applicationCategory": "EducationalApplication",
     "operatingSystem": "Chrome (Windows, macOS, Linux)",
-    "description": "Chrome extension that helps students work through Canvas stats quizzes. Shows worked solutions with runnable R code, reads uploaded CSVs, streams answers inline on the question.",
+    "description": "Chrome extension that helps students work through stats coursework. Shows worked solutions with runnable R code, reads uploaded CSVs, streams answers inline on the question.",
     "offers": [
       {"@type": "Offer", "price": "0", "priceCurrency": "USD", "description": "Free — 5 solves per day"},
       {"@type": "Offer", "price": "15.00", "priceCurrency": "USD", "description": "Unlimited — $15/mo"}
@@ -639,11 +639,10 @@
     "@context": "https://schema.org",
     "@type": "FAQPage",
     "mainEntity": [
-      {"@type": "Question", "name": "What is statshelpr?", "acceptedAnswer": {"@type": "Answer", "text": "statshelpr is a Chrome extension for stats students. On any Canvas quiz page, it shows a worked solution with runnable R code inline under each question. Built for practice/ungraded work — always confirm your instructor permits outside help before use on graded assessments."}},
+      {"@type": "Question", "name": "What is statshelpr?", "acceptedAnswer": {"@type": "Answer", "text": "statshelpr is a Chrome extension that helps students work through stats coursework, including on Canvas quiz pages. It shows a worked solution with runnable R code inline under each question. Built for practice, ungraded work, and self-study — always confirm your instructor permits outside help before use on graded assessments."}},
       {"@type": "Question", "name": "Is statshelpr free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. The free tier gives you 5 solves per day, no credit card required. For unlimited solves, upgrade to the $15/month plan — cancel anytime."}},
-      {"@type": "Question", "name": "How does statshelpr work?", "acceptedAnswer": {"@type": "Answer", "text": "Install the Chrome extension. Open any stats quiz on Canvas. A small button appears next to each question — click it, and statshelpr sends the question to our API, which uses Google Gemini to write and reason through the answer. If R is needed, we generate the R code and run it in your browser via WebR — nothing runs on our server after the LLM writes it."}},
+      {"@type": "Question", "name": "How does statshelpr work?", "acceptedAnswer": {"@type": "Answer", "text": "Install the Chrome extension. Open any stats quiz — a small button appears next to each question. Click it, and statshelpr's AI works through the reasoning and gives you a worked answer. When a question needs computation, it writes R code and runs it right in your browser — nothing lingers on our servers afterward."}},
       {"@type": "Question", "name": "Does it work with my CSV data files?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Upload course CSVs once via the extension popup and they persist across all your quizzes. When you solve a question, the file goes with the request and R code can read.csv() it just like normal."}},
-      {"@type": "Question", "name": "Is this cheating?", "acceptedAnswer": {"@type": "Answer", "text": "That depends entirely on your instructor's and institution's academic-integrity policies. statshelpr is a study aid designed for problems where outside help is permitted — practice quizzes, ungraded homework, and self-study. You are responsible for confirming permitted use before every assessment. Do not use it on assessments where outside help is prohibited."}},
       {"@type": "Question", "name": "How is my data handled?", "acceptedAnswer": {"@type": "Answer", "text": "Question text, images, and CSVs are transmitted to our API on Cloudflare and to Google Gemini for processing. We do not store quiz content long-term. Your license key lives in chrome.storage.sync. Full details on our privacy page."}},
       {"@type": "Question", "name": "Can I cancel?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Cancel anytime from the Lemon Squeezy customer portal — one click, no phone call. We also offer a 7-day money-back guarantee if it doesn't work for you."}},
       {"@type": "Question", "name": "Which browsers work?", "acceptedAnswer": {"@type": "Answer", "text": "Chrome, and Chromium-based browsers (Edge, Arc, Brave). We do not currently support Safari or Firefox. Desktop only."}}
@@ -665,8 +664,8 @@
   </nav>
 
   <section class="hero">
-    <div class="hero-eyebrow">Stats tutor for Canvas quizzes</div>
-    <h1>Work through stats<br/>quizzes on <em>Canvas</em></h1>
+    <div class="hero-eyebrow">Stats tutor for students</div>
+    <h1>Work through your<br/>stats <em>coursework</em></h1>
     <p class="hero-sub">
       A Chrome extension that shows worked solutions with runnable R code, right on the question.
       Reads your uploaded CSVs. Free to try, no card required.
@@ -700,12 +699,12 @@
           <div class="terminal-dot"></div>
           <div class="terminal-dot"></div>
           <div class="terminal-dot"></div>
-          <div class="viewer-tab">Canvas &mdash; Quiz Question</div>
+          <div class="viewer-tab">Quiz Question</div>
         </div>
         <div class="viewer-body">
           <div class="drop-zone" id="drop-zone">
             <span class="dz-icon">&#8681;</span>
-            <span class="dz-text">Click Solve on any Canvas question</span>
+            <span class="dz-text">Click Solve on any quiz question</span>
           </div>
         </div>
       </div>
@@ -790,7 +789,7 @@
     <div class="f-grid">
       <div class="f-card">
         <span class="f-icon">&#8962;</span>
-        <h3>Lives inside Canvas</h3>
+        <h3>Lives inside the quiz</h3>
         <p>A Solve button appears next to every quiz question. No new tabs, no copy-pasting.</p>
       </div>
       <div class="f-card">
@@ -816,7 +815,7 @@
       <div class="f-card">
         <span class="f-icon">&#9889;</span>
         <h3>Fast and private</h3>
-        <p>Powered by Google Gemini 3.5 Flash. Questions aren't retained; CSV data stays on your device.</p>
+        <p>Powered by frontier AI. Questions aren't retained; CSV data stays on your device.</p>
       </div>
     </div>
   </section>
@@ -828,7 +827,7 @@
       <div class="t-step">
         <div class="t-dot">1</div>
         <h3>Install the extension</h3>
-        <p>Download the ZIP from <a href="/free.html">/free</a>, unzip, open <code>chrome://extensions</code>, enable Developer mode, click <em>Load unpacked</em>, pick the folder.</p>
+        <p>Add statshelpr to Chrome from the <a href="#">Chrome Web Store</a>.<!-- TODO: replace with the real Chrome Web Store listing URL once published --></p>
       </div>
       <div class="t-step">
         <div class="t-dot">2</div>
@@ -837,7 +836,7 @@
       </div>
       <div class="t-step">
         <div class="t-dot">3</div>
-        <h3>Solve on Canvas</h3>
+        <h3>Solve as you go</h3>
         <p>Open any stats quiz. A small <code>Solve</code> button appears next to each question. Click it &mdash; the answer streams inline.</p>
       </div>
     </div>
@@ -850,13 +849,7 @@
       <div class="faq-item">
         <button class="faq-q" aria-expanded="false">What is statshelpr?</button>
         <div class="faq-a">
-          <p>A Chrome extension for stats students. On any Canvas quiz, it shows a worked solution with reasoning and (when needed) runnable R code inline under the question. Built for practice quizzes, ungraded homework, and self-study.</p>
-        </div>
-      </div>
-      <div class="faq-item">
-        <button class="faq-q" aria-expanded="false">Is this cheating?</button>
-        <div class="faq-a">
-          <p>That depends entirely on your instructor's and institution's academic-integrity policies. statshelpr is a study aid. You are responsible for confirming outside help is permitted before using it on any assessment. Do not use it where prohibited.</p>
+          <p>A Chrome extension that helps you work through stats coursework, including on Canvas quiz pages. It shows a worked solution with reasoning and (when needed) runnable R code inline under the question. Built for practice, ungraded homework, and self-study &mdash; always confirm your instructor permits outside help before using it on any graded assessment.</p>
         </div>
       </div>
       <div class="faq-item">
@@ -868,7 +861,7 @@
       <div class="faq-item">
         <button class="faq-q" aria-expanded="false">How does the R code run?</button>
         <div class="faq-a">
-          <p>Client-side, in your browser. When a question needs computation, our API writes R code and sends it back; the extension runs it via WebR (R compiled to WebAssembly) with tidyverse, mosaic, moderndive, infer, broom, and ggplot2 preloaded. Nothing runs on our server after the LLM writes it.</p>
+          <p>Client-side, in your browser. When a question needs computation, statshelpr writes R code and runs it right on your device using an in-browser R engine &mdash; common stats packages come preloaded, so most code runs immediately with no server round-trip.</p>
         </div>
       </div>
       <div class="faq-item">
