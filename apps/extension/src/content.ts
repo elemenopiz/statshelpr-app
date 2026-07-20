@@ -22,6 +22,7 @@
  * LLM to turn into a final answer — see the RCODE branch in onSolve().
  */
 
+import { getInstallId } from "./install-id";
 import { initWebR, runR } from "./webr-runner";
 
 interface DataFile {
@@ -123,6 +124,18 @@ const TEXT_INPUT_SELECTOR = [
 
 const STORAGE_KEY_FILES = "statshelpr.files";
 const FILE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+/** Local mirror of the server's 24h rolling solve counter so the popup can
+ * show "n of 5 left today" without an extra endpoint. Server stays the
+ * authority — on a 402 we sync to its resetAt. */
+const STORAGE_KEY_SOLVE_STATS = "statshelpr.solveStats";
+const FREE_DAILY_LIMIT = 5;
+const SOLVE_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+interface SolveStats {
+  count: number;
+  resetAt: number;
+}
 
 let dataFiles: DataFile[] = [];
 
@@ -261,8 +274,12 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
   const cfg = await getConfig();
   const apiUrl = (cfg.apiUrl ?? "https://api.statshelpr.com").replace(/\/$/, "");
   const licenseKey = cfg.licenseKey ?? "";
+  const installId = await getInstallId();
+  // Shared by both /api/solve and /api/interpret below — the install id lets
+  // the server bucket the free-tier rate limit per install (see install-id.ts).
   const headers: HeadersInit = {
     "Content-Type": "application/json",
+    "X-Install-Id": installId,
     ...(licenseKey ? { Authorization: `Bearer ${licenseKey}` } : {}),
   };
   const apiChoices = scraped.choices.map((c) => ({
@@ -284,7 +301,22 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
         dataFiles: apiDataFiles,
       }),
     });
-    if (!solveRes.ok) throw new Error(await readErrorBody(solveRes));
+    if (!solveRes.ok) {
+      const bodyText = await solveRes.text();
+      if (solveRes.status === 402) {
+        // Daily limit — sync the local counter to the server's window.
+        let resetAt: number | undefined;
+        try {
+          resetAt = (JSON.parse(bodyText) as { resetAt?: number }).resetAt;
+        } catch {
+          /* body wasn't JSON — keep our own resetAt */
+        }
+        void recordSolveLimitHit(resetAt);
+      }
+      throw new Error(extractErrorMsg(bodyText));
+    }
+    // Passed the rate limiter — the server counted this solve, mirror it.
+    void recordSolveUse();
     const solveResult = await consumeSseResult(solveRes);
 
     if (solveResult.mode === "concept") {
@@ -346,7 +378,10 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
 }
 
 async function readErrorBody(res: Response): Promise<string> {
-  const body = await res.text();
+  return extractErrorMsg(await res.text());
+}
+
+function extractErrorMsg(body: string): string {
   // Try to extract the {error: "..."} field from a JSON error response
   let msg = body.slice(0, 200);
   try {
@@ -356,6 +391,36 @@ async function readErrorBody(res: Response): Promise<string> {
     /* not JSON — use raw body */
   }
   return msg;
+}
+
+/** Mirror one counted solve into chrome.storage.local for the popup meter.
+ * Fire-and-forget: never lets bookkeeping break a solve. */
+async function recordSolveUse(): Promise<void> {
+  try {
+    const r = await chrome.storage.local.get(STORAGE_KEY_SOLVE_STATS);
+    const prev = r[STORAGE_KEY_SOLVE_STATS] as SolveStats | undefined;
+    const now = Date.now();
+    const next: SolveStats =
+      !prev || prev.resetAt < now
+        ? { count: 1, resetAt: now + SOLVE_WINDOW_MS }
+        : { count: prev.count + 1, resetAt: prev.resetAt };
+    await chrome.storage.local.set({ [STORAGE_KEY_SOLVE_STATS]: next });
+  } catch {
+    /* tracking only */
+  }
+}
+
+/** The server said the daily cap is hit — pin the local mirror to it. */
+async function recordSolveLimitHit(resetAt?: number): Promise<void> {
+  try {
+    const next: SolveStats = {
+      count: FREE_DAILY_LIMIT,
+      resetAt: resetAt ?? Date.now() + SOLVE_WINDOW_MS,
+    };
+    await chrome.storage.local.set({ [STORAGE_KEY_SOLVE_STATS]: next });
+  } catch {
+    /* tracking only */
+  }
 }
 
 /**

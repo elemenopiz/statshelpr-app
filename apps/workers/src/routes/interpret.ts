@@ -39,7 +39,7 @@ export const interpret = new Hono<{ Bindings: Env }>();
 interpret.use("*", cors({
   origin: "*",
   allowMethods: ["POST", "OPTIONS"],
-  allowHeaders: ["Content-Type", "Authorization"],
+  allowHeaders: ["Content-Type", "Authorization", "X-Install-Id"],
 }));
 
 interpret.post("/", async (c) => {

@@ -1,13 +1,18 @@
 /**
- * KV-backed 24h rolling rate limiter, keyed on a hash of the license key.
+ * KV-backed 24h rolling rate limiter, keyed on a hash of a caller-supplied
+ * bucket id. The function itself is generic — it just hashes whatever bucket
+ * string it's given — callers decide what identifies a "user".
  *
  * Free tier: N solves/day (from FREE_TIER_DAILY_LIMIT env). Paid tier: unlimited —
  * solve.ts skips this call entirely when validateLicense returns tier "paid".
  *
- * KNOWN LIMITATION: free users with no license key all hash to one "anon"
- * bucket, so the free tier is currently GLOBAL (N/day shared across all anon
- * users), not per-user. Per-user free limits need a per-install identifier
- * sent by the extension (see planning §4 alt-account/abuse prevention).
+ * Free-tier bucketing: solve.ts buckets free users on their extension's
+ * persistent install id (X-Install-Id header, see
+ * apps/extension/src/install-id.ts and planning §4), so the free N/day cap
+ * is per-install rather than one bucket shared across the whole user base.
+ * Requests with no install id (older extension builds, or the header
+ * stripped in transit) fall back to a shared "anon" bucket — safe, but those
+ * callers are back to the old global-cap behavior until they upgrade.
  */
 
 import type { Env } from "../types";
@@ -21,9 +26,9 @@ export interface RateLimitResult {
   resetAt: number;
 }
 
-/** SHA-256 the license key so we never store it raw in KV. */
-async function hashLicense(licenseKey: string): Promise<string> {
-  const buf = new TextEncoder().encode(licenseKey);
+/** SHA-256 the bucket id so we never store license keys / install ids raw in KV. */
+async function hashBucket(bucketId: string): Promise<string> {
+  const buf = new TextEncoder().encode(bucketId);
   const digest = await crypto.subtle.digest("SHA-256", buf);
   return Array.from(new Uint8Array(digest))
     .map((b) => b.toString(16).padStart(2, "0"))
@@ -33,10 +38,10 @@ async function hashLicense(licenseKey: string): Promise<string> {
 
 export async function checkAndIncrement(
   env: Env,
-  licenseKey: string,
+  bucketId: string,
 ): Promise<RateLimitResult> {
   const limit = Number(env.FREE_TIER_DAILY_LIMIT ?? "5") || 5;
-  const hash = await hashLicense(licenseKey || "anon");
+  const hash = await hashBucket(bucketId || "anon");
   const key = `${KV_PREFIX}${hash}`;
   const now = Date.now();
 

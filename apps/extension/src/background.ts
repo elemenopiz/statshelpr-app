@@ -8,6 +8,8 @@
  *    directly, but the proxy is kept as a fallback for restricted hosts).
  */
 
+import { getInstallId } from "./install-id";
+
 interface SolveRequest {
   type: "solve";
   payload: {
@@ -52,11 +54,13 @@ async function handleSolve(payload: SolveRequest["payload"]) {
   const cfg = await chrome.storage.sync.get(["apiUrl", "licenseKey"]);
   const apiUrl = (cfg["apiUrl"] as string | undefined) ?? "https://api.statshelpr.com";
   const licenseKey = (cfg["licenseKey"] as string | undefined) ?? "";
+  const installId = await getInstallId();
 
   const res = await fetch(`${apiUrl}/api/solve`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      "X-Install-Id": installId,
       ...(licenseKey ? { Authorization: `Bearer ${licenseKey}` } : {}),
     },
     body: JSON.stringify(payload),

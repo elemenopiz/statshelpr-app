@@ -27,7 +27,7 @@ export const solve = new Hono<{ Bindings: Env }>();
 solve.use("*", cors({
   origin: "*",
   allowMethods: ["POST", "OPTIONS"],
-  allowHeaders: ["Content-Type", "Authorization"],
+  allowHeaders: ["Content-Type", "Authorization", "X-Install-Id"],
 }));
 
 solve.post("/", async (c) => {
@@ -36,12 +36,17 @@ solve.post("/", async (c) => {
 
   const auth = c.req.header("authorization") ?? "";
   const licenseKey = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+  // Persistent per-install id from the extension (chrome.storage.sync, see
+  // apps/extension/src/install-id.ts). Falls back to "anon" for older
+  // extension builds that don't send it yet.
+  const installId = c.req.header("x-install-id") ?? "";
   const lic = await validateLicense(c.env, licenseKey);
   if (!lic.ok) return c.json({ error: lic.reason ?? "Unauthorized" }, 401);
 
-  // Paid licenses are unlimited; only the free tier hits the daily counter.
+  // Paid licenses are unlimited; only the free tier hits the daily counter,
+  // bucketed per install so the free cap is per-user, not global.
   if (lic.tier !== "paid") {
-    const rl = await checkAndIncrement(c.env, licenseKey);
+    const rl = await checkAndIncrement(c.env, installId || "anon");
     if (!rl.allowed) {
       return c.json(
         {
