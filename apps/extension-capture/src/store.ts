@@ -145,6 +145,7 @@ export function toRecord(c: Capture): CaptureRecord {
   if (c.images.length > 0) rec.images = c.images;
   if (c.imageUrls?.length) rec.imageUrls = c.imageUrls;
   if (c.questionHtml) rec.questionHtml = c.questionHtml;
+  if (c.questionDomHtml) rec.questionDomHtml = c.questionDomHtml;
   if (c.questionType) rec.questionType = c.questionType;
   if (c.canvasQuestionId) rec.canvasQuestionId = c.canvasQuestionId;
   return rec;

@@ -68,6 +68,12 @@ export interface ScrapedQuestion {
   /** The authored question HTML from Canvas's hidden question_text textarea
    * (clean links/code blocks/img tags; no screen-reader noise). Classic only. */
   questionHtml: string | null;
+  /** Rendered outerHTML of the question container at scrape time — inputs,
+   * selects, labels, answer rows and all (unlike questionHtml above, not
+   * limited to Classic Quizzes' hidden textarea). Fixture material for a
+   * future jsdom/happy-dom write-back test harness; null if the snapshot
+   * failed. */
+  questionDomHtml: string | null;
   /** Canvas's own question type, e.g. "matching_question". Classic only. */
   questionType: string | null;
   /** Canvas's numeric question id (stable across attempts). */
@@ -159,6 +165,83 @@ export function questionHtmlOf(question: HTMLElement): string | null {
   return v || null;
 }
 
+// ---- DOM snapshot (rendered question, for a future write-back test harness) -
+
+/** Class/id prefixes of UI our own extensions inject or mark onto the page:
+ * this file's own capture pill/panel (`shcap-*`) and the production tutor's
+ * button/suggestion highlighting (`statshelpr-*`, apps/extension/src/content.ts).
+ * The README explicitly supports loading both at once ("all injected UI is
+ * shcap-prefixed so the two never collide"), so a capture can carry either. */
+const INJECTED_UI_PREFIXES = ["shcap", "statshelpr"];
+
+const MAX_QUESTION_DOM_HTML_BYTES = 512 * 1024;
+
+/** Rendered outerHTML of the question container at scrape time — inputs,
+ * selects, labels, answer rows and all (questionHtmlOf() above is stem-only
+ * and Classic-only; this is the whole rendered container, every question
+ * type). Fixture material for a future jsdom/happy-dom write-back test
+ * harness. Works on a detached clone — the live page is never touched. Strips
+ * only scripts/styles and our own extensions' injected UI; no other
+ * transformation, since markup fidelity is the whole point. Capped at 512KB
+ * as a last-resort safety net, not a normal path. */
+export function questionDomHtmlOf(question: HTMLElement): string | null {
+  try {
+    const clone = question.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll("script, style").forEach((n) => n.remove());
+    stripInjectedUi(clone);
+    const html = clone.outerHTML;
+    return html ? capBytes(html, MAX_QUESTION_DOM_HTML_BYTES) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Remove our own extensions' injected UI from a detached clone. A matching
+ * wrapper/button is dropped outright; a matching node that IS or CONTAINS a
+ * real form control is kept (only the offending class/id is stripped) — the
+ * production tutor marks Canvas's own `<select>`/`<input>`/answer row with
+ * `.statshelpr-suggested` rather than always wrapping it, and deleting those
+ * would throw away exactly the inputs this snapshot exists to capture. */
+function stripInjectedUi(root: HTMLElement): void {
+  for (const el of [...root.querySelectorAll<HTMLElement>("*")]) {
+    if (!root.contains(el) || !isInjectedUi(el)) continue; // already removed with an ancestor
+    if (/^(?:input|select|textarea|option)$/i.test(el.tagName) || el.querySelector("input, select, textarea")) {
+      stripInjectedMarkers(el);
+    } else {
+      el.remove();
+    }
+  }
+  if (isInjectedUi(root)) stripInjectedMarkers(root); // defensive; shouldn't happen
+}
+
+function isInjectedUi(el: Element): boolean {
+  const starts = (s: string) => INJECTED_UI_PREFIXES.some((p) => s.startsWith(p));
+  if (el.id && starts(el.id)) return true;
+  for (const cls of el.classList) if (starts(cls)) return true;
+  return false;
+}
+
+function stripInjectedMarkers(el: Element): void {
+  const starts = (s: string) => INJECTED_UI_PREFIXES.some((p) => s.startsWith(p));
+  if (el.id && starts(el.id)) el.removeAttribute("id");
+  for (const cls of [...el.classList]) if (starts(cls)) el.classList.remove(cls);
+  if (el.classList.length === 0) el.removeAttribute("class");
+}
+
+/** Matches trailing U+FFFD replacement char(s) left by decoding a multi-byte
+ * UTF-8 sequence that capBytes() cut in half. Built via fromCharCode to keep
+ * that code point out of the source as a literal. */
+const BAD_UTF8_TAIL = new RegExp(`${String.fromCharCode(0xfffd)}+$`);
+
+/** Truncate to at most `maxBytes` UTF-8 bytes without leaving a dangling
+ * multi-byte character at the cut point. A stray cut mid-tag is fine — this is
+ * a last-resort safety cap, not a feature. */
+function capBytes(text: string, maxBytes: number): string {
+  const bytes = new TextEncoder().encode(text);
+  if (bytes.length <= maxBytes) return text;
+  return new TextDecoder().decode(bytes.slice(0, maxBytes)).replace(BAD_UTF8_TAIL, "");
+}
+
 // ---- text extraction --------------------------------------------------------
 
 /** Element text with Canvas's screen-reader helper spans ("Links to an
@@ -200,6 +283,7 @@ export async function scrapeQuestion(
   return {
     text,
     questionHtml: questionHtmlOf(question),
+    questionDomHtml: questionDomHtmlOf(question),
     questionType: questionTypeOf(question),
     canvasQuestionId: canvasQuestionIdOf(question),
     choices,

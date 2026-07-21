@@ -243,6 +243,7 @@ async function captureOne(question: HTMLElement, pill: HTMLButtonElement): Promi
       name: fixtureName(scrapedText, kind),
       questionText: scrapedText,
       ...(scraped.questionHtml ? { questionHtml: scraped.questionHtml } : {}),
+      ...(scraped.questionDomHtml ? { questionDomHtml: scraped.questionDomHtml } : {}),
       ...(scraped.questionType ? { questionType: scraped.questionType } : {}),
       ...(scraped.canvasQuestionId ? { canvasQuestionId: scraped.canvasQuestionId } : {}),
       choices: scraped.choices,
