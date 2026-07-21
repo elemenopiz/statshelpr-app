@@ -10,7 +10,7 @@
  * hand-labeling. That's the whole point of this tool.
  */
 
-import type { ApiChoice, ImageBlock } from "./types";
+import type { AnswerSource, ApiChoice, CaptureOutcome, ImageBlock } from "./types";
 
 // ---- selectors (mirror content.ts) -----------------------------------------
 
@@ -273,6 +273,81 @@ export function selectedChoiceLabels(raw: AnswerChoice[]): string[] {
     }
   }
   return out;
+}
+
+/** True when the choices are read-only (a graded submission review), false on a
+ * live quiz where the inputs are still editable. */
+export function isReadOnly(raw: AnswerChoice[]): boolean {
+  return raw.length > 0 && raw.every((c) => (c.input as HTMLInputElement | HTMLSelectElement).disabled);
+}
+
+/** Right/wrong for a graded question: Canvas Classic tags the question
+ * `.correct`/`.incorrect`; failing that, parse the per-question "X / Y pts". */
+export function questionCorrectness(question: HTMLElement): "correct" | "incorrect" | null {
+  const nodes = [question, ...question.querySelectorAll<HTMLElement>(".question, .display_question")];
+  for (const n of nodes) if (n.classList.contains("incorrect")) return "incorrect";
+  for (const n of nodes) if (n.classList.contains("correct")) return "correct";
+  const score = questionScore(question);
+  if (score) return score.possible > 0 && score.earned >= score.possible ? "correct" : "incorrect";
+  return null;
+}
+
+/** Parse earned/possible points from a graded question header. */
+export function questionScore(question: HTMLElement): { earned: number; possible: number } | null {
+  const m = (question.textContent || "").match(/(\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\s*pts?\b/i);
+  if (m) return { earned: parseFloat(m[1]!), possible: parseFloat(m[2]!) };
+  const up = question.querySelector(".user_points");
+  const qp = question.querySelector(".question_points, .points");
+  if (up && qp) {
+    const e = parseFloat((up.textContent || "").replace(/[^\d.]/g, ""));
+    const p = parseFloat((qp.textContent || "").replace(/[^\d.]/g, ""));
+    if (!Number.isNaN(e) && !Number.isNaN(p)) return { earned: e, possible: p };
+  }
+  return null;
+}
+
+export interface AnswerReadout {
+  selectedChoices: string[];
+  correctChoices: string[];
+  outcome: CaptureOutcome;
+  answerSource: AnswerSource;
+  verified: boolean;
+}
+
+/**
+ * Everything we can establish about a graded question's answer:
+ *   - Canvas shows the key (.correct_answer)      → verified from answer-key.
+ *   - answers hidden, question marked full-marks  → the student's own pick is
+ *     correct → verified from self-correct.
+ *   - answers hidden, question wrong / unscorable → unverified (question + the
+ *     student's pick kept for the pool, correct answer unknown).
+ */
+export function readGradedAnswer(question: HTMLElement, raw: AnswerChoice[]): AnswerReadout {
+  const selectedChoices = selectedChoiceLabels(raw);
+  const key = detectCorrectChoices(question, raw);
+  if (key.hasKey) {
+    return {
+      selectedChoices,
+      correctChoices: key.labels,
+      outcome: sameSet(selectedChoices, key.labels) ? "correct" : "incorrect",
+      answerSource: "answer-key",
+      verified: true,
+    };
+  }
+  const correctness = questionCorrectness(question);
+  if (correctness === "correct" && selectedChoices.length > 0) {
+    return { selectedChoices, correctChoices: selectedChoices, outcome: "correct", answerSource: "self-correct", verified: true };
+  }
+  if (correctness === "incorrect") {
+    return { selectedChoices, correctChoices: [], outcome: "incorrect", answerSource: "none", verified: false };
+  }
+  return { selectedChoices, correctChoices: [], outcome: "unknown", answerSource: "none", verified: false };
+}
+
+function sameSet(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const s = new Set(a.map((x) => x.toUpperCase()));
+  return b.every((x) => s.has(x.toUpperCase()));
 }
 
 // ---- choice text / row helpers (mirror content.ts) --------------------------

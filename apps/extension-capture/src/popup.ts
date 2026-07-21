@@ -11,7 +11,7 @@ import {
   upsertCapture,
   dedupeTemplates,
   toFixtureBundle,
-  toJsonl,
+  toPoolBundle,
   downloadText,
 } from "./store";
 import { loadDatasets } from "./datasets";
@@ -23,16 +23,16 @@ async function render() {
   const captures = await getAllCaptures();
 
   $("count").textContent = String(captures.length);
-  const keyed = captures.filter((c) => c.source === "answer-key").length;
-  const calc = captures.filter((c) => c.mode === "calc").length;
+  const verified = captures.filter((c) => c.verified).length;
+  const pool = captures.length - verified;
   const templates = new Set(captures.map((c) => c.templateId)).size;
   const variants = captures.length - templates;
   $("breakdown").textContent = captures.length
-    ? `${templates} unique · ${variants} variant${variants === 1 ? "" : "s"} · ${keyed} keyed · ${calc} calc`
+    ? `${verified} verified · ${pool} pool · ${templates} unique`
     : "nothing captured yet";
 
-  ($("export-json") as HTMLButtonElement).disabled = captures.length === 0;
-  ($("export-jsonl") as HTMLButtonElement).disabled = captures.length === 0;
+  ($("export-fixtures") as HTMLButtonElement).disabled = verified === 0;
+  ($("export-pool") as HTMLButtonElement).disabled = captures.length === 0;
   ($("clear") as HTMLButtonElement).disabled = captures.length === 0;
   ($("dedupe") as HTMLButtonElement).disabled = variants === 0;
   ($("dedupe") as HTMLButtonElement).textContent = variants
@@ -60,11 +60,19 @@ function renderList(captures: Capture[]) {
     const meta = el("div", { className: "q-meta" });
     meta.appendChild(
       el("span", {
-        className: `tag ${c.source === "answer-key" ? "key" : "manual"}`,
-        text: c.source === "answer-key" ? "key" : "manual",
+        className: `tag ${c.verified ? "key" : "manual"}`,
+        title: `answer source: ${c.answerSource} · outcome: ${c.outcome}`,
+        text: c.verified ? "verified" : "pool",
       }),
     );
-    meta.appendChild(el("span", { className: "tag ans", text: c.correctChoices.join("") || "—" }));
+    // verified → the correct answer; pool → the student's (wrong/unknown) pick
+    meta.appendChild(
+      el("span", {
+        className: "tag ans",
+        title: c.verified ? "correct answer" : `your pick (${c.outcome})`,
+        text: (c.verified ? c.correctChoices : c.selectedChoices).join("") || "—",
+      }),
+    );
     for (const ds of c.datasetRefs) meta.appendChild(el("span", { className: "tag data", text: ds }));
     if ((counts.get(c.templateId) ?? 0) > 1) {
       meta.appendChild(el("span", { className: "tag var", title: "Shares a template with another capture", text: "variant" }));
@@ -92,22 +100,24 @@ function renderList(captures: Capture[]) {
   }
 }
 
-async function exportBundle(kind: "json" | "jsonl") {
+async function exportData(kind: "fixtures" | "pool") {
   const captures = await getAllCaptures();
   if (captures.length === 0) return;
   const datasets = await loadDatasets();
   const s = stamp();
-  if (kind === "json") {
+  if (kind === "fixtures") {
+    const verified = captures.filter((c) => c.verified).length;
     downloadText(`statshelpr-fixtures-${s}.json`, toFixtureBundle(captures, datasets, true));
+    toast(`Exported ${verified} verified fixture${verified === 1 ? "" : "s"}`);
   } else {
-    downloadText(`statshelpr-fixtures-${s}.jsonl`, toJsonl(captures, datasets, true));
+    downloadText(`statshelpr-pool-${s}.json`, toPoolBundle(captures, datasets));
+    toast(`Exported ${captures.length} pool item${captures.length === 1 ? "" : "s"}`);
   }
-  toast(`Exported ${captures.length} fixtures`);
 }
 
 function wire() {
-  $("export-json").addEventListener("click", () => void exportBundle("json"));
-  $("export-jsonl").addEventListener("click", () => void exportBundle("jsonl"));
+  $("export-fixtures").addEventListener("click", () => void exportData("fixtures"));
+  $("export-pool").addEventListener("click", () => void exportData("pool"));
   $("dedupe").addEventListener("click", async () => {
     const removed = await dedupeTemplates();
     await render();

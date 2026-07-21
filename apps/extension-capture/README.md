@@ -11,21 +11,29 @@ no hand-labeling. Output matches `evals/solve-fixtures/*.json`, so it feeds
 
 ## How it captures answers
 
-Capture is **automatic — no toggles, no clicks.**
+Capture is **automatic — no toggles, no clicks.** Opening a graded submission
+auto-captures every question and buckets each by what can be verified:
 
-- **Graded page (fully automatic).** On a quiz **results / submission history**
-  page, Canvas marks the correct choice inline (`.correct_answer` and friends).
-  Just opening the page auto-captures every keyed question — text, choices,
-  images, referenced dataset, correct answer, and an inferred concept/calc mode.
-  The panel shows `⚡ auto-captured N`. (A **Re-capture keyed** button is there for
-  after a Clear.) Take/submit a quiz, open results, done.
-- **Live/ungraded page (manual — unavoidable).** The correct answer isn't on the
-  page anywhere, so nothing can label it automatically. Each question gets a pill:
-  select the correct choice(s), click it, your selection becomes the label.
+- **Verified** → goes in the eval fixtures. Either Canvas shows the key inline
+  (`.correct_answer`), **or** the question is marked full marks — so the
+  student's own selected answer *is* the correct one (works even when the quiz
+  hides correct answers, which is the common case). The panel shows
+  `⚡ auto-captured N (V verified)`.
+- **Pool** → the separate question-pool export. A missed question on an
+  answers-hidden quiz: we keep the question, choices, images, dataset, and the
+  student's (wrong) pick, but the correct answer is unknown. Useful as a
+  hard-questions set to solve/label later — deliberately kept out of the eval
+  fixtures so it can't poison them.
 
-Every question type is captured: single-answer (radio), select-all (checkbox),
-dropdown, fill-in (text), and any images embedded in the question or answers —
-all detected automatically.
+Text, choices, images, referenced dataset, and an inferred concept/calc mode are
+all detected automatically. Every question type is covered: single-answer
+(radio), select-all (checkbox), dropdown, fill-in (text), plus images.
+
+On a **live/ungraded quiz** there's no answer on the page, so each question gets
+a manual pill — select the correct choice(s), click, your selection is the label.
+
+Re-capturing the same question across attempts **never downgrades a verified
+answer** (right one attempt, wrong another → the verified version wins).
 
 ## Dedup across attempts
 
@@ -85,21 +93,19 @@ pnpm build:capture            # → apps/extension-capture/dist
 Loading this alongside the production extension is fine — all injected UI is
 `shcap-`-prefixed so the two never collide.
 
-## Export → fixtures → eval
+## Exports
 
-1. Click **Export .json** (in the panel or the popup) to download a bundle of
-   all captures.
-2. Split it into individual fixture files:
-   ```bash
-   tsx scripts/import-captures.ts ~/Downloads/statshelpr-fixtures-*.json
-   # → evals/solve-fixtures/<slug>.json
-   ```
-3. Run the evals:
-   ```bash
-   tsx scripts/run-evals.ts --base-url http://localhost:3030
-   ```
+Two buttons in the panel/popup:
 
-`.jsonl` export is also available for training pipelines (one fixture per line).
+- **Export fixtures** — verified captures only, in the `evals/solve-fixtures`
+  shape. Split into files and run the evals:
+  ```bash
+  pnpm import:captures ~/Downloads/statshelpr-fixtures-*.json   # → evals/solve-fixtures/
+  pnpm eval
+  ```
+- **Export pool** — every capture (verified + unverified) with the student's
+  pick, outcome (correct/incorrect/unknown), and dataset. For the "hard
+  questions / label later" use case; not the eval fixture shape.
 
 ## Notes
 

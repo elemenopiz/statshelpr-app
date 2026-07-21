@@ -22,9 +22,20 @@ export interface ApiChoice {
 }
 
 export type CaptureMode = "concept" | "calc";
-export type CaptureSource = "answer-key" | "manual";
+/** Whether the student got the question right, read off the graded page. */
+export type CaptureOutcome = "correct" | "incorrect" | "unknown";
+/** How the correct answer (if any) was established.
+ *  - answer-key   : Canvas showed the correct answer inline (.correct_answer).
+ *  - self-correct : answers hidden, but the question is marked full-marks, so
+ *                   the student's own selected answer IS the correct one.
+ *  - manual       : live quiz — the user asserted the answer by selecting it.
+ *  - none         : correct answer unknown (wrong answer + answers hidden). */
+export type AnswerSource = "answer-key" | "self-correct" | "manual" | "none";
 
-/** One labeled question, keyed by `id` (a stable hash of the question text). */
+/** One captured question, keyed by `id` (a stable hash of the question text).
+ * A capture is "verified" when we trust `correctChoices`; unverified captures
+ * (a missed question on an answers-hidden quiz) still carry the question and
+ * the student's pick, for the separate question-pool export. */
 export interface Capture {
   id: string;
   /** Hash of the question text with numbers stripped, so templated numeric
@@ -34,15 +45,19 @@ export interface Capture {
   questionText: string;
   choices: ApiChoice[];
   images: ImageBlock[];
-  /** Correct-answer labels, e.g. ["A"] or ["A","C"] for select-all. */
+  /** What the student selected, e.g. ["B"]. */
+  selectedChoices: string[];
+  /** The trusted correct answer; empty when unknown (unverified). */
   correctChoices: string[];
+  outcome: CaptureOutcome;
+  answerSource: AnswerSource;
+  /** True when `correctChoices` is trusted (goes in the eval fixtures). */
+  verified: boolean;
   /** Filenames of datasets the question references, e.g. ["scooby.csv"]. The
    * CSV content is packaged separately (datasets.json) and inlined at export;
    * storing only refs keeps chrome.storage lean across many captures. */
   datasetRefs: string[];
   mode: CaptureMode;
-  /** How `correctChoices` was determined. */
-  source: CaptureSource;
   url: string;
   courseId?: string;
   quizId?: string;
@@ -65,8 +80,29 @@ export interface Fixture {
   };
   /** Provenance — ignored by the eval runner, handy for auditing the set. */
   meta?: {
-    source: CaptureSource;
+    answerSource: AnswerSource;
+    outcome: CaptureOutcome;
     url: string;
     capturedAt: number;
   };
+}
+
+/** A row in the full question-pool export — every capture, verified or not,
+ * with the student's pick and outcome. For the "hard questions / label later"
+ * use case; kept out of the eval fixtures. */
+export interface PoolItem {
+  name: string;
+  questionText: string;
+  choices: ApiChoice[];
+  images?: ImageBlock[];
+  dataFiles?: Array<{ filename: string; content: string }>;
+  selectedChoices: string[];
+  correctChoices: string[];
+  outcome: CaptureOutcome;
+  answerSource: AnswerSource;
+  verified: boolean;
+  mode: CaptureMode;
+  templateId: string;
+  url: string;
+  capturedAt: number;
 }

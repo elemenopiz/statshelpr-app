@@ -1,38 +1,40 @@
 /**
- * Canvas content script — training-data capture (fully automatic).
+ * Canvas content script — training-data capture (automatic).
  *
- * On a GRADED results/history page, Canvas renders the answer key inline. This
- * script detects it and **auto-captures every keyed question on the page with
- * zero clicks** — question text, choices, images, the referenced dataset, the
- * correct answer, and an inferred concept/calc mode, all without any toggles.
- * A floating panel (bottom-right) shows the running count and handles export.
+ * On a GRADED submission/review page, opening the page auto-captures **every**
+ * question with zero clicks and buckets each by what we can verify:
+ *   - Canvas shows the key, or the question is marked full-marks (so your own
+ *     pick is the correct answer) → VERIFIED → goes in the eval fixtures.
+ *   - You missed it and answers are hidden → UNVERIFIED → question + your pick
+ *     kept for the separate "question pool" export, correct answer unknown.
+ * Re-capturing across attempts never downgrades a verified answer.
  *
- * On a LIVE / ungraded quiz there is no answer key anywhere on the page, so
- * nothing can be auto-labeled; each question gets a manual pill instead —
- * select the correct choice(s), click it, and your selection is the label.
+ * On a LIVE quiz (editable inputs, no key) each question gets a manual pill:
+ * select the correct choice(s), click, your selection is the label.
  *
- * Everything is local: no network (beyond fetching the question's own images /
- * packaged datasets), no API, no cost. Captures persist in chrome.storage.local
- * and export as fixtures matching evals/solve-fixtures/*.json.
+ * Local only. Persists in chrome.storage.local; exports fixtures + pool.
  */
 
 import {
   findQuestions,
   collectChoices,
-  detectCorrectChoices,
   scrapeQuestion,
+  readGradedAnswer,
+  isReadOnly,
   selectedChoiceLabels,
   looksGraded,
   normalizeText,
   findStem,
+  type AnswerReadout,
 } from "./scrape";
 import {
-  upsertCapture,
+  mergeCapture,
   hasCapture,
+  getCapture,
   getAllCaptures,
   clearCaptures,
   toFixtureBundle,
-  toJsonl,
+  toPoolBundle,
   downloadText,
   hashId,
   templateId,
@@ -50,11 +52,9 @@ const pills = new Map<HTMLElement, HTMLButtonElement>();
 // =============================================================================
 
 function boot() {
-  ensurePanel();
   scanAndInject();
 
   const observer = new MutationObserver((records) => {
-    // Ignore our own panel/pill mutations to avoid a rescan feedback loop.
     if (records.every((r) => (r.target as HTMLElement).closest?.("#shcap-panel"))) return;
     scanAndInject();
   });
@@ -75,7 +75,7 @@ if (document.readyState === "loading") {
 }
 
 // =============================================================================
-// scan → inject pills → auto-capture keyed questions
+// scan → inject pills → auto-capture (only in a frame that has questions)
 // =============================================================================
 
 let pendingScan = false;
@@ -84,39 +84,52 @@ function scanAndInject() {
   pendingScan = true;
   setTimeout(() => {
     pendingScan = false;
-    for (const q of findQuestions()) injectPill(q);
+    const questions = findQuestions();
+    if (questions.length === 0) return; // no panel/pills in question-less frames
+    ensurePanel();
+    for (const q of questions) injectPill(q);
     void refreshPanel();
     void maybeAutoCapture();
-  }, 120);
+  }, 150);
 }
 
-/** Auto-capture every answer-keyed question that hasn't been captured yet — the
- * whole point of the tool. Idempotent: each question is attempted once per page
- * (autoAttempted) and skipped if already stored (dedup). No-ops on ungraded
- * pages, where no question has a key. */
+/** Auto-capture every question on a graded page (verified + pool). Idempotent:
+ * attempted once per page load, and already-verified questions are skipped. */
 let autoCapturing = false;
 const autoAttempted = new Set<string>();
 async function maybeAutoCapture() {
   if (autoCapturing) return;
   autoCapturing = true;
   try {
-    let n = 0;
+    let captured = 0;
+    let verified = 0;
     for (const q of findQuestions()) {
-      if (!detectCorrectChoices(q, collectChoices(q)).hasKey) continue;
+      if (!isGradedQuestion(q)) continue;
       const id = hashId(scrapeText(q));
       if (!id || autoAttempted.has(id)) continue;
       autoAttempted.add(id);
-      if (await hasCapture(id)) continue;
+      const existing = await getCapture(id);
+      if (existing?.verified) continue; // already have a trusted answer
       const pill = pills.get(q);
-      if (pill && (await captureOne(q, pill))) n += 1;
+      if (!pill) continue;
+      const res = await captureOne(q, pill);
+      if (res) {
+        captured += 1;
+        if (res.verified) verified += 1;
+      }
     }
-    if (n > 0) {
-      setAutoStatus(`⚡ auto-captured ${n} — verify the answers`);
+    if (captured > 0) {
+      setAutoStatus(`⚡ auto-captured ${captured} (${verified} verified)`);
       await refreshPanel();
     }
   } finally {
     autoCapturing = false;
   }
+}
+
+/** A graded, read-only question we can auto-harvest (vs a live editable quiz). */
+function isGradedQuestion(q: HTMLElement): boolean {
+  return looksGraded(q) || isReadOnly(collectChoices(q));
 }
 
 function injectPill(question: HTMLElement) {
@@ -133,32 +146,33 @@ function injectPill(question: HTMLElement) {
   const bar = el("div", { className: "shcap-qbar" }, [pill]);
   question.insertBefore(bar, question.firstChild);
   pills.set(question, pill);
-
   void setPillState(question, pill);
 }
 
-/** Reflect the question's status on its pill: saved (green), keyed & about to
- * auto-capture, or awaiting a manual selection on an ungraded page. */
 async function setPillState(question: HTMLElement, pill: HTMLButtonElement) {
-  const { hasKey, labels } = detectCorrectChoices(question, collectChoices(question));
+  const raw = collectChoices(question);
   const id = hashId(scrapeText(question));
   const saved = id ? await hasCapture(id) : false;
-
-  pill.classList.toggle("shcap-has-key", hasKey);
-  pill.classList.toggle("shcap-saved", saved);
   question.classList.toggle("shcap-captured", saved);
+  pill.classList.remove("shcap-has-key", "shcap-saved", "shcap-warn");
 
   if (saved) {
-    pill.textContent = "✓ saved";
-    pill.title = "Captured — click to re-capture / update the label";
-  } else if (hasKey) {
-    pill.textContent = `⬇ ${labels.join("")}`;
-    pill.title = "Answer key detected — capturing automatically (click to force)";
+    const c = id ? await getCapture(id) : undefined;
+    pill.classList.add(c?.verified ? "shcap-saved" : "shcap-warn");
+    pill.textContent = c?.verified ? `✓ ${c.correctChoices.join("")}` : "✓ pool";
+    pill.title = c?.verified ? "Captured (verified)" : "Captured to pool (answer unverified)";
+    return;
+  }
+  if (isReadOnly(raw)) {
+    const a = readGradedAnswer(question, raw);
+    pill.classList.toggle("shcap-has-key", a.verified);
+    pill.textContent = a.verified ? `⬇ ${a.correctChoices.join("")}` : "⬇ pool";
+    pill.title = a.verified
+      ? "Full-marks / keyed — will capture the correct answer"
+      : `Answers hidden & ${a.outcome} — captured to the pool (answer unknown)`;
   } else {
     pill.textContent = "⬇ capture";
-    pill.title = looksGraded(question)
-      ? "No key auto-detected — select the correct choice(s), then click"
-      : "Live quiz: select the correct choice(s), then click to capture";
+    pill.title = "Live quiz: select the correct choice(s), then click";
   }
 }
 
@@ -170,64 +184,72 @@ async function refreshAllPillStates() {
 }
 
 // =============================================================================
-// capture — everything auto-detected (answer, images, dataset, mode)
+// capture
 // =============================================================================
 
-async function captureOne(question: HTMLElement, pill: HTMLButtonElement): Promise<boolean> {
+async function captureOne(question: HTMLElement, pill: HTMLButtonElement): Promise<AnswerReadout | null> {
   pill.classList.add("shcap-busy");
   try {
     const scraped = await scrapeQuestion(question, { includeImages: true });
-    const detected = detectCorrectChoices(question, scraped.raw);
 
-    let correctChoices: string[];
-    let source: Capture["source"];
-    if (detected.hasKey) {
-      correctChoices = detected.labels;
-      source = "answer-key";
+    let readout: AnswerReadout;
+    if (isReadOnly(scraped.raw)) {
+      readout = readGradedAnswer(question, scraped.raw); // graded review
     } else {
-      correctChoices = selectedChoiceLabels(scraped.raw);
-      source = "manual";
-      if (correctChoices.length === 0) {
+      const selected = selectedChoiceLabels(scraped.raw); // live quiz — user asserts
+      if (selected.length === 0) {
         flashPill(pill, "select answer first", "shcap-warn");
-        return false;
+        return null;
       }
+      readout = {
+        selectedChoices: selected,
+        correctChoices: selected,
+        outcome: "correct",
+        answerSource: "manual",
+        verified: true,
+      };
     }
 
-    const id = hashId(scraped.text);
+    const scrapedText = scraped.text;
     const kind = scraped.choices[0]?.type ?? "radio";
-    const datasetRefs = detectDatasetRefs(scraped.text);
     const capture: Capture = {
-      id,
-      templateId: templateId(scraped.text),
-      name: fixtureName(scraped.text, kind),
-      questionText: scraped.text,
+      id: hashId(scrapedText),
+      templateId: templateId(scrapedText),
+      name: fixtureName(scrapedText, kind),
+      questionText: scrapedText,
       choices: scraped.choices,
       images: scraped.images,
-      correctChoices,
-      datasetRefs,
-      mode: inferMode(scraped.text, scraped.choices),
-      source,
+      selectedChoices: readout.selectedChoices,
+      correctChoices: readout.correctChoices,
+      outcome: readout.outcome,
+      answerSource: readout.answerSource,
+      verified: readout.verified,
+      datasetRefs: detectDatasetRefs(scrapedText),
+      mode: inferMode(scrapedText, scraped.choices),
       url: location.href,
       ...idsFromUrl(),
       capturedAt: Date.now(),
     };
-    await upsertCapture(capture);
+    await mergeCapture(capture);
     await setPillState(question, pill);
-    flashPill(pill, datasetRefs.length ? `✓ +${datasetRefs[0]}` : "✓ saved", "shcap-saved");
-    return true;
+    flashPill(
+      pill,
+      readout.verified ? `✓ ${readout.correctChoices.join("") || "saved"}` : "✓ pool",
+      readout.verified ? "shcap-saved" : "shcap-warn",
+    );
+    return readout;
   } catch (e) {
-    flashPill(pill, "! " + truncate((e as Error).message, 24), "shcap-err");
-    return false;
+    flashPill(pill, "! " + truncate((e as Error).message, 22), "shcap-err");
+    return null;
   } finally {
     pill.classList.remove("shcap-busy");
   }
 }
 
-/** Manual re-trigger for the keyed questions on the page (auto-capture already
- * runs on load; this is here for after a Clear, or if the observer missed a
- * late-rendered question). */
-async function captureAllKeyed(btn: HTMLButtonElement) {
-  const questions = findQuestions().filter((q) => detectCorrectChoices(q, collectChoices(q)).hasKey);
+/** Manual re-trigger: capture every graded question on the page (after a Clear,
+ * or if the observer missed a late-rendered one). */
+async function captureAllGraded(btn: HTMLButtonElement) {
+  const questions = findQuestions().filter(isGradedQuestion);
   if (questions.length === 0) return;
   btn.disabled = true;
   let done = 0;
@@ -260,19 +282,19 @@ function ensurePanel() {
   const auto = el("div", { className: "shcap-auto", id: "shcap-auto" });
   auto.style.display = "none";
 
-  const captureKeyed = el("button", {
+  const captureBtn = el("button", {
     className: "shcap-btn shcap-primary",
-    id: "shcap-capture-keyed",
+    id: "shcap-capture-all",
     type: "button",
-    text: "Capture keyed",
+    text: "Capture page",
   });
 
-  const exportJsonBtn = el("button", { className: "shcap-btn", id: "shcap-export-json", type: "button", text: "Export .json" });
-  const exportJsonlBtn = el("button", { className: "shcap-btn", id: "shcap-export-jsonl", type: "button", text: ".jsonl" });
-  const exportRow = el("div", { className: "shcap-row" }, [exportJsonBtn, exportJsonlBtn]);
+  const exportFixturesBtn = el("button", { className: "shcap-btn", id: "shcap-export-fixtures", type: "button", text: "Export fixtures" });
+  const exportPoolBtn = el("button", { className: "shcap-btn", id: "shcap-export-pool", type: "button", text: "Export pool" });
+  const exportRow = el("div", { className: "shcap-row" }, [exportFixturesBtn, exportPoolBtn]);
   const clearBtn = el("button", { className: "shcap-btn shcap-quiet", id: "shcap-clear", type: "button", text: "Clear all" });
 
-  const body = el("div", { className: "shcap-body" }, [stat, page, auto, captureKeyed, exportRow, clearBtn]);
+  const body = el("div", { className: "shcap-body" }, [stat, page, auto, captureBtn, exportRow, clearBtn]);
   const panel = el("div", { id: "shcap-panel" }, [head, body]);
   document.body.appendChild(panel);
 
@@ -281,17 +303,17 @@ function ensurePanel() {
     if ((e.target as HTMLElement).closest(".shcap-collapse")) return;
     if (panel.classList.contains("shcap-collapsed")) panel.classList.remove("shcap-collapsed");
   });
-  captureKeyed.addEventListener("click", (e) => void captureAllKeyed(e.currentTarget as HTMLButtonElement));
-  exportJsonBtn.addEventListener("click", () => void exportBundle("json"));
-  exportJsonlBtn.addEventListener("click", () => void exportBundle("jsonl"));
+  captureBtn.addEventListener("click", (e) => void captureAllGraded(e.currentTarget as HTMLButtonElement));
+  exportFixturesBtn.addEventListener("click", () => void exportData("fixtures"));
+  exportPoolBtn.addEventListener("click", () => void exportData("pool"));
   clearBtn.addEventListener("click", () => void clearAll());
 }
 
 function setAutoStatus(msg: string) {
-  const el = document.getElementById("shcap-auto");
-  if (!el) return;
-  el.textContent = msg;
-  el.style.display = msg ? "block" : "none";
+  const node = document.getElementById("shcap-auto");
+  if (!node) return;
+  node.textContent = msg;
+  node.style.display = msg ? "block" : "none";
 }
 
 async function refreshPanel() {
@@ -299,34 +321,33 @@ async function refreshPanel() {
   const total = document.getElementById("shcap-total");
   const breakdown = document.getElementById("shcap-breakdown");
   const page = document.getElementById("shcap-page");
-  const keyedBtn = document.getElementById("shcap-capture-keyed") as HTMLButtonElement | null;
-  if (!total || !breakdown || !page || !keyedBtn) return;
+  const captureBtn = document.getElementById("shcap-capture-all") as HTMLButtonElement | null;
+  if (!total || !breakdown || !page || !captureBtn) return;
 
   total.textContent = String(captures.length);
-  const keyed = captures.filter((c) => c.source === "answer-key").length;
+  const verified = captures.filter((c) => c.verified).length;
+  const pool = captures.length - verified;
   const templates = new Set(captures.map((c) => c.templateId)).size;
-  const variants = captures.length - templates;
   breakdown.textContent = captures.length
-    ? `· ${keyed} keyed · ${templates} unique${variants ? ` · ${variants} variant${variants === 1 ? "" : "s"}` : ""}`
+    ? `· ${verified} verified · ${pool} pool · ${templates} unique`
     : "";
 
   const onPage = findQuestions();
-  const withKey = onPage.filter((q) => detectCorrectChoices(q, collectChoices(q)).hasKey).length;
-  page.textContent = withKey
-    ? `This page: ${onPage.length} question${onPage.length === 1 ? "" : "s"}, ${withKey} auto-captured`
-    : `This page: ${onPage.length} question${onPage.length === 1 ? "" : "s"}, no answer key (manual)`;
-  keyedBtn.textContent = withKey ? `Re-capture keyed (${withKey})` : "No answer key on page";
-  keyedBtn.disabled = withKey === 0;
+  const graded = onPage.filter(isGradedQuestion).length;
+  page.textContent = graded
+    ? `This page: ${onPage.length} question${onPage.length === 1 ? "" : "s"}, auto-captured`
+    : `This page: ${onPage.length} question${onPage.length === 1 ? "" : "s"}, live (manual)`;
+  captureBtn.textContent = graded ? `Re-capture page (${graded})` : "Capture page";
 }
 
-async function exportBundle(kind: "json" | "jsonl") {
+async function exportData(kind: "fixtures" | "pool") {
   const captures = await getAllCaptures();
   if (captures.length === 0) return;
   const datasets = await loadDatasets();
-  if (kind === "json") {
+  if (kind === "fixtures") {
     downloadText(`statshelpr-fixtures-${stamp()}.json`, toFixtureBundle(captures, datasets, true));
   } else {
-    downloadText(`statshelpr-fixtures-${stamp()}.jsonl`, toJsonl(captures, datasets, true));
+    downloadText(`statshelpr-pool-${stamp()}.json`, toPoolBundle(captures, datasets));
   }
 }
 
@@ -347,7 +368,6 @@ async function clearAll() {
 // helpers
 // =============================================================================
 
-/** Question stem text (sync) for id hashing / dedupe checks. */
 function scrapeText(question: HTMLElement): string {
   const stem = findStem(question);
   return normalizeText(stem?.innerText ?? stem?.textContent ?? "");
@@ -355,7 +375,7 @@ function scrapeText(question: HTMLElement): string {
 
 function idsFromUrl(): { courseId?: string; quizId?: string } {
   const course = location.pathname.match(/\/courses\/(\d+)/)?.[1];
-  const quiz = location.pathname.match(/\/quizzes\/(\d+)/)?.[1];
+  const quiz = location.pathname.match(/\/(?:quizzes|assignments)\/(\d+)/)?.[1];
   const out: { courseId?: string; quizId?: string } = {};
   if (course) out.courseId = course;
   if (quiz) out.quizId = quiz;
@@ -390,7 +410,6 @@ interface ElProps {
   text?: string;
   title?: string;
   type?: string;
-  value?: string;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(
@@ -404,7 +423,6 @@ function el<K extends keyof HTMLElementTagNameMap>(
   if (props.title) node.title = props.title;
   if (props.text !== undefined) node.textContent = props.text;
   if (props.type && "type" in node) (node as HTMLInputElement).type = props.type;
-  if (props.value !== undefined && "value" in node) (node as HTMLInputElement).value = props.value;
   for (const c of children) node.appendChild(c);
   return node;
 }

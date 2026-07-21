@@ -8,7 +8,7 @@
  * than creating a duplicate — fixing a mislabel is just capturing again.
  */
 
-import { type ApiChoice, type Capture, type CaptureMode, type Fixture } from "./types";
+import { type ApiChoice, type Capture, type CaptureMode, type Fixture, type PoolItem } from "./types";
 import { expandDataFiles } from "./datasets";
 
 const KEY_CAPTURES = "statshelpr.captures";
@@ -21,11 +21,31 @@ export async function getAllCaptures(): Promise<Capture[]> {
   return Object.values(map).sort((a, b) => b.capturedAt - a.capturedAt);
 }
 
+/** Overwrite a capture by id (used by explicit popup edits like mode changes). */
 export async function upsertCapture(capture: Capture): Promise<void> {
   const r = await chrome.storage.local.get(KEY_CAPTURES);
   const map = (r[KEY_CAPTURES] as Record<string, Capture> | undefined) ?? {};
   map[capture.id] = capture;
   await chrome.storage.local.set({ [KEY_CAPTURES]: map });
+}
+
+/** Capture-time upsert that never downgrades a verified answer. The same
+ * question can recur across attempts (right one time, wrong another); we keep
+ * the verified version rather than letting a later wrong attempt overwrite it. */
+export async function mergeCapture(next: Capture): Promise<void> {
+  const r = await chrome.storage.local.get(KEY_CAPTURES);
+  const map = (r[KEY_CAPTURES] as Record<string, Capture> | undefined) ?? {};
+  const prev = map[next.id];
+  map[next.id] = prev ? mergePreferVerified(prev, next) : next;
+  await chrome.storage.local.set({ [KEY_CAPTURES]: map });
+}
+
+function mergePreferVerified(prev: Capture, next: Capture): Capture {
+  if (prev.verified && !next.verified) {
+    return { ...prev, capturedAt: Math.max(prev.capturedAt, next.capturedAt) };
+  }
+  if (!prev.verified && next.verified) return next;
+  return next.capturedAt >= prev.capturedAt ? next : prev;
 }
 
 export async function removeCapture(id: string): Promise<void> {
@@ -58,6 +78,12 @@ export async function dedupeTemplates(): Promise<number> {
   }
   if (removed > 0) await chrome.storage.local.set({ [KEY_CAPTURES]: next });
   return removed;
+}
+
+export async function getCapture(id: string): Promise<Capture | undefined> {
+  const r = await chrome.storage.local.get(KEY_CAPTURES);
+  const map = (r[KEY_CAPTURES] as Record<string, Capture> | undefined) ?? {};
+  return map[id];
 }
 
 export async function hasCapture(id: string): Promise<boolean> {
@@ -112,27 +138,62 @@ export function toFixture(
       mode: c.mode,
       selectedChoices: c.correctChoices,
     },
-    meta: { source: c.source, url: c.url, capturedAt: c.capturedAt },
+    meta: { answerSource: c.answerSource, outcome: c.outcome, url: c.url, capturedAt: c.capturedAt },
   };
 }
 
-/** Pretty-printed JSON array of fixtures — drop through
+/** Verified captures only (trusted correct answer) — the eval set. */
+export function verifiedOnly(captures: Capture[]): Capture[] {
+  return captures.filter((c) => c.verified && c.correctChoices.length > 0);
+}
+
+/** Pretty-printed JSON array of fixtures (verified captures only) — drop through
  * `scripts/import-captures.ts` to split into evals/solve-fixtures/*.json. */
 export function toFixtureBundle(
   captures: Capture[],
   datasets: Record<string, string> = {},
   inline = true,
 ): string {
-  return JSON.stringify(captures.map((c) => toFixture(c, datasets, inline)), null, 2);
+  return JSON.stringify(verifiedOnly(captures).map((c) => toFixture(c, datasets, inline)), null, 2);
 }
 
-/** One fixture per line (JSONL) — convenient for training pipelines. */
+/** One fixture per line (JSONL, verified only) — for training pipelines. */
 export function toJsonl(
   captures: Capture[],
   datasets: Record<string, string> = {},
   inline = true,
 ): string {
-  return captures.map((c) => JSON.stringify(toFixture(c, datasets, inline))).join("\n") + "\n";
+  return verifiedOnly(captures).map((c) => JSON.stringify(toFixture(c, datasets, inline))).join("\n") + "\n";
+}
+
+/** The full question pool — EVERY capture (verified or not) with the student's
+ * pick and outcome. For the separate "hard questions / label later" use case;
+ * deliberately not the eval fixture shape. */
+export function toPoolBundle(
+  captures: Capture[],
+  datasets: Record<string, string> = {},
+): string {
+  const items: PoolItem[] = captures.map((c) => {
+    const item: PoolItem = {
+      name: c.name,
+      questionText: c.questionText,
+      choices: c.choices,
+      selectedChoices: c.selectedChoices,
+      correctChoices: c.correctChoices,
+      outcome: c.outcome,
+      answerSource: c.answerSource,
+      verified: c.verified,
+      mode: c.mode,
+      templateId: c.templateId,
+      url: c.url,
+      capturedAt: c.capturedAt,
+    };
+    if (c.images.length > 0) item.images = c.images;
+    const dataFiles = expandDataFiles(c.datasetRefs, datasets, true);
+    if (dataFiles.length > 0) item.dataFiles = dataFiles;
+    return item;
+  });
+  return JSON.stringify(items, null, 2);
 }
 
 /** Trigger a browser download of `text`. Works from both the popup (extension
