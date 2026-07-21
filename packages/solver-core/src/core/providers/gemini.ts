@@ -30,13 +30,26 @@ import type {
 
 export const GEMINI_BASE_URL =
   "https://generativelanguage.googleapis.com/v1beta";
+
+// `process.env` only exists under Node/Next. Cloudflare Workers has no such
+// global — routes there read secrets from Hono's `c.env` binding instead
+// (see apps/workers/src/types.ts: "we never touch process.env in Workers").
+// This package is imported by both runtimes, so reach through `globalThis`
+// with a local cast rather than referencing `process` directly — that way it
+// type-checks and runs safely with or without an ambient `process` (no
+// `@types/node` dependency needed here), and simply falls back to the
+// hardcoded defaults when absent.
+const env: Record<string, string | undefined> =
+  (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
+    ?.env ?? {};
+
 // Overridable via GEMINI_MODEL so the eval harness can A/B models without code
 // edits (e.g. GEMINI_MODEL=gemini-3.6-flash). Default is Flash-Lite — the
 // cheapest/fastest tier — pending the fixture benchmark that confirms quality.
-export const DEFAULT_MODEL = process.env["GEMINI_MODEL"] ?? "gemini-3.5-flash-lite";
+export const DEFAULT_MODEL = env["GEMINI_MODEL"] ?? "gemini-3.5-flash-lite";
 // Image/vision questions route here — Flash-Lite is unreliable at reading figures
 // (~1–2 of 6 on our test), while 3.6 Flash is 4/4. Overridable via env.
-export const IMAGE_MODEL = process.env["GEMINI_IMAGE_MODEL"] ?? "gemini-3.6-flash";
+export const IMAGE_MODEL = env["GEMINI_IMAGE_MODEL"] ?? "gemini-3.6-flash";
 
 // Gemini role names differ from OpenAI-style: user → "user", assistant → "model".
 type GeminiRole = "user" | "model";

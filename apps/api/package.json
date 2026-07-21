@@ -8,6 +8,7 @@
     "start": "next start -p 3030"
   },
   "dependencies": {
+    "@statshelpr/solver-core": "workspace:*",
     "@vercel/sandbox": "^1.0.0",
     "next": "^16.0.0",
     "papaparse": "^5.4.1",

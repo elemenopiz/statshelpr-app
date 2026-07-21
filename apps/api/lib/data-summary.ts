@@ -1,5 +1,5 @@
 import Papa from "papaparse";
-import type { ColumnSummary, DataframeSummary } from "@/lib/core";
+import type { ColumnSummary, DataframeSummary } from "@statshelpr/solver-core/core";
 
 /**
  * Parse a CSV string into a column summary mirroring `.summarize_data_context()` in R.

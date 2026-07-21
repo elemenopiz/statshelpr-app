@@ -14,6 +14,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@statshelpr/solver-core':
+        specifier: workspace:*
+        version: link:../../packages/solver-core
       '@vercel/sandbox':
         specifier: ^1.0.0
         version: 1.10.0
@@ -85,6 +88,9 @@ importers:
 
   apps/workers:
     dependencies:
+      '@statshelpr/solver-core':
+        specifier: workspace:*
+        version: link:../../packages/solver-core
       hono:
         specifier: ^4.6.0
         version: 4.12.31
@@ -104,6 +110,12 @@ importers:
       wrangler:
         specifier: ^3.90.0
         version: 3.114.17(@cloudflare/workers-types@4.20260702.1)
+
+  packages/solver-core:
+    devDependencies:
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
 
 packages:
 

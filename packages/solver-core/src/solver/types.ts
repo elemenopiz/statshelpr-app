@@ -1,4 +1,4 @@
-import type { SolveImage } from "@/lib/core/types";
+import type { SolveImage } from "../core/types";
 
 export interface DataFile {
   filename: string;

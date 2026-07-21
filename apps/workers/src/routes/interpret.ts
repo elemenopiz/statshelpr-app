@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { Env } from "../types";
 
-import { buildDataContext, buildSystemPrompt, parseResponse } from "@/lib/core";
-import { chatStream } from "@/lib/core/providers";
+import { buildDataContext, buildSystemPrompt, parseResponse } from "@statshelpr/solver-core/core";
+import { chatStream } from "@statshelpr/solver-core/core/providers";
 import { summarizeCsv } from "@/lib/data-summary";
 import { validateLicense } from "@/lib/license";
 import { makeSseStream, sseHeaders } from "@/lib/sse";
@@ -17,7 +17,7 @@ import {
   resolveModel,
   type DataFile,
   type SolveBody,
-} from "@/lib/solver";
+} from "@statshelpr/solver-core/solver";
 
 /**
  * Called by the extension after WebR runs R code locally. Takes the R stdout

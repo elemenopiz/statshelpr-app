@@ -6,8 +6,8 @@ import {
   buildDataContext,
   buildSystemPrompt,
   parseResponse,
-} from "@/lib/core";
-import { chatStream } from "@/lib/core/providers";
+} from "@statshelpr/solver-core/core";
+import { chatStream } from "@statshelpr/solver-core/core/providers";
 import { summarizeCsv } from "@/lib/data-summary";
 import { validateLicense } from "@/lib/license";
 import { activateForInstall } from "@/lib/license-activation";
@@ -22,7 +22,7 @@ import {
   resolveModel,
   type DataFile,
   type SolveBody,
-} from "@/lib/solver";
+} from "@statshelpr/solver-core/solver";
 
 export const solve = new Hono<{ Bindings: Env }>();
 
@@ -163,7 +163,7 @@ solve.post("/", async (c) => {
       // /api/interpret with { question, images, dataFiles, rCode, stdout }.
       // We include assistantBody so /api/interpret can reconstruct the
       // exact conversation shape.
-      const { extractRCode } = await import("@/lib/core");
+      const { extractRCode } = await import("@statshelpr/solver-core/core");
       const rCode = extractRCode(parsed.body);
       await write({
         type: "result",

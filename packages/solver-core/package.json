@@ -1,0 +1,18 @@
+{
+  "name": "@statshelpr/solver-core",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    "./core": "./src/core/index.ts",
+    "./core/providers": "./src/core/providers/index.ts",
+    "./core/types": "./src/core/types.ts",
+    "./solver": "./src/solver/index.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

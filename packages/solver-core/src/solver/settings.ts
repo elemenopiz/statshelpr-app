@@ -1,4 +1,4 @@
-import { DEFAULT_MODEL, IMAGE_MODEL as PROVIDER_IMAGE_MODEL } from "@/lib/core/providers";
+import { DEFAULT_MODEL, IMAGE_MODEL as PROVIDER_IMAGE_MODEL } from "../core/providers";
 
 export const MODEL = DEFAULT_MODEL;
 export const IMAGE_MODEL = PROVIDER_IMAGE_MODEL;
