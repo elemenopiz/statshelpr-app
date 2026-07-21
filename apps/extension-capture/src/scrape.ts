@@ -654,16 +654,26 @@ function collectAnswerGroupBlanks(question: HTMLElement): RawBlank[] {
   const groups = [...question.querySelectorAll<HTMLElement>(".answer_group")];
   if (groups.length < 2) return [];
 
-  // Pair each blank to its inline <select> by matching option sets, not by
-  // order: a multiple-dropdowns question can have more answer groups than
-  // rendered <select>s (a blank shown as a fixed statement has no dropdown), so
-  // positional zipping would misattach the surrounding-sentence labels.
-  const selectByOptions = new Map<string, HTMLSelectElement>();
-  for (const sel of collectAnswerSelects(question)) {
-    const sig = optionSignature(
-      [...sel.querySelectorAll("option")].map((o) => normalizeText(o.textContent ?? "")),
-    );
-    if (sig && !selectByOptions.has(sig)) selectByOptions.set(sig, sel);
+  // Label each blank with its inline <select>'s surrounding sentence. How we
+  // pair a group to a select depends on the counts:
+  //  - Equal counts → pair by DOCUMENT ORDER (group[i] ↔ select[i]). This is
+  //    the unambiguous case and, crucially, is the ONLY correct pairing when
+  //    two blanks share an identical option pool (e.g. an intercept and a slope
+  //    dropdown both offering the same numbers) — option-set matching can't
+  //    tell those apart and would give both the same label.
+  //  - Unequal counts → some blanks are fixed statements with no dropdown, so
+  //    order is unreliable; match by option-set, but ONLY on signatures that
+  //    are unique among the selects (ambiguous/absent → fall back to blank id).
+  const selects = collectAnswerSelects(question);
+  const positional = groups.length === selects.length;
+  const sigOfSelect = (sel: HTMLSelectElement) =>
+    optionSignature([...sel.querySelectorAll("option")].map((o) => normalizeText(o.textContent ?? "")));
+  const sigCount = new Map<string, number>();
+  for (const sel of selects) sigCount.set(sigOfSelect(sel), (sigCount.get(sigOfSelect(sel)) ?? 0) + 1);
+  const uniqueSelectBySig = new Map<string, HTMLSelectElement>();
+  for (const sel of selects) {
+    const sig = sigOfSelect(sel);
+    if (sig && sigCount.get(sig) === 1) uniqueSelectBySig.set(sig, sel);
   }
 
   return groups.map((group, i) => {
@@ -674,7 +684,7 @@ function collectAnswerGroupBlanks(question: HTMLElement): RawBlank[] {
     let selected = selRow ? optionOf(selRow) : "";
     if (isPlaceholderOption(selected)) selected = "";
     const blankId = normalizeText(group.querySelector(".blank_id")?.textContent ?? "");
-    const sel = selectByOptions.get(optionSignature(options));
+    const sel = positional ? selects[i] : uniqueSelectBySig.get(optionSignature(options));
     return {
       key: blankId || `blank${i + 1}`,
       label: (sel && blankLabelForSelect(sel)) || blankId,
