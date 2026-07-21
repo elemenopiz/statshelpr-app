@@ -5,7 +5,8 @@
   "description": "DEV-only sideload extension for capturing labeled Canvas quiz questions as eval/training fixtures.",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "watch": "node scripts/build.mjs --watch"
+    "watch": "node scripts/build.mjs --watch",
+    "datasets": "node scripts/convert-rdata.mjs"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.270",

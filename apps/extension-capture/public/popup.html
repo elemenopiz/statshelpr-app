@@ -93,6 +93,8 @@
       .tag.key { color: var(--ok); background: var(--ok-tint); border-color: transparent; }
       .tag.manual { color: var(--warn); background: var(--warn-tint); border-color: transparent; }
       .tag.ans { color: var(--blue); background: var(--blue-tint); border-color: transparent; }
+      .tag.data { color: var(--ink-2); background: var(--line-soft); border-color: transparent; }
+      .tag.var { color: var(--err); background: var(--err-tint); border-color: transparent; }
       .item select { font-size: 10px; padding: 1px 4px; }
       .item .del {
         background: none; border: none; color: var(--ink-3); font-size: 15px; line-height: 1;
@@ -124,12 +126,13 @@
       <button class="btn" id="export-jsonl" type="button">Export .jsonl</button>
     </div>
 
-    <div class="section-label">defaults for new captures</div>
+    <div class="section-label">defaults &amp; export</div>
     <div class="controls">
       <label>mode
         <select id="mode"><option value="concept">concept</option><option value="calc">calc</option></select>
       </label>
-      <label><input type="checkbox" id="images" /> include images</label>
+      <label><input type="checkbox" id="images" /> images</label>
+      <label title="Inline referenced dataset CSVs into exported fixtures (runnable, larger)"><input type="checkbox" id="inline-datasets" /> datasets</label>
     </div>
 
     <div class="section-label" id="list-label">captured questions</div>
@@ -139,12 +142,15 @@
     </div>
 
     <div class="toast" id="toast"></div>
-    <button class="btn danger" id="clear" type="button" style="margin-top: 10px; width: 100%">Clear all</button>
+    <div class="row" style="margin-top: 10px">
+      <button class="btn" id="dedupe" type="button">No variants</button>
+      <button class="btn danger" id="clear" type="button">Clear all</button>
+    </div>
 
     <div class="note">
-      Export writes fixtures in the <code>evals/solve-fixtures</code> shape. Split the bundle into
-      individual files with <code>tsx scripts/import-captures.ts &lt;bundle.json&gt;</code>, then run
-      <code>tsx scripts/run-evals.ts</code>.
+      Dedupe collapses near-duplicate variants (same question, different numbers) to the newest per
+      template. Export writes fixtures in the <code>evals/solve-fixtures</code> shape — split with
+      <code>pnpm import:captures &lt;bundle.json&gt;</code>, then <code>pnpm eval</code>.
     </div>
     <script src="popup.js"></script>
   </body>

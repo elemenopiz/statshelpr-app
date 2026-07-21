@@ -8,7 +8,7 @@
  * Keeps the tool buildable without a full monorepo install.
  */
 
-import { mkdir, cp, rm, readdir } from "node:fs/promises";
+import { mkdir, cp, rm, readdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,6 +24,7 @@ const esbuild = await loadEsbuild(root);
 if (existsSync(out)) await rm(out, { recursive: true, force: true });
 await mkdir(out, { recursive: true });
 await cp(path.resolve(root, "public"), out, { recursive: true });
+await bakeDatasets();
 
 const buildOpts = {
   entryPoints: {
@@ -45,6 +46,26 @@ if (watch) {
 } else {
   await esbuild.build(buildOpts);
   console.log(`built → ${out}`);
+}
+
+/** Bake datasets/*.csv → dist/datasets.json ({ "scooby.csv": "<csv>" }). The map
+ * is served as a web-accessible resource and inlined into fixtures at export.
+ * Missing datasets/ (e.g. before convert-rdata is run) → empty map + a warning. */
+async function bakeDatasets() {
+  const dir = path.resolve(root, "datasets");
+  const map = {};
+  if (existsSync(dir)) {
+    for (const name of (await readdir(dir)).filter((n) => n.endsWith(".csv")).sort()) {
+      map[name] = await readFile(path.join(dir, name), "utf8");
+    }
+  }
+  await writeFile(path.join(out, "datasets.json"), JSON.stringify(map));
+  const n = Object.keys(map).length;
+  if (n === 0) {
+    console.warn("⚠ no datasets baked — run `pnpm --filter @statshelpr/extension-capture datasets <file.RData>`");
+  } else {
+    console.log(`baked ${n} datasets → dist/datasets.json`);
+  }
 }
 
 /** Resolve esbuild from this package, else from the nearest ancestor pnpm store. */

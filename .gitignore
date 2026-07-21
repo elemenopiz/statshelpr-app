@@ -13,5 +13,6 @@ dist/
 *.tsbuildinfo
 extension-build/
 apps/extension/public/webr/
+apps/extension-capture/datasets/
 
 .worktrees/

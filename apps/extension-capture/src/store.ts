@@ -14,6 +14,7 @@ import {
   type CaptureSettings,
   type Fixture,
 } from "./types";
+import { expandDataFiles } from "./datasets";
 
 const KEY_CAPTURES = "statshelpr.captures";
 const KEY_SETTINGS = "statshelpr.captureSettings";
@@ -44,6 +45,27 @@ export async function clearCaptures(): Promise<void> {
   await chrome.storage.local.set({ [KEY_CAPTURES]: {} });
 }
 
+/** Keep only the most recent capture per templateId, dropping near-duplicate
+ * variants (same question, different numbers). Returns how many were removed. */
+export async function dedupeTemplates(): Promise<number> {
+  const r = await chrome.storage.local.get(KEY_CAPTURES);
+  const map = (r[KEY_CAPTURES] as Record<string, Capture> | undefined) ?? {};
+  const newestPerTemplate = new Map<string, Capture>();
+  for (const c of Object.values(map)) {
+    const prev = newestPerTemplate.get(c.templateId);
+    if (!prev || c.capturedAt > prev.capturedAt) newestPerTemplate.set(c.templateId, c);
+  }
+  const keep = new Set([...newestPerTemplate.values()].map((c) => c.id));
+  const next: Record<string, Capture> = {};
+  let removed = 0;
+  for (const c of Object.values(map)) {
+    if (keep.has(c.id)) next[c.id] = c;
+    else removed += 1;
+  }
+  if (removed > 0) await chrome.storage.local.set({ [KEY_CAPTURES]: next });
+  return removed;
+}
+
 export async function hasCapture(id: string): Promise<boolean> {
   const r = await chrome.storage.local.get(KEY_CAPTURES);
   const map = (r[KEY_CAPTURES] as Record<string, Capture> | undefined) ?? {};
@@ -65,13 +87,21 @@ export async function saveSettings(patch: Partial<CaptureSettings>): Promise<Cap
 
 // ---- fixture conversion + export -------------------------------------------
 
-/** Convert a capture to the exact fixture shape run-evals.ts consumes. */
-export function toFixture(c: Capture): Fixture {
+/** Convert a capture to the exact fixture shape run-evals.ts consumes.
+ * `datasets` is the packaged CSV map (from loadDatasets); referenced datasets
+ * are expanded into request.dataFiles, inlined unless `inline` is false. */
+export function toFixture(
+  c: Capture,
+  datasets: Record<string, string> = {},
+  inline = true,
+): Fixture {
   const request: Fixture["request"] = {
     questionText: c.questionText,
     choices: c.choices,
   };
   if (c.images.length > 0) request.images = c.images;
+  const dataFiles = expandDataFiles(c.datasetRefs, datasets, inline);
+  if (dataFiles.length > 0) request.dataFiles = dataFiles;
   return {
     name: c.name,
     request,
@@ -85,13 +115,21 @@ export function toFixture(c: Capture): Fixture {
 
 /** Pretty-printed JSON array of fixtures — drop through
  * `scripts/import-captures.ts` to split into evals/solve-fixtures/*.json. */
-export function toFixtureBundle(captures: Capture[]): string {
-  return JSON.stringify(captures.map(toFixture), null, 2);
+export function toFixtureBundle(
+  captures: Capture[],
+  datasets: Record<string, string> = {},
+  inline = true,
+): string {
+  return JSON.stringify(captures.map((c) => toFixture(c, datasets, inline)), null, 2);
 }
 
 /** One fixture per line (JSONL) — convenient for training pipelines. */
-export function toJsonl(captures: Capture[]): string {
-  return captures.map((c) => JSON.stringify(toFixture(c))).join("\n") + "\n";
+export function toJsonl(
+  captures: Capture[],
+  datasets: Record<string, string> = {},
+  inline = true,
+): string {
+  return captures.map((c) => JSON.stringify(toFixture(c, datasets, inline))).join("\n") + "\n";
 }
 
 /** Trigger a browser download of `text`. Works from both the popup (extension
@@ -120,6 +158,19 @@ export function hashId(text: string): string {
   let h = 5381;
   for (let i = 0; i < text.length; i++) h = ((h << 5) + h + text.charCodeAt(i)) | 0;
   return (h >>> 0).toString(36);
+}
+
+/** Template id: hash of the question text with numbers blanked and punctuation
+ * dropped, so "P(X)=0.3…" and "P(X)=0.5…" (same question, reshuffled numbers)
+ * share an id. Used to spot and prune near-duplicate variants across attempts. */
+export function templateId(text: string): string {
+  const norm = text
+    .toLowerCase()
+    .replace(/\d+(?:[.,]\d+)?/g, "#")
+    .replace(/[^a-z#]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return hashId(norm);
 }
 
 /** Short, human/​filename-friendly name for a fixture. */

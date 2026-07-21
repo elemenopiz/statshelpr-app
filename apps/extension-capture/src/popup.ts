@@ -9,12 +9,14 @@ import {
   removeCapture,
   clearCaptures,
   upsertCapture,
+  dedupeTemplates,
   getSettings,
   saveSettings,
   toFixtureBundle,
   toJsonl,
   downloadText,
 } from "./store";
+import { loadDatasets } from "./datasets";
 import type { Capture, CaptureMode } from "./types";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -26,16 +28,23 @@ async function render() {
   $("count").textContent = String(captures.length);
   const keyed = captures.filter((c) => c.source === "answer-key").length;
   const calc = captures.filter((c) => c.mode === "calc").length;
+  const templates = new Set(captures.map((c) => c.templateId)).size;
+  const variants = captures.length - templates;
   $("breakdown").textContent = captures.length
-    ? `${keyed} from answer key · ${captures.length - keyed} manual · ${calc} calc · ${captures.length - calc} concept`
+    ? `${templates} unique · ${variants} variant${variants === 1 ? "" : "s"} · ${keyed} keyed · ${calc} calc`
     : "nothing captured yet";
 
   ($("mode") as HTMLSelectElement).value = settings.defaultMode;
   ($("images") as HTMLInputElement).checked = settings.includeImages;
+  ($("inline-datasets") as HTMLInputElement).checked = settings.inlineDatasets;
 
   ($("export-json") as HTMLButtonElement).disabled = captures.length === 0;
   ($("export-jsonl") as HTMLButtonElement).disabled = captures.length === 0;
   ($("clear") as HTMLButtonElement).disabled = captures.length === 0;
+  ($("dedupe") as HTMLButtonElement).disabled = variants === 0;
+  ($("dedupe") as HTMLButtonElement).textContent = variants
+    ? `Dedupe ${variants} variant${variants === 1 ? "" : "s"}`
+    : "No variants";
 
   renderList(captures);
 }
@@ -48,14 +57,25 @@ function renderList(captures: Capture[]) {
   empty.style.display = captures.length === 0 ? "block" : "none";
   label.textContent = captures.length ? `captured questions (${captures.length})` : "captured questions";
 
+  // templateIds that appear more than once → those captures are variants.
+  const counts = new Map<string, number>();
+  for (const c of captures) counts.set(c.templateId, (counts.get(c.templateId) ?? 0) + 1);
+
   for (const c of captures) {
     const qText = el("div", { className: "q-text", text: c.questionText });
 
-    const sourceTag = el("span", {
-      className: `tag ${c.source === "answer-key" ? "key" : "manual"}`,
-      text: c.source === "answer-key" ? "key" : "manual",
-    });
-    const ansTag = el("span", { className: "tag ans", text: c.correctChoices.join("") || "—" });
+    const meta = el("div", { className: "q-meta" });
+    meta.appendChild(
+      el("span", {
+        className: `tag ${c.source === "answer-key" ? "key" : "manual"}`,
+        text: c.source === "answer-key" ? "key" : "manual",
+      }),
+    );
+    meta.appendChild(el("span", { className: "tag ans", text: c.correctChoices.join("") || "—" }));
+    for (const ds of c.datasetRefs) meta.appendChild(el("span", { className: "tag data", text: ds }));
+    if ((counts.get(c.templateId) ?? 0) > 1) {
+      meta.appendChild(el("span", { className: "tag var", title: "Shares a template with another capture", text: "variant" }));
+    }
 
     const modeSel = el("select") as HTMLSelectElement;
     modeSel.appendChild(el("option", { value: "concept", text: "concept" }));
@@ -65,8 +85,8 @@ function renderList(captures: Capture[]) {
       await upsertCapture({ ...c, mode: modeSel.value as CaptureMode });
       await render();
     });
+    meta.appendChild(modeSel);
 
-    const meta = el("div", { className: "q-meta" }, [sourceTag, ansTag, modeSel]);
     const q = el("div", { className: "q" }, [qText, meta]);
 
     const del = el("button", { className: "del", type: "button", title: "Delete", text: "✕" });
@@ -82,9 +102,14 @@ function renderList(captures: Capture[]) {
 async function exportBundle(kind: "json" | "jsonl") {
   const captures = await getAllCaptures();
   if (captures.length === 0) return;
+  const settings = await getSettings();
+  const datasets = await loadDatasets();
   const s = stamp();
-  if (kind === "json") downloadText(`statshelpr-fixtures-${s}.json`, toFixtureBundle(captures));
-  else downloadText(`statshelpr-fixtures-${s}.jsonl`, toJsonl(captures));
+  if (kind === "json") {
+    downloadText(`statshelpr-fixtures-${s}.json`, toFixtureBundle(captures, datasets, settings.inlineDatasets));
+  } else {
+    downloadText(`statshelpr-fixtures-${s}.jsonl`, toJsonl(captures, datasets, settings.inlineDatasets));
+  }
   toast(`Exported ${captures.length} fixtures`);
 }
 
@@ -96,6 +121,14 @@ function wire() {
   });
   ($("images") as HTMLInputElement).addEventListener("change", async (e) => {
     await saveSettings({ includeImages: (e.target as HTMLInputElement).checked });
+  });
+  ($("inline-datasets") as HTMLInputElement).addEventListener("change", async (e) => {
+    await saveSettings({ inlineDatasets: (e.target as HTMLInputElement).checked });
+  });
+  $("dedupe").addEventListener("click", async () => {
+    const removed = await dedupeTemplates();
+    await render();
+    toast(removed ? `Removed ${removed} variant${removed === 1 ? "" : "s"}` : "No variants to remove");
   });
   $("clear").addEventListener("click", async () => {
     const captures = await getAllCaptures();

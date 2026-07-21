@@ -39,8 +39,10 @@ import {
   toJsonl,
   downloadText,
   hashId,
+  templateId,
   fixtureName,
 } from "./store";
+import { loadDatasets, detectDatasetRefs } from "./datasets";
 import type { Capture, CaptureSettings } from "./types";
 
 const ATTR = "shcapAttached";
@@ -176,13 +178,16 @@ async function captureOne(question: HTMLElement, pill: HTMLButtonElement): Promi
 
     const id = hashId(scraped.text);
     const kind = scraped.choices[0]?.type ?? "radio";
+    const datasetRefs = detectDatasetRefs(scraped.text);
     const capture: Capture = {
       id,
+      templateId: templateId(scraped.text),
       name: fixtureName(scraped.text, kind),
       questionText: scraped.text,
       choices: scraped.choices,
       images: scraped.images,
       correctChoices,
+      datasetRefs,
       mode: settings.defaultMode,
       source,
       url: location.href,
@@ -191,7 +196,7 @@ async function captureOne(question: HTMLElement, pill: HTMLButtonElement): Promi
     };
     await upsertCapture(capture);
     await setPillState(question, pill);
-    flashPill(pill, "✓ saved", "shcap-saved");
+    flashPill(pill, datasetRefs.length ? `✓ saved +${datasetRefs[0]}` : "✓ saved", "shcap-saved");
     return true;
   } catch (e) {
     flashPill(pill, "! " + truncate((e as Error).message, 24), "shcap-err");
@@ -305,9 +310,10 @@ async function refreshPanel() {
 
   total.textContent = String(captures.length);
   const keyed = captures.filter((c) => c.source === "answer-key").length;
-  const calc = captures.filter((c) => c.mode === "calc").length;
+  const templates = new Set(captures.map((c) => c.templateId)).size;
+  const variants = captures.length - templates;
   breakdown.textContent = captures.length
-    ? `· ${keyed} keyed · ${captures.length - keyed} manual · ${calc} calc`
+    ? `· ${keyed} keyed · ${templates} unique${variants ? ` · ${variants} variant${variants === 1 ? "" : "s"}` : ""}`
     : "";
 
   const onPage = findQuestions();
@@ -320,8 +326,13 @@ async function refreshPanel() {
 async function exportBundle(kind: "json" | "jsonl") {
   const captures = await getAllCaptures();
   if (captures.length === 0) return;
-  if (kind === "json") downloadText(`statshelpr-fixtures-${stamp()}.json`, toFixtureBundle(captures));
-  else downloadText(`statshelpr-fixtures-${stamp()}.jsonl`, toJsonl(captures));
+  const datasets = await loadDatasets();
+  const inline = settings.inlineDatasets;
+  if (kind === "json") {
+    downloadText(`statshelpr-fixtures-${stamp()}.json`, toFixtureBundle(captures, datasets, inline));
+  } else {
+    downloadText(`statshelpr-fixtures-${stamp()}.jsonl`, toJsonl(captures, datasets, inline));
+  }
 }
 
 async function clearAll() {

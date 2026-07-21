@@ -3,10 +3,19 @@
   "name": "statshelpr — Data Capture (DEV)",
   "version": "0.1.0",
   "description": "DEV-ONLY sideload tool: capture labeled Canvas quiz questions as eval/training fixtures. Not for distribution.",
-  "permissions": ["storage"],
+  "permissions": ["storage", "unlimitedStorage"],
   "host_permissions": [
     "https://*.instructure.com/*",
     "https://quizzes.next.instructure.com/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["datasets.json"],
+      "matches": [
+        "https://*.instructure.com/*",
+        "https://quizzes.next.instructure.com/*"
+      ]
+    }
   ],
   "icons": {
     "16": "icons/icon-16.png",

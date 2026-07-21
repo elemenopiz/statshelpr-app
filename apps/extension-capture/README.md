@@ -19,9 +19,42 @@ no hand-labeling. Output matches `evals/solve-fixtures/*.json`, so it feeds
 - **Manual.** On a live/ungraded quiz with no key, select the correct choice(s)
   yourself, then click the question's pill. Your selection becomes the label.
 
-Re-capturing a question updates it in place (deduped by question text), so
-fixing a mislabel is just capturing again. Everything is local — no network, no
-API calls, no solve-quota usage.
+Every question type is captured: single-answer (radio), select-all (checkbox),
+dropdown, fill-in (text), and any images embedded in the question or answers.
+
+## Dedup across attempts
+
+A shuffle/bank quiz reuses questions across attempts, sometimes with different
+numbers. The tool handles all three cases:
+
+- **Exact reuse** → deduped automatically. Captures are keyed by question text,
+  so re-capturing the same question updates it in place (also how you fix a
+  mislabel). Choice order is ignored, so reshuffled answers still dedup.
+- **Slightly-changed variants** (same wording, different numbers) → captured as
+  distinct examples (their answers usually differ) but grouped by a **template
+  id** (the question text with numbers blanked). The panel/popup show
+  `N unique · M variants`, and the popup's **Dedupe variants** button collapses
+  each template to its newest capture when you want a lean set.
+- **New questions** → captured normally.
+
+## Datasets
+
+Many questions reference a data frame (e.g. *"the data frame in scooby.csv…"*).
+The tool detects `*.csv` references and, on export, inlines the matching dataset
+into the fixture's `dataFiles` (the runnable shape `run-evals.ts` expects).
+
+The datasets are packaged from the course's R data:
+
+```bash
+pnpm --filter @statshelpr/extension-capture datasets ~/Downloads/KCdata_1-22.RData
+pnpm build:capture      # bakes datasets/*.csv → dist/datasets.json
+```
+
+`convert-rdata.mjs` writes one `datasets/<name>.csv` per data frame (requires R
+on PATH). Re-run it whenever the course data changes. Toggle **datasets** in the
+popup off to export filename-only refs (lean) instead of inlined content.
+
+Everything is local — no network, no API calls, no solve-quota usage.
 
 ## Build
 
@@ -29,10 +62,12 @@ API calls, no solve-quota usage.
 # from repo root, once:
 pnpm install
 
+# (one-time) convert the course RData into packaged CSVs:
+pnpm --filter @statshelpr/extension-capture datasets ~/Downloads/KCdata_1-22.RData
+
 # build the extension:
-cd apps/extension-capture
-pnpm build        # → apps/extension-capture/dist
-pnpm watch        # rebuild on change
+pnpm build:capture            # → apps/extension-capture/dist
+# or: cd apps/extension-capture && pnpm build / pnpm watch
 ```
 
 ## Sideload
