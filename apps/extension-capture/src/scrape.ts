@@ -612,9 +612,17 @@ export interface RawBlank {
   disabled: boolean; // read-only (graded review) vs editable (live)
 }
 
-/** Collect the blanks of a multiple-dropdowns question (2+ answer selects).
+/** Collect the blanks of a matching / multiple-dropdowns question (2+ blanks).
  * Returns [] for single-dropdown / non-dropdown questions. */
 export function collectBlanks(question: HTMLElement): RawBlank[] {
+  // Graded multiple-dropdowns / fill-in-multiple-blanks: Canvas renders the
+  // per-blank answer key as `.answer_group` blocks — the inline <select>s show
+  // only "[ Select ]", so their value/options are useless on this view. The
+  // groups carry the full option pool AND the student's pick, so prefer them.
+  const grouped = collectAnswerGroupBlanks(question);
+  if (grouped.length >= 2) return grouped;
+
+  // Matching (graded selects stay populated) or a live multiple-dropdowns quiz.
   const selects = collectAnswerSelects(question);
   if (selects.length < 2) return [];
   return selects.map((sel, i) => {
@@ -624,15 +632,88 @@ export function collectBlanks(question: HTMLElement): RawBlank[] {
     const selOpt = sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex] : null;
     let selected = selOpt ? normalizeText(selOpt.textContent ?? "") : "";
     if (isPlaceholderOption(selected)) selected = "";
-    const left = sel.closest(".answer")?.querySelector<HTMLElement>(".answer_match_left");
     return {
       key: blankKey(sel, i),
-      label: left ? cleanText(left) : "",
+      label: blankLabelForSelect(sel),
       selected,
       options,
       disabled: sel.disabled,
     };
   });
+}
+
+/**
+ * Blanks read from graded `.answer_group` blocks (Canvas multiple-dropdowns /
+ * fill-in-multiple-blanks review). Each group is one blank: every option is an
+ * `.answer` row (`.answer_text`), the student's pick is the `.selected_answer`
+ * row, and `.blank_id` names the blank. The inline <select>s (empty on this
+ * view) still carry the surrounding sentence — our best per-blank label — so
+ * we zip them to the groups by order. Returns [] when there are no groups.
+ */
+function collectAnswerGroupBlanks(question: HTMLElement): RawBlank[] {
+  const groups = [...question.querySelectorAll<HTMLElement>(".answer_group")];
+  if (groups.length < 2) return [];
+
+  // Pair each blank to its inline <select> by matching option sets, not by
+  // order: a multiple-dropdowns question can have more answer groups than
+  // rendered <select>s (a blank shown as a fixed statement has no dropdown), so
+  // positional zipping would misattach the surrounding-sentence labels.
+  const selectByOptions = new Map<string, HTMLSelectElement>();
+  for (const sel of collectAnswerSelects(question)) {
+    const sig = optionSignature(
+      [...sel.querySelectorAll("option")].map((o) => normalizeText(o.textContent ?? "")),
+    );
+    if (sig && !selectByOptions.has(sig)) selectByOptions.set(sig, sel);
+  }
+
+  return groups.map((group, i) => {
+    const rows = [...group.querySelectorAll<HTMLElement>(".answer")];
+    const optionOf = (row: HTMLElement) => cleanText(row.querySelector<HTMLElement>(".answer_text") ?? row);
+    const options = [...new Set(rows.map(optionOf).filter((t) => t && !isPlaceholderOption(t)))];
+    const selRow = group.querySelector<HTMLElement>(".answer.selected_answer");
+    let selected = selRow ? optionOf(selRow) : "";
+    if (isPlaceholderOption(selected)) selected = "";
+    const blankId = normalizeText(group.querySelector(".blank_id")?.textContent ?? "");
+    const sel = selectByOptions.get(optionSignature(options));
+    return {
+      key: blankId || `blank${i + 1}`,
+      label: (sel && blankLabelForSelect(sel)) || blankId,
+      selected,
+      options,
+      disabled: true, // graded review: no editable input
+    };
+  });
+}
+
+/** Order-independent signature of an option set (lower-cased, placeholder
+ * dropped, sorted) so a blank's answer group can be matched to the inline
+ * <select> that offers the same options. */
+function optionSignature(options: string[]): string {
+  return options
+    .map((o) => normalizeText(o).toLowerCase())
+    .filter((o) => o && !isPlaceholderOption(o))
+    .sort()
+    .join("|");
+}
+
+/** Best per-blank label: the matching row's left prompt (`.answer_match_left`),
+ * else the surrounding sentence of an inline multiple-dropdowns <select> (the
+ * <select>s themselves stripped), else its aria-label. */
+function blankLabelForSelect(sel: HTMLSelectElement): string {
+  const left = sel.closest(".answer")?.querySelector<HTMLElement>(".answer_match_left");
+  if (left) {
+    const t = cleanText(left);
+    if (t) return t;
+  }
+  const block = sel.closest("li, p, td, .answer") as HTMLElement | null;
+  if (block) {
+    const clone = block.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll("select, script, style, .screenreader-only").forEach((n) => n.remove());
+    const t = normalizeText(clone.textContent ?? "");
+    if (t) return t.slice(0, 200);
+  }
+  const aria = normalizeText(sel.getAttribute("aria-label") ?? "");
+  return /multiple dropdowns/i.test(aria) ? "" : aria;
 }
 
 function isPlaceholderOption(text: string): boolean {
