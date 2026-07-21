@@ -19,15 +19,19 @@ auto-captures every question and buckets each by what can be verified:
   student's own selected answer *is* the correct one (works even when the quiz
   hides correct answers, which is the common case). The panel shows
   `⚡ auto-captured N (V verified)`.
-- **Pool** → the separate question-pool export. A missed question on an
-  answers-hidden quiz: we keep the question, choices, images, dataset, and the
-  student's (wrong) pick, but the correct answer is unknown. Useful as a
-  hard-questions set to solve/label later — deliberately kept out of the eval
-  fixtures so it can't poison them.
+- **Unsolved** → the separate held-out export. A question missed on every
+  attempt while answers are hidden: we keep the question, choices, images,
+  dataset, and the student's (wrong/unknown) pick + outcome, but the correct
+  answer is unknown. This is the set to test the AI on once it aces the verified
+  fixtures — deliberately kept out of the eval set so it can't leak answers.
 
-Text, choices, images, referenced dataset, and an inferred concept/calc mode are
-all detected automatically. Every question type is covered: single-answer
-(radio), select-all (checkbox), dropdown, fill-in (text), plus images.
+Fixtures and Unsolved form a clean partition (answer known vs unknown), so
+together they're every captured question. Each record carries: question text,
+choices, images, referenced dataset, the student's selection, whether it was
+right/wrong (`outcome`), the correct answer when known, an inferred concept/calc
+mode, and course/quiz/url/time. Every question type is covered — radio,
+checkbox, dropdown, fill-in — plus images (fetched from `instructure.com` and
+`canvas-user-content.com`).
 
 On a **live/ungraded quiz** there's no answer on the page, so each question gets
 a manual pill — select the correct choice(s), click, your selection is the label.
@@ -103,9 +107,10 @@ Two buttons in the panel/popup:
   pnpm import:captures ~/Downloads/statshelpr-fixtures-*.json   # → evals/solve-fixtures/
   pnpm eval
   ```
-- **Export pool** — every capture (verified + unverified) with the student's
-  pick, outcome (correct/incorrect/unknown), and dataset. For the "hard
-  questions / label later" use case; not the eval fixture shape.
+- **Export unsolved** — the questions whose answer was never established
+  (missed every attempt, answers hidden), with the full question record: choices,
+  images, dataset, the student's pick, and outcome. The held-out AI-test set;
+  not the eval fixture shape. (Fixtures + Unsolved = every captured question.)
 
 ## Notes
 

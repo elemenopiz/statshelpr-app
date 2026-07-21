@@ -24,15 +24,15 @@ async function render() {
 
   $("count").textContent = String(captures.length);
   const verified = captures.filter((c) => c.verified).length;
-  const pool = captures.length - verified;
+  const unsolved = captures.length - verified;
   const templates = new Set(captures.map((c) => c.templateId)).size;
   const variants = captures.length - templates;
   $("breakdown").textContent = captures.length
-    ? `${verified} verified · ${pool} pool · ${templates} unique`
+    ? `${verified} verified · ${unsolved} unsolved · ${templates} unique`
     : "nothing captured yet";
 
   ($("export-fixtures") as HTMLButtonElement).disabled = verified === 0;
-  ($("export-pool") as HTMLButtonElement).disabled = captures.length === 0;
+  ($("export-pool") as HTMLButtonElement).disabled = unsolved === 0;
   ($("clear") as HTMLButtonElement).disabled = captures.length === 0;
   ($("dedupe") as HTMLButtonElement).disabled = variants === 0;
   ($("dedupe") as HTMLButtonElement).textContent = variants
@@ -62,7 +62,7 @@ function renderList(captures: Capture[]) {
       el("span", {
         className: `tag ${c.verified ? "key" : "manual"}`,
         title: `answer source: ${c.answerSource} · outcome: ${c.outcome}`,
-        text: c.verified ? "verified" : "pool",
+        text: c.verified ? "verified" : "unsolved",
       }),
     );
     // verified → the correct answer; pool → the student's (wrong/unknown) pick
@@ -110,8 +110,9 @@ async function exportData(kind: "fixtures" | "pool") {
     downloadText(`statshelpr-fixtures-${s}.json`, toFixtureBundle(captures, datasets, true));
     toast(`Exported ${verified} verified fixture${verified === 1 ? "" : "s"}`);
   } else {
-    downloadText(`statshelpr-pool-${s}.json`, toPoolBundle(captures, datasets));
-    toast(`Exported ${captures.length} pool item${captures.length === 1 ? "" : "s"}`);
+    const unsolved = captures.filter((c) => !c.verified).length;
+    downloadText(`statshelpr-unsolved-${s}.json`, toPoolBundle(captures, datasets));
+    toast(`Exported ${unsolved} unsolved question${unsolved === 1 ? "" : "s"}`);
   }
 }
 

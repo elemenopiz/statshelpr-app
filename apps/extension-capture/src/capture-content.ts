@@ -290,7 +290,7 @@ function ensurePanel() {
   });
 
   const exportFixturesBtn = el("button", { className: "shcap-btn", id: "shcap-export-fixtures", type: "button", text: "Export fixtures" });
-  const exportPoolBtn = el("button", { className: "shcap-btn", id: "shcap-export-pool", type: "button", text: "Export pool" });
+  const exportPoolBtn = el("button", { className: "shcap-btn", id: "shcap-export-pool", type: "button", text: "Export unsolved" });
   const exportRow = el("div", { className: "shcap-row" }, [exportFixturesBtn, exportPoolBtn]);
   const clearBtn = el("button", { className: "shcap-btn shcap-quiet", id: "shcap-clear", type: "button", text: "Clear all" });
 
@@ -326,10 +326,10 @@ async function refreshPanel() {
 
   total.textContent = String(captures.length);
   const verified = captures.filter((c) => c.verified).length;
-  const pool = captures.length - verified;
+  const unsolved = captures.length - verified;
   const templates = new Set(captures.map((c) => c.templateId)).size;
   breakdown.textContent = captures.length
-    ? `· ${verified} verified · ${pool} pool · ${templates} unique`
+    ? `· ${verified} verified · ${unsolved} unsolved · ${templates} unique`
     : "";
 
   const onPage = findQuestions();
@@ -347,7 +347,7 @@ async function exportData(kind: "fixtures" | "pool") {
   if (kind === "fixtures") {
     downloadText(`statshelpr-fixtures-${stamp()}.json`, toFixtureBundle(captures, datasets, true));
   } else {
-    downloadText(`statshelpr-pool-${stamp()}.json`, toPoolBundle(captures, datasets));
+    downloadText(`statshelpr-unsolved-${stamp()}.json`, toPoolBundle(captures, datasets));
   }
 }
 

@@ -6,7 +6,8 @@
   "permissions": ["storage", "unlimitedStorage"],
   "host_permissions": [
     "https://*.instructure.com/*",
-    "https://quizzes.next.instructure.com/*"
+    "https://quizzes.next.instructure.com/*",
+    "https://*.canvas-user-content.com/*"
   ],
   "web_accessible_resources": [
     {

@@ -104,5 +104,7 @@ export interface PoolItem {
   mode: CaptureMode;
   templateId: string;
   url: string;
+  courseId?: string;
+  quizId?: string;
   capturedAt: number;
 }

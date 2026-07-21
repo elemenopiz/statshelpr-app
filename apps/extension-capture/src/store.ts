@@ -147,6 +147,12 @@ export function verifiedOnly(captures: Capture[]): Capture[] {
   return captures.filter((c) => c.verified && c.correctChoices.length > 0);
 }
 
+/** Captures whose correct answer we never established — the "unsolved" set
+ * (missed on every attempt, answers hidden). The AI-test dataset. */
+export function unsolvedOnly(captures: Capture[]): Capture[] {
+  return captures.filter((c) => !(c.verified && c.correctChoices.length > 0));
+}
+
 /** Pretty-printed JSON array of fixtures (verified captures only) — drop through
  * `scripts/import-captures.ts` to split into evals/solve-fixtures/*.json. */
 export function toFixtureBundle(
@@ -166,14 +172,16 @@ export function toJsonl(
   return verifiedOnly(captures).map((c) => JSON.stringify(toFixture(c, datasets, inline))).join("\n") + "\n";
 }
 
-/** The full question pool — EVERY capture (verified or not) with the student's
- * pick and outcome. For the separate "hard questions / label later" use case;
- * deliberately not the eval fixture shape. */
+/** The "unsolved" dataset — captures whose answer we never learned (missed on
+ * every attempt, answers hidden), with the full question, images, dataset, the
+ * student's wrong/unknown pick, and outcome. The held-out set to test the AI on
+ * once it aces the verified fixtures. Complete question record, not the eval
+ * fixture shape. */
 export function toPoolBundle(
   captures: Capture[],
   datasets: Record<string, string> = {},
 ): string {
-  const items: PoolItem[] = captures.map((c) => {
+  const items: PoolItem[] = unsolvedOnly(captures).map((c) => {
     const item: PoolItem = {
       name: c.name,
       questionText: c.questionText,
@@ -188,6 +196,8 @@ export function toPoolBundle(
       url: c.url,
       capturedAt: c.capturedAt,
     };
+    if (c.courseId) item.courseId = c.courseId;
+    if (c.quizId) item.quizId = c.quizId;
     if (c.images.length > 0) item.images = c.images;
     const dataFiles = expandDataFiles(c.datasetRefs, datasets, true);
     if (dataFiles.length > 0) item.dataFiles = dataFiles;
