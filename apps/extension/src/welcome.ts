@@ -25,36 +25,22 @@ document.querySelectorAll<HTMLButtonElement>("[data-go]").forEach((btn) => {
 document.getElementById("skip-btn")?.addEventListener("click", finish);
 document.getElementById("finish-btn")?.addEventListener("click", finish);
 
-document.getElementById("copy-api-url")?.addEventListener("click", async () => {
-  const codeEl = document.getElementById("api-url-sample");
-  const text = codeEl?.textContent?.trim() ?? "";
-  if (!text) return;
-  try {
-    await navigator.clipboard.writeText(text);
-  } catch {
-    // Fallback for older Chrome
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.opacity = "0";
-    document.body.appendChild(ta);
-    ta.select();
-    try {
-      document.execCommand("copy");
-    } catch {
-      /* ignore */
-    }
-    document.body.removeChild(ta);
-  }
-  const btn = document.getElementById("copy-api-url");
-  if (btn) {
-    const orig = btn.textContent;
-    btn.textContent = "copied";
-    setTimeout(() => {
-      btn.textContent = orig;
-    }, 1200);
-  }
-});
+// Discreet mode demo (step 3): purely local preview, not wired to any real
+// extension state — just fades the mock solve button as the slider moves.
+const discreetSlider = document.getElementById(
+  "discreet-slider",
+) as HTMLInputElement | null;
+const discreetBtn = document.getElementById("discreet-demo-btn");
+const discreetValue = document.getElementById("discreet-slider-value");
+if (discreetSlider && discreetBtn && discreetValue) {
+  const applyOpacity = () => {
+    const pct = Number(discreetSlider.value);
+    discreetBtn.style.opacity = String(pct / 100);
+    discreetValue.textContent = `${pct}%`;
+  };
+  discreetSlider.addEventListener("input", applyOpacity);
+  applyOpacity();
+}
 
 function finish() {
   void chrome.storage.sync.set({ [STORAGE_KEY]: true }).then(() => {

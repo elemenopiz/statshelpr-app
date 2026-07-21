@@ -30,8 +30,19 @@
           alike — and select it for you.
         </p>
         <p class="muted">
+          Nothing to configure — click the
+          <span class="inline-btn">statshelpr</span> icon in your Chrome
+          toolbar (pin it from the puzzle-piece menu if you don't see it) and
+          you're ready to go on any Canvas quiz page.
+        </p>
+        <p class="muted">
           Built on the same R toolkit your course uses: tidyverse, mosaic,
           moderndive, infer.
+        </p>
+        <p class="muted">
+          Upgrading to <em>Unlimited</em> later? Checkout on statshelpr.com
+          auto-activates your license the moment payment goes through —
+          nothing to paste back into the extension.
         </p>
         <div class="nav-row">
           <span></span>
@@ -41,28 +52,6 @@
 
       <section class="step hidden" data-step="2">
         <div class="step-pill">step 2 of 5</div>
-        <h2 class="serif">Set your <em>API URL</em>.</h2>
-        <p class="lede">
-          Click the statshelpr icon in your Chrome toolbar (you may need to pin
-          it from the puzzle-piece menu). Paste the production API URL:
-        </p>
-        <div class="code-block">
-          <code id="api-url-sample"
-            >https://statshelpr-co4kzmola-elemenopizs-projects.vercel.app</code
-          >
-          <button class="copy-btn" id="copy-api-url" type="button">copy</button>
-        </div>
-        <p class="muted">
-          Leave the license key blank for now — the dev API runs ungated.
-        </p>
-        <div class="nav-row">
-          <button class="back-btn" data-go="1" type="button">← Back</button>
-          <button class="next-btn" data-go="3" type="button">Continue →</button>
-        </div>
-      </section>
-
-      <section class="step hidden" data-step="3">
-        <div class="step-pill">step 3 of 5</div>
         <h2 class="serif">Open a <em>Canvas quiz</em>.</h2>
         <p class="lede">
           On UT Canvas, navigate to any quiz page. Wait for the questions to
@@ -90,6 +79,43 @@
         <p class="muted">
           Click <span class="inline-btn">solve</span> → spinner → the correct
           choice is selected automatically.
+        </p>
+        <div class="nav-row">
+          <button class="back-btn" data-go="1" type="button">← Back</button>
+          <button class="next-btn" data-go="3" type="button">Continue →</button>
+        </div>
+      </section>
+
+      <section class="step hidden" data-step="3">
+        <div class="step-pill">step 3 of 5</div>
+        <h2 class="serif"><em>Discreet mode</em> on real quiz pages.</h2>
+        <p class="lede">
+          The solve button can fade — handy if you'd rather it not stand out
+          on screen. Drag the slider below to see it work on this mock
+          question:
+        </p>
+        <div class="demo-card">
+          <div class="demo-q-header">
+            Question 1
+            <span class="demo-btn" id="discreet-demo-btn">solve</span>
+          </div>
+          <div class="discreet-slider-row">
+            <span class="muted">Solve-button visibility</span>
+            <input
+              type="range"
+              id="discreet-slider"
+              class="discreet-slider"
+              min="0"
+              max="100"
+              value="100"
+            />
+            <span class="dim" id="discreet-slider-value">100%</span>
+          </div>
+        </div>
+        <p class="muted">
+          Try it — <em>Unlimited</em> lets you fade this all the way out on
+          real quiz pages. On the free plan it stays fully visible and locked;
+          this slider is just a preview so you know the option is there.
         </p>
         <div class="nav-row">
           <button class="back-btn" data-go="2" type="button">← Back</button>
@@ -137,7 +163,7 @@
             — click to auto-answer
           </li>
           <li>
-            <span class="tip-tag spin"></span> spinner — Kimi is thinking
+            <span class="tip-tag spin"></span> spinner — ai tutor is thinking
             (concept ≈ 2-3 sec, calc ≈ 6-12 sec)
           </li>
           <li>

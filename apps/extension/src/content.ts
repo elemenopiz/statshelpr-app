@@ -875,9 +875,10 @@ async function applyButtonOpacityFromStorage(): Promise<void> {
 }
 
 function applyButtonOpacity(value: number): void {
-  // Clamp to a sane range so a bad stored value can't hide the button entirely
-  // or blow past 1.0. Matches the popup slider's min/max.
-  const clamped = Math.min(1, Math.max(0.05, value));
+  // Clamp to a sane range so a bad stored value can't blow past 1.0 or go
+  // negative. Paid users can drag the popup slider to 0 (fully invisible) —
+  // gating who's allowed to write a low value is the popup's job, not ours.
+  const clamped = Math.min(1, Math.max(0, value));
   document.documentElement.style.setProperty("--sh-idle-opacity", String(clamped));
 }
 

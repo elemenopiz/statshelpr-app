@@ -26,12 +26,13 @@
  * becomes a CSP/offline concern later, mirror it and pass `repoUrl` in the
  * WebROptions below.
  *
- * Package set at boot = INFRA (internal-only, e.g. openssl/base64enc) +
- * UT_BUNDLE (the default "UT bundle" of stats packages, shown read-only in
- * the popup) + the user's own extras (typed into the popup's "R libraries"
- * section, persisted to chrome.storage.sync under `extraPackages`). INFRA
- * and UT_BUNDLE failures are real boot errors; extras are best-effort —
- * see bootWebR() below.
+ * Package set at boot = INFRA (small internal-only list, e.g.
+ * openssl/base64enc — fatal if it fails to install) + the user's library
+ * list (fully editable in the popup's "R libraries" section, persisted to
+ * chrome.storage.sync under `extraPackages`; defaults to UT_BUNDLE from
+ * ./packages when that storage key is empty/unset). Every package in the
+ * library list is installed best-effort — a bad or removed package never
+ * aborts boot, only INFRA failures do — see bootWebR() below.
  */
 
 import { WebR, type WebRError } from "@r-wasm/webr";
@@ -39,12 +40,15 @@ import { UT_BUNDLE } from "./packages";
 
 /** Packages the extension itself depends on internally (not shown in the
  * popup's "R libraries" section, not user-configurable) — always loaded
- * alongside the UT bundle. A failure here is a real boot error, same as
- * this whole list was treated before user extras existed. */
+ * alongside the user's library list. A failure here is a real boot error,
+ * same as this whole list was treated before user-editable libraries
+ * existed. */
 const INFRA = ["openssl", "base64enc"];
 
-/** chrome.storage.sync key for the user's own extra packages, edited in
- * the popup's "R libraries" section — see popup.ts. */
+/** chrome.storage.sync key for the user's full, freely-editable library
+ * list, edited in the popup's "R libraries" section — see popup.ts. The key
+ * name is a historical holdover from when it only held additions on top of
+ * a fixed core; it now holds the complete list. */
 const STORAGE_KEY_EXTRA_PACKAGES = "extraPackages";
 
 /** chrome.storage.local key we mirror extra-package failures to, so the
@@ -69,12 +73,17 @@ function getWebR(): Promise<WebR> {
   return webRPromise;
 }
 
-/** Read the user's own extra packages (added in the popup's "R libraries"
- * section) from sync storage. Defaults to []. */
-async function getExtraPackages(): Promise<string[]> {
+/** Read the user's full library list (editable in the popup's "R libraries"
+ * section) from sync storage. Falls back to UT_BUNDLE if the key is
+ * empty/unset — either this content script or the popup could be the first
+ * context to ever touch that storage key, and both need to agree on the
+ * same default so a user who never opens the popup still gets the default
+ * bundle at boot. */
+async function getLibraries(): Promise<string[]> {
   const stored = await chrome.storage.sync.get(STORAGE_KEY_EXTRA_PACKAGES);
-  const extra = stored[STORAGE_KEY_EXTRA_PACKAGES];
-  return Array.isArray(extra) ? extra.filter((p): p is string => typeof p === "string") : [];
+  const raw = stored[STORAGE_KEY_EXTRA_PACKAGES];
+  const libraries = Array.isArray(raw) ? raw.filter((p): p is string => typeof p === "string") : [];
+  return libraries.length > 0 ? libraries : UT_BUNDLE;
 }
 
 /** Install then attach a single package so R code can reference its
@@ -90,36 +99,35 @@ async function bootWebR(): Promise<WebR> {
   });
   await webR.init();
 
-  // Install then attach the packages every install needs: our own internals
-  // (INFRA) plus the default "UT bundle" of stats packages, so R code can
-  // reference their functions (e.g. %>%, gf_histogram, prop_test) without an
-  // explicit library() call. Both are required — failure here is a real
-  // boot error, same as this whole list was treated before user extras
-  // existed.
-  const core = [...INFRA, ...UT_BUNDLE];
-  await webR.installPackages(core, true);
-  for (const pkg of core) {
+  // Install then attach our own internal dependencies (INFRA) so R code can
+  // rely on them being present. This is a real boot error — failure here
+  // means the extension itself can't function, unlike the user's own
+  // library list below.
+  await webR.installPackages(INFRA, true);
+  for (const pkg of INFRA) {
     await webR.evalRVoid(`suppressMessages(suppressWarnings(library(${pkg})))`);
   }
 
-  // The user's own extras (added per-course in the popup) are best-effort:
-  // WebR's package repo (repo.r-wasm.org) doesn't mirror every CRAN package,
-  // and users can simply mistype a name. One bad extra must never abort the
-  // whole boot, so each is installed independently and a failure is only
-  // logged + recorded, never thrown.
+  // The user's library list (editable in the popup's "R libraries" section,
+  // defaulting to UT_BUNDLE when storage is empty) is best-effort: WebR's
+  // package repo (repo.r-wasm.org) doesn't mirror every CRAN package, users
+  // can mistype a name, and — now that the list is fully user-editable —
+  // any package including former "defaults" can be removed or broken. One
+  // bad package must never abort the whole boot, so each is installed
+  // independently and a failure is only logged + recorded, never thrown.
   const packageErrors: PackageError[] = [];
-  const extras = await getExtraPackages();
-  for (const pkg of extras) {
+  const libraries = await getLibraries();
+  for (const pkg of libraries) {
     try {
       await installAndAttach(webR, pkg);
     } catch (e) {
       const message = (e as WebRError | Error).message ?? "install failed";
-      console.warn(`[webr] extra package "${pkg}" failed to load: ${message}`);
+      console.warn(`[webr] library "${pkg}" failed to load: ${message}`);
       packageErrors.push({ pkg, message });
     }
   }
   // Mirror to storage so the popup — a separate execution context that
-  // never shares this module's state — can surface which extras failed.
+  // never shares this module's state — can surface which libraries failed.
   await chrome.storage.local.set({ [STORAGE_KEY_PACKAGE_ERRORS]: packageErrors });
 
   // Data files are written to the FS root (see runR below). Set the working

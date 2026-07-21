@@ -3,314 +3,462 @@
   <head>
     <meta charset="utf-8" />
     <title>statshelpr</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400&display=swap"
-      rel="stylesheet"
-    />
     <style>
+      /* ==================================================================
+         statshelpr popup — "worked paper" system, self-contained (strict
+         CSP: no external fonts/scripts). System stacks echo the landing
+         page: serif wordmark, humanist UI, mono for data.
+         ================================================================== */
       :root {
-        --bg: #0b0b0f;
-        --bg-raised: #111116;
-        --bg-card: #16161c;
-        --text: #e8e2d6;
-        --text-dim: #8a8578;
-        --text-muted: #5c584f;
-        --accent: #d4a843;
-        --accent-dim: rgba(212, 168, 67, 0.12);
-        --border: rgba(232, 226, 214, 0.08);
-        --border-hover: rgba(212, 168, 67, 0.3);
-        --ok: #a8c875;
-        --err: #d97373;
-        --warn: #d4a843;
-        --font-display: "Instrument Serif", Georgia, serif;
-        --font-body: "DM Sans", system-ui, -apple-system, sans-serif;
-        --font-mono: "JetBrains Mono", "SF Mono", monospace;
+        --paper: #FAF9F5;
+        --card: #FFFFFF;
+        --ink: #1D1C17;
+        --ink-2: #55534A;
+        --ink-3: #8D8A7E;
+        --line: rgba(29, 28, 23, 0.13);
+        --line-soft: rgba(29, 28, 23, 0.07);
+        --blue: #2742C8;
+        --blue-deep: #1C31A2;
+        --blue-tint: rgba(39, 66, 200, 0.08);
+        --blue-ring: rgba(39, 66, 200, 0.16);
+        --ok: #0B7A4B;
+        --ok-tint: rgba(11, 122, 75, 0.09);
+        --warn: #8A6410;
+        --warn-tint: rgba(176, 128, 26, 0.12);
+        --err: #C24029;
+        --err-tint: rgba(194, 64, 41, 0.09);
+        --btn-text: #FFFFFF;
+        --shadow: 0 1px 2px rgba(29, 28, 23, 0.05), 0 6px 20px rgba(29, 28, 23, 0.06);
+        --font-serif: 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+        --font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
+        --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', Consolas, monospace;
+        --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --paper: #161614;
+          --card: #1E1E1B;
+          --ink: #EAE8DF;
+          --ink-2: #A8A599;
+          --ink-3: #7A7769;
+          --line: rgba(234, 232, 223, 0.14);
+          --line-soft: rgba(234, 232, 223, 0.08);
+          --blue: #93A3FF;
+          --blue-deep: #AEBAFF;
+          --blue-tint: rgba(147, 163, 255, 0.11);
+          --blue-ring: rgba(147, 163, 255, 0.22);
+          --ok: #6CC49A;
+          --ok-tint: rgba(108, 196, 154, 0.1);
+          --warn: #D8B25E;
+          --warn-tint: rgba(216, 178, 94, 0.12);
+          --err: #E58873;
+          --err-tint: rgba(229, 136, 115, 0.1);
+          --btn-text: #12122B;
+          --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.25);
+        }
       }
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body {
-        font-family: var(--font-body);
-        background: var(--bg);
-        color: var(--text);
-        padding: 18px;
-        width: 340px;
+        font-family: var(--font-ui);
+        background: var(--paper);
+        color: var(--ink);
+        width: 372px;
         font-size: 13px;
+        line-height: 1.5;
         -webkit-font-smoothing: antialiased;
+        padding: 14px 16px 12px;
       }
+      :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; border-radius: 3px; }
+
+      /* ------------------------------------------------------- header */
       .header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 14px;
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 12px;
       }
       .logo {
-        font-family: var(--font-display);
-        font-size: 1.4rem;
-        letter-spacing: -0.3px;
+        font-family: var(--font-serif);
+        font-size: 1.35rem; font-weight: 500;
+        letter-spacing: -0.01em;
       }
-      .logo em { color: var(--accent); font-style: italic; }
+      .logo em { color: var(--blue); font-style: italic; }
       .dot {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 10.5px;
-        color: var(--text-muted);
-        font-family: var(--font-mono);
+        display: inline-flex; align-items: center; gap: 6px;
+        font-size: 10.5px; font-family: var(--font-mono);
+        color: var(--ink-3);
+        padding: 3px 9px; border-radius: 999px;
+        border: 1px solid var(--line-soft);
+        background: var(--card);
       }
       .dot::before {
-        content: "";
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: var(--text-muted);
+        content: ""; width: 7px; height: 7px; border-radius: 50%;
+        background: var(--ink-3); flex: none;
+        transition: background-color 0.3s;
       }
-      .dot.ok { color: var(--ok); }
+      .dot.ok { color: var(--ok); border-color: transparent; background: var(--ok-tint); }
       .dot.ok::before { background: var(--ok); }
-      .dot.warn { color: var(--warn); }
+      .dot.warn { color: var(--warn); border-color: transparent; background: var(--warn-tint); }
       .dot.warn::before { background: var(--warn); }
-      .dot.err { color: var(--err); }
+      .dot.err { color: var(--err); border-color: transparent; background: var(--err-tint); }
       .dot.err::before { background: var(--err); }
 
-      .section-label {
-        font-size: 10px;
-        color: var(--text-dim);
-        margin: 0 0 8px 0;
-        font-weight: 500;
-        font-family: var(--font-mono);
-        letter-spacing: 0.4px;
-        text-transform: uppercase;
+      /* ---------------------------------------------------- plan card */
+      .plan-card {
+        border: 1px solid var(--line);
+        background: var(--card);
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+        padding: 13px 14px;
+        margin-bottom: 14px;
       }
+      .plan-row {
+        display: flex; align-items: baseline; justify-content: space-between;
+        gap: 10px;
+      }
+      .plan-name { font-size: 12.5px; font-weight: 650; letter-spacing: 0.01em; }
+      .plan-solves {
+        font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3);
+      }
+      .plan-solves b { color: var(--ink); font-weight: 600; }
+      .meter {
+        display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px;
+        margin: 9px 0 11px;
+      }
+      .meter span {
+        height: 4px; border-radius: 2px;
+        background: var(--line-soft);
+        transition: background-color 0.4s;
+      }
+      .meter span.on { background: var(--blue); }
+      .upgrade-cta {
+        display: flex; align-items: center; justify-content: center; gap: 7px;
+        width: 100%;
+        padding: 9px 12px;
+        border-radius: 9px;
+        background: var(--blue); color: var(--btn-text);
+        font-size: 12.5px; font-weight: 650; text-decoration: none;
+        border: 1px solid transparent;
+        transition: background-color 0.2s, transform 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+        cursor: pointer;
+      }
+      .upgrade-cta:hover { background: var(--blue-deep); transform: translateY(-1px); }
+      .upgrade-cta:active { transform: none; }
+      .upgrade-cta .arr { transition: transform 0.25s var(--ease-out); }
+      .upgrade-cta:hover .arr { transform: translateX(2px); }
+      .plan-sub {
+        margin-top: 8px;
+        font-size: 10.5px; color: var(--ink-3); text-align: center;
+      }
+      /* low-solves conversion nudge */
+      #plan-solves.urgent { color: var(--err); }
+      #plan-solves.urgent b { color: var(--err); }
+      .upgrade-cta.urgent { animation: ctaPulse 1.8s ease-in-out infinite; }
+      @keyframes ctaPulse {
+        0%, 100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 0 var(--err-tint); }
+        50% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 5px var(--err-tint); }
+      }
+      /* paid state */
+      .plan-paid { display: none; align-items: center; justify-content: center; }
+      .plan-paid-word {
+        font-family: var(--font-serif);
+        font-style: italic;
+        color: var(--blue);
+        font-size: 1.15rem;
+        font-weight: 500;
+      }
+      /* license problem note */
+      .plan-note {
+        display: none;
+        margin-top: 9px;
+        font-size: 11px; line-height: 1.45;
+        color: var(--err);
+        background: var(--err-tint);
+        border-radius: 7px;
+        padding: 7px 9px;
+      }
+      /* state switching */
+      .plan-card[data-plan="paid"] .plan-free { display: none; }
+      .plan-card[data-plan="paid"] .plan-paid { display: flex; }
+      .plan-card[data-plan="checking"] .plan-free .upgrade-cta { opacity: 0.75; }
+
+      /* ------------------------------------------------- section base */
+      .section-label {
+        font-size: 10px; font-weight: 600;
+        font-family: var(--font-mono);
+        letter-spacing: 0.13em; text-transform: uppercase;
+        color: var(--ink-3);
+        margin: 0 0 7px 1px;
+        display: flex; align-items: center; gap: 8px;
+      }
+      .section-label::after { content: ""; flex: 1; height: 1px; background: var(--line-soft); }
+
       label {
         display: block;
-        font-size: 10px;
-        color: var(--text-dim);
-        margin-bottom: 5px;
-        font-weight: 500;
-        font-family: var(--font-mono);
-        letter-spacing: 0.4px;
-        text-transform: uppercase;
+        font-size: 11px; font-weight: 600;
+        color: var(--ink-2);
+        margin-bottom: 4px;
       }
       input[type="text"], input[type="password"] {
         width: 100%;
-        padding: 8px 10px;
-        background: var(--bg-card);
-        border: 1px solid var(--border);
-        border-radius: 6px;
+        padding: 7px 10px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 8px;
         font-size: 12px;
-        color: var(--text);
+        color: var(--ink);
         font-family: inherit;
         margin-bottom: 10px;
-        transition: border-color 0.15s;
+        transition: border-color 0.2s, box-shadow 0.2s;
       }
       input[type="text"]:focus, input[type="password"]:focus {
         outline: none;
-        border-color: var(--border-hover);
+        border-color: var(--blue);
+        box-shadow: 0 0 0 3px var(--blue-ring);
       }
-      input::placeholder { color: var(--text-muted); }
+      input::placeholder { color: var(--ink-3); }
       button {
-        width: 100%;
-        padding: 9px;
-        background: var(--accent);
-        color: var(--bg);
-        border: 1px solid var(--accent);
-        border-radius: 6px;
-        font-size: 12px;
-        cursor: pointer;
-        font-weight: 600;
         font-family: inherit;
-        transition: all 0.15s;
-        letter-spacing: 0.2px;
+        cursor: pointer;
       }
-      button:hover { background: transparent; color: var(--accent); }
+      .btn-solid {
+        width: 100%;
+        padding: 8px 12px;
+        background: var(--blue);
+        color: var(--btn-text);
+        border: 1px solid transparent;
+        border-radius: 8px;
+        font-size: 12.5px; font-weight: 650;
+        transition: background-color 0.2s, transform 0.2s var(--ease-out);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+      }
+      .btn-solid:hover { background: var(--blue-deep); }
+      .btn-solid:active { transform: scale(0.99); }
       .status {
-        margin-top: 8px;
-        font-size: 10.5px;
-        color: var(--text-dim);
-        min-height: 14px;
+        margin-top: 7px;
+        font-size: 11px;
+        color: var(--ink-2);
+        min-height: 15px;
         font-family: var(--font-mono);
+        transition: color 0.2s;
       }
       .status.ok { color: var(--ok); }
       .status.err { color: var(--err); }
 
-      /* CSV section */
+      /* ---------------------------------------------------- CSV files */
       .dropzone {
-        border: 1.5px dashed rgba(232, 226, 214, 0.18);
-        border-radius: 8px;
-        padding: 18px 14px;
+        border: 1.5px dashed var(--line);
+        border-radius: 10px;
+        padding: 14px 12px;
         text-align: center;
         font-size: 11.5px;
-        color: var(--text-dim);
+        color: var(--ink-2);
         cursor: pointer;
-        background: var(--bg-card);
-        transition: all 0.15s;
+        background: var(--card);
+        transition: border-color 0.2s, background-color 0.2s, color 0.2s;
       }
       .dropzone:hover, .dropzone.drag-over {
-        border-color: var(--accent);
-        background: var(--accent-dim);
-        color: var(--accent);
+        border-color: var(--blue);
+        background: var(--blue-tint);
+        color: var(--blue);
       }
       .dropzone .hint {
         display: block;
-        margin-top: 4px;
+        margin-top: 3px;
         font-size: 9.5px;
-        color: var(--text-muted);
+        color: var(--ink-3);
         font-family: var(--font-mono);
       }
-      .files-list {
-        margin-top: 10px;
-        font-size: 11.5px;
-      }
+      .files-list { margin-top: 8px; font-size: 11.5px; }
       .files-list .row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 6px 0;
-        border-bottom: 1px solid rgba(232, 226, 214, 0.05);
+        display: flex; align-items: center; gap: 8px;
+        padding: 5px 2px;
+        border-bottom: 1px solid var(--line-soft);
+        animation: rowIn 0.3s var(--ease-out);
       }
+      @keyframes rowIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
       .files-list .row:last-child { border-bottom: none; }
       .files-list .name {
-        flex: 1;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        color: var(--text);
-        font-weight: 500;
+        flex: 1; min-width: 0;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        color: var(--ink); font-weight: 500;
       }
       .files-list .size {
-        color: var(--text-muted);
-        margin: 0 8px;
-        font-size: 10px;
-        font-family: var(--font-mono);
+        color: var(--ink-3);
+        font-size: 10px; font-family: var(--font-mono);
+        flex: none;
       }
-      .files-list .remove {
-        background: none;
-        border: none;
-        color: var(--text-muted);
-        cursor: pointer;
-        font-size: 14px;
-        padding: 0 4px;
-        line-height: 1;
-        width: auto;
-        font-weight: normal;
+      .files-list .remove, .chip .remove {
+        background: none; border: none;
+        color: var(--ink-3);
+        font-size: 14px; line-height: 1;
+        padding: 1px 4px; border-radius: 5px;
+        width: auto; font-weight: 400;
+        transition: color 0.15s, background-color 0.15s;
       }
-      .files-list .remove:hover { color: var(--err); background: none; }
+      .files-list .remove:hover, .chip .remove:hover { color: var(--err); background: var(--err-tint); }
       .files-empty {
         font-size: 11px;
-        color: var(--text-muted);
-        margin-top: 10px;
-        font-style: italic;
+        color: var(--ink-3);
+        margin-top: 8px;
         text-align: center;
+        font-style: italic;
       }
 
-      /* R libraries section */
-      .chip-list {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin-bottom: 8px;
-      }
+      /* -------------------------------------------------- R libraries */
+      .chip-list { display: flex; flex-wrap: wrap; gap: 5px; }
+      .chip-list:not(:empty) { margin-bottom: 8px; }
       .chip {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        padding: 4px 9px;
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 3px 9px;
         border-radius: 999px;
-        font-size: 11px;
+        font-size: 10.5px;
         font-family: var(--font-mono);
-        background: var(--bg-card);
-        border: 1px solid var(--border);
+        background: var(--card);
+        border: 1px solid var(--line-soft);
+        color: var(--ink-3);
+        animation: chipIn 0.3s var(--ease-out);
       }
-      .chip.locked { color: var(--text-dim); }
-      .chip.extra { color: var(--text); border-color: var(--border-hover); }
-      .chip .remove {
-        background: none;
-        border: none;
-        color: var(--text-muted);
-        cursor: pointer;
-        font-size: 13px;
-        padding: 0;
-        line-height: 1;
-        width: auto;
-        font-weight: normal;
+      @keyframes chipIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: none; } }
+      .chip.extra {
+        color: var(--blue);
+        border-color: var(--blue-ring);
+        background: var(--blue-tint);
       }
-      .chip .remove:hover { color: var(--err); background: none; }
-      .pkg-add-row {
-        display: flex;
-        gap: 6px;
-        margin-bottom: 8px;
+      .chip.pkg-err {
+        color: var(--err);
+        border-color: rgba(194, 64, 41, 0.3);
+        background: var(--err-tint);
       }
-      .pkg-add-row input {
-        flex: 1;
-        margin-bottom: 0;
-      }
+      .pkg-add-row { display: flex; gap: 6px; margin-bottom: 8px; }
+      .pkg-add-row input { flex: 1; margin-bottom: 0; }
       .pkg-add-row button {
-        width: auto;
-        padding: 8px 12px;
-        flex-shrink: 0;
+        width: auto; padding: 7px 13px; flex-shrink: 0;
+        background: var(--card);
+        color: var(--ink);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        font-size: 12px; font-weight: 600;
+        transition: border-color 0.2s, background-color 0.2s, color 0.2s;
       }
+      .pkg-add-row button:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-tint); }
+      .pkg-errors {
+        display: none;
+        margin: 2px 0 8px;
+        font-size: 10.5px; line-height: 1.5;
+        color: var(--err);
+        background: var(--err-tint);
+        border-radius: 7px;
+        padding: 6px 9px;
+      }
+      .pkg-errors b { font-family: var(--font-mono); font-weight: 600; }
       .note {
         font-size: 9.5px;
-        color: var(--text-muted);
+        color: var(--ink-3);
         font-family: var(--font-mono);
-        line-height: 1.4;
+        line-height: 1.5;
         margin-top: 2px;
       }
 
-      details {
-        margin-top: 16px;
-        font-size: 11px;
-      }
+      /* ------------------------------------------------ settings area */
+      details { margin-top: 14px; }
       summary {
         cursor: pointer;
-        color: var(--text-dim);
+        color: var(--ink-3);
         font-family: var(--font-mono);
-        font-size: 10px;
-        letter-spacing: 0.4px;
-        text-transform: uppercase;
+        font-size: 10px; font-weight: 600;
+        letter-spacing: 0.13em; text-transform: uppercase;
         padding: 4px 0;
         user-select: none;
         list-style: none;
+        display: flex; align-items: center; gap: 7px;
+        transition: color 0.2s;
       }
       summary::-webkit-details-marker { display: none; }
-      summary::before { content: "▸ "; font-size: 9px; }
-      details[open] summary::before { content: "▾ "; }
-      summary:hover { color: var(--accent); }
+      summary .chev {
+        display: inline-block;
+        width: 8px; height: 8px; flex: none;
+        border-right: 1.5px solid currentColor;
+        border-bottom: 1.5px solid currentColor;
+        transform: rotate(-45deg);
+        transition: transform 0.25s var(--ease-out);
+        margin-top: -3px;
+      }
+      details[open] summary .chev { transform: rotate(45deg); margin-top: -5px; }
+      summary::after { content: ""; flex: 1; height: 1px; background: var(--line-soft); }
+      summary:hover { color: var(--blue); }
       details > .settings-body { margin-top: 10px; }
-
+      .range-row {
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 4px;
+      }
+      .range-row label { margin: 0; }
+      .range-val {
+        font-family: var(--font-mono);
+        color: var(--ink-3); font-size: 10.5px;
+      }
+      input[type="range"] {
+        width: 100%;
+        margin: 2px 0 12px;
+        accent-color: var(--blue);
+      }
+      .opacity-lock {
+        display: none;
+        align-items: center;
+        gap: 6px;
+        width: fit-content;
+        margin: -6px 0 14px;
+        padding: 5px 11px;
+        border-radius: 999px;
+        background: var(--blue-tint);
+        color: var(--blue);
+        font-size: 10.5px; font-weight: 650;
+        text-decoration: none;
+        cursor: pointer;
+        transition: background-color 0.2s, color 0.2s;
+      }
+      .opacity-lock:hover { background: var(--blue-ring); color: var(--blue-deep); }
       .meta {
         margin-top: 10px;
         padding-top: 8px;
-        border-top: 1px solid var(--border);
+        border-top: 1px solid var(--line-soft);
         font-size: 10px;
-        color: var(--text-muted);
+        color: var(--ink-3);
         font-family: var(--font-mono);
       }
-      .meta div {
-        padding: 2px 0;
-        display: flex;
-        justify-content: space-between;
-      }
-      .meta b { color: var(--text-dim); font-weight: 500; }
+      .meta div { padding: 2px 0; display: flex; justify-content: space-between; }
+      .meta b { color: var(--ink-2); font-weight: 500; }
       .meta .v.ok { color: var(--ok); }
       .meta .v.warn { color: var(--warn); }
 
+      /* --------------------------------------------------------- foot */
       .links {
-        margin-top: 14px;
-        padding-top: 12px;
-        border-top: 1px solid var(--border);
+        margin-top: 13px;
+        padding-top: 10px;
+        border-top: 1px solid var(--line-soft);
         display: flex;
         justify-content: space-between;
         align-items: center;
         font-size: 11px;
       }
       .links a {
-        color: var(--text-dim);
+        color: var(--ink-2);
         text-decoration: none;
-        transition: color 0.15s;
         cursor: pointer;
+        transition: color 0.15s;
       }
-      .links a:hover { color: var(--accent); }
+      .links a:hover { color: var(--blue); }
+      .version {
+        color: var(--ink-3);
+        font-family: var(--font-mono);
+        font-size: 9.5px;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
     </style>
   </head>
   <body>
@@ -319,10 +467,44 @@
       <span id="status-dot" class="dot">checking…</span>
     </div>
 
-    <div class="section-label">Data files</div>
-    <div class="dropzone" id="dropzone">
+    <!-- plan / conversion card — popup.ts switches data-plan: free | paid -->
+    <div class="plan-card" id="plan-card" data-plan="free">
+      <div class="plan-free" id="plan-free">
+        <div class="plan-row">
+          <span class="plan-name">Free plan</span>
+          <span class="plan-solves" id="plan-solves"><b>5</b> of 5 solves left today</span>
+        </div>
+        <div class="meter" id="solves-meter" aria-hidden="true">
+          <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span>
+        </div>
+        <a class="upgrade-cta" id="upgrade-cta"
+           href="https://statshelpr.com/checkout.html" target="_blank" rel="noopener">
+          Go Unlimited &mdash; $15/mo <span class="arr">&rarr;</span>
+        </a>
+        <div class="plan-sub">Every solve, all semester &middot; cancel anytime &middot; 7-day refund</div>
+      </div>
+      <div class="plan-paid" id="plan-paid">
+        <span class="plan-paid-word">Unlimited</span>
+      </div>
+      <div class="plan-note" id="plan-note"></div>
+    </div>
+
+    <div class="section-label">Discreet mode</div>
+    <div class="range-row">
+      <label for="buttonOpacity">fade the on-page solve button toward invisible</label>
+      <span id="opacityValue" class="range-val">0.20</span>
+    </div>
+    <input id="buttonOpacity" type="range" min="0" max="1" step="0.05" value="0.2" />
+    <a id="opacity-lock" class="opacity-lock"
+       href="https://statshelpr.com/checkout.html" target="_blank" rel="noopener">
+      &#128274; Unlimited unlocks discreet mode
+    </a>
+
+    <div class="section-label" style="margin-top: 14px">Data files</div>
+    <div class="dropzone" id="dropzone" role="button" tabindex="0"
+         aria-label="Upload data files: drop a CSV here or press Enter to browse">
       drop CSV or click to upload
-      <span class="hint">.csv · .tsv · .txt — persists 7 days</span>
+      <span class="hint">.csv &middot; .tsv &middot; .txt &mdash; persists 7 days</span>
     </div>
     <input
       type="file"
@@ -335,44 +517,41 @@
     <div id="files-empty" class="files-empty" style="display: none">
       no data files yet
     </div>
+    <div id="status" class="status" role="status"></div>
 
-    <div class="section-label" style="margin-top: 16px">R libraries</div>
-    <div id="ut-bundle-chips" class="chip-list"></div>
-    <div class="pkg-add-row">
-      <input type="text" id="pkg-input" placeholder="add a package, e.g. rpart" />
-      <button id="pkg-add" type="button">Add</button>
-    </div>
-    <div id="extra-pkg-chips" class="chip-list"></div>
-    <div id="pkg-empty" class="files-empty" style="display: none">
-      no extra packages added
-    </div>
-    <div class="note">
-      changes apply after the extension reloads — WebR boots once and caches
-    </div>
+    <details id="libraries-details">
+      <summary><span class="chev"></span>R libraries</summary>
+      <div class="settings-body">
+        <!-- static chips below are placeholders for the file:// preview;
+             popup.ts clears the container and re-renders from storage -->
+        <div id="library-chips" class="chip-list">
+          <span class="chip">tidyverse</span><span class="chip">mosaic</span><span class="chip">moderndive</span><span class="chip">infer</span><span class="chip">broom</span><span class="chip">ggplot2</span>
+        </div>
+        <div id="pkg-empty" class="files-empty" style="display: none">
+          no libraries added
+        </div>
+        <div id="pkg-errors" class="pkg-errors"></div>
+        <div class="pkg-add-row">
+          <input type="text" id="pkg-input" placeholder="add a package, e.g. rpart"
+                 aria-label="Add an R package" />
+          <button id="pkg-add" type="button">Add</button>
+        </div>
+        <div class="note">
+          changes apply after the extension reloads &mdash; WebR boots once and caches
+        </div>
+      </div>
+    </details>
 
     <details id="settings-details">
-      <summary>Settings &amp; status</summary>
+      <summary><span class="chev"></span>Status</summary>
       <div class="settings-body">
-        <label for="apiUrl">API URL</label>
-        <input id="apiUrl" type="text" placeholder="https://api.statshelpr.com" />
-        <label for="licenseKey">License key</label>
-        <input id="licenseKey" type="password" placeholder="leave blank in dev" />
-        <label for="buttonOpacity" style="display:flex;justify-content:space-between;align-items:center;">
-          <span>Button opacity</span>
-          <span id="opacityValue" style="font-family:var(--font-mono,monospace);color:var(--text-muted);font-size:0.75rem;">0.20</span>
-        </label>
-        <input id="buttonOpacity" type="range" min="0.05" max="1" step="0.05" value="0.2" style="width:100%;" />
-        <button id="save">Save</button>
-        <div id="status" class="status"></div>
         <div id="meta" class="meta" style="display: none"></div>
       </div>
     </details>
 
     <div class="links">
-      <a id="open-tutorial">↻ open tutorial</a>
-      <span style="color: var(--text-muted); font-family: var(--font-mono); font-size: 9.5px"
-        >v0.5.0</span
-      >
+      <a id="open-tutorial" href="#">&#8635; open tutorial</a>
+      <span class="version" id="ext-version">v1.0.0</span>
     </div>
     <script src="popup.js"></script>
   </body>

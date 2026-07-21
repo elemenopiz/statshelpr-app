@@ -7,6 +7,7 @@ interface StoredConfig {
 }
 
 const DEFAULT_OPACITY = 0.2;
+const API_URL = "https://api.statshelpr.com";
 
 interface HealthResponse {
   ok?: boolean;
@@ -29,13 +30,37 @@ const FILE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_FILE_BYTES = 5 * 1024 * 1024;     // 5MB per file
 const MAX_TOTAL_BYTES = 8 * 1024 * 1024;    // chrome.storage.local has ~10MB
 
+/** Full active R-library list (UT bundle defaults + any user edits). Every
+ * chip — including the 6 defaults — is addable/removable from here on. */
 const STORAGE_KEY_EXTRA_PACKAGES = "extraPackages";
 
-const apiUrlInput = document.getElementById("apiUrl") as HTMLInputElement;
-const licenseKeyInput = document.getElementById("licenseKey") as HTMLInputElement;
+/** Written by webr-runner.ts after boot: which libraries failed to load. */
+const STORAGE_KEY_PACKAGE_ERRORS = "packageErrors";
+interface PackageError {
+  pkg: string;
+  message: string;
+}
+
+/** Written by content.ts: local mirror of the free tier's daily solve count. */
+const STORAGE_KEY_SOLVE_STATS = "statshelpr.solveStats";
+const FREE_DAILY_LIMIT = 5;
+interface SolveStats {
+  count: number;
+  resetAt: number;
+}
+
+/** Last successful license validation, so a paid user who opens the popup
+ * offline isn't shown the free-tier upsell. */
+const STORAGE_KEY_PLAN_CACHE = "statshelpr.planCache";
+const PLAN_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+interface PlanCache {
+  paid: boolean;
+  at: number;
+}
+
 const opacityInput = document.getElementById("buttonOpacity") as HTMLInputElement | null;
 const opacityValueEl = document.getElementById("opacityValue") as HTMLSpanElement | null;
-const saveBtn = document.getElementById("save") as HTMLButtonElement;
+const opacityLockEl = document.getElementById("opacity-lock") as HTMLAnchorElement | null;
 const statusEl = document.getElementById("status") as HTMLDivElement;
 const statusDot = document.getElementById("status-dot") as HTMLSpanElement;
 const metaEl = document.getElementById("meta") as HTMLDivElement;
@@ -43,51 +68,46 @@ const dropzone = document.getElementById("dropzone") as HTMLDivElement;
 const fileInput = document.getElementById("file-input") as HTMLInputElement;
 const filesList = document.getElementById("files-list") as HTMLDivElement;
 const filesEmpty = document.getElementById("files-empty") as HTMLDivElement;
-const utBundleChipsEl = document.getElementById("ut-bundle-chips") as HTMLDivElement;
 const pkgInput = document.getElementById("pkg-input") as HTMLInputElement;
 const pkgAddBtn = document.getElementById("pkg-add") as HTMLButtonElement;
-const extraPkgChipsEl = document.getElementById("extra-pkg-chips") as HTMLDivElement;
+const libraryChipsEl = document.getElementById("library-chips") as HTMLDivElement;
 const pkgEmptyEl = document.getElementById("pkg-empty") as HTMLDivElement;
+const pkgErrorsEl = document.getElementById("pkg-errors") as HTMLDivElement;
+const planCardEl = document.getElementById("plan-card") as HTMLDivElement;
+const planSolvesEl = document.getElementById("plan-solves") as HTMLSpanElement;
+const solvesMeterEl = document.getElementById("solves-meter") as HTMLDivElement;
+const upgradeCtaEl = document.getElementById("upgrade-cta") as HTMLAnchorElement;
+const planNoteEl = document.getElementById("plan-note") as HTMLDivElement;
+const versionEl = document.getElementById("ext-version") as HTMLSpanElement;
 
 let dataFiles: DataFile[] = [];
-let extraPackages: string[] = [];
+let libraries: string[] = [];
+let packageErrors: PackageError[] = [];
 
 // =============================================================================
-// settings + health
+// settings + health + plan
 // =============================================================================
 
 chrome.storage.sync.get(["apiUrl", "licenseKey", "buttonOpacity"], (cfg: StoredConfig) => {
-  apiUrlInput.value = cfg.apiUrl ?? "https://api.statshelpr.com";
-  licenseKeyInput.value = cfg.licenseKey ?? "";
   const opacity = typeof cfg.buttonOpacity === "number" ? cfg.buttonOpacity : DEFAULT_OPACITY;
   if (opacityInput) opacityInput.value = String(opacity);
   if (opacityValueEl) opacityValueEl.textContent = opacity.toFixed(2);
-  void pingHealth(apiUrlInput.value);
+  void pingHealth(API_URL);
+  void refreshPlan(API_URL, cfg.licenseKey ?? "");
 });
 
-// Live-preview the opacity readout as the user drags the slider — the
-// actual value is persisted on Save (same as the other fields).
+// Live-preview the opacity readout as the user drags the slider.
 opacityInput?.addEventListener("input", () => {
   if (!opacityValueEl) return;
   const v = Number(opacityInput.value);
   opacityValueEl.textContent = Number.isFinite(v) ? v.toFixed(2) : String(opacityInput.value);
 });
 
-saveBtn.addEventListener("click", () => {
-  const apiUrl = apiUrlInput.value.trim().replace(/\/$/, "");
-  const licenseKey = licenseKeyInput.value.trim();
-  const rawOpacity = opacityInput ? Number(opacityInput.value) : DEFAULT_OPACITY;
-  const buttonOpacity = Number.isFinite(rawOpacity)
-    ? Math.min(1, Math.max(0.05, rawOpacity))
-    : DEFAULT_OPACITY;
-  chrome.storage.sync.set({ apiUrl, licenseKey, buttonOpacity }, () => {
-    statusEl.textContent = "saved";
-    statusEl.className = "status ok";
-    setTimeout(() => {
-      statusEl.textContent = "";
-      statusEl.className = "status";
-    }, 2000);
-    void pingHealth(apiUrl);
+// No Save button anymore — persist the moment the slider settles.
+opacityInput?.addEventListener("change", () => {
+  const v = Number(opacityInput.value);
+  void chrome.storage.sync.set({
+    buttonOpacity: Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : DEFAULT_OPACITY,
   });
 });
 
@@ -127,7 +147,7 @@ function renderMeta(data: HealthResponse) {
   const kimiReady = data.kimiConfigured ?? data.moonshotConfigured ?? false;
   const rows: Array<[string, string, "ok" | "warn" | ""]> = [
     ["version", data.version ?? "—", ""],
-    ["kimi", kimiReady ? "ready" : "not set", kimiReady ? "ok" : "warn"],
+    ["ai tutor", kimiReady ? "ready" : "not set", kimiReady ? "ok" : "warn"],
     ["r sandbox", data.sandboxConfigured ? "ready" : "not set", data.sandboxConfigured ? "ok" : ""],
     ["license", data.lemonsqueezyConfigured ? "gated" : "open", data.lemonsqueezyConfigured ? "ok" : ""],
   ];
@@ -151,6 +171,180 @@ document.getElementById("open-tutorial")?.addEventListener("click", (e) => {
   window.close();
 });
 
+// Show the real installed version instead of a hardcoded string.
+try {
+  versionEl.textContent = `v${chrome.runtime.getManifest().version}`;
+} catch {
+  /* file:// preview — keep the placeholder */
+}
+
+// Open checkout in a tab and get the popup out of the way.
+upgradeCtaEl.addEventListener("click", (e) => {
+  try {
+    e.preventDefault();
+    void chrome.tabs.create({ url: upgradeCtaEl.href });
+    window.close();
+  } catch {
+    /* fall back to the plain <a target="_blank"> navigation */
+  }
+});
+
+// Discreet-mode lock CTA (free plan only) does the same thing as the plan
+// card's upgrade CTA — open checkout and get out of the way.
+opacityLockEl?.addEventListener("click", (e) => {
+  try {
+    e.preventDefault();
+    void chrome.tabs.create({ url: opacityLockEl.href });
+    window.close();
+  } catch {
+    /* fall back to the plain <a target="_blank"> navigation */
+  }
+});
+
+// =============================================================================
+// plan state (free-tier funnel vs. Unlimited)
+// =============================================================================
+//
+// Free vs. paid is decided by the license key + POST /api/auth/validate-license
+// (the same endpoint the API uses to gate /api/solve). No key -> free funnel.
+// Valid key -> calm "Unlimited" card. Invalid key -> free funnel plus an
+// inline note explaining why. A last-good result is cached so a paid user
+// opening the popup offline isn't shown the upsell.
+
+function setPlan(plan: "free" | "paid") {
+  planCardEl.dataset["plan"] = plan;
+}
+
+function setPlanNote(msg: string) {
+  planNoteEl.textContent = msg;
+  planNoteEl.style.display = msg ? "block" : "none";
+}
+
+/** Discreet mode (solve-button opacity) is a paid-only feature. Free users
+ * get a disabled slider pinned to fully-visible plus an upgrade nudge. */
+function applyOpacityGate(plan: "free" | "paid") {
+  if (opacityInput) {
+    if (plan === "free") {
+      opacityInput.disabled = true;
+      opacityInput.value = "1";
+      if (opacityValueEl) opacityValueEl.textContent = "1.00";
+    } else {
+      opacityInput.disabled = false;
+    }
+  }
+  if (opacityLockEl) {
+    opacityLockEl.style.display = plan === "free" ? "flex" : "none";
+  }
+}
+
+async function refreshPlan(apiUrl: string, licenseKey: string) {
+  setPlanNote("");
+  void renderSolvesLeft();
+
+  if (!licenseKey) {
+    setPlan("free");
+    applyOpacityGate("free");
+    await writePlanCache(false);
+    return;
+  }
+
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 4000);
+    const res = await fetch(`${apiUrl.replace(/\/$/, "")}/api/auth/validate-license`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ licenseKey }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    const data = (await res.json()) as { ok?: boolean; reason?: string };
+    if (data.ok) {
+      setPlan("paid");
+      applyOpacityGate("paid");
+      await writePlanCache(true);
+    } else {
+      setPlan("free");
+      applyOpacityGate("free");
+      const reason = data.reason ?? "license invalid";
+      setPlanNote(`License issue: ${reason} — you're on the free plan for now.`);
+      await writePlanCache(false);
+    }
+  } catch {
+    // Network failure — fall back to the last confirmed state.
+    const cached = await readPlanCache();
+    if (cached?.paid) {
+      setPlan("paid");
+      applyOpacityGate("paid");
+    } else {
+      setPlan("free");
+      applyOpacityGate("free");
+    }
+  }
+}
+
+async function readPlanCache(): Promise<PlanCache | null> {
+  try {
+    const r = await chrome.storage.local.get(STORAGE_KEY_PLAN_CACHE);
+    const c = r[STORAGE_KEY_PLAN_CACHE] as PlanCache | undefined;
+    if (!c || Date.now() - c.at > PLAN_CACHE_TTL_MS) return null;
+    return c;
+  } catch {
+    return null;
+  }
+}
+
+async function writePlanCache(paid: boolean) {
+  try {
+    await chrome.storage.local.set({
+      [STORAGE_KEY_PLAN_CACHE]: { paid, at: Date.now() } satisfies PlanCache,
+    });
+  } catch {
+    /* cache only */
+  }
+}
+
+/** Render the "n of 5 left today" meter from the local counter that
+ * content.ts maintains. Best-effort mirror of the server's rolling window. */
+async function renderSolvesLeft() {
+  let remaining = FREE_DAILY_LIMIT;
+  let resetAt = 0;
+  try {
+    const r = await chrome.storage.local.get(STORAGE_KEY_SOLVE_STATS);
+    const stats = r[STORAGE_KEY_SOLVE_STATS] as SolveStats | undefined;
+    if (stats && stats.resetAt > Date.now()) {
+      remaining = Math.max(0, FREE_DAILY_LIMIT - stats.count);
+      resetAt = stats.resetAt;
+    }
+  } catch {
+    /* no data — show a full meter */
+  }
+
+  while (planSolvesEl.firstChild) planSolvesEl.removeChild(planSolvesEl.firstChild);
+  const b = document.createElement("b");
+  b.textContent = String(remaining);
+  planSolvesEl.appendChild(b);
+  if (remaining === 0 && resetAt) {
+    const hrs = Math.max(1, Math.ceil((resetAt - Date.now()) / 3_600_000));
+    planSolvesEl.appendChild(
+      document.createTextNode(` of ${FREE_DAILY_LIMIT} left — resets in ~${hrs}h`),
+    );
+  } else {
+    planSolvesEl.appendChild(
+      document.createTextNode(` of ${FREE_DAILY_LIMIT} solves left today`),
+    );
+  }
+
+  const segs = solvesMeterEl.querySelectorAll("span");
+  segs.forEach((seg, i) => seg.classList.toggle("on", i < remaining));
+
+  // Tasteful conversion nudge: intensify once the user is down to their
+  // last solve. Copy stays identical — only the styling escalates.
+  const urgent = remaining <= 1;
+  planSolvesEl.classList.toggle("urgent", urgent);
+  upgradeCtaEl.classList.toggle("urgent", urgent);
+}
+
 // =============================================================================
 // data files (drag-drop / click to upload)
 // =============================================================================
@@ -158,6 +352,12 @@ document.getElementById("open-tutorial")?.addEventListener("click", (e) => {
 void loadFiles().then(() => renderFilesList());
 
 dropzone.addEventListener("click", () => fileInput.click());
+dropzone.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    fileInput.click();
+  }
+});
 fileInput.addEventListener("change", async () => {
   if (fileInput.files) await ingestFiles([...fileInput.files]);
   fileInput.value = "";
@@ -224,6 +424,7 @@ function renderFilesList() {
     rm.className = "remove";
     rm.textContent = "×";
     rm.title = "remove";
+    rm.setAttribute("aria-label", `remove ${f.filename}`);
     rm.addEventListener("click", async () => {
       dataFiles = dataFiles.filter((d) => d.filename !== f.filename);
       await saveFiles();
@@ -258,11 +459,13 @@ function flashStatus(msg: string, kind: "ok" | "err") {
 }
 
 // =============================================================================
-// R libraries (UT bundle + user extras)
+// R libraries (one unified, fully editable list — defaults included)
 // =============================================================================
 
-renderUtBundleChips();
-void loadExtraPackages().then(() => renderExtraPackages());
+void loadLibraries().then(async () => {
+  await loadPackageErrors();
+  renderLibraryChips();
+});
 
 pkgAddBtn.addEventListener("click", async () => {
   await addPackagesFromInput();
@@ -273,15 +476,6 @@ pkgInput.addEventListener("keydown", async (e) => {
     await addPackagesFromInput();
   }
 });
-
-function renderUtBundleChips() {
-  for (const pkg of UT_BUNDLE) {
-    const chip = document.createElement("span");
-    chip.className = "chip locked";
-    chip.textContent = pkg;
-    utBundleChipsEl.appendChild(chip);
-  }
-}
 
 async function addPackagesFromInput() {
   // Split on commas/whitespace so pasting a list ("dplyr, rpart car") in one
@@ -295,49 +489,120 @@ async function addPackagesFromInput() {
 
   let changed = false;
   for (const pkg of candidates) {
-    if (!extraPackages.includes(pkg) && !UT_BUNDLE.includes(pkg)) {
-      extraPackages.push(pkg);
+    if (!libraries.includes(pkg)) {
+      libraries.push(pkg);
       changed = true;
     }
   }
   if (changed) {
-    await saveExtraPackages();
-    renderExtraPackages();
+    await saveLibraries();
+    renderLibraryChips();
   }
 }
 
-function renderExtraPackages() {
-  while (extraPkgChipsEl.firstChild) extraPkgChipsEl.removeChild(extraPkgChipsEl.firstChild);
-  if (extraPackages.length === 0) {
+function renderLibraryChips() {
+  while (libraryChipsEl.firstChild) libraryChipsEl.removeChild(libraryChipsEl.firstChild);
+  const errByPkg = new Map(packageErrors.map((e) => [e.pkg, e.message]));
+
+  if (libraries.length === 0) {
     pkgEmptyEl.style.display = "";
+  } else {
+    pkgEmptyEl.style.display = "none";
+    for (const pkg of libraries) {
+      const chip = document.createElement("span");
+      const failed = errByPkg.has(pkg);
+      chip.className = failed ? "chip extra pkg-err" : "chip extra";
+      if (failed) chip.title = errByPkg.get(pkg) ?? "failed to load";
+      const label = document.createElement("span");
+      label.textContent = failed ? `${pkg} !` : pkg;
+      const rm = document.createElement("button");
+      rm.className = "remove";
+      rm.textContent = "×";
+      rm.title = "remove";
+      rm.setAttribute("aria-label", `remove ${pkg}`);
+      rm.addEventListener("click", async () => {
+        libraries = libraries.filter((p) => p !== pkg);
+        await saveLibraries();
+        renderLibraryChips();
+      });
+      chip.appendChild(label);
+      chip.appendChild(rm);
+      libraryChipsEl.appendChild(chip);
+    }
+  }
+
+  renderPackageErrors(errByPkg);
+}
+
+/** Inline list of libraries that failed to install at the last WebR boot
+ * (written by webr-runner.ts). Only errors for packages still in the list. */
+function renderPackageErrors(errByPkg: Map<string, string>) {
+  while (pkgErrorsEl.firstChild) pkgErrorsEl.removeChild(pkgErrorsEl.firstChild);
+  const relevant = libraries.filter((p) => errByPkg.has(p));
+  if (relevant.length === 0) {
+    pkgErrorsEl.style.display = "none";
     return;
   }
-  pkgEmptyEl.style.display = "none";
-  for (const pkg of extraPackages) {
-    const chip = document.createElement("span");
-    chip.className = "chip extra";
-    const label = document.createElement("span");
-    label.textContent = pkg;
-    const rm = document.createElement("button");
-    rm.className = "remove";
-    rm.textContent = "×";
-    rm.title = "remove";
-    rm.addEventListener("click", async () => {
-      extraPackages = extraPackages.filter((p) => p !== pkg);
-      await saveExtraPackages();
-      renderExtraPackages();
-    });
-    chip.appendChild(label);
-    chip.appendChild(rm);
-    extraPkgChipsEl.appendChild(chip);
+  pkgErrorsEl.style.display = "block";
+  for (const pkg of relevant) {
+    const line = document.createElement("div");
+    const b = document.createElement("b");
+    b.textContent = pkg;
+    line.appendChild(b);
+    line.appendChild(document.createTextNode(`: ${errByPkg.get(pkg) ?? "failed to load"}`));
+    pkgErrorsEl.appendChild(line);
   }
 }
 
-async function loadExtraPackages() {
+async function loadLibraries() {
   const r = await chrome.storage.sync.get(STORAGE_KEY_EXTRA_PACKAGES);
-  extraPackages = (r[STORAGE_KEY_EXTRA_PACKAGES] as string[] | undefined) ?? [];
+  const stored = r[STORAGE_KEY_EXTRA_PACKAGES] as string[] | undefined;
+  if (stored === undefined) {
+    // First-ever load: seed with the UT bundle defaults and persist
+    // immediately so a fresh install still shows/uses the 6 defaults, and
+    // this becomes the source of truth from here on.
+    libraries = [...UT_BUNDLE];
+    await saveLibraries();
+  } else {
+    libraries = stored;
+  }
 }
 
-async function saveExtraPackages() {
-  await chrome.storage.sync.set({ [STORAGE_KEY_EXTRA_PACKAGES]: extraPackages });
+async function loadPackageErrors() {
+  try {
+    const r = await chrome.storage.local.get(STORAGE_KEY_PACKAGE_ERRORS);
+    packageErrors = (r[STORAGE_KEY_PACKAGE_ERRORS] as PackageError[] | undefined) ?? [];
+  } catch {
+    packageErrors = [];
+  }
+}
+
+async function saveLibraries() {
+  await chrome.storage.sync.set({ [STORAGE_KEY_EXTRA_PACKAGES]: libraries });
+}
+
+// =============================================================================
+// live updates while the popup is open
+// =============================================================================
+
+try {
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && changes[STORAGE_KEY_SOLVE_STATS]) {
+      void renderSolvesLeft();
+    }
+    if (area === "local" && changes[STORAGE_KEY_PACKAGE_ERRORS]) {
+      void loadPackageErrors().then(() => renderLibraryChips());
+    }
+    if (area === "local" && changes[STORAGE_KEY_FILES]) {
+      void loadFiles().then(() => renderFilesList());
+    }
+    // activate.ts writes a fresh licenseKey after checkout completes on
+    // statshelpr.com — pick it up live without requiring a popup reopen.
+    if (area === "sync" && changes["licenseKey"]) {
+      const newKey = (changes["licenseKey"].newValue as string | undefined) ?? "";
+      void refreshPlan(API_URL, newKey);
+    }
+  });
+} catch {
+  /* file:// preview */
 }

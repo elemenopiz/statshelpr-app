@@ -17,212 +17,189 @@
   <link rel="shortcut icon" href="/favicon.ico?v=3" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Public+Sans:ital,wght@0,400..700;1,400..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #0B0B0F;
-      --bg-raised: #111116;
-      --text: #E8E2D6;
-      --text-dim: #8A8578;
-      --text-muted: #5C584F;
-      --accent: #D4A843;
-      --accent-dim: rgba(212,168,67,0.12);
-      --accent-glow: rgba(212,168,67,0.25);
-      --border: rgba(232,226,214,0.06);
-      --font-display: 'Instrument Serif', Georgia, serif;
-      --font-body: 'DM Sans', system-ui, sans-serif;
-      --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+      --paper: #FAF9F5;
+      --card: #FFFFFF;
+      --ink: #1D1C17;
+      --ink-2: #55534A;
+      --ink-3: #8D8A7E;
+      --line: rgba(29, 28, 23, 0.12);
+      --line-soft: rgba(29, 28, 23, 0.07);
+      --grid: rgba(29, 28, 23, 0.055);
+      --blue: #2742C8;
+      --blue-deep: #1C31A2;
+      --blue-tint: rgba(39, 66, 200, 0.07);
+      --green: #0B7A4B;
+      --font-display: 'Newsreader', 'Iowan Old Style', Georgia, serif;
+      --font-body: 'Public Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+      --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+      --shadow-pop: 0 2px 4px rgba(29,28,23,0.06), 0 20px 48px rgba(29,28,23,0.12);
     }
-    *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: var(--font-body);
-      background: var(--bg);
-      color: var(--text);
+      background-color: var(--paper);
+      background-image:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+      background-size: 28px 28px;
+      color: var(--ink);
       -webkit-font-smoothing: antialiased;
       min-height: 100vh;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      padding: 24px;
+      padding: 72px 24px 48px;
       position: relative;
+      overflow-x: clip;
+      line-height: 1.6;
     }
     body::before {
       content: "";
-      position: fixed; top: 0; left: 50%; transform: translateX(-50%);
-      width: 600px; height: 600px;
-      background: radial-gradient(circle, var(--accent-dim) 0%, transparent 70%);
+      position: fixed; top: -220px; left: 50%; transform: translateX(-50%);
+      width: 720px; height: 720px; border-radius: 50%;
+      background: radial-gradient(circle, var(--blue-tint) 0%, transparent 62%);
       pointer-events: none;
     }
-    body::after {
-      content: "";
-      position: fixed; inset: 0; z-index: 9999;
-      pointer-events: none; opacity: 0.03;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
-    }
+    ::selection { background: rgba(39,66,200,0.12); }
+    :focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; border-radius: 3px; }
     .back-link {
       position: absolute; top: 24px; left: 24px;
-      color: var(--text-dim); text-decoration: none; font-size: 0.9rem; font-weight: 500;
+      color: var(--ink-2); text-decoration: none; font-size: 0.875rem; font-weight: 500;
       display: flex; align-items: center; gap: 6px;
-      transition: color 0.25s;
+      transition: color 0.2s;
     }
-    .back-link:hover { color: var(--text); }
+    .back-link:hover { color: var(--ink); }
     .logo {
-      font-family: var(--font-display); font-size: 1.6rem;
-      color: var(--text); margin-bottom: 32px;
+      font-family: var(--font-display); font-size: 1.55rem; font-weight: 500;
+      color: var(--ink); margin-bottom: 28px; letter-spacing: -0.01em;
+      animation: riseIn 0.6s var(--ease-out) both;
     }
-    .logo em { color: var(--accent); font-style: italic; }
+    .logo em { color: var(--blue); font-style: italic; }
     .wrap {
-      width: 100%; max-width: 580px;
-      background: var(--bg-raised);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 36px 32px;
-      box-shadow: 0 16px 48px rgba(0,0,0,0.4);
+      width: 100%; max-width: 560px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 34px 32px;
+      box-shadow: var(--shadow-pop);
+      animation: riseIn 0.65s var(--ease-out) 0.1s both;
     }
+    @keyframes riseIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
     .wrap h1 {
       font-family: var(--font-display);
-      font-size: 1.8rem; font-weight: 400; color: var(--text);
-      margin: 0 0 4px; letter-spacing: -0.3px;
+      font-size: 1.9rem; font-weight: 500; color: var(--ink);
+      margin: 0 0 4px; letter-spacing: -0.015em; line-height: 1.15;
     }
-    .wrap h1 em { color: var(--accent); font-style: italic; }
-    .muted { color: var(--text-dim); font-size: 0.9rem; margin-bottom: 28px; }
-    .muted strong { color: var(--accent); }
+    .wrap h1 em { color: var(--blue); font-style: italic; }
+    .muted { color: var(--ink-2); font-size: 0.92rem; margin-bottom: 24px; }
+    .muted strong { color: var(--ink); }
     .notice {
-      background: rgba(212,168,67,0.06);
-      border: 1px solid rgba(212,168,67,0.2);
+      background: rgba(11,122,75,0.06);
+      border: 1px solid rgba(11,122,75,0.25);
       border-radius: 12px;
-      padding: 14px 14px;
-      color: var(--accent);
-      font-size: 0.9rem;
+      padding: 13px 16px;
+      color: var(--green);
+      font-size: 0.885rem;
       line-height: 1.55;
-      margin-bottom: 18px;
+      margin-bottom: 14px;
     }
     .notice-paused {
-      background: rgba(220,80,60,0.08);
-      border: 1px solid rgba(220,80,60,0.3);
-      color: #FCA5A5;
+      background: rgba(194,64,41,0.06);
+      border: 1px solid rgba(194,64,41,0.3);
+      color: #A83A26;
     }
     .status {
-      background: var(--bg);
-      border: 1px solid var(--border);
+      background: rgba(29,28,23,0.018);
+      border: 1px solid var(--line-soft);
       border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 18px;
-      color: var(--text-dim);
-      line-height: 1.65;
-      font-size: 0.92rem;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+      color: var(--ink-2);
+      line-height: 1.6;
+      font-size: 0.895rem;
     }
-    .status strong { color: var(--text); }
-    .status a { color: var(--accent); text-decoration: none; }
+    .status strong { color: var(--ink); }
+    .status a { color: var(--blue); text-decoration: none; }
     .status a:hover { text-decoration: underline; }
     .upgrade-warning {
-      border: 1px solid rgba(212,168,67,0.3);
-      background: rgba(212,168,67,0.06);
-      padding: 12px;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      color: var(--accent);
-      margin-bottom: 16px;
+      border: 1px solid rgba(39,66,200,0.3);
+      background: var(--blue-tint);
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 0.885rem;
+      color: var(--blue-deep);
+      margin-bottom: 14px;
       line-height: 1.5;
     }
-    .upgrade-warning strong { color: var(--accent); }
-    .help-link {
-      font-size: 0.82rem;
-      color: var(--text-muted);
-      margin: 6px 0 0;
-    }
-    .help-link a { color: var(--accent); text-decoration: none; }
+    .upgrade-warning strong { color: var(--blue-deep); }
+    .help-link { font-size: 0.82rem; color: var(--ink-3); margin: 6px 0 0; }
+    .help-link a { color: var(--blue); text-decoration: none; }
     .help-link a:hover { text-decoration: underline; }
-    .field-group {
-      margin-bottom: 16px;
-    }
+    .field-group { margin-bottom: 16px; }
     .field-group label {
-      display: block;
-      font-family: var(--font-body);
-      font-size: 0.875rem;
-      font-weight: 600;
-      color: var(--text);
-      margin-bottom: 6px;
+      display: block; font-size: 0.875rem; font-weight: 600;
+      color: var(--ink); margin-bottom: 6px;
     }
     .field-group input[type="email"] {
       width: 100%;
       font-family: var(--font-body);
-      background: var(--bg);
-      border: 1px solid rgba(232,226,214,0.1);
-      border-radius: 8px;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 9px;
       padding: 10px 12px;
       font-size: 0.95rem;
-      color: var(--text);
+      color: var(--ink);
       outline: none;
-      transition: border-color 0.25s;
+      transition: border-color 0.2s, box-shadow 0.2s;
     }
     .field-group input[type="email"]:focus {
-      border-color: var(--accent);
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(39,66,200,0.12);
     }
-    .field-group input::placeholder {
-      color: var(--text-muted);
-    }
+    .field-group input::placeholder { color: var(--ink-3); }
     .checkbox-row {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      margin-top: 16px;
-      color: var(--text-dim);
-      font-size: 0.88rem;
+      display: flex; align-items: flex-start; gap: 10px;
+      margin-top: 14px;
+      color: var(--ink-2);
+      font-size: 0.875rem;
       line-height: 1.5;
     }
-    .checkbox-row input {
-      margin-top: 2px;
-      accent-color: var(--accent);
-    }
-    .checkbox-row a {
-      color: var(--accent);
-      text-decoration: none;
-    }
-    .checkbox-row a:hover {
-      text-decoration: underline;
-    }
+    .checkbox-row input { margin-top: 3px; flex-shrink: 0; accent-color: var(--blue); width: 15px; height: 15px; }
+    .checkbox-row a { color: var(--blue); text-decoration: none; }
+    .checkbox-row a:hover { text-decoration: underline; }
     .buy-btn {
       width: 100%;
       margin-top: 16px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
       padding: 14px 18px;
-      border: 0;
-      border-radius: 10px;
-      font-family: var(--font-body);
-      font-size: 1rem;
-      font-weight: 600;
-      text-decoration: none;
-      color: var(--bg);
-      background: var(--accent);
-      box-shadow: 0 4px 24px var(--accent-glow);
-      transition: all 0.25s ease;
-      cursor: pointer;
+      border: 1px solid transparent; border-radius: 10px;
+      font-family: var(--font-body); font-size: 0.985rem; font-weight: 600;
+      text-decoration: none; cursor: pointer;
+      color: #fff; background: var(--blue);
+      box-shadow: 0 1px 2px rgba(28,49,162,0.35), inset 0 1px 0 rgba(255,255,255,0.14);
+      transition: background-color 0.2s, transform 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out), opacity 0.2s;
     }
     .buy-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 40px var(--accent-glow);
+      background: var(--blue-deep);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(39,66,200,0.28), inset 0 1px 0 rgba(255,255,255,0.14);
     }
-    .buy-btn[disabled] {
-      opacity: 0.4;
-      cursor: not-allowed;
-      transform: none;
-      box-shadow: none;
-    }
-    .checkout-form {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-    }
+    .buy-btn[disabled] { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+    .checkout-form { margin: 0; padding: 0; width: 100%; }
     .legal-links {
-      text-align: center; margin-top: 14px; font-size: 0.8rem; color: var(--text-muted);
+      text-align: center; margin-top: 16px; font-size: 0.8rem; color: var(--ink-3);
     }
-    .legal-links a { color: var(--text-dim); text-decoration: none; }
-    .legal-links a:hover { color: var(--accent); }
+    .legal-links a { color: var(--ink-2); text-decoration: none; }
+    .legal-links a:hover { color: var(--blue); }
     @media (max-width: 600px) {
       .wrap { padding: 28px 20px; }
       .back-link { top: 16px; left: 16px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+      .logo, .wrap { opacity: 1 !important; transform: none !important; }
     }
   </style>
 </head>
@@ -236,13 +213,13 @@
 
   <div class="wrap">
     <h1>Upgrade to <em>Unlimited</em></h1>
-    <p class="muted">Monthly subscription &mdash; <strong>$15.00 / month</strong> &middot; cancel anytime</p>
+    <p class="muted">Monthly subscription &mdash; <strong>$15.00 / month</strong> &middot; cancel anytime &middot; 7-day money-back</p>
 
     <div class='notice'><strong>Ready:</strong> Secure checkout is handled by Lemon Squeezy.</div>
     <div class='status'>You will be redirected to Lemon Squeezy to complete payment. Card details never touch this server.</div>
     <div class='checkbox-row'><input id='agree' type='checkbox' /><label for='agree'>I have read and understood the <a href='/legal.html#terms' target='_blank' rel='noopener'>Terms</a>, <a href='/legal.html#privacy' target='_blank' rel='noopener'>Privacy</a>, and <a href='/legal.html#refunds' target='_blank' rel='noopener'>Refund Policy</a>.</label></div>
     <div class='checkout-form'>
-      <a id='buy-btn' class='buy-btn' href='https://statshelpr.lemonsqueezy.com/checkout/buy/8ded2ea7-979f-4027-afb2-f03036e12015' target='_blank' rel='noopener' style='display:block;text-align:center;text-decoration:none;'>Continue to secure checkout</a>
+      <a id='buy-btn' class='buy-btn' href='https://statshelpr.lemonsqueezy.com/checkout/buy/8ded2ea7-979f-4027-afb2-f03036e12015' target='_blank' rel='noopener'>Continue to secure checkout &rarr;</a>
     </div>
 
     <div class="legal-links">

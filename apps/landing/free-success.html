@@ -7,35 +7,74 @@
   <link rel="icon" type="image/png" href="/favicon.png?v=3" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300..700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Public+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet" />
   <style>
     :root {
-      --bg: #0B0B0F; --text: #E8E2D6; --text-dim: #8A8578;
-      --accent: #D4A843; --accent-dim: rgba(212,168,67,0.12);
-      --border: rgba(232,226,214,0.06);
-      --font-display: 'Instrument Serif', Georgia, serif;
-      --font-body: 'DM Sans', system-ui, sans-serif;
+      --paper: #FAF9F5;
+      --card: #FFFFFF;
+      --ink: #1D1C17;
+      --ink-2: #55534A;
+      --ink-3: #8D8A7E;
+      --line: rgba(29, 28, 23, 0.12);
+      --line-soft: rgba(29, 28, 23, 0.07);
+      --grid: rgba(29, 28, 23, 0.055);
+      --blue: #2742C8;
+      --blue-tint: rgba(39, 66, 200, 0.07);
+      --green: #0B7A4B;
+      --font-display: 'Newsreader', 'Iowan Old Style', Georgia, serif;
+      --font-body: 'Public Sans', system-ui, -apple-system, sans-serif;
+      --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: var(--font-body);
-      background: var(--bg); color: var(--text);
+      background-color: var(--paper);
+      background-image:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+      background-size: 28px 28px;
+      color: var(--ink);
       min-height: 100vh; display: flex; flex-direction: column;
       align-items: center; justify-content: center;
       padding: 24px; text-align: center;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
     }
-    .icon { font-size: 3rem; margin-bottom: 24px; }
-    h1 { font-family: var(--font-display); font-size: 2rem; margin-bottom: 12px; }
-    h1 em { color: var(--accent); font-style: italic; }
-    p { color: var(--text-dim); font-size: 1rem; max-width: 420px; line-height: 1.6; margin-bottom: 12px; }
+    .icon {
+      width: 60px; height: 60px; border-radius: 50%;
+      background: rgba(11,122,75,0.1); color: var(--green);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.7rem; margin-bottom: 22px;
+      animation: pop 0.55s var(--ease-out) both;
+    }
+    @keyframes pop { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: scale(1); } }
+    h1 {
+      font-family: var(--font-display); font-weight: 500;
+      font-size: 2.2rem; margin-bottom: 12px; letter-spacing: -0.02em;
+      animation: rise 0.6s var(--ease-out) 0.08s both;
+    }
+    h1 em { color: var(--blue); font-style: italic; }
+    p {
+      color: var(--ink-2); font-size: 1rem; max-width: 440px;
+      line-height: 1.65; margin-bottom: 12px;
+      animation: rise 0.6s var(--ease-out) 0.16s both;
+    }
     .note {
-      margin-top: 28px; background: var(--accent-dim);
-      border: 1px solid rgba(212,168,67,0.2); border-radius: 10px;
-      padding: 16px 20px; font-size: 0.85rem; color: var(--text-dim);
-      max-width: 420px; text-align: left;
+      margin-top: 26px; background: var(--card);
+      border: 1px solid var(--line); border-radius: 14px;
+      padding: 18px 22px; font-size: 0.885rem; color: var(--ink-2);
+      max-width: 440px; text-align: left;
+      box-shadow: 0 1px 2px rgba(29,28,23,0.05), 0 8px 28px rgba(29,28,23,0.07);
+      animation: rise 0.6s var(--ease-out) 0.24s both;
     }
-    a { color: var(--accent); text-decoration: none; }
+    .note strong { color: var(--ink); }
+    a { color: var(--blue); text-decoration: none; }
     a:hover { text-decoration: underline; }
+    @keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; }
+      .icon, h1, p, .note { opacity: 1 !important; transform: none !important; }
+    }
   </style>
 </head>
 <body>
