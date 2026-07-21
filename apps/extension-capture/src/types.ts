@@ -1,10 +1,10 @@
 /**
  * Shared types for the training-data capture extension.
  *
- * A `Capture` is a superset of the eval fixture that carries provenance (how
- * the correct answer was obtained, the source URL, etc.). `store.ts` converts
- * a Capture into a `Fixture` — the exact shape `evals/solve-fixtures/*.json`
- * and `scripts/run-evals.ts` already consume — at export time.
+ * A `Capture` is the in-storage record; `store.ts` maps it to a `CaptureRecord`
+ * (the single "Export all" row) at export time. `scripts/import-captures.ts`
+ * then splits those rows by `verified` into evals/solve-fixtures/ (answer known)
+ * and evals/unsolved/ (the held-out AI-test set).
  */
 
 export interface ImageBlock {
@@ -67,40 +67,21 @@ export interface Capture {
   capturedAt: number;
 }
 
-/** Exactly the fixture shape `scripts/run-evals.ts` validates and runs. */
-export interface Fixture {
-  name: string;
-  request: {
-    questionText: string;
-    choices: ApiChoice[];
-    images?: ImageBlock[];
-    dataFiles?: Array<{ filename: string; content: string }>;
-  };
-  expected: {
-    mode: CaptureMode;
-    selectedChoices: string[];
-    answerContains?: string[];
-  };
-  /** Provenance — ignored by the eval runner, handy for auditing the set. */
-  meta?: {
-    answerSource: AnswerSource;
-    outcome: CaptureOutcome;
-    url: string;
-    capturedAt: number;
-  };
-}
-
-/** A row in the full question-pool export — every capture, verified or not,
- * with the student's pick and outcome. For the "hard questions / label later"
- * use case; kept out of the eval fixtures. */
-export interface PoolItem {
+/** One row of the single dataset export — a complete record for every captured
+ * question. `verified` flags whether the correct answer is known (→ eval/
+ * training) or not (→ the AI-test set); `outcome` is whether the student got it
+ * right. `scripts/import-captures.ts` splits the file on `verified`. */
+export interface CaptureRecord {
   name: string;
   questionText: string;
   choices: ApiChoice[];
   images?: ImageBlock[];
   dataFiles?: Array<{ filename: string; content: string }>;
+  /** What the student picked (letters for choices; empty for fill-in). */
   selectedChoices: string[];
+  /** The correct answer's letters, when known. */
   correctChoices: string[];
+  /** Fill-in / numerical value (student's, or correct when verified). */
   answerText?: string;
   outcome: CaptureOutcome;
   answerSource: AnswerSource;

@@ -10,8 +10,7 @@ import {
   clearCaptures,
   upsertCapture,
   dedupeTemplates,
-  toFixtureBundle,
-  toPoolBundle,
+  toDatasetBundle,
   downloadText,
 } from "./store";
 import { loadDatasets } from "./datasets";
@@ -31,8 +30,7 @@ async function render() {
     ? `${verified} verified · ${unsolved} unsolved · ${templates} unique`
     : "nothing captured yet";
 
-  ($("export-fixtures") as HTMLButtonElement).disabled = verified === 0;
-  ($("export-pool") as HTMLButtonElement).disabled = unsolved === 0;
+  ($("export") as HTMLButtonElement).disabled = captures.length === 0;
   ($("clear") as HTMLButtonElement).disabled = captures.length === 0;
   ($("dedupe") as HTMLButtonElement).disabled = variants === 0;
   ($("dedupe") as HTMLButtonElement).textContent = variants
@@ -103,25 +101,17 @@ function renderList(captures: Capture[]) {
   }
 }
 
-async function exportData(kind: "fixtures" | "pool") {
+async function exportAll() {
   const captures = await getAllCaptures();
   if (captures.length === 0) return;
   const datasets = await loadDatasets();
-  const s = stamp();
-  if (kind === "fixtures") {
-    const verified = captures.filter((c) => c.verified).length;
-    downloadText(`statshelpr-fixtures-${s}.json`, toFixtureBundle(captures, datasets, true));
-    toast(`Exported ${verified} verified fixture${verified === 1 ? "" : "s"}`);
-  } else {
-    const unsolved = captures.filter((c) => !c.verified).length;
-    downloadText(`statshelpr-unsolved-${s}.json`, toPoolBundle(captures, datasets));
-    toast(`Exported ${unsolved} unsolved question${unsolved === 1 ? "" : "s"}`);
-  }
+  downloadText(`statshelpr-captures-${stamp()}.json`, toDatasetBundle(captures, datasets));
+  const verified = captures.filter((c) => c.verified).length;
+  toast(`Exported ${captures.length} (${verified} verified, ${captures.length - verified} unsolved)`);
 }
 
 function wire() {
-  $("export-fixtures").addEventListener("click", () => void exportData("fixtures"));
-  $("export-pool").addEventListener("click", () => void exportData("pool"));
+  $("export").addEventListener("click", () => void exportAll());
   $("dedupe").addEventListener("click", async () => {
     const removed = await dedupeTemplates();
     await render();

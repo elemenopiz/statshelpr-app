@@ -1,97 +1,140 @@
 /**
- * Split a capture bundle exported by the Data Capture extension into individual
- * fixture files under evals/solve-fixtures/, ready for scripts/run-evals.ts.
+ * Split a capture bundle exported by the Data Capture extension ("Export all")
+ * into two dirs:
+ *   - evals/solve-fixtures/  — VERIFIED questions (answer known), in the shape
+ *     scripts/run-evals.ts consumes.
+ *   - evals/unsolved/        — the rest (answer unknown): the held-out AI-test
+ *     set, kept as the full capture record.
  *
  * Usage:
- *   tsx scripts/import-captures.ts <bundle.json | bundle.jsonl> [--out <dir>] [--strip-meta]
+ *   tsx scripts/import-captures.ts <bundle.json|.jsonl> [--fixtures <dir>] [--unsolved <dir>] [--strip-meta]
  *
- * The bundle is either a JSON array of fixtures (.json) or one fixture per line
- * (.jsonl) — both are what the extension's Export buttons produce. Filenames are
- * a stable slug + short hash of the question text, so re-importing an updated
- * bundle overwrites the same files instead of piling up duplicates.
+ * Filenames are a stable slug + short hash of the question text, so re-importing
+ * an updated bundle overwrites the same files instead of piling up duplicates.
  */
 
 import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
 import * as path from "node:path";
 
-interface Fixture {
+interface CaptureRecord {
   name: string;
-  request: { questionText?: string; choices?: unknown[]; images?: unknown[] };
-  expected: { mode: string; selectedChoices: string[]; answerContains?: string[] };
-  meta?: unknown;
+  questionText: string;
+  choices?: unknown[];
+  images?: unknown[];
+  dataFiles?: Array<{ filename: string; content: string }>;
+  selectedChoices?: string[];
+  correctChoices?: string[];
+  answerText?: string;
+  outcome?: string;
+  answerSource?: string;
+  verified?: boolean;
+  mode?: string;
+  url?: string;
+  capturedAt?: number;
+  // legacy fixture-shaped records
+  request?: { questionText?: string };
+  expected?: { mode?: string; selectedChoices?: string[] };
 }
 
 async function main() {
   const args = process.argv.slice(2);
   const bundlePath = args.find((a) => !a.startsWith("--"));
   if (!bundlePath) {
-    console.error("usage: tsx scripts/import-captures.ts <bundle.json|.jsonl> [--out <dir>] [--strip-meta]");
+    console.error("usage: tsx scripts/import-captures.ts <bundle.json|.jsonl> [--fixtures <dir>] [--unsolved <dir>] [--strip-meta]");
     process.exitCode = 1;
     return;
   }
   const stripMeta = args.includes("--strip-meta");
-  const outIdx = args.indexOf("--out");
   const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
-  const outDir =
-    outIdx >= 0 && args[outIdx + 1]
-      ? path.resolve(process.cwd(), args[outIdx + 1]!)
-      : path.resolve(repoRoot, "evals/solve-fixtures");
+  const fixturesDir = argDir(args, "--fixtures") ?? path.resolve(repoRoot, "evals/solve-fixtures");
+  const unsolvedDir = argDir(args, "--unsolved") ?? path.resolve(repoRoot, "evals/unsolved");
 
   const raw = await readFile(path.resolve(process.cwd(), bundlePath), "utf8");
-  const fixtures = parseBundle(raw, bundlePath);
-  if (fixtures.length === 0) {
-    console.error(`No fixtures found in ${bundlePath}`);
+  const records = parseBundle(raw, bundlePath);
+  if (records.length === 0) {
+    console.error(`No records found in ${bundlePath}`);
     process.exitCode = 1;
     return;
   }
 
-  await mkdir(outDir, { recursive: true });
-  const existing = new Set(await readdir(outDir).catch(() => [] as string[]));
-
-  let written = 0;
-  let overwritten = 0;
+  await mkdir(fixturesDir, { recursive: true });
+  await mkdir(unsolvedDir, { recursive: true });
   const usedSlugs = new Set<string>();
-  for (const fixture of fixtures) {
-    if (!isValid(fixture)) {
-      console.warn(`skip (invalid): ${fixture?.name ?? "<unnamed>"}`);
+  let fixtures = 0;
+  let unsolved = 0;
+  let skipped = 0;
+
+  for (const rec of records) {
+    const q = questionOf(rec);
+    if (!q) {
+      skipped += 1;
       continue;
     }
-    if (stripMeta) delete fixture.meta;
-    const q = fixture.request.questionText ?? fixture.name;
     let slug = fixtureSlug(q);
-    // Guard against two different questions colliding on the same slug.
     while (usedSlugs.has(slug)) slug = `${slug}-x`;
     usedSlugs.add(slug);
-    const file = `${slug}.json`;
-    if (existing.has(file)) overwritten += 1;
-    await writeFile(path.join(outDir, file), JSON.stringify(fixture, null, 2) + "\n", "utf8");
-    written += 1;
+
+    if (isVerified(rec)) {
+      const fixture = toFixture(rec);
+      if (stripMeta) delete (fixture as { meta?: unknown }).meta;
+      await writeFile(path.join(fixturesDir, `${slug}.json`), JSON.stringify(fixture, null, 2) + "\n", "utf8");
+      fixtures += 1;
+    } else {
+      await writeFile(path.join(unsolvedDir, `${slug}.json`), JSON.stringify(rec, null, 2) + "\n", "utf8");
+      unsolved += 1;
+    }
   }
 
-  console.log(`Wrote ${written} fixtures → ${path.relative(process.cwd(), outDir)}${overwritten ? ` (${overwritten} overwritten)` : ""}`);
+  console.log(`Wrote ${fixtures} → ${rel(fixturesDir)} · ${unsolved} → ${rel(unsolvedDir)}${skipped ? ` · ${skipped} skipped` : ""}`);
+  function rel(p: string) {
+    return path.relative(process.cwd(), p);
+  }
 }
 
-function parseBundle(raw: string, file: string): Fixture[] {
+/** A record we trust the answer for → an eval fixture. */
+function isVerified(r: CaptureRecord): boolean {
+  if (r.expected) return true; // legacy fixture-shaped record
+  return r.verified === true && ((r.correctChoices?.length ?? 0) > 0 || !!r.answerText);
+}
+
+function questionOf(r: CaptureRecord): string {
+  return r.questionText || r.request?.questionText || r.name || "";
+}
+
+/** Convert a capture record to the fixture shape run-evals.ts runs. */
+function toFixture(r: CaptureRecord): unknown {
+  if (r.expected && r.request) return r; // already a fixture
+  const request: Record<string, unknown> = { questionText: r.questionText, choices: r.choices ?? [] };
+  if (r.images?.length) request.images = r.images;
+  if (r.dataFiles?.length) request.dataFiles = r.dataFiles;
+  const expected: Record<string, unknown> = {
+    mode: r.mode === "calc" ? "calc" : "concept",
+    selectedChoices: r.correctChoices ?? [],
+  };
+  if (r.answerText) expected.answerContains = [r.answerText];
+  return {
+    name: r.name,
+    request,
+    expected,
+    meta: { answerSource: r.answerSource, outcome: r.outcome, url: r.url, capturedAt: r.capturedAt },
+  };
+}
+
+function argDir(args: string[], flag: string): string | null {
+  const i = args.indexOf(flag);
+  return i >= 0 && args[i + 1] ? path.resolve(process.cwd(), args[i + 1]!) : null;
+}
+
+function parseBundle(raw: string, file: string): CaptureRecord[] {
   if (file.endsWith(".jsonl")) {
     return raw
       .split("\n")
       .map((l) => l.trim())
       .filter(Boolean)
-      .map((l) => JSON.parse(l) as Fixture);
+      .map((l) => JSON.parse(l) as CaptureRecord);
   }
   const parsed = JSON.parse(raw);
-  return Array.isArray(parsed) ? (parsed as Fixture[]) : [parsed as Fixture];
-}
-
-function isValid(f: Fixture | undefined): f is Fixture {
-  return Boolean(
-    f &&
-      typeof f.name === "string" &&
-      f.request &&
-      f.expected &&
-      (f.expected.mode === "concept" || f.expected.mode === "calc") &&
-      Array.isArray(f.expected.selectedChoices),
-  );
+  return Array.isArray(parsed) ? (parsed as CaptureRecord[]) : [parsed as CaptureRecord];
 }
 
 /** Mirror of the extension's store.fixtureSlug so filenames stay stable. */

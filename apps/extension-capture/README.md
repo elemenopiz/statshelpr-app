@@ -12,25 +12,23 @@ no hand-labeling. Output matches `evals/solve-fixtures/*.json`, so it feeds
 ## How it captures answers
 
 Capture is **automatic — no toggles, no clicks.** Opening a graded submission
-auto-captures every question and buckets each by what can be verified:
+auto-captures every question. Each record is flagged:
 
-- **Verified** → goes in the eval fixtures. Either Canvas shows the key inline
-  (`.correct_answer`), **or** the question is marked full marks — so the
-  student's own selected answer *is* the correct one (works even when the quiz
-  hides correct answers, which is the common case). The panel shows
-  `⚡ auto-captured N (V verified)`.
-- **Unsolved** → the separate held-out export. A question missed on every
-  attempt while answers are hidden: we keep the question, choices, images,
-  dataset, and the student's (wrong/unknown) pick + outcome, but the correct
-  answer is unknown. This is the set to test the AI on once it aces the verified
-  fixtures — deliberately kept out of the eval set so it can't leak answers.
+- **`verified: true`** — the answer is known. Either Canvas shows the key inline
+  (`.correct_answer`), **or** the question is marked full marks so the student's
+  own selected answer *is* the correct one (works even when the quiz hides
+  correct answers — the common case). The panel shows `⚡ auto-captured N (V verified)`.
+- **`verified: false`** — missed on every attempt while answers are hidden, so we
+  keep the question + the student's (wrong/unknown) pick + `outcome`, but the
+  correct answer is unknown. The held-out set to test the AI on later.
 
-Fixtures and Unsolved form a clean partition (answer known vs unknown), so
-together they're every captured question. Each record carries: question text,
-choices, images, referenced dataset, the student's selection, whether it was
-right/wrong (`outcome`), the correct answer when known, an inferred concept/calc
-mode, and course/quiz/url/time. Every question type is covered — radio,
-checkbox, dropdown, fill-in — plus images (fetched from `instructure.com` and
+Everything exports to **one file** (`Export all`); `scripts/import-captures.ts`
+splits it by `verified` into `evals/solve-fixtures/` (answer known) and
+`evals/unsolved/` (the AI-test set) when you run evals. Each record carries:
+question text, choices, images, referenced dataset, the student's selection,
+`outcome` (right/wrong), the correct answer when known, an inferred concept/calc
+mode, and course/quiz/url/time. Every question type is covered — radio, checkbox,
+dropdown, fill-in/numerical — plus images (fetched from `instructure.com` and
 `canvas-user-content.com`).
 
 On a **live/ungraded quiz** there's no answer on the page, so each question gets
@@ -97,20 +95,22 @@ pnpm build:capture            # → apps/extension-capture/dist
 Loading this alongside the production extension is fine — all injected UI is
 `shcap-`-prefixed so the two never collide.
 
-## Exports
+## Export
 
-Two buttons in the panel/popup:
+One **Export all** button (panel or popup) → a single
+`statshelpr-captures-<time>.json` with every captured question, each flagged
+`verified` + `outcome`. When you're ready to run evals, split it:
 
-- **Export fixtures** — verified captures only, in the `evals/solve-fixtures`
-  shape. Split into files and run the evals:
-  ```bash
-  pnpm import:captures ~/Downloads/statshelpr-fixtures-*.json   # → evals/solve-fixtures/
-  pnpm eval
-  ```
-- **Export unsolved** — the questions whose answer was never established
-  (missed every attempt, answers hidden), with the full question record: choices,
-  images, dataset, the student's pick, and outcome. The held-out AI-test set;
-  not the eval fixture shape. (Fixtures + Unsolved = every captured question.)
+```bash
+pnpm import:captures ~/Downloads/statshelpr-captures-*.json
+#   verified   → evals/solve-fixtures/   (answer known — the eval set)
+#   unverified → evals/unsolved/         (the held-out AI-test set)
+pnpm eval
+```
+
+`import-captures` converts verified records to the `run-evals` fixture shape
+(choice answers → `expected.selectedChoices`, numerical/fill-in → `answerContains`)
+and writes the rest untouched.
 
 ## Notes
 

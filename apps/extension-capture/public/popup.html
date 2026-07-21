@@ -123,10 +123,9 @@
     </div>
 
     <div class="row">
-      <button class="btn primary" id="export-fixtures" type="button">Export fixtures</button>
-      <button class="btn" id="export-pool" type="button">Export unsolved</button>
+      <button class="btn primary" id="export" type="button">Export all</button>
     </div>
-    <div class="hint-line"><b>Fixtures</b> = answers we know (eval/training set). <b>Unsolved</b> = questions never gotten right / answers hidden — the held-out set to test the AI on. Capture, mode, images &amp; datasets are all automatic.</div>
+    <div class="hint-line">One file with every question. Each carries <code>verified</code> (answer known → eval set) or not (→ held-out AI test), plus <code>outcome</code> (right/wrong), your pick, and the correct answer when known. Capture, mode, images &amp; datasets are automatic.</div>
 
     <div class="section-label" id="list-label">captured questions</div>
     <div class="list" id="list"></div>

@@ -8,7 +8,7 @@
  * than creating a duplicate — fixing a mislabel is just capturing again.
  */
 
-import { type ApiChoice, type Capture, type CaptureMode, type Fixture, type PoolItem } from "./types";
+import { type ApiChoice, type Capture, type CaptureMode, type CaptureRecord } from "./types";
 import { expandDataFiles } from "./datasets";
 
 const KEY_CAPTURES = "statshelpr.captures";
@@ -114,106 +114,40 @@ export function inferMode(text: string, choices: ApiChoice[]): CaptureMode {
   return calc ? "calc" : "concept";
 }
 
-// ---- fixture conversion + export -------------------------------------------
+// ---- export ----------------------------------------------------------------
 
-/** Convert a capture to the exact fixture shape run-evals.ts consumes.
- * `datasets` is the packaged CSV map (from loadDatasets); referenced datasets
- * are expanded into request.dataFiles, inlined unless `inline` is false. */
-export function toFixture(
-  c: Capture,
-  datasets: Record<string, string> = {},
-  inline = true,
-): Fixture {
-  const request: Fixture["request"] = {
+/** One capture → a complete record: the question with images + dataset inlined,
+ * what the student picked, the correct answer when we know it, whether it was
+ * right/wrong (`outcome`), and whether the answer is trusted (`verified`). */
+export function toRecord(c: Capture, datasets: Record<string, string> = {}): CaptureRecord {
+  const rec: CaptureRecord = {
+    name: c.name,
     questionText: c.questionText,
     choices: c.choices,
-  };
-  if (c.images.length > 0) request.images = c.images;
-  const dataFiles = expandDataFiles(c.datasetRefs, datasets, inline);
-  if (dataFiles.length > 0) request.dataFiles = dataFiles;
-  const expected: Fixture["expected"] = {
+    selectedChoices: c.selectedChoices,
+    correctChoices: c.correctChoices,
+    outcome: c.outcome,
+    answerSource: c.answerSource,
+    verified: c.verified,
     mode: c.mode,
-    selectedChoices: c.correctChoices,
+    templateId: c.templateId,
+    url: c.url,
+    capturedAt: c.capturedAt,
   };
-  // Fill-in / numerical answer → checked via answerContains (run-evals matches
-  // the model's answer text against it), since there's no choice letter.
-  if (c.answerText) expected.answerContains = [c.answerText];
-  return {
-    name: c.name,
-    request,
-    expected,
-    meta: { answerSource: c.answerSource, outcome: c.outcome, url: c.url, capturedAt: c.capturedAt },
-  };
+  if (c.answerText) rec.answerText = c.answerText;
+  if (c.courseId) rec.courseId = c.courseId;
+  if (c.quizId) rec.quizId = c.quizId;
+  if (c.images.length > 0) rec.images = c.images;
+  const dataFiles = expandDataFiles(c.datasetRefs, datasets, true);
+  if (dataFiles.length > 0) rec.dataFiles = dataFiles;
+  return rec;
 }
 
-/** A capture whose correct answer we trust — a correct choice, or a verified
- * fill-in value. */
-function isSolved(c: Capture): boolean {
-  return c.verified && (c.correctChoices.length > 0 || !!c.answerText);
-}
-
-export function verifiedOnly(captures: Capture[]): Capture[] {
-  return captures.filter(isSolved);
-}
-
-/** Captures whose correct answer we never established — the "unsolved" set
- * (missed on every attempt, answers hidden). The AI-test dataset. */
-export function unsolvedOnly(captures: Capture[]): Capture[] {
-  return captures.filter((c) => !isSolved(c));
-}
-
-/** Pretty-printed JSON array of fixtures (verified captures only) — drop through
- * `scripts/import-captures.ts` to split into evals/solve-fixtures/*.json. */
-export function toFixtureBundle(
-  captures: Capture[],
-  datasets: Record<string, string> = {},
-  inline = true,
-): string {
-  return JSON.stringify(verifiedOnly(captures).map((c) => toFixture(c, datasets, inline)), null, 2);
-}
-
-/** One fixture per line (JSONL, verified only) — for training pipelines. */
-export function toJsonl(
-  captures: Capture[],
-  datasets: Record<string, string> = {},
-  inline = true,
-): string {
-  return verifiedOnly(captures).map((c) => JSON.stringify(toFixture(c, datasets, inline))).join("\n") + "\n";
-}
-
-/** The "unsolved" dataset — captures whose answer we never learned (missed on
- * every attempt, answers hidden), with the full question, images, dataset, the
- * student's wrong/unknown pick, and outcome. The held-out set to test the AI on
- * once it aces the verified fixtures. Complete question record, not the eval
- * fixture shape. */
-export function toPoolBundle(
-  captures: Capture[],
-  datasets: Record<string, string> = {},
-): string {
-  const items: PoolItem[] = unsolvedOnly(captures).map((c) => {
-    const item: PoolItem = {
-      name: c.name,
-      questionText: c.questionText,
-      choices: c.choices,
-      selectedChoices: c.selectedChoices,
-      correctChoices: c.correctChoices,
-      outcome: c.outcome,
-      answerSource: c.answerSource,
-      verified: c.verified,
-      mode: c.mode,
-      templateId: c.templateId,
-      url: c.url,
-      capturedAt: c.capturedAt,
-    };
-    if (c.answerText) item.answerText = c.answerText;
-    if (c.courseId) item.courseId = c.courseId;
-    if (c.quizId) item.quizId = c.quizId;
-    if (c.images.length > 0) item.images = c.images;
-    const dataFiles = expandDataFiles(c.datasetRefs, datasets, true);
-    if (dataFiles.length > 0) item.dataFiles = dataFiles;
-    return item;
-  });
-  return JSON.stringify(items, null, 2);
+/** The whole dataset in one file — every captured question, each flagged
+ * `verified` (answer known → training/eval) or not (→ the AI-test set).
+ * `scripts/import-captures.ts` splits it by that flag when you run evals. */
+export function toDatasetBundle(captures: Capture[], datasets: Record<string, string> = {}): string {
+  return JSON.stringify(captures.map((c) => toRecord(c, datasets)), null, 2);
 }
 
 /** Trigger a browser download of `text`. Works from both the popup (extension

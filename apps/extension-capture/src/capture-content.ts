@@ -33,8 +33,7 @@ import {
   getCapture,
   getAllCaptures,
   clearCaptures,
-  toFixtureBundle,
-  toPoolBundle,
+  toDatasetBundle,
   downloadText,
   hashId,
   templateId,
@@ -295,12 +294,10 @@ function ensurePanel() {
     text: "Capture page",
   });
 
-  const exportFixturesBtn = el("button", { className: "shcap-btn", id: "shcap-export-fixtures", type: "button", text: "Export fixtures" });
-  const exportPoolBtn = el("button", { className: "shcap-btn", id: "shcap-export-pool", type: "button", text: "Export unsolved" });
-  const exportRow = el("div", { className: "shcap-row" }, [exportFixturesBtn, exportPoolBtn]);
+  const exportBtn = el("button", { className: "shcap-btn", id: "shcap-export", type: "button", text: "Export all" });
   const clearBtn = el("button", { className: "shcap-btn shcap-quiet", id: "shcap-clear", type: "button", text: "Clear all" });
 
-  const body = el("div", { className: "shcap-body" }, [stat, page, auto, captureBtn, exportRow, clearBtn]);
+  const body = el("div", { className: "shcap-body" }, [stat, page, auto, captureBtn, exportBtn, clearBtn]);
   const panel = el("div", { id: "shcap-panel" }, [head, body]);
   document.body.appendChild(panel);
 
@@ -310,8 +307,7 @@ function ensurePanel() {
     if (panel.classList.contains("shcap-collapsed")) panel.classList.remove("shcap-collapsed");
   });
   captureBtn.addEventListener("click", (e) => void captureAllGraded(e.currentTarget as HTMLButtonElement));
-  exportFixturesBtn.addEventListener("click", () => void exportData("fixtures"));
-  exportPoolBtn.addEventListener("click", () => void exportData("pool"));
+  exportBtn.addEventListener("click", () => void exportAll());
   clearBtn.addEventListener("click", () => void clearAll());
 }
 
@@ -346,15 +342,11 @@ async function refreshPanel() {
   captureBtn.textContent = graded ? `Re-capture page (${graded})` : "Capture page";
 }
 
-async function exportData(kind: "fixtures" | "pool") {
+async function exportAll() {
   const captures = await getAllCaptures();
   if (captures.length === 0) return;
   const datasets = await loadDatasets();
-  if (kind === "fixtures") {
-    downloadText(`statshelpr-fixtures-${stamp()}.json`, toFixtureBundle(captures, datasets, true));
-  } else {
-    downloadText(`statshelpr-unsolved-${stamp()}.json`, toPoolBundle(captures, datasets));
-  }
+  downloadText(`statshelpr-captures-${stamp()}.json`, toDatasetBundle(captures, datasets));
 }
 
 async function clearAll() {
