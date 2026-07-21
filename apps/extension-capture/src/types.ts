@@ -58,6 +58,12 @@ export interface Capture {
   /** Authored question HTML (Canvas's hidden question_text textarea) — clean
    * links/code blocks, no screen-reader noise. Classic Quizzes only. */
   questionHtml?: string;
+  /** Rendered outerHTML of the question container at scrape time — inputs,
+   * selects, labels, answer rows and all (every question type, not just
+   * Classic). Fixture material for a future jsdom/happy-dom write-back test
+   * harness; scripts/styles and our own extensions' injected UI are stripped,
+   * otherwise untouched. Capped at 512KB. */
+  questionDomHtml?: string;
   /** Canvas's own question type, e.g. "matching_question". */
   questionType?: string;
   /** Canvas's numeric question id — stable across attempts. */
@@ -100,6 +106,10 @@ export interface CaptureRecord {
   questionText: string;
   /** Authored question HTML (clean source: real hrefs, code blocks, img tags). */
   questionHtml?: string;
+  /** Rendered outerHTML of the question container at scrape time — inputs,
+   * selects, labels, answer rows and all. Fixture material for a future
+   * jsdom/happy-dom write-back test harness. */
+  questionDomHtml?: string;
   /** Canvas's own question type, e.g. "matching_question". */
   questionType?: string;
   /** Canvas's numeric question id — stable across attempts. */

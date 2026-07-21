@@ -33,6 +33,7 @@ interface CaptureRecord {
   imageUrls?: string[];
   questionType?: string;
   questionHtml?: string;
+  questionDomHtml?: string;
   canvasQuestionId?: string;
   outcome?: string;
   answerSource?: string;
@@ -220,6 +221,7 @@ function toFixture(r: CaptureRecord, datasets: Record<string, string>, missing: 
       ...(r.questionType ? { questionType: r.questionType } : {}),
       ...(r.canvasQuestionId ? { canvasQuestionId: r.canvasQuestionId } : {}),
       ...(r.imageUrls?.length ? { imageUrls: r.imageUrls } : {}),
+      ...(r.questionDomHtml ? { questionDomHtml: r.questionDomHtml } : {}),
     },
   };
 }
