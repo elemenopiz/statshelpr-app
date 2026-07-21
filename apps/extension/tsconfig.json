@@ -8,5 +8,5 @@
       "@r-wasm/webr": ["./node_modules/@r-wasm/webr/dist/webR/webr-main"]
     }
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "test/**/*", "vitest.config.ts"]
 }
