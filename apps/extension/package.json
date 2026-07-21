@@ -5,12 +5,16 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "watch": "node scripts/build.mjs --watch",
-    "postinstall": "node scripts/copy-webr.mjs"
+    "postinstall": "node scripts/copy-webr.mjs",
+    "test": "vitest run"
   },
   "devDependencies": {
+    "@statshelpr/solver-core": "workspace:*",
     "@types/chrome": "^0.0.270",
     "esbuild": "^0.24.0",
-    "typescript": "^5.6.0"
+    "happy-dom": "^20.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.0"
   },
   "dependencies": {
     "@r-wasm/webr": "^0.2.0"
