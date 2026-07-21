@@ -5,24 +5,22 @@
   "description": "Canvas stats tutor — worked solutions with runnable R code, inline on quiz questions.",
   "web_accessible_resources": [
     {
-      "resources": ["welcome.html"],
-      "matches": ["<all_urls>"]
-    },
-    {
       "resources": ["webr/*"],
-      "matches": ["<all_urls>"]
+      "matches": [
+        "https://*.instructure.com/*",
+        "https://quizzes.next.instructure.com/*"
+      ]
     }
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
   },
-  "permissions": ["storage", "activeTab", "scripting"],
+  "permissions": ["storage"],
   "host_permissions": [
     "https://*.instructure.com/*",
     "https://quizzes.next.instructure.com/*",
     "https://api.statshelpr.com/*"
   ],
-  "optional_host_permissions": ["https://*/*"],
   "background": {
     "service_worker": "background.js",
     "type": "module"
