@@ -1,0 +1,47 @@
+{
+  "name": "multiple_choice: Which of the following is true of randomization in…",
+  "request": {
+    "questionText": "Which of the following is true of randomization in experimental design?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "The fundamental source of uncertainty in an experiment arises from whether or not the analysis uses bootstrapping or large-sample inference to construct a confidence interval for the treatment effect.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "Randomization is not necessary as long as the experimental design involves blocking.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "We use randomization to identify confounders that could affect the outcome of the experiment.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "The goal of randomization is to construct a sample that is perfectly representative of the population.",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "Randomization ensures balance, on average, even for possible confounding factors of which the experimenter is not aware.",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [
+      "E"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106922?headless=1",
+    "capturedAt": 1784656811220,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32406788"
+  }
+}

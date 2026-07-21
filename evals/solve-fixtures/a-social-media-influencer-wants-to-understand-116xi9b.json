@@ -1,0 +1,49 @@
+{
+  "name": "multiple_answers: A social media influencer wants to understand the relationship…",
+  "request": {
+    "questionText": "A social media influencer wants to understand the relationship between the length of each video they post and the number of viewers who watch the video in its entirety. They decide to build a model to predict Viewers (total numbers of viewers who watch each entire video) from Length of video (in seconds). Viewers = 12.2 + (7.4 * Length) + error The standard deviation of the residuals (also known as \"root mean squared error\" or RMSE) for this model is 82.5. Which statements below are true of the interpretation of the standard deviation of the residuals for this model? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "The standard deviation of the model errors (e) represents PREDICTABLE variation in the number of viewers.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "82.5% of the variability in the number of viewers is explained by the length of the video.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "The standard deviation of the model errors (e) represents UNPREDICTABLE variation in the number of viewers.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "The standard deviation of the model residuals has the same measurement units as that of the response variable, number of viewers.",
+        "type": "checkbox"
+      },
+      {
+        "label": "E",
+        "text": "The \"typical error\" associated with predictions using this model is plus or minus 82.5 viewers.",
+        "type": "checkbox"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "C",
+      "D",
+      "E"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106929",
+    "capturedAt": 1784653101584,
+    "questionType": "multiple_answers_question",
+    "canvasQuestionId": "32223442"
+  }
+}

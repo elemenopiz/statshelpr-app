@@ -1,0 +1,1297 @@
+[
+  {
+    "_idx": 2,
+    "name": "multiple_choice: This is one of multiple questions about the same…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "This is one of multiple questions about the same scenario. NCAA coaches may be compensated with salary as well as with an annual bonus. The amount of that bonus may be contingent on team performance as well as meeting off-field thresholds with respect to players' grades and conduct. The distribution of salary and bonus is something that coaches negotiate with the Athletic Director at a NCAA school. A college football coach-who-will-not-be-named is evaluating the job market and wants to predict what sort of bonus compensation he might expect to earn at various NCAA schools. Using NCAA Salaries data, he fits a model with the following variables: Bonus: maximum annual bonus (in millions of dollars) Salary: annual salary (in millions of dollars) SEC: whether the school is in the Southeastern Conference (SEC = 1) or not (SEC = 0) The model equation is: The predicted maximum annual bonus for a coaching position at a non-SEC school with a salary of $2 million is closest to which of the following?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "$750,000",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "$450,000",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "$970,000",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "$1,820,000",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "$1,700,000",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "$1,140,000",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "A"
+    ],
+    "correctChoices": [
+      "A"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/Bonus%253D0.45%252B0.15%255Cast%2520Salary%252B0.84%255Cast%2520SEC-0.11%255Cast%255Cleft(Salary%255Cast%2520SEC%255Cright)?scale=1"
+    ],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 8,
+    "name": "multiple_choice: This is one of multiple questions about the same…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "This is one of multiple questions about the same scenario. NCAA coaches may be compensated with salary as well as with an annual bonus. The amount of that bonus may be contingent on team performance as well as meeting off-field thresholds with respect to players' grades and conduct. The distribution of salary and bonus is something that coaches negotiate with the Athletic Director at a NCAA school. A college football coach-who-will-not-be-named is evaluating the job market and wants to predict what sort of bonus compensation he might expect to earn at various NCAA schools. Using NCAA Salaries data, he fits a model with the following variables: Bonus: maximum annual bonus (in millions of dollars) Salary: annual salary (in millions of dollars) SEC: whether the school is in the Southeastern Conference (SEC = 1) or not (SEC = 0) The model equation is: Bonus=0.45+0.15∗Salary+0.84∗SEC−0.11∗(Salary∗SEC) The coefficient of 0.84 in the equation above indicates that:",
+    "choices": [
+      {
+        "label": "A",
+        "text": "Bonuses are about $150,000 higher at SEC schools versus non-SEC schools.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "Bonuses are about $840,000 higher at SEC schools versus non-SEC schools.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "Bonuses are about $150,000 higher at SEC schools versus non-SEC schools, assuming the same coach salary.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "Bonuses are about $840,000 higher at SEC schools versus non-SEC schools, assuming the same coach salary.",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "D"
+    ],
+    "correctChoices": [
+      "D"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/Bonus%253D0.45%252B0.15%255Cast%2520Salary%252B0.84%255Cast%2520SEC-0.11%255Cast%255Cleft(Salary%255Cast%2520SEC%255Cright)?scale=1"
+    ],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 14,
+    "name": "multiple_choice: This is one of multiple questions about the same…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "This is one of multiple questions about the same scenario. NCAA coaches may be compensated with salary as well as with an annual bonus. The amount of that bonus may be contingent on team performance as well as meeting off-field thresholds with respect to players' grades and conduct. The distribution of salary and bonus is something that coaches negotiate with the Athletic Director at a NCAA school. A college football coach-who-will-not-be-named is evaluating the job market and wants to predict what sort of bonus compensation he might expect to earn at various NCAA schools. Using NCAA Salaries data, he fits a model with the following variables: Bonus: maximum annual bonus (in millions of dollars) Salary: annual salary (in millions of dollars) SEC: whether the school is in the Southeastern Conference (SEC = 1) or not (SEC = 0) The model equation is: Bonus=0.45+0.15∗Salary+0.84∗SEC−0.11∗(Salary∗SEC) The predicted maximum annual bonus for a coaching position at a non-SEC school with a salary of $2 million is closest to which of the following?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "$750,000",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "$450,000",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "$970,000",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "$1,820,000",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "$1,700,000",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "$1,140,000",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "A"
+    ],
+    "correctChoices": [
+      "A"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/Bonus%253D0.45%252B0.15%255Cast%2520Salary%252B0.84%255Cast%2520SEC-0.11%255Cast%255Cleft(Salary%255Cast%2520SEC%255Cright)?scale=1"
+    ],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 20,
+    "name": "multiple_dropdowns: Pokémon is a Japanese media franchise consisting of a…",
+    "questionType": "multiple_dropdowns_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Pokémon is a Japanese media franchise consisting of a universe in which humans co-exist with “pocket monsters”, or Pokémon. These creatures --- most inspired by real-world animals or mythical folklore --- are a large variety of species endowed with special powers. The pokemon data frame includes information on 949 Pokémon, including the following features: name -- name of Pokémon height -- in meters experience -- base experience points stamina -- hit points, measure for health attack -- attack points defense -- defense points psychic -- no/yes indicator for whether type is psychic The franchise's primary target audience is children aged 5 to 12, but it is known to attract people of all ages. Imagine that you are a Pokémon fanatic, hoping to use insights from data to gain an edge in battles. Fit a linear model to predict attack points in terms of: height psychic the interaction between height and psychic Fill in the blanks below to provide accurate interpretations of the results of this model: We are 95% confident that a one-meter increase in height for a non-psychic Pokémon is associated with [ Select ] [\"a decrease\", \"an increase\"] of at most approximately [ Select ] [\"11\", \"18\", \"12\", \"9\", \"28\"] attack points. A non-psychic Pokémon is expected with 95% confidence to have at least approximately 7 attack points more than a psychic Pokémon of the same height, on average. For psychic Pokémon, each additional meter in height is associated with [ Select ] [\"an increase\", \"a decrease\"] of approximately [ Select ] [\"9\", \"2\", \"15\", \"19\", \"11\"] attack points. The relationship between attack points and height for psychic Pokémon [ Select ] [\"is significantly different\", \"is not significantly different\"] than that of non-psychic Pokémon, with 95% confidence.",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "an increase",
+        "key": "an_increase",
+        "label": "an_increase",
+        "options": [
+          "a decrease",
+          "an increase"
+        ],
+        "selected": "an increase"
+      },
+      {
+        "correct": "12",
+        "key": "height_UL",
+        "label": "height_UL",
+        "options": [
+          "11",
+          "18",
+          "12",
+          "9",
+          "28"
+        ],
+        "selected": "12"
+      },
+      {
+        "correct": "7",
+        "key": "psychic_LL",
+        "label": "psychic_LL",
+        "options": [
+          "7",
+          "28",
+          "18",
+          "11",
+          "9"
+        ],
+        "selected": "7"
+      },
+      {
+        "correct": "an increase",
+        "key": "increase",
+        "label": "increase",
+        "options": [
+          "an increase",
+          "a decrease"
+        ],
+        "selected": "an increase"
+      },
+      {
+        "correct": "19",
+        "key": "interaction",
+        "label": "For psychic Pokémon, each additional meter in height is associated with of approximately attack points.",
+        "options": [
+          "9",
+          "2",
+          "15",
+          "19",
+          "11"
+        ],
+        "selected": "19"
+      },
+      {
+        "correct": "is significantly different",
+        "key": "is_significantly_different",
+        "label": "The relationship between attack points and height for psychic Pokémon than that of non-psychic Pokémon, with 95% confidence.",
+        "options": [
+          "is significantly different",
+          "is not significantly different"
+        ],
+        "selected": "is significantly different"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 26,
+    "name": "multiple_choice: According to guidelines for data scientists in Lesson 15.6,…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "According to guidelines for data scientists in Lesson 15.6, which of the following describe some hypothetical variable --- let's call it X2 --- that we would typically EXCLUDE from a multiple regression model? (1) X2 explains no variability in the response variable Y. (2) X2 conveys some information about the response variable Y, but offers little or no unique information. In other words, X2 conveys information that is redundant with information conveyed by other X variables already in the model). (3) X2 represents a common effect of Y and another X1 in the model (rather than a common cause of both X1 and Y). In other words, X2 is causally downstream of X1 and Y.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "1 and 3",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "2 and 3",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "1 and 2",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "3 only",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "D"
+    ],
+    "correctChoices": [
+      "D"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 32,
+    "name": "multiple_choice: The average salary of 30 top quarterbacks in the…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The average salary of 30 top quarterbacks in the 2017 National Football League was just over $13,000,000. A linear regression to predict Salary from Total QBR (an overall measure of performance based on various game statistics) produced the following equation: Salary = 150,000 + 225,000 * Total QBR Tom Brady (then of the New England Patriots) had a Total QBR of 83 and was paid $14,000,000 in 2016. Which of the following can we conclude based on the results of this linear model? (1) In 2016, Brady was underpaid by about $4.8 million, versus what we'd predict with this model given his QBR. (2) Top NFL quarterback salaries increase, on average, by about $150,000 for every one-point increase in the player's Total QBR. (3) A quarterback with a Total QBR = 70 has a predicted salary of $15,900,000.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "1 only",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "G"
+    ],
+    "correctChoices": [
+      "G"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 38,
+    "name": "multiple_choice: Imagine that you sell vintage posters and memorabilia from…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Imagine that you sell vintage posters and memorabilia from classic video games. You collect data on customer transactions at your Etsy webpage, including the following variables: Spend: amount spent by customer in U.S. dollars US: a dummy variable for whether the customer's webpage visit originated from a US-based IP address (US = 1) or else not (US = 0) Nin: a dummy variable for whether the customer bought a Nintendo-related product (Nin = 1), versus a product for some other video-game platform (Nin = 0) Curious about the extent to which customer origin and video game brand might impact sales, you bust out RStudio and apply your STA 301-acquired skills to fit this regression model: Spend = 15.5 - (2.7*US) + (4.6*Nin) - (1.4*US*Nin) Which of the following statements about this model is accurate? (1) This model assumes that the effect of the US and Nintendo variables are separable (i.e., their joint effect is equal to the sum of the individual effects). (2) This model incorporates an interaction. (3) Non US-based customers searching for non-Nintendo products are expected to spend $15.50, on average.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "None of the above",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "F"
+    ],
+    "correctChoices": [
+      "F"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 44,
+    "name": "multiple_choice: The data set in cars.csv includes information on the…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The data set in cars.csv includes information on the gas mileage of virtually every model of vehicle offered for sale to U.S. consumers during 2020. You will fit a regression model to predict city fuel economy in miles per gallon (city variable) in terms of the following predictor variables: powertrain -- vehicle powertrain type: Diesel, EV, FFV, Gasoline, Hybrid, or Plug-in Hybrid category -- vehicle type: Car, Small Car, SUV/Van, Truck, Two-seater, or Wagon Use this model to answer the questions below. The baseline vehicle for this linear model corresponds to which of the following levels of the powertrain variable?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "Gasoline",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "Diesel",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "Hybrid",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "EVs (electric vehicles)",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "Plug-in Hybrid",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "B"
+    ],
+    "correctChoices": [
+      "B"
+    ],
+    "datasetRefs": [
+      "cars.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 50,
+    "name": "matching: The Amazon e-commerce data science team fits a model…",
+    "questionType": "matching_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The Amazon e-commerce data science team fits a model to gain understanding of the extent to which having an Amazon Prime membership leads customers to buy more from the platform than customers without a Prime membership. The data set includes two variables: total Sales revenue for a customer account and a dummy variable representing whether the customer had a Prime membership (0 = no, 1 = yes). The fitted model equation is: Match each equation component with its appropriate label below.",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "baseline",
+        "key": "blank1",
+        "label": "764",
+        "options": [
+          "baseline"
+        ],
+        "selected": "baseline"
+      },
+      {
+        "correct": "offset",
+        "key": "blank2",
+        "label": "1323",
+        "options": [
+          "offset"
+        ],
+        "selected": "offset"
+      },
+      {
+        "correct": "response Y variable",
+        "key": "blank3",
+        "label": "Sales",
+        "options": [
+          "response Y variable"
+        ],
+        "selected": "response Y variable"
+      },
+      {
+        "correct": "predictor X variable",
+        "key": "blank4",
+        "label": "Prime",
+        "options": [
+          "predictor X variable"
+        ],
+        "selected": "predictor X variable"
+      },
+      {
+        "correct": "residual",
+        "key": "blank5",
+        "label": "e",
+        "options": [
+          "residual"
+        ],
+        "selected": "residual"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/Sales%2520%253D%2520764%2520%252B%25201323*Prime%2520%252B%2520e"
+    ],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 56,
+    "name": "multiple_choice: The data science team at Stark Industries is conducting…",
+    "questionType": "multiple_choice_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The data science team at Stark Industries is conducting an experiment to investigate the potential impact of a new engine model for the helicarrier used by the secretive government agency, S.H.I.E.L.D. Analyses of the data suggest that there might be an intrinsic difference in the performance of the engine in cold and hot weather. Of primary interest to the team is the improvement in performance by adopting this new helicarrier engine. An ideal experimental design would account for variations in the performance of this engine under hot and cold weather conditions. Which of the following best describes, in this context, an experiment with a blocking design?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "The team randomly assigned to each helicarrier model to be tested with a new engine design (treatment) or a conventional design with the previous engine design (control).",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "The team conducts a focus group with the pilots who are particularly knowledgeable about the helicarrier to solicit their feedback on the new engine.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "The team identifies three weather conditions: hot, above 90F; medium, from 90F to 50F; and cold, below 50F. Within each of these conditions, the new engines are randomly assigned to test different helicarriers (treatment group) or to test the traditional hellicarriers (control group).",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "The team fits a machine learning model to predict the performance of helicarrier engines based on a large scope of features, including weather characteristics at the time of testing.",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "The team collect historical data on observed campaigns with different helicarriers with both new engines (treatment group) and the previous engine model (control group). They conduct an analysis of group differences using bootstrap confidence intervals.",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "The team identifies two weather conditions: hot and cold. The new helicarrier engine is only used in cold weather and the conventional engine design in hotter weather.",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "C"
+    ],
+    "correctChoices": [
+      "C"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 62,
+    "name": "multiple_choice: Which of the following is true of randomization in…",
+    "questionType": "multiple_choice_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following is true of randomization in experimental design?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "The fundamental source of uncertainty in an experiment arises from whether or not the analysis uses bootstrapping or large-sample inference to construct a confidence interval for the treatment effect.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "Randomization is not necessary as long as the experimental design involves blocking.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "We use randomization to identify confounders that could affect the outcome of the experiment.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "The goal of randomization is to construct a sample that is perfectly representative of the population.",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "Randomization ensures balance, on average, even for possible confounding factors of which the experimenter is not aware.",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "E"
+    ],
+    "correctChoices": [
+      "E"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 68,
+    "name": "multiple_answers: A social media influencer wants to understand the relationship…",
+    "questionType": "multiple_answers_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "A social media influencer wants to understand the relationship between the length of each video they post and the number of viewers who watch the video in its entirety. They decide to build a model to predict Viewers (total numbers of viewers who watch each entire video) from Length of video (in seconds). Viewers = 12.2 + (7.4 * Length) + error The standard deviation of the residuals (also known as \"root mean squared error\" or RMSE) for this model is 82.5. Which statements below are true of the interpretation of the standard deviation of the residuals for this model? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "The standard deviation of the model errors (e) represents PREDICTABLE variation in the number of viewers.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "82.5% of the variability in the number of viewers is explained by the length of the video.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "The standard deviation of the model errors (e) represents UNPREDICTABLE variation in the number of viewers.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "The standard deviation of the model residuals has the same measurement units as that of the response variable, number of viewers.",
+        "type": "checkbox"
+      },
+      {
+        "label": "E",
+        "text": "The \"typical error\" associated with predictions using this model is plus or minus 82.5 viewers.",
+        "type": "checkbox"
+      }
+    ],
+    "selectedChoices": [
+      "C",
+      "D",
+      "E"
+    ],
+    "correctChoices": [
+      "C",
+      "D",
+      "E"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 74,
+    "name": "numerical: Some University of Hogwarts stakeholders have expressed concern that…",
+    "questionType": "numerical_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Some University of Hogwarts stakeholders have expressed concern that the Ministry responsible for state governance is interfering with academic affairs. One point of contention is a perceived lack of minority representation at the senior leadership level. At the University of Hogwarts, 2 of the 18 college Deans identify as a member of a minority racial or ethnic group. Research provides a national baseline suggesting that people of color held 30% of top leadership roles in higher education during the year 2023. Use Monte Carlo simulation with 100000 iterations to calculate a p-value under the null hypothesis that Hogwarts' leadership demographics are indistinguishable from the baseline rate for academic institutions. What is the estimated p-value? Enter your p-value in percentage units OR decimal format. For example, for a p-value equal to thirteen percent, enter 13 or 0.13.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "answerText": "0.06",
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 80,
+    "name": "multiple_dropdowns: In the candies.csv file we have information on each…",
+    "questionType": "multiple_dropdowns_question",
+    "mode": "calc",
+    "verified": false,
+    "answerSource": "none",
+    "outcome": "incorrect",
+    "questionText": "In the candies.csv file we have information on each of 83 candy products, including these variables: Chocolate -- does it contain chocolate or else no chocolate Caramel -- does it contain caramel or else no caramel Imagine that you have recently been recruited to the analytics team at Wonka Industries. You are investigating the extent to which the probability of a candy containing chocolate depends on other ingredients in the product. For example: are caramel candies more likely or less likely to contain chocolate compared to candies with no caramel? Use these data to fill in the blanks below. In this sample, [ Select ] [\"55%\", \"45%\", \"33%\", \"29%\", \"71%\", \"38%\"] of candies contain chocolate. Of the caramel candies in this sample, [ Select ] [\"29%\", \"62%\", \"71%\", \"38%\", \"19%\", \"33%\"] contain chocolate, a [ Select ] [\"smaller\", \"larger\"] percentage relative to candies with no caramel. A 95% bootstrap confidence interval for the difference in proportions suggests that the proportion with chocolate is larger for caramel candies by at least [ Select ] [\"approximately 58%\", \"approximately 71%\", \"approximately 33%\", \"approximately 38%\", \"approximately 4%\"] relative to candies with no caramel. The result presented in the confidence interval is [ Select ] [\"practically significant\", \"NOT practically significant\", \"statistically significant\", \"NOT statistically significant\"] because the population difference in proportions is distinguishable from zero with 95% confidence. NOTE: Remember that we expect some Monte Carlo variability in confidence interval results. If your simulation returns an interval limit close to but not equal to one of the options below, choose that close answer with confidence (no pun intended). For example, if your simulation returns 0.77 as an interval limit and the closest choice in dropdown menu is 78%... do not hesitate to choose 78% (the nearest answer). WE ARE NOT TRYING TO TRICK ANYONE WITH SUBTLE DIFFERENCES IN ROUNDING.",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "",
+        "key": "prop_chocolate",
+        "label": "In this sample, of candies contain chocolate.",
+        "options": [
+          "55%",
+          "45%",
+          "33%",
+          "29%",
+          "71%",
+          "38%"
+        ],
+        "selected": "45%"
+      },
+      {
+        "correct": "",
+        "key": "prop_caramel",
+        "label": "prop_caramel",
+        "options": [
+          "29%",
+          "62%",
+          "71%",
+          "38%",
+          "19%",
+          "33%"
+        ],
+        "selected": "71%"
+      },
+      {
+        "correct": "",
+        "key": "larger",
+        "label": "larger",
+        "options": [
+          "smaller",
+          "larger"
+        ],
+        "selected": "larger"
+      },
+      {
+        "correct": "",
+        "key": "lower",
+        "label": "A 95% bootstrap confidence interval for the difference in proportions suggests that the proportion with chocolate is larger for caramel candies by at least relative to candies with no caramel.",
+        "options": [
+          "approximately 58%",
+          "approximately 71%",
+          "approximately 33%",
+          "approximately 38%",
+          "approximately 4%"
+        ],
+        "selected": "approximately 38%"
+      },
+      {
+        "correct": "",
+        "key": "significant",
+        "label": "The result presented in the confidence interval is because the population difference in proportions is distinguishable from zero with 95% confidence.",
+        "options": [
+          "practically significant",
+          "NOT practically significant",
+          "statistically significant",
+          "NOT statistically significant"
+        ],
+        "selected": "statistically significant"
+      },
+      {
+        "correct": "",
+        "key": "distinguishable",
+        "label": "distinguishable",
+        "options": [
+          "distinguishable",
+          "NOT distinguishable"
+        ],
+        "selected": "distinguishable"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [
+      "candies.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 86,
+    "name": "multiple_choice: You are conducting a study to determine whether a…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "You are conducting a study to determine whether a new drug is effective in reducing blood pressure. Null Hypothesis (H0): The new drug has no significant effect on reducing blood pressure. Alternative Hypothesis (Ha): The new drug has a significant effect on reducing blood pressure. After analyzing the data, you obtain a p-value of 0.03 for the hypothesis test. What does this p-value of 0.03 signify in hypothesis testing for the given example? Choose the best answer.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "The probability of observing the data, or any more extreme data, assuming the null hypothesis that the new drug is not effective in reducing blood pressure is true.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "The probability that the new drug is effective in reducing blood pressure, given the observed statistic.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "The probability of observing the data, given that the new drug is effective in reducing blood pressure.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "The probability of falsely concluding that the new drug is effective in reducing blood pressure, given that it's actually not effective.",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "A"
+    ],
+    "correctChoices": [
+      "A"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 92,
+    "name": "multiple_choice: Which of the following is accurate with respect to…",
+    "questionType": "multiple_choice_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following is accurate with respect to sampling distributions and statistical uncertainty? (1) In the context of statistical inference, uncertainty arises from randomness inherent to our sampling procedure, not as a characteristic of any one particular sample generated by that procedure. (2) The methodological tools of statistical inference are used to approximate the variability that we would observe in a summary statistic if it were feasible to sample repeatedly using the same process from the same population. (3) If sample data are generated by a random process, we may conceptualize a sampling distribution for some summary statistic estimated from the sample.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "H"
+    ],
+    "correctChoices": [
+      "H"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 98,
+    "name": "multiple_choice: Which of the following statements is accurate with respect…",
+    "questionType": "multiple_choice_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following statements is accurate with respect to sampling distributions? (1) A sampling distribution is the theoretical distribution of sample estimates across many repeated samples. (2) A sampling distribution summarizes the results of only one particular sample. (3) A sampling distribution is indistinguishable from the distribution of individual data points collected in a sample.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "1 and 2",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "1 and 3",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "2 and 3",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "None of the above",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "E"
+    ],
+    "correctChoices": [
+      "E"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 104,
+    "name": "multiple_dropdowns: The data in the CPS85.csv file are from the…",
+    "questionType": "multiple_dropdowns_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The data in the CPS85.csv file are from the 1985 Current Population Survey (CPS), which is used to supplement U.S. census information between census years. The data frame is a random sample of people living in the U.S. for whom we have information on wages and other characteristics, including sex, number of years of education, years of work experience, occupational status, region of residence, and union membership status. Consider the wage variable, which refers to the hourly wage (in nominal 1985 dollars) of each respondent. Form a bootstrap sampling distribution, using at least 10000 bootstrap samples, for the mean wage of respondents. You may find it helpful to base your analysis on this example in Lesson 9.2. Use this distribution to form a 95% confidence interval for the MEAN wage in the wider population: Lower bound closest to: [ Select ] [\"$7.80\", \"$9.50\", \"$7.50\", \"$9.00\", \"$8.60\"] Upper bound closest to: [ Select ] [\"$8.60\", \"$7.50\", \"$7.80\", \"$9.50\", \"$9.00\"]",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "$8.60",
+        "key": "lower",
+        "label": "lower",
+        "options": [
+          "$7.80",
+          "$9.50",
+          "$7.50",
+          "$9.00",
+          "$8.60"
+        ],
+        "selected": "$8.60"
+      },
+      {
+        "correct": "$9.50",
+        "key": "upper",
+        "label": "upper",
+        "options": [
+          "$8.60",
+          "$7.50",
+          "$7.80",
+          "$9.50",
+          "$9.00"
+        ],
+        "selected": "$9.50"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [
+      "CPS85.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 110,
+    "name": "multiple_choice: During the covid-19 pandemic, an epidemiologist wanted to estimate…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": false,
+    "answerSource": "none",
+    "outcome": "incorrect",
+    "questionText": "During the covid-19 pandemic, an epidemiologist wanted to estimate the proportion of college students in Texas who were following guidelines for \"social distancing\" off campus. In October 2021, they conducted an anonymous survey with a random sample of 1,200 undergraduates from public Texas universities, of whom 741 admitted to having fraternized off campus without masks and/or maintaining social distance guidelines. Which of the following is true of the results of this survey? (1) The population estimand is 62%. (2) The sample estimate is 62%. (3) A different sample of size 1,200 from the same population would likely result in a different sample estimate.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "None of the above",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 116,
+    "name": "multiple_choice: The ads data frame contains information on 233 Super…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The ads data frame contains information on 233 Super Bowl television commercials, including the following variables: year: year between 2000-2020 when the commercial aired brand: one of ten brands with the most commercials during 2000-2020 likes: number of likes on YouTube patriotic: indicator for whether the ad featured some element of national pride or patriotic symbolism (TRUE) or else not (FALSE) The standard deviation of likes for commercials featuring something patriotic is closest to which of the following?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "23,809",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "23,920",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "17,838",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "30,479",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "22,791",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "14,514",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "D"
+    ],
+    "correctChoices": [
+      "D"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 122,
+    "name": "numerical: Applicants for career opportunities at the prestigious R Institute…",
+    "questionType": "numerical_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Applicants for career opportunities at the prestigious R Institute take a 39-item comprehensive exam. An applicant will be sent an offer letter if they complete the exam within 56 minutes and make mistakes on no more than 2 items. Historical data show the following: The time required to complete the exam follows a Normal distribution with a mean of 1 hour and standard deviation of 15 minutes The probability an applicant makes a mistake is 8% Mistakes for one item do not impact the likelihood of mistakes for any other item The time required to complete the exam and the number of mistakes made are independent What is the probability that a randomly chosen applicant will receive an offer letter? Express your answer in percentage units rounded to the nearest whole number (e.g. enter 99 for ninety-nine percent).",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "answerText": "15",
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 128,
+    "name": "multiple_choice: The distribution of annual of snowfall in Lubbock, Texas…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The distribution of annual of snowfall in Lubbock, Texas has a symmetric bell-shape, with an average of 8.6 inches and standard deviation 2.5 inches. Using this distribution, what is the probability of an annual snowfall of between 7 and 11 inches in a given year in Lubbock?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "83%",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "50%",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "26%",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "57%",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "43%",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "D"
+    ],
+    "correctChoices": [
+      "D"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 134,
+    "name": "multiple_choice: Hoping to gain a foothold in the competitive cloud…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Hoping to gain a foothold in the competitive cloud computing market, software-as-a-service start-up firm Nimbus 2K is weighing the uncertainty around a proposal to pursue a major contract. Their data scientist estimates the following set of potential outcomes: There is a 20% chance the firm wins the contract and earns a profit of $500,000 There is a 15% chance the firm wins the contract but incurs higher expenses, earning a profit of $300,000 Otherwise, the firm loses the contract and they earn no profit. The expected value of the contract profit is closest to which of the following?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "$210,000",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "$500,000",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "$100,000",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "$174,000",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "$186,000",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "$145,000",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "F"
+    ],
+    "correctChoices": [
+      "F"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 140,
+    "name": "matching: Match the sampling terms below to the best description…",
+    "questionType": "matching_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Match the sampling terms below to the best description for each:",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "A sample in which every member of the population is equally likely to be included.",
+        "key": "blank1",
+        "label": "Random sample",
+        "options": [
+          "A sample in which every member of the population is equally likely to be included."
+        ],
+        "selected": "A sample in which every member of the population is equally likely to be included."
+      },
+      {
+        "correct": "A sample based on individual cases tracked over time with respect to one or more variables.",
+        "key": "blank2",
+        "label": "Longitudinal sample",
+        "options": [
+          "A sample based on individual cases tracked over time with respect to one or more variables."
+        ],
+        "selected": "A sample based on individual cases tracked over time with respect to one or more variables."
+      },
+      {
+        "correct": "A sample based on various attributes of individual cases collected at a single point in time.",
+        "key": "blank3",
+        "label": "Cross-sectional sample",
+        "options": [
+          "A sample based on various attributes of individual cases collected at a single point in time."
+        ],
+        "selected": "A sample based on various attributes of individual cases collected at a single point in time."
+      },
+      {
+        "correct": "A sample based on individual units that were not selected at random from the population of interest.",
+        "key": "blank4",
+        "label": "Convenience sample",
+        "options": [
+          "A sample based on individual units that were not selected at random from the population of interest."
+        ],
+        "selected": "A sample based on individual units that were not selected at random from the population of interest."
+      },
+      {
+        "correct": "A sample that comprises all cases in the population.",
+        "key": "blank5",
+        "label": "Census",
+        "options": [
+          "A sample that comprises all cases in the population."
+        ],
+        "selected": "A sample that comprises all cases in the population."
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  }
+]

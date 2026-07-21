@@ -5,7 +5,7 @@ export const STATS_REFERENCE = `
 - Numerical variable: arithmetic is meaningful (height, price, test score)
 - Categorical variable: arithmetic is meaningless; values are labels/groups (gender, color, yes/no)
 - read.csv('file.csv', header=TRUE) — import data; do NOT open .csv in Excel first
-- Unit of analysis matters: group-level correlations can contradict individual-level correlations
+- Unit of analysis matters: group-level correlations can contradict individual-level correlations. This reversal is SIMPSON'S PARADOX (aka ecological fallacy) — always suspect a lurking group-level variable.
 
 ## PROBABILITY (L3)
 - P(A) = frequency / total (plug-in principle)
@@ -24,6 +24,7 @@ export const STATS_REFERENCE = `
 - Histogram (1 numerical distribution): geom_histogram(aes(x=), binwidth=)
 - Histogram density: geom_histogram(aes(x=, y=after_stat(density)), binwidth=)
 - Boxplot (distribution by group): geom_boxplot(aes(x=group, y=numerical))
+- Boxplot ANATOMY: box spans Q1 to Q3 (middle 50% = IQR); the center line is the MEDIAN, NOT the mean; whiskers reach the furthest point within 1.5×IQR; dots past the whiskers are outliers. Whiskers are NOT the min/max.
 - Bar (pre-computed summaries): geom_col(aes(x=, y=))
 - Bar (count automatically): geom_bar(aes(x=))
 - Facets: facet_wrap(~variable) or facet_wrap(~variable, nrow=N)
@@ -38,6 +39,7 @@ export const STATS_REFERENCE = `
 - IQR(x) — Q75-Q25; robust spread measure; use with median when data is skewed
 - quantile(x, p) — pth percentile (e.g., quantile(x, 0.25) = Q1)
 - For skewed distributions: prefer median + IQR over mean + sd
+- Skew moves the MEAN toward the long tail: right-skewed (tail on the right) ⇒ mean > median; left-skewed ⇒ mean < median; symmetric ⇒ mean ≈ median. The median stays in the bulk.
 - Z-score: z = (x - mean) / sd; |z|>2 is unusual; |z|>3 is very unusual
 
 ## DATA WRANGLING (L6) — tidyverse pipe %>% or |>
@@ -72,6 +74,10 @@ export const STATS_REFERENCE = `
 - Non-linear — exponential: lm(log(y) ~ x) → slope = growth rate
 - Non-linear — power law: lm(log(y) ~ log(x)) → slope = elasticity (% change in y per 1% change in x)
 - R² limitations: high R² does not guarantee good future predictions; correlation ≠ causation
+- Correlation r = cor(x, y): ranges −1 to +1, UNITLESS, SYMMETRIC (r_xy = r_yx), measures LINEAR association ONLY — r ≈ 0 does NOT mean "no relationship" (a strong curve gives r ≈ 0). Simple regression: R² = r²; the slope's SIGN equals r's sign; a bigger slope does NOT mean a stronger correlation (slope has units, r does not).
+- Residual standard error (sigma / RMSE) = the TYPICAL prediction error: the typical size of a residual, in y's own units. "Typical/expected model error" questions want THIS — never a coefficient CI or the point estimate. A ~95% prediction bound ≈ fit ± 2·sigma.
+- Confidence interval = uncertainty about the MEAN response at x; PREDICTION interval = the range for ONE new individual observation and is ALWAYS WIDER (it adds the residual error). predict(model, newdata, interval='confidence' | 'prediction', level=0.95).
+- Judge a model by OUT-OF-SAMPLE (test) error, NEVER in-sample: training RMSE is optimistically biased and ALWAYS drops when you add predictors. Overfitting = low training error but high test error.
 
 ## STATISTICAL UNCERTAINTY & CLT (L8, L11)
 - Estimand: fact about world you want to learn; Estimator: statistic that estimates it
@@ -83,11 +89,12 @@ export const STATS_REFERENCE = `
   - CLT applies to: means, medians, proportions, differences, regression coefficients
 - SE formulas:
   - SE(x̄) = s/√n (sample) or σ/√n (population known)
+  - "De Moivre's equation" (this course's term) = SE of the MEAN = σ/√n. It is a function of n (number of data points averaged) and σ (variability of a single data point). It concerns MEANS — a CI "using de Moivre's equation" is a CI for a population mean from a sample mean, NOT a proportion.
   - SE(p̂) = √(p̂(1-p̂)/n)
   - SE(x̄₁-x̄₂) = √(s₁²/n₁ + s₂²/n₂)
   - SE(p̂₁-p̂₂) = √(p̂₁(1-p̂₁)/n₁ + p̂₂(1-p̂₂)/n₂)
 - Inference is valid for: random samples, randomized experiments, future predictions (with stability assumption)
-- Statistical uncertainty UNDERESTIMATES real-world uncertainty (ignores bias, measurement error)
+- Statistical uncertainty / margin of error captures ONLY random sampling error — it does NOT include selection bias, nonresponse, measurement error, or loaded/leading question wording. It therefore ALWAYS UNDERSTATES true real-world uncertainty; reported uncertainty is a floor, never the whole story.
 - 95% CI ≈ estimate ± 2×SE (or ± 1.96×SE for large samples)
 
 ## BOOTSTRAP (L9)
@@ -97,10 +104,13 @@ export const STATS_REFERENCE = `
 - Bootstrap gives empirical sampling distribution; works for means, medians, proportions, differences, regression coefs
 - CORRECT CI interpretation: 'We are 95% confident the true [parameter] lies in [L, U]'
 - WRONG: '95% of data falls in this interval' or '95% probability the parameter is in this range'
+- "95% confidence" is a property of the PROCEDURE: over many repeated samples, ~95% of the intervals built this way contain the true parameter. Any single interval either contains the truth or it does NOT — there is no "95% probability" for one interval.
+- A CI expresses the precision of the ESTIMATE (the spread of the sampling distribution), NOT the spread of the individual data values.
+- Higher confidence ⇒ WIDER interval (99% is wider than 95%); you CANNOT narrow an interval without either lowering the confidence level (worse coverage) or collecting more data.
 - Bootstrap fails for: min/max, extreme quantiles with small n
 - Terminology: 'model estimates' = regression coefficients (slope, intercept) — bootstrap with do(n)*coef(lm(...))[...]; 'model fit statistics' = R-squared — bootstrap with do(n)*rsquared(lm(...)). When a question asks to bootstrap BOTH, generate code that bootstraps BOTH separately.
 - Bootstrap slope code pattern: boot_coef <- do(5000)*coef(lm(y~x, data=resample(df))); ci_coef <- confint(boot_coef, level=0.95)
-- 'of at least X' / 'no less than X' for a slope: use the LOWER bound of the bootstrapped slope CI, multiplied by the stated unit change (e.g., lower CI bound of slope × 1000 for a 1000-meter question). Do NOT use the point estimate.
+- Bounded claims use CI ENDPOINTS, not the point estimate — for ANY estimand (slope, difference of means/proportions, mean, coefficient), not just slopes: 'at least X' / 'no less than X' → the LOWER bound; 'at most X' / 'no more than X' / 'up to X' → the UPPER bound. Multiply by any stated unit change (e.g., lower slope-CI bound × 1000 for a 1000-meter question). For a decrease (negative estimate), use the magnitude (absolute value) of the relevant endpoint — a 'decrease of at most X' is the more-negative endpoint's magnitude.
 
 ## P-VALUES & HYPOTHESIS TESTING (L10, L11)
 - Null hypothesis (H0): 'no effect' or 'no difference' assumption
@@ -109,10 +119,12 @@ export const STATS_REFERENCE = `
   - Large p-value → data consistent with H0 (not strong evidence against it)
 - CORRECT: p-value measures evidence against H0
 - WRONG: p-value is NOT P(H0 is true); NOT P(data occurred); NOT P(false rejection)
+- Test statistic: a standardized measure of the STRENGTH OF EVIDENCE against H0 (how many standard errors the estimate sits from the null value). Larger |test statistic| → stronger evidence against H0. It is NOT a probability, and NOT the quantity compared to 0.05 — that is the p-value.
 - Decision: reject H0 when p-value < α (typically 0.05); 'fail to reject' ≠ 'accept H0'
 - Type I error (α): reject a true H0; Type II error (β): fail to reject a false H0
 - Power = 1 − β; increases with: larger n, larger effect size, larger α
 - Statistical significance ≠ practical importance; always assess effect size
+- SIGNIFICANCE STRAIGHT FROM A CI: a 95% CI that EXCLUDES the null value (0 for a difference/slope/coefficient, or the stated no-effect value) ⇒ statistically significant / REJECT H0. A CI that CONTAINS the null ⇒ fail to reject / not significant. Decide significance by whether the null value is inside the interval — do not require a separate p-value.
 
 ## LARGE-SAMPLE INFERENCE IN R (L11)
 - One-sample mean CI/test: t.test(~var, data=df, mu=μ₀)
@@ -128,6 +140,7 @@ export const STATS_REFERENCE = `
   - Use correct=FALSE unless textbook/question explicitly requires continuity correction
 - Two-proportion: prop.test(c(x1, x2), c(n1, n2))
   - Add correct=FALSE for large-sample z-interval
+- Proportion z-TEST uses the NULL value p0 in the SE: z = (p̂ − p0) / √(p0(1−p0)/n). The proportion CI instead uses p̂ in the SE: p̂ ± z*·√(p̂(1−p̂)/n). These are DIFFERENT SEs — NEVER use p̂ in the test's SE or p0 in the CI's SE.
 - confint(lm_object) — CI for all regression coefficients (uses t-distribution)
 - 68-95-99.7 rule: 68% within ±1 SE, 95% within ±2 SE, >99% within ±3 SE
 
@@ -138,8 +151,14 @@ export const STATS_REFERENCE = `
 - Placebo effect: response from belief in treatment, not treatment itself
 - Block design: group similar units, randomize within blocks (controls measured confounders)
 - Observational → association; Experimental → causation
+- Matching (MatchIt) pairs treated and control units on CONFOUNDERS ONLY (NEVER the outcome) to compare like-with-like. It removes only MEASURED confounders, so it is NOT equivalent to a randomized experiment — unmeasured confounders still remain.
 
 ## PROBABILITY MODELS (L17)
+EXPECTATION & VARIANCE ALGEBRA:
+  E(aX+b) = a·E(X) + b; E(X+Y) = E(X) + E(Y) ALWAYS (even if X,Y are dependent).
+  Var(aX+b) = a²·Var(X) (the constant b drops out; the coefficient a is SQUARED).
+  Var(X+Y) = Var(X) + Var(Y) ONLY if X,Y are INDEPENDENT. VARIANCES add — standard deviations do NOT.
+
 BINOMIAL (discrete, count of successes):
   Required: N independent trials, binary outcome (yes/no), constant probability P
   E(X) = NP; sd(X) = √(NP(1-P))
@@ -186,6 +205,7 @@ DUMMY VARIABLES & INTERACTIONS (recap):
 - Dummy coefficient = shift in INTERCEPT for that category; slopes remain parallel (no interaction)
 - Interaction term coefficient = offset to SLOPE for non-baseline category (NOT the slope itself)
 - Slope for non-baseline group = main effect coefficient + interaction coefficient
+- With an interaction (numeric × categorical), the categorical MAIN-EFFECT coefficient is the group-vs-baseline difference HOLDING THE OTHER PREDICTOR CONSTANT (i.e., at the same value of the numeric predictor). It is a partial/adjusted difference — always keep the 'holding the other predictor constant' / 'at the same [X]' qualifier; the interpretation without that qualifier is incorrect.
 - Visual check for interaction: plot separate trend lines per group — same slopes → no interaction; different slopes → add interaction term
 
 SCALING:

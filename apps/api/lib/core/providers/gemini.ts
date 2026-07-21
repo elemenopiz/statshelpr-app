@@ -30,7 +30,13 @@ import type {
 
 export const GEMINI_BASE_URL =
   "https://generativelanguage.googleapis.com/v1beta";
-export const DEFAULT_MODEL = "gemini-3.5-flash";
+// Overridable via GEMINI_MODEL so the eval harness can A/B models without code
+// edits (e.g. GEMINI_MODEL=gemini-3.6-flash). Default is Flash-Lite — the
+// cheapest/fastest tier — pending the fixture benchmark that confirms quality.
+export const DEFAULT_MODEL = process.env["GEMINI_MODEL"] ?? "gemini-3.5-flash-lite";
+// Image/vision questions route here — Flash-Lite is unreliable at reading figures
+// (~1–2 of 6 on our test), while 3.6 Flash is 4/4. Overridable via env.
+export const IMAGE_MODEL = process.env["GEMINI_IMAGE_MODEL"] ?? "gemini-3.6-flash";
 
 // Gemini role names differ from OpenAI-style: user → "user", assistant → "model".
 type GeminiRole = "user" | "model";
@@ -119,9 +125,12 @@ function buildRequestBody(req: LlmChatRequest): Record<string, unknown> {
     // "minimal" disables sustained reasoning; equivalent to legacy budget=0.
     generationConfig["thinkingConfig"] = { thinkingLevel: "minimal" };
   } else {
-    // "high" gives the model full reasoning budget for the hard first pass.
-    // Analogous to the legacy `thinkingBudget: -1` (dynamic/max).
-    generationConfig["thinkingConfig"] = { thinkingLevel: "high" };
+    // "medium" is Gemini 3.5's default and, per Google, best-quality for the
+    // vast majority of tasks; "high" (hard math/coding) roughly doubles the
+    // thinking-token output for marginal gain on our question shape. Kept at
+    // medium to control COGS — revisit to "high" if an eval shows a real
+    // accuracy drop on hard calc questions.
+    generationConfig["thinkingConfig"] = { thinkingLevel: "medium" };
   }
 
   const body: Record<string, unknown> = {

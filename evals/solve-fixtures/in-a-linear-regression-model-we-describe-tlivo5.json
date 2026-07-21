@@ -1,0 +1,52 @@
+{
+  "name": "multiple_answers: In a linear regression model, we describe data by…",
+  "request": {
+    "questionText": "In a linear regression model, we describe data by an equation: Which of the following is accurate for this equation? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "The slope of the regression line is β 1",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "The predictor (explanatory) variable is represented by x i",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "Model error is represented by e i",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "The intercept of the regression line is β 0",
+        "type": "checkbox"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106929",
+    "capturedAt": 1784653112017,
+    "questionType": "multiple_answers_question",
+    "canvasQuestionId": "32223434",
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/y_i%253D%255Cbeta_0%252B%255Cbeta_1%255Cast%2520x_i%252Be_i",
+      "https://utexas.instructure.com/equation_images/%255Cbeta_1?scale=1",
+      "https://utexas.instructure.com/equation_images/x_i",
+      "https://utexas.instructure.com/equation_images/e_i",
+      "https://utexas.instructure.com/equation_images/%255Cbeta_0?scale=1"
+    ]
+  }
+}

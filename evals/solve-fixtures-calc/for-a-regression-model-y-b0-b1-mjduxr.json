@@ -1,0 +1,45 @@
+{
+  "name": "multiple_choice: For a regression model: y=b0+b1∗x1+ei with a dummy variable…",
+  "request": {
+    "questionText": "For a regression model: y=b0+b1∗x1+ei with a dummy variable (0 or 1) predictor x, the coefficient b1 may be interpreted as:",
+    "choices": [
+      {
+        "label": "A",
+        "text": "the predicted value of the outcome variable when the dummy variable is equal to 0.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "the differential effect on the outcome variable of having the dummy variable equal to 1, rather than 0.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "the predicted value of the outcome variable when the dummy variable is equal to 1.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "the improvement in R-squared that we get from including x in the model.",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "B"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106923",
+    "capturedAt": 1784656835551,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32408205",
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/y%2520%253D%2520b_%257B0%257D%2520%2520%252Bb%2520_%257B1%257D*%2520x_%257B1%257D%252Be_%257Bi%257D"
+    ]
+  }
+}

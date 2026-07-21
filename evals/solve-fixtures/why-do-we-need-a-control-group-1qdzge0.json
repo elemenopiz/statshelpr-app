@@ -1,0 +1,62 @@
+{
+  "name": "multiple_choice: Why do we need a control group in experimental…",
+  "request": {
+    "questionText": "Why do we need a control group in experimental design? Identify the accurate statements below. (1) To rule out natural change and variation (as distinct from change related to some experimental treatment) as an explanation for the outcomes we observe. (2) To rule out alternative explanations for the outcome of the experiment related to placebo effects. (3) To provide a basis for comparison for those who received the treatment.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "2 and 3 only",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [
+      "B"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106922?headless=1",
+    "capturedAt": 1784656811817,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32406787"
+  }
+}

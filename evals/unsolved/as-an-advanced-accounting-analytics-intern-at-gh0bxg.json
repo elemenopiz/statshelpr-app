@@ -1,0 +1,60 @@
+{
+  "name": "matching: As an Advanced Accounting Analytics intern at Gringotts Bank,…",
+  "questionText": "As an Advanced Accounting Analytics intern at Gringotts Bank, you are tasked with investigating factors that explain variation in account balances accrued by credit card holders. The credit.csv file contains a data set with information on 400 credit card account holders, including the following variables: Balance: credit card balance, i.e. debt owed to bank ($ dollars) Income: cardholder annual income ($ thousands of dollars) Limit: credit spending limit ($ dollars) Student: Yes/No indicator for whether or not the cardholder is a part-time or full-time student Fit a linear regression model for Balance in terms of the following predictors: Income Student Limit the interaction between Student and Limit Which of the following is an accurate interpretation of the results of this model? Select TRUE below for accurate interpretations or FALSE for inaccurate interpretations.",
+  "choices": [],
+  "selectedChoices": [],
+  "correctChoices": [],
+  "outcome": "incorrect",
+  "answerSource": "none",
+  "verified": false,
+  "mode": "calc",
+  "templateId": "1re311i",
+  "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106928",
+  "capturedAt": 1784657121246,
+  "blanks": [
+    {
+      "correct": "",
+      "key": "blank1",
+      "label": "For cardholders who are students, we estimate a balance increase of approximately $0.27 for every one-dollar increase in credit limit (when comparing cardholders with the same income level).",
+      "options": [
+        "FALSE"
+      ],
+      "selected": "FALSE"
+    },
+    {
+      "correct": "",
+      "key": "blank2",
+      "label": "For cardholders with the same student status and credit limit, we are 95% confident that an increase in annual Income is associated with a decrease in credit card Balance.",
+      "options": [
+        "TRUE"
+      ],
+      "selected": "TRUE"
+    },
+    {
+      "correct": "",
+      "key": "blank3",
+      "label": "For cardholders who are students, relative to non-students, we estimate a balance decrease of $144 (adjusting for annual income and credit limit).",
+      "options": [
+        "FALSE"
+      ],
+      "selected": "FALSE"
+    },
+    {
+      "correct": "",
+      "key": "blank4",
+      "label": "For cardholders who are students, we estimate a balance increase of approximately $275 for every one-dollar increase in credit limit (when comparing cardholders with the same income level).",
+      "options": [
+        "TRUE"
+      ],
+      "selected": "TRUE"
+    }
+  ],
+  "datasetRefs": [
+    "credit.csv"
+  ],
+  "courseId": "1445339",
+  "quizId": "2106928",
+  "questionHtml": "<p>As an Advanced Accounting Analytics intern at Gringotts Bank, you are tasked with investigating factors that explain variation in account balances accrued by credit card holders. The <strong>credit.csv</strong> file contains a data set with information on 400 credit card account holders, including the following variables:</p>\n<ul>\n<li style=\"list-style-type: none;\">\n<ul>\n<li><strong>Balance</strong>: credit card balance, i.e. debt owed to bank ($ dollars)</li>\n<li><strong>Income:&nbsp;</strong>cardholder annual income ($ thousands of dollars)</li>\n<li><strong>Limit</strong>: credit spending limit ($ dollars)</li>\n<li><strong>Student</strong>: Yes/No indicator for whether or not the cardholder is a part-time or full-time student</li>\n</ul>\n</li>\n</ul>\n<p>Fit a linear regression model for <strong>Balance </strong>in terms of the following predictors:</p>\n<ul>\n<li style=\"list-style-type: none;\">\n<ul>\n<li style=\"list-style-type: none;\">\n<ol style=\"list-style-type: decimal;\">\n<li><strong>Income</strong></li>\n<li><strong>Student</strong></li>\n<li><strong>Limit</strong></li>\n<li>the interaction between&nbsp;<strong>Student&nbsp;</strong>and&nbsp;<strong>Limit</strong><strong></strong></li>\n</ol>\n</li>\n</ul>\n</li>\n</ul>\n<p>Which of the following is an accurate interpretation of the results of this model? Select TRUE below for accurate interpretations or FALSE for inaccurate interpretations.</p>",
+  "questionType": "matching_question",
+  "canvasQuestionId": "32444527"
+}

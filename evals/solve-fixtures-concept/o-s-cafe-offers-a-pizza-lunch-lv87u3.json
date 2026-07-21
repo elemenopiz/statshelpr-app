@@ -1,0 +1,62 @@
+{
+  "name": "multiple_choice: O's Cafe offers a pizza lunch during which each…",
+  "request": {
+    "questionText": "O's Cafe offers a pizza lunch during which each customer selects exactly one slice of pizza, choosing either cheese or pepperoni. It is known that customers are thrice as likely* to choose cheese relative to pepperoni. Assuming that the pizza selection of one resident does not affect those of others, which of the following statements is TRUE? On a regular day with 80 customers, 20 of them are expected to choose pepperoni pizza. On a busy day with 120 customers, the probability that no more than 30 of them will choose pepperoni pizza is 0.25. On a slow day with 40 customers, the probability that all 40 of them will choose cheese pizza is 1. * In other words, three out of every four slices selected are cheese; there is a 25% probability that a customer selects pepperoni.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [
+      "C"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106926/history?version=1",
+    "capturedAt": 1784653039429,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32223365"
+  }
+}

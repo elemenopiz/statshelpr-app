@@ -1,0 +1,82 @@
+{
+  "name": "matching: Match the random variable described with its correct type:…",
+  "request": {
+    "questionText": "Match the random variable described with its correct type: Discrete or Continuous?",
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "The count of Haribo gummy bears in a bag.",
+        "options": [
+          "Discrete"
+        ]
+      },
+      {
+        "key": "blank2",
+        "label": "The distance that a car travels with one tank of gas",
+        "options": [
+          "Continuous"
+        ]
+      },
+      {
+        "key": "blank3",
+        "label": "The weight of the contents of a bag of Haribo gummy bears.",
+        "options": [
+          "Continuous"
+        ]
+      },
+      {
+        "key": "blank4",
+        "label": "The number of cards drawn from a deck until a Queen is selected.",
+        "options": [
+          "Discrete"
+        ]
+      },
+      {
+        "key": "blank5",
+        "label": "The number of STA 301 students who will attend class on Day 28.",
+        "options": [
+          "Discrete"
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [],
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "The count of Haribo gummy bears in a bag.",
+        "correct": "Discrete"
+      },
+      {
+        "key": "blank2",
+        "label": "The distance that a car travels with one tank of gas",
+        "correct": "Continuous"
+      },
+      {
+        "key": "blank3",
+        "label": "The weight of the contents of a bag of Haribo gummy bears.",
+        "correct": "Continuous"
+      },
+      {
+        "key": "blank4",
+        "label": "The number of cards drawn from a deck until a Queen is selected.",
+        "correct": "Discrete"
+      },
+      {
+        "key": "blank5",
+        "label": "The number of STA 301 students who will attend class on Day 28.",
+        "correct": "Discrete"
+      }
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106926/history?version=1",
+    "capturedAt": 1784653039412,
+    "questionType": "matching_question",
+    "canvasQuestionId": "32223364"
+  }
+}

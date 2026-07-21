@@ -1,0 +1,45 @@
+{
+  "name": "multiple_choice: This is one of multiple questions about the same…",
+  "request": {
+    "questionText": "This is one of multiple questions about the same scenario. NCAA coaches may be compensated with salary as well as with an annual bonus. The amount of that bonus may be contingent on team performance as well as meeting off-field thresholds with respect to players' grades and conduct. The distribution of salary and bonus is something that coaches negotiate with the Athletic Director at a NCAA school. A college football coach-who-will-not-be-named is evaluating the job market and wants to predict what sort of bonus compensation he might expect to earn at various NCAA schools. Using NCAA Salaries data, he fits a model with the following variables: Bonus: maximum annual bonus (in millions of dollars) Salary: annual salary (in millions of dollars) SEC: whether the school is in the Southeastern Conference (SEC = 1) or not (SEC = 0) The model equation is: Bonus=0.45+0.15∗Salary+0.84∗SEC−0.11∗(Salary∗SEC) The coefficient of 0.84 in the equation above indicates that:",
+    "choices": [
+      {
+        "label": "A",
+        "text": "Bonuses are about $150,000 higher at SEC schools versus non-SEC schools.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "Bonuses are about $840,000 higher at SEC schools versus non-SEC schools.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "Bonuses are about $150,000 higher at SEC schools versus non-SEC schools, assuming the same coach salary.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "Bonuses are about $840,000 higher at SEC schools versus non-SEC schools, assuming the same coach salary.",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "D"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106933",
+    "capturedAt": 1784656844538,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32444465",
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/Bonus%253D0.45%252B0.15%255Cast%2520Salary%252B0.84%255Cast%2520SEC-0.11%255Cast%255Cleft(Salary%255Cast%2520SEC%255Cright)?scale=1"
+    ]
+  }
+}

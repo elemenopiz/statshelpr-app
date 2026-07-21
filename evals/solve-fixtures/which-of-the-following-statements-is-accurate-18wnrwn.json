@@ -1,0 +1,62 @@
+{
+  "name": "multiple_choice: Which of the following statements is accurate with respect…",
+  "request": {
+    "questionText": "Which of the following statements is accurate with respect to the normal distribution? (1) The normal distribution is characterized with two parameters: the mean and the standard deviation. (2) The normal distribution is characterized with two parameters: the median and the IQR. (3) Approximately 95% of the observations in a normal distribution will take on a value within plus or minus two standard deviations of the mean.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "None of the above",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "A"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106925?headless=1",
+    "capturedAt": 1784653057127,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32223344"
+  }
+}

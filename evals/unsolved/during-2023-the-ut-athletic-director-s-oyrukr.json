@@ -1,0 +1,45 @@
+{
+  "name": "multiple_choice: During 2023, the UT Athletic Director's data science team…",
+  "questionText": "During 2023, the UT Athletic Director's data science team sent a well-designed survey to a large group of alumni who have in the past purchased season tickets for Longhorns athletics. Their objective was to estimate the proportion of contributing alumni who supported early withdrawal from the Big 12 Conference in the following athletic year. After data collection, they observed that 371 respondents in a random sample of 525 alumni indicated yes in support of the plan for early withdrawal. Which of the following is true of the results of this analysis? Choose the best answer.",
+  "choices": [
+    {
+      "label": "A",
+      "text": "The sampling distribution in this context is the distribution of sample proportions that we'd expect to see if it were possible to repeatedly administer this same survey to random samples of 525 alumni.",
+      "type": "radio"
+    },
+    {
+      "label": "B",
+      "text": "The sample estimate is 525.",
+      "type": "radio"
+    },
+    {
+      "label": "C",
+      "text": "The population estimand is 71%.",
+      "type": "radio"
+    },
+    {
+      "label": "D",
+      "text": "The population estimand is 371.",
+      "type": "radio"
+    },
+    {
+      "label": "E",
+      "text": "Sampling variability means that a different sample from the same population would likely produce exactly the same sample proportion.",
+      "type": "radio"
+    }
+  ],
+  "selectedChoices": [],
+  "correctChoices": [],
+  "outcome": "incorrect",
+  "answerSource": "none",
+  "verified": false,
+  "mode": "calc",
+  "templateId": "1qnfucz",
+  "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106918",
+  "capturedAt": 1784653089972,
+  "courseId": "1445339",
+  "quizId": "2106918",
+  "questionHtml": "<p>During 2023, the UT Athletic Director's data science team sent a well-designed survey to a large group of alumni who have in the past purchased season tickets for Longhorns athletics. Their objective was to estimate the proportion of contributing alumni who supported early withdrawal from the Big 12 Conference in the following athletic year. After data collection, they observed that 371 respondents in a random sample of 525 alumni indicated yes in support of the plan for early withdrawal.&nbsp;</p>\n<p>Which of the following is true of the results of this analysis? Choose the best answer.</p>",
+  "questionType": "multiple_choice_question",
+  "canvasQuestionId": "32223248"
+}

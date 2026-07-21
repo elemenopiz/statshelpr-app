@@ -1,0 +1,94 @@
+{
+  "name": "matching: There is a distinction between causal questions and statistical…",
+  "request": {
+    "questionText": "There is a distinction between causal questions and statistical questions. Causal questions are about cause and effect (i.e., questions about counterfactual statements). Statistical questions, on the other hand, are about correlations (i.e., patterns we observe with data). Identify each of the examples below as either a STATISTICAL sort of question or a CAUSAL sort of question:",
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "If we invested more money in our school system, how much faster would our economy grow?",
+        "options": [
+          "CAUSAL"
+        ]
+      },
+      {
+        "key": "blank2",
+        "label": "How are education spending and economic growth related in a data set representing many world countries?",
+        "options": [
+          "STATISTICAL"
+        ]
+      },
+      {
+        "key": "blank3",
+        "label": "If I ate more vegetables than I do now, how much longer would I live?",
+        "options": [
+          "CAUSAL"
+        ]
+      },
+      {
+        "key": "blank4",
+        "label": "Do people who eat a lot of vegetables live longer, on average, than people who don’t?",
+        "options": [
+          "STATISTICAL"
+        ]
+      },
+      {
+        "key": "blank5",
+        "label": "If we hire extra teachers at our school and reduce our class sizes, will our students’ test scores improve?",
+        "options": [
+          "CAUSAL"
+        ]
+      },
+      {
+        "key": "blank6",
+        "label": "Do students in smaller classes tend to have higher test scores?",
+        "options": [
+          "STATISTICAL"
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [],
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "If we invested more money in our school system, how much faster would our economy grow?",
+        "correct": "CAUSAL"
+      },
+      {
+        "key": "blank2",
+        "label": "How are education spending and economic growth related in a data set representing many world countries?",
+        "correct": "STATISTICAL"
+      },
+      {
+        "key": "blank3",
+        "label": "If I ate more vegetables than I do now, how much longer would I live?",
+        "correct": "CAUSAL"
+      },
+      {
+        "key": "blank4",
+        "label": "Do people who eat a lot of vegetables live longer, on average, than people who don’t?",
+        "correct": "STATISTICAL"
+      },
+      {
+        "key": "blank5",
+        "label": "If we hire extra teachers at our school and reduce our class sizes, will our students’ test scores improve?",
+        "correct": "CAUSAL"
+      },
+      {
+        "key": "blank6",
+        "label": "Do students in smaller classes tend to have higher test scores?",
+        "correct": "STATISTICAL"
+      }
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106922?headless=1",
+    "capturedAt": 1784656811160,
+    "questionType": "matching_question",
+    "canvasQuestionId": "32406782"
+  }
+}

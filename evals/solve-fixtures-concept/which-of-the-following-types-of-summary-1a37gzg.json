@@ -1,0 +1,63 @@
+{
+  "name": "multiple_answers: Which of the following types of summary statistics generally…",
+  "request": {
+    "questionText": "Which of the following types of summary statistics generally have sampling distributions that are unimodal and symmetric (i.e., normally distributed)? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "Differences of means",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "Regression model coefficients",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "Regression model fit statistics",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "Standard deviations",
+        "type": "checkbox"
+      },
+      {
+        "label": "E",
+        "text": "Interquartile ranges",
+        "type": "checkbox"
+      },
+      {
+        "label": "F",
+        "text": "Medians",
+        "type": "checkbox"
+      },
+      {
+        "label": "G",
+        "text": "Proportions",
+        "type": "checkbox"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106920?headless=1",
+    "capturedAt": 1784656811177,
+    "questionType": "multiple_answers_question",
+    "canvasQuestionId": "32406735"
+  }
+}

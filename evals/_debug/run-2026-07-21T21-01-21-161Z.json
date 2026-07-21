@@ -1,0 +1,21 @@
+{
+  "ranAt": "2026-07-21T21:01:21.164Z",
+  "model": "gemini-3.5-flash-lite",
+  "baseUrl": "http://localhost:3030",
+  "fixturesDir": "/private/tmp/eval-smoke",
+  "summary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "tokens": {
+      "prompt": 5608,
+      "completion": 12,
+      "total": 5874,
+      "cached": 0,
+      "output": 266,
+      "thinking": 254
+    },
+    "estCostUsd": 0.0023
+  },
+  "failures": []
+}

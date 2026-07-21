@@ -1,0 +1,86 @@
+{
+  "ranAt": "2026-07-21T20:27:22.054Z",
+  "baseUrl": "http://localhost:3030",
+  "fixturesDir": "/private/tmp/eval-costtest",
+  "summary": {
+    "total": 3,
+    "passed": 0,
+    "failed": 3,
+    "tokens": {
+      "input": 0,
+      "output": 0,
+      "cached": 0
+    },
+    "estCostUsd": 0
+  },
+  "failures": [
+    {
+      "name": "matching: The rentals.csv data frame contains data on 98 short-term…",
+      "error": "HTTP 429: Rate limited by Gemini — wait a moment and retry.",
+      "expected": {
+        "mode": "calc",
+        "selectedChoices": [],
+        "blanks": [
+          {
+            "key": "blank1",
+            "label": "We are 95% confident that the mean number of amenities in this population of rental properties is approximately 23.5.",
+            "correct": "FALSE"
+          },
+          {
+            "key": "blank2",
+            "label": "In this population, 95% of short-term rentals will have between approximately 21 to 26 listed amenities.",
+            "correct": "FALSE"
+          },
+          {
+            "key": "blank3",
+            "label": "We are 95% confident that the population mean may be found in the range of values represented by this interval.",
+            "correct": "TRUE"
+          },
+          {
+            "key": "blank4",
+            "label": "If we were to take repeated random samples of the same number of rentals using the same data-generating process, and then construct a confidence interval for each of these samples, we'd expect that 95% of those intervals would contain the population mean.",
+            "correct": "TRUE"
+          }
+        ]
+      },
+      "checks": [],
+      "question": "The rentals.csv data frame contains data on 98 short-term rentals in Santa Fe, New Mexico, including a variable for the number of listed Amenities (e.g., pool, laundry room, fireplace) on the webpage for each rental. Calculate the observed sample mean, as well a large-sample 95% confidence interval for the average number of rental property Amenities in the population. Which of the following is an accurate interpretation of this analysis? Select TRUE or FALSE for each option below."
+    },
+    {
+      "name": "multiple_answers: Which of the following types of summary statistics generally…",
+      "error": "HTTP 429: Rate limited by Gemini — wait a moment and retry.",
+      "expected": {
+        "mode": "concept",
+        "selectedChoices": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F",
+          "G"
+        ]
+      },
+      "checks": [],
+      "question": "Which of the following types of summary statistics generally have sampling distributions that are unimodal and symmetric (i.e., normally distributed)? Select all correct answers."
+    },
+    {
+      "name": "multiple_answers: Which of the following types of summary statistics generally…",
+      "error": "HTTP 429: Rate limited by Gemini — wait a moment and retry.",
+      "expected": {
+        "mode": "concept",
+        "selectedChoices": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F",
+          "G"
+        ]
+      },
+      "checks": [],
+      "question": "Which of the following types of summary statistics generally have sampling distributions that are unimodal and symmetric (i.e., normally distributed)? Select all correct answers."
+    }
+  ]
+}

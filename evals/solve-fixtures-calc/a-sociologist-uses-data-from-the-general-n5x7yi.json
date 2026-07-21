@@ -1,0 +1,42 @@
+{
+  "name": "multiple_choice: A sociologist uses data from the General Social Survey…",
+  "request": {
+    "questionText": "A sociologist uses data from the General Social Survey to estimate the typical \"occupational prestige factor\" of professions of U.S. adult residents. The survey includes a variable called Prestige, a numerical scale 0-100 for job prestige attempting to measure the level of respect/admiration for the job in society. In the sample, survey respondents' have a median prestige score of 45.1. The sociologist uses bootstrapping to calculate a 95% confidence interval for the population median prestige score: (44, 46) Which of the following is an accurate interpretation of this analysis? Choose the best answer.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "We are 95% confident that between 44% -- 46% of U.S. adults have a prestige score association with their occupation.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "We are 95% confident that the true median prestige score for U.S. adults is 45.1.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "We are confident that 95% of all U.S. adults have an occupation with a prestige score between 44 and 46.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "We are 95% confident that the interval 44-46 contains the true median prestige score for U.S. adults.",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "D"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2126523?headless=1",
+    "capturedAt": 1784653077578,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32387381"
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "name": "matching: Which of the following is accurate with respect to…",
+  "request": {
+    "questionText": "Which of the following is accurate with respect to randomization in experimental design? Select TRUE or FALSE for each statement below.",
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "Randomization works, essentially, by flipping a coin independently for each subject in a study: heads, you get the treatment; tails, you get the control.",
+        "options": [
+          "TRUE"
+        ]
+      },
+      {
+        "key": "blank2",
+        "label": "Randomization ensures that the sample of participants included in the experiment are representative of the larger population of interest.",
+        "options": [
+          "FALSE"
+        ]
+      },
+      {
+        "key": "blank3",
+        "label": "The fundamental source of uncertainty in an experiment arises from the random assignment of experimental units to treatment or control.",
+        "options": [
+          "TRUE"
+        ]
+      },
+      {
+        "key": "blank4",
+        "label": "We use randomization to identify nuisance factors that could affect the outcome of the experiment.",
+        "options": [
+          "FALSE"
+        ]
+      },
+      {
+        "key": "blank5",
+        "label": "Randomization ensures balance, on average, even for possible confounding factors of which the experimenter is not aware.",
+        "options": [
+          "TRUE"
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [],
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "Randomization works, essentially, by flipping a coin independently for each subject in a study: heads, you get the treatment; tails, you get the control.",
+        "correct": "TRUE"
+      },
+      {
+        "key": "blank2",
+        "label": "Randomization ensures that the sample of participants included in the experiment are representative of the larger population of interest.",
+        "correct": "FALSE"
+      },
+      {
+        "key": "blank3",
+        "label": "The fundamental source of uncertainty in an experiment arises from the random assignment of experimental units to treatment or control.",
+        "correct": "TRUE"
+      },
+      {
+        "key": "blank4",
+        "label": "We use randomization to identify nuisance factors that could affect the outcome of the experiment.",
+        "correct": "FALSE"
+      },
+      {
+        "key": "blank5",
+        "label": "Randomization ensures balance, on average, even for possible confounding factors of which the experimenter is not aware.",
+        "correct": "TRUE"
+      }
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106922?headless=1",
+    "capturedAt": 1784656811658,
+    "questionType": "matching_question",
+    "canvasQuestionId": "32406785"
+  }
+}

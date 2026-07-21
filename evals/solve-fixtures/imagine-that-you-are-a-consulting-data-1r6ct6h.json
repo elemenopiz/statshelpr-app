@@ -1,0 +1,62 @@
+{
+  "name": "multiple_choice: Imagine that you are a consulting data scientist for…",
+  "request": {
+    "questionText": "Imagine that you are a consulting data scientist for a candidate in the 2024 presidential election, working with data on political and economic metrics. You fit a linear model regressing presidential approval rates (percentage from Gallup polls) on the following predictors: cpi -- Consumer Price Index gasprice -- average gas price (dollars) sp500 -- S&P 500 index unemploy -- unemployment rate (percent) You use the model results to produce standardized estimates and intervals: Parameter | Std. Coef. | 95% CI ----------------------------------------- (Intercept) | 0.00000001 | [-0.11, 0.11] gasprice | -0.43 | [-0.72, -0.14] unemploy | 0.05 | [-0.13, 0.23] cpi | -0.40 | [-0.69, -0.11] sp500 | -0.06 | [-0.27, 0.15] Which of the following statements is accurate with respect to these model results? Holding constant other model predictors: (1) a 1% increase in unemployment is associated with an increase in approval rates of 0.05 standard deviations. (2) a one-standard deviation increase in the Consumer Price Index (cpi) is associated with a decrease in approval rates not exceeding 69%, with 95% confidence. (3) a one-standard-deviation increase in gas price is associated with a minimum decrease in approval rates of 0.14 standard deviations, with 95% confidence.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "None of the above",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "C"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106919",
+    "capturedAt": 1784656838358,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32444488"
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "name": "multiple_answers: De Moivre’s equation is a function of which of…",
+  "request": {
+    "questionText": "De Moivre’s equation is a function of which of the following? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "The multiplier associated with our interval, e.g., approximately 2 for 95% confidence.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "The bootstrap standard error associated with the sample mean calculated after Monte Carlo simulation.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "The confidence level associated with our interval, e.g. 95%.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "The number of data points that you are averaging to calculate a sample mean, i.e., the sample size.",
+        "type": "checkbox"
+      },
+      {
+        "label": "E",
+        "text": "The variability of a single data point in the distribution, i.e., the sample standard deviation.",
+        "type": "checkbox"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [
+      "D",
+      "E"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106931?headless=1",
+    "capturedAt": 1784653085839,
+    "questionType": "multiple_answers_question",
+    "canvasQuestionId": "32385387"
+  }
+}

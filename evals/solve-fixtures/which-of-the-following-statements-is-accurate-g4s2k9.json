@@ -1,0 +1,62 @@
+{
+  "name": "multiple_choice: Which of the following statements is accurate with respect…",
+  "request": {
+    "questionText": "Which of the following statements is accurate with respect to p-values? (1) Smaller p-values are indicative of more evidence against the null hypothesis. (2) The p-value measures the probability that you have made a mistake in rejecting the null hypothesis. (3) A p-value is the probability of observing our specific test statistic, given that the null hypothesis is true.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "2 only",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "B"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106934?headless=1",
+    "capturedAt": 1784653080318,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32385364"
+  }
+}

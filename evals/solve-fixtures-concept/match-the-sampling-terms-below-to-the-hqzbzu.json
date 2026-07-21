@@ -1,0 +1,82 @@
+{
+  "name": "matching: Match the sampling terms below to the best description…",
+  "request": {
+    "questionText": "Match the sampling terms below to the best description for each:",
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "Random sample",
+        "options": [
+          "A sample in which every member of the population is equally likely to be included."
+        ]
+      },
+      {
+        "key": "blank2",
+        "label": "Longitudinal sample",
+        "options": [
+          "A sample based on individual cases tracked over time with respect to one or more variables."
+        ]
+      },
+      {
+        "key": "blank3",
+        "label": "Cross-sectional sample",
+        "options": [
+          "A sample based on various attributes of individual cases collected at a single point in time."
+        ]
+      },
+      {
+        "key": "blank4",
+        "label": "Convenience sample",
+        "options": [
+          "A sample based on individual units that were not selected at random from the population of interest."
+        ]
+      },
+      {
+        "key": "blank5",
+        "label": "Census",
+        "options": [
+          "A sample that comprises all cases in the population."
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [],
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "Random sample",
+        "correct": "A sample in which every member of the population is equally likely to be included."
+      },
+      {
+        "key": "blank2",
+        "label": "Longitudinal sample",
+        "correct": "A sample based on individual cases tracked over time with respect to one or more variables."
+      },
+      {
+        "key": "blank3",
+        "label": "Cross-sectional sample",
+        "correct": "A sample based on various attributes of individual cases collected at a single point in time."
+      },
+      {
+        "key": "blank4",
+        "label": "Convenience sample",
+        "correct": "A sample based on individual units that were not selected at random from the population of interest."
+      },
+      {
+        "key": "blank5",
+        "label": "Census",
+        "correct": "A sample that comprises all cases in the population."
+      }
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106921",
+    "capturedAt": 1784652973583,
+    "questionType": "matching_question",
+    "canvasQuestionId": "32223288"
+  }
+}

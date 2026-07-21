@@ -1,0 +1,164 @@
+{
+  "ranAt": "2026-07-21T21:04:13.905Z",
+  "model": "gemini-3.5-flash-lite",
+  "baseUrl": "http://localhost:3030",
+  "fixturesDir": "/Users/zsha/Documents/statshelpr-app/evals/solve-fixtures-concept",
+  "summary": {
+    "total": 47,
+    "passed": 44,
+    "failed": 3,
+    "tokens": {
+      "prompt": 357570,
+      "completion": 2507,
+      "total": 380034,
+      "cached": 0,
+      "output": 22464,
+      "thinking": 19957
+    },
+    "estCostUsd": 0.1634
+  },
+  "failures": [
+    {
+      "name": "multiple_answers: Which of the following statements is accurate with respect…",
+      "expected": {
+        "mode": "concept",
+        "selectedChoices": [
+          "B",
+          "C",
+          "E"
+        ]
+      },
+      "checks": [
+        {
+          "label": "selectedChoices",
+          "pass": false,
+          "expected": "B, C, E",
+          "actual": "B, E"
+        }
+      ],
+      "question": "Which of the following statements is accurate with respect to statistical uncertainty? Select all correct answers.",
+      "response": {
+        "mode": "concept",
+        "selectedChoices": [
+          "B",
+          "E"
+        ],
+        "answer": "Answer: B, E",
+        "usage": {
+          "prompt_tokens": 5639,
+          "completion_tokens": 13,
+          "total_tokens": 6431
+        },
+        "debug": {
+          "route": "concept",
+          "rawFirst": "[CONCEPT]\nAnswer: B, E\nCONFIDENCE: High",
+          "selectedChoices": [
+            "B",
+            "E"
+          ],
+          "usage": {
+            "prompt_tokens": 5639,
+            "completion_tokens": 13,
+            "total_tokens": 6431
+          }
+        }
+      }
+    },
+    {
+      "name": "multiple_choice: Which of the following statements is accurate of the…",
+      "expected": {
+        "mode": "concept",
+        "selectedChoices": [
+          "A"
+        ]
+      },
+      "checks": [
+        {
+          "label": "selectedChoices",
+          "pass": false,
+          "expected": "A",
+          "actual": "B"
+        }
+      ],
+      "question": "Which of the following statements is accurate of the image below (Figure 9.3 from our textbook)?",
+      "response": {
+        "mode": "concept",
+        "selectedChoices": [
+          "B"
+        ],
+        "answer": "Answer: B",
+        "usage": {
+          "prompt_tokens": 6747,
+          "completion_tokens": 12,
+          "total_tokens": 7073
+        },
+        "debug": {
+          "route": "concept",
+          "rawFirst": "[CONCEPT]\nAnswer: B\nCONFIDENCE: High",
+          "selectedChoices": [
+            "B"
+          ],
+          "usage": {
+            "prompt_tokens": 6747,
+            "completion_tokens": 12,
+            "total_tokens": 7073
+          }
+        }
+      }
+    },
+    {
+      "name": "multiple_answers: Which of the following types of summary statistics generally…",
+      "expected": {
+        "mode": "concept",
+        "selectedChoices": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F",
+          "G"
+        ]
+      },
+      "checks": [
+        {
+          "label": "selectedChoices",
+          "pass": false,
+          "expected": "A, B, C, D, E, F, G",
+          "actual": "A, B, F, G"
+        }
+      ],
+      "question": "Which of the following types of summary statistics generally have sampling distributions that are unimodal and symmetric (i.e., normally distributed)? Select all correct answers.",
+      "response": {
+        "mode": "concept",
+        "selectedChoices": [
+          "A",
+          "B",
+          "F",
+          "G"
+        ],
+        "answer": "Answer: A, B, F, G",
+        "usage": {
+          "prompt_tokens": 5534,
+          "completion_tokens": 18,
+          "total_tokens": 6079
+        },
+        "debug": {
+          "route": "concept",
+          "rawFirst": "[CONCEPT]\nAnswer: A, B, F, G\nCONFIDENCE: High",
+          "selectedChoices": [
+            "A",
+            "B",
+            "F",
+            "G"
+          ],
+          "usage": {
+            "prompt_tokens": 5534,
+            "completion_tokens": 18,
+            "total_tokens": 6079
+          }
+        }
+      }
+    }
+  ]
+}

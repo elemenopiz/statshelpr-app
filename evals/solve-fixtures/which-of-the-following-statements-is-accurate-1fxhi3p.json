@@ -1,0 +1,50 @@
+{
+  "name": "multiple_answers: Which of the following statements is accurate with respect…",
+  "request": {
+    "questionText": "Which of the following statements is accurate with respect to the normal distribution? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "Normal distributions are unimodal and symmetric.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "The probability is about 95% that a normal random variable X will take on a value within two standard deviations of its expected value (mean).",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "The normal distribution is characterized with two parameters: the mean and the standard deviation.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "The normal distribution is characterized with two parameters: the median and the IQR.",
+        "type": "checkbox"
+      },
+      {
+        "label": "E",
+        "text": "The normal distribution is also known informally as a \"bell curve\" and more formally as a Gaussian distribution.",
+        "type": "checkbox"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [
+      "A",
+      "B",
+      "C",
+      "E"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106931",
+    "capturedAt": 1784653091112,
+    "questionType": "multiple_answers_question",
+    "canvasQuestionId": "32385384"
+  }
+}

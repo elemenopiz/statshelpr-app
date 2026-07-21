@@ -1,0 +1,49 @@
+{
+  "name": "multiple_answers: Make sure you're familiar with the concept of an…",
+  "request": {
+    "questionText": "Make sure you're familiar with the concept of an \"object\" from our course packet, which is essential to coding in R. Then consider the following block of R code. objectA = 10objectB = 2*objectA + 10objectC = objectB/6 Which of the following statements about this code block is accurate? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "If we were to run this block of code, one result will be that objectB should now store the value 30.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "If we were to run this block of code, one result will be that objectC should now store the value 10.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "The statement \"objectC = objectB/6\" is not correct, because the left-hand side and the right-hand side of the equals sign are not actually equal to each other.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "This block of code illustrates the assignment of values to objects using R's assignment operator (=).",
+        "type": "checkbox"
+      },
+      {
+        "label": "E",
+        "text": "This code block will run just fine if you type it directly into the console. But the best practice here would be to type the commands into a script instead, and then run those commands from the script.",
+        "type": "checkbox"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [
+      "A",
+      "D",
+      "E"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106921",
+    "capturedAt": 1784652973629,
+    "questionType": "multiple_answers_question",
+    "canvasQuestionId": "32223292"
+  }
+}

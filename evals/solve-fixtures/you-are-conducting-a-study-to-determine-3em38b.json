@@ -1,0 +1,42 @@
+{
+  "name": "multiple_choice: You are conducting a study to determine whether a…",
+  "request": {
+    "questionText": "You are conducting a study to determine whether a new drug is effective in reducing blood pressure. Null Hypothesis (H0): The new drug has no significant effect on reducing blood pressure. Alternative Hypothesis (Ha): The new drug has a significant effect on reducing blood pressure. After analyzing the data, you obtain a p-value of 0.03 for the hypothesis test. What does this p-value of 0.03 signify in hypothesis testing for the given example? Choose the best answer.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "The probability of observing the data, or any more extreme data, assuming the null hypothesis that the new drug is not effective in reducing blood pressure is true.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "The probability that the new drug is effective in reducing blood pressure, given the observed statistic.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "The probability of observing the data, given that the new drug is effective in reducing blood pressure.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "The probability of falsely concluding that the new drug is effective in reducing blood pressure, given that it's actually not effective.",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "A"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106934?headless=1",
+    "capturedAt": 1784653086526,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32385368"
+  }
+}

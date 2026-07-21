@@ -1,0 +1,17 @@
+{
+  "ranAt": "2026-07-21T20:58:23.243Z",
+  "baseUrl": "http://localhost:3030",
+  "fixturesDir": "/private/tmp/eval-smoke",
+  "summary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "tokens": {
+      "input": 0,
+      "output": 0,
+      "cached": 0
+    },
+    "estCostUsd": 0
+  },
+  "failures": []
+}

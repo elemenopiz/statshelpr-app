@@ -1,0 +1,86 @@
+{
+  "name": "multiple_dropdowns: Identify the name of the most appropriate R function…",
+  "request": {
+    "questionText": "Identify the name of the most appropriate R function to fill in the blanks below: Use the [ Select ] [\"select()\", \"arrange()\", \"mutate()\", \"summarize()\", \"filter()\"] function to select a subset of cases as per logical tests for variable values. The [ Select ] [\"mutate()\", \"group_by()\", \"summarize()\", \"select()\", \"filter()\"] function alters the structure of a data frame, allowing us to change our unit of analysis. Calculate statistics to characterize sets of values with the [ Select ] [\"arrange()\", \"group_by()\", \"filter()\", \"mutate()\", \"summarize()\"] function. The [ Select ] [\"filter()\", \"group_by()\", \"arrange()\", \"summarize()\", \"select()\"] function uses specified column headings to isolate a set of variables in a data frame.",
+    "blanks": [
+      {
+        "key": "filter",
+        "label": "Use the function to select a subset of cases as per logical tests for variable values.",
+        "options": [
+          "select()",
+          "arrange()",
+          "mutate()",
+          "summarize()",
+          "filter()"
+        ]
+      },
+      {
+        "key": "group_by",
+        "label": "The function alters the structure of a data frame, allowing us to change our unit of analysis.",
+        "options": [
+          "mutate()",
+          "group_by()",
+          "summarize()",
+          "select()",
+          "filter()"
+        ]
+      },
+      {
+        "key": "summarize",
+        "label": "Calculate statistics to characterize sets of values with the function.",
+        "options": [
+          "arrange()",
+          "group_by()",
+          "filter()",
+          "mutate()",
+          "summarize()"
+        ]
+      },
+      {
+        "key": "select",
+        "label": "The function uses specified column headings to isolate a set of variables in a data frame.",
+        "options": [
+          "filter()",
+          "group_by()",
+          "arrange()",
+          "summarize()",
+          "select()"
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [],
+    "blanks": [
+      {
+        "key": "filter",
+        "label": "Use the function to select a subset of cases as per logical tests for variable values.",
+        "correct": "filter()"
+      },
+      {
+        "key": "group_by",
+        "label": "The function alters the structure of a data frame, allowing us to change our unit of analysis.",
+        "correct": "group_by()"
+      },
+      {
+        "key": "summarize",
+        "label": "Calculate statistics to characterize sets of values with the function.",
+        "correct": "summarize()"
+      },
+      {
+        "key": "select",
+        "label": "The function uses specified column headings to isolate a set of variables in a data frame.",
+        "correct": "select()"
+      }
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106927?headless=1",
+    "capturedAt": 1784653059979,
+    "questionType": "multiple_dropdowns_question",
+    "canvasQuestionId": "32223379"
+  }
+}

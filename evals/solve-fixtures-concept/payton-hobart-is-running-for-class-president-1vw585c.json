@@ -1,0 +1,52 @@
+{
+  "name": "multiple_choice: Payton Hobart is running for class president. Pre-election polls…",
+  "request": {
+    "questionText": "Payton Hobart is running for class president. Pre-election polls have generally agreed that he has the support of 63% of the student body. However, his chief data scientist recently surveyed a random sample of 75 students and observed that only 44 of them were Hobart supporters. She decides to conduct a hypothesis test to determine if the recent poll results were anomalously low, or whether the results reflect random sampling variability but remain consistent with previous pre-election polls. The null hypothesis for this test assumes which of the following for the probability (p) that a randomly chosen member of the student body will support Hobart?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "50%",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "63%",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "75%",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "58%",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "44%",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "47%",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [
+      "B"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106934",
+    "capturedAt": 1784653090875,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32385367"
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "name": "matching: Lesson 15.6 summarized guidelines for data scientists on what…",
+  "request": {
+    "questionText": "Lesson 15.6 summarized guidelines for data scientists on what sorts of variables to include or exclude in fitting multiple regression models. Which of the following guidelines is accurate with respect to variables that we generally want to INCLUDE as predictors?",
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "It is essential to incorporate variables that are correlated with both the outcome (Y) and the particular X predictor of interest.",
+        "options": [
+          "TRUE"
+        ]
+      },
+      {
+        "key": "blank2",
+        "label": "It is beneficial, but not strictly essential, to include variables that are correlated with Y even if they are not correlated with a particular X predictor of interest.",
+        "options": [
+          "TRUE"
+        ]
+      },
+      {
+        "key": "blank3",
+        "label": "Always include an interaction term for two X predictors if those predictors are both main effects in the model.",
+        "options": [
+          "FALSE"
+        ]
+      },
+      {
+        "key": "blank4",
+        "label": "Failing to include an important confounder as a model predictor could lead to “omitted-variable bias.”",
+        "options": [
+          "TRUE"
+        ]
+      },
+      {
+        "key": "blank5",
+        "label": "\"Colliders\" should be predictors in the model if they can be identified and reliably measured.",
+        "options": [
+          "FALSE"
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [],
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "It is essential to incorporate variables that are correlated with both the outcome (Y) and the particular X predictor of interest.",
+        "correct": "TRUE"
+      },
+      {
+        "key": "blank2",
+        "label": "It is beneficial, but not strictly essential, to include variables that are correlated with Y even if they are not correlated with a particular X predictor of interest.",
+        "correct": "TRUE"
+      },
+      {
+        "key": "blank3",
+        "label": "Always include an interaction term for two X predictors if those predictors are both main effects in the model.",
+        "correct": "FALSE"
+      },
+      {
+        "key": "blank4",
+        "label": "Failing to include an important confounder as a model predictor could lead to “omitted-variable bias.”",
+        "correct": "TRUE"
+      },
+      {
+        "key": "blank5",
+        "label": "\"Colliders\" should be predictors in the model if they can be identified and reliably measured.",
+        "correct": "FALSE"
+      }
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106928",
+    "capturedAt": 1784657079062,
+    "questionType": "matching_question",
+    "canvasQuestionId": "32444522"
+  }
+}

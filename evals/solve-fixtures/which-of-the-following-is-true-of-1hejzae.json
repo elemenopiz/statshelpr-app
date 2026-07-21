@@ -1,0 +1,49 @@
+{
+  "name": "multiple_answers: Which of the following is true of the normal…",
+  "request": {
+    "questionText": "Which of the following is true of the normal distribution model? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "A normal random variable is a discrete random variable.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "Phenomena that don’t look obviously normal can be sometimes described using the normal distribution as a building block.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "The parameters of the normal distribution are the median and the rate.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "It is a family of bell-shaped density curves, each with a different mean and standard deviation.",
+        "type": "checkbox"
+      },
+      {
+        "label": "E",
+        "text": "The area under a normal density curve represents probability.",
+        "type": "checkbox"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [
+      "B",
+      "D",
+      "E"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106925?headless=1",
+    "capturedAt": 1784653057096,
+    "questionType": "multiple_answers_question",
+    "canvasQuestionId": "32223348"
+  }
+}

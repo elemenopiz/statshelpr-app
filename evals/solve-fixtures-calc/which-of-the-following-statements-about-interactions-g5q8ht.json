@@ -1,0 +1,44 @@
+{
+  "name": "multiple_answers: Which of the following statements about interactions and /…",
+  "request": {
+    "questionText": "Which of the following statements about interactions and / or correlated predictors is accurate? Choose all correct statements.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "One simple way to diagnose an interaction between a numerical predictor and a categorical predictor is to make a plot -- to visualize a separate trend line in each category and to compare their slopes.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "Any time two predictor variables X1 and X2 are correlated, we would expect to need an interaction between those two variables in our model.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "Interaction terms are used in regression models to describe situations where the relationship between some X predictor variable and response variable Y depends on some other variable in the context.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "There could be an interaction effect between two variables even if those variables are statistically independent of one another.",
+        "type": "checkbox"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "A",
+      "C",
+      "D"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106933",
+    "capturedAt": 1784656834346,
+    "questionType": "multiple_answers_question",
+    "canvasQuestionId": "32444454"
+  }
+}

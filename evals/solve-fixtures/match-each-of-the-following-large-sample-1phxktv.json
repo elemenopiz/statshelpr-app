@@ -1,0 +1,70 @@
+{
+  "name": "matching: Match each of the following large-sample inference procedures with…",
+  "request": {
+    "questionText": "Match each of the following large-sample inference procedures with the corresponding 'shortcut' function(s) that we use for that procedure in RStudio:",
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "Confidence interval for a mean",
+        "options": [
+          "t.test()"
+        ]
+      },
+      {
+        "key": "blank2",
+        "label": "Confidence interval for a proportion",
+        "options": [
+          "prop.test()"
+        ]
+      },
+      {
+        "key": "blank3",
+        "label": "Confidence interval for a difference of means",
+        "options": [
+          "t.test()"
+        ]
+      },
+      {
+        "key": "blank4",
+        "label": "Confidence interval for a difference of proportions",
+        "options": [
+          "prop.test()"
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [],
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "Confidence interval for a mean",
+        "correct": "t.test()"
+      },
+      {
+        "key": "blank2",
+        "label": "Confidence interval for a proportion",
+        "correct": "prop.test()"
+      },
+      {
+        "key": "blank3",
+        "label": "Confidence interval for a difference of means",
+        "correct": "t.test()"
+      },
+      {
+        "key": "blank4",
+        "label": "Confidence interval for a difference of proportions",
+        "correct": "prop.test()"
+      }
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106920?headless=1",
+    "capturedAt": 1784656811284,
+    "questionType": "matching_question",
+    "canvasQuestionId": "32406736"
+  }
+}

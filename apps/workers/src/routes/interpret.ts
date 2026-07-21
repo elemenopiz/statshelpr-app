@@ -11,9 +11,10 @@ import {
   buildFollowupContent,
   buildQuestionPrompt,
   buildUserContent,
+  deriveBlankAnswers,
   deriveSelectedChoices,
   MAX_TOKENS_SECOND,
-  MODEL,
+  resolveModel,
   type DataFile,
   type SolveBody,
 } from "@/lib/solver";
@@ -81,7 +82,7 @@ interpret.post("/", async (c) => {
       let fbuf = "";
       let fSent = "";
       for await (const delta of chatStream(apiKey, {
-        model: MODEL,
+        model: resolveModel(body),
         system,
         messages: [
           { role: "user", content: userContent },
@@ -107,6 +108,7 @@ interpret.post("/", async (c) => {
       }
 
       const finalParsed = parseResponse(fbuf);
+      const finalBlanks = deriveBlankAnswers(finalParsed.body, body.blanks);
       await write({
         type: "result",
         result: {
@@ -117,6 +119,7 @@ interpret.post("/", async (c) => {
           rDurationMs: body.durationMs ?? 0,
           answer: finalParsed.body,
           selectedChoices: deriveSelectedChoices(finalParsed.body, body.choices),
+          ...(finalBlanks.length ? { blanks: finalBlanks } : {}),
           confidence: finalParsed.confidence,
           lowConfidence: finalParsed.lowConfidence,
         },

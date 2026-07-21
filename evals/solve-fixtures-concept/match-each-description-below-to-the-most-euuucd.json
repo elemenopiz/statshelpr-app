@@ -1,0 +1,82 @@
+{
+  "name": "matching: Match each description below to the most appropriate probability…",
+  "request": {
+    "questionText": "Match each description below to the most appropriate probability model: Binomial or Normal.",
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "This model describes the shape of most sampling distributions.",
+        "options": [
+          "Normal"
+        ]
+      },
+      {
+        "key": "blank2",
+        "label": "Observing a fixed number of random events with binary outcomes.",
+        "options": [
+          "Binomial"
+        ]
+      },
+      {
+        "key": "blank3",
+        "label": "This model is for discrete random variables.",
+        "options": [
+          "Binomial"
+        ]
+      },
+      {
+        "key": "blank4",
+        "label": "This model is for continuous random variables.",
+        "options": [
+          "Normal"
+        ]
+      },
+      {
+        "key": "blank5",
+        "label": "This distribution has \"thin tails\" because large outliers are unlikely to occur.",
+        "options": [
+          "Normal"
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [],
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "This model describes the shape of most sampling distributions.",
+        "correct": "Normal"
+      },
+      {
+        "key": "blank2",
+        "label": "Observing a fixed number of random events with binary outcomes.",
+        "correct": "Binomial"
+      },
+      {
+        "key": "blank3",
+        "label": "This model is for discrete random variables.",
+        "correct": "Binomial"
+      },
+      {
+        "key": "blank4",
+        "label": "This model is for continuous random variables.",
+        "correct": "Normal"
+      },
+      {
+        "key": "blank5",
+        "label": "This distribution has \"thin tails\" because large outliers are unlikely to occur.",
+        "correct": "Normal"
+      }
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106925?headless=1",
+    "capturedAt": 1784653057076,
+    "questionType": "matching_question",
+    "canvasQuestionId": "32223347"
+  }
+}

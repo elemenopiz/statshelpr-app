@@ -1,0 +1,113 @@
+{
+  "name": "multiple_dropdowns: Fill in the blanks below to indicate whether the…",
+  "request": {
+    "questionText": "Fill in the blanks below to indicate whether the statement applies to practical significance or statistical significance. There is no statistical test for practical significance . When we ask how large an effect a predictor variable has on an outcome variable, in context-specific terms, we are interested in [ Select ] [\"statistical significance\", \"practical significance\"] . [ Select ] [\"Statistical significance\", \"Practical significance\"] may be assessed by calculating a p-value. The units of variables and measurement scales of variables matter when we are assessing [ Select ] [\"practical significance\", \"statistical significance\"] . [ Select ] [\"Practical significance\", \"Statistical significance\"] is usually assessed by looking at a confidence interval and reasoning about the range of plausible effect sizes in the context of the problem. [ Select ] [\"Practical significance\", \"Statistical significance\"] can usually be assessed by checking whether or not zero falls within the range of plausible values represented by a confidence interval. If determining whether or not a measured effect may be distinguished from zero, we are interested in [ Select ] [\"statistical significance\", \"practical significance\"] .",
+    "blanks": [
+      {
+        "key": "effect2",
+        "label": "effect2",
+        "options": [
+          "statistical significance",
+          "practical significance"
+        ]
+      },
+      {
+        "key": "effect3",
+        "label": "effect3",
+        "options": [
+          "statistical significance",
+          "practical significance"
+        ]
+      },
+      {
+        "key": "effect4",
+        "label": "effect4",
+        "options": [
+          "Statistical significance",
+          "Practical significance"
+        ]
+      },
+      {
+        "key": "units",
+        "label": "units",
+        "options": [
+          "practical significance",
+          "statistical significance"
+        ]
+      },
+      {
+        "key": "interval1",
+        "label": "interval1",
+        "options": [
+          "Practical significance",
+          "Statistical significance"
+        ]
+      },
+      {
+        "key": "interval2",
+        "label": "interval2",
+        "options": [
+          "Practical significance",
+          "Statistical significance"
+        ]
+      },
+      {
+        "key": "effect",
+        "label": "effect",
+        "options": [
+          "statistical significance",
+          "practical significance"
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [],
+    "blanks": [
+      {
+        "key": "effect2",
+        "label": "effect2",
+        "correct": "practical significance"
+      },
+      {
+        "key": "effect3",
+        "label": "effect3",
+        "correct": "practical significance"
+      },
+      {
+        "key": "effect4",
+        "label": "effect4",
+        "correct": "Statistical significance"
+      },
+      {
+        "key": "units",
+        "label": "units",
+        "correct": "practical significance"
+      },
+      {
+        "key": "interval1",
+        "label": "interval1",
+        "correct": "Practical significance"
+      },
+      {
+        "key": "interval2",
+        "label": "interval2",
+        "correct": "Statistical significance"
+      },
+      {
+        "key": "effect",
+        "label": "effect",
+        "correct": "statistical significance"
+      }
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106928?headless=1",
+    "capturedAt": 1784656833887,
+    "questionType": "multiple_dropdowns_question",
+    "canvasQuestionId": "32444525"
+  }
+}

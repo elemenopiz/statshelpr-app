@@ -1,0 +1,28 @@
+{
+  "name": "numerical: Around 34% of registered voters in the U.S identify…",
+  "request": {
+    "questionText": "Around 34% of registered voters in the U.S identify as independents, according to 2022 electorate data. Consider a random sample of 25 registered voters. Assuming that the number of registered independents in the sample is a Binomial random variable, what is the expected value? Round your answer to one decimal place.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [],
+    "answerContains": [
+      "8.5"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106926/history?version=1",
+    "capturedAt": 1784653039499,
+    "questionType": "numerical_question",
+    "canvasQuestionId": "32223371"
+  }
+}

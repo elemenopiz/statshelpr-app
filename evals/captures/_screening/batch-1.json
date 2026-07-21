@@ -1,0 +1,1429 @@
+[
+  {
+    "_idx": 0,
+    "name": "multiple_dropdowns: This is one of multiple questions about the same…",
+    "questionType": "multiple_dropdowns_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "This is one of multiple questions about the same scenario. NCAA coaches may be compensated with salary as well as with an annual bonus. The amount of that bonus may be contingent on team performance as well as meeting off-field thresholds with respect to players' grades and conduct. The distribution of salary and bonus is something that coaches negotiate with the Athletic Director at a NCAA school. A college football coach-who-will-not-be-named is evaluating the job market and wants to predict what sort of bonus compensation he might expect to earn at various NCAA schools. Using NCAA Salaries data, he fits a model with the following variables: Bonus: maximum annual bonus (in millions of dollars) Salary: annual salary (in millions of dollars) SEC: whether the school is in the Southeastern Conference (SEC = 1) or not (SEC = 0) The model equation is: Use this model equation to fill in the blanks below with the best option: At SEC schools, maximum bonuses are [ Select ] [\"lower\", \"higher\"] by about [ Select ] [\"$840,000\", \"$730,000\", \"$990,000\", \"$450,000\", \"$150,000\"] relative to non-SEC schools, [ Select ] [\"regardless of the coach salary\", \"assuming the same coach salary\"] . At non-SEC schools, bonuses [ Select ] [\"decrease\", \"increase\"] at a rate of [ Select ] [\"$600,000\", \"$490,000\", \"$40,000\", \"$150,000\", \"$1,330,000\"] for a $1 million-increase in salary. The model intercept estimate suggests that if a non-SEC coach somehow earned a $0 salary, we'd expect their max bonus to equal [ Select ] [\"$1,290,000\", \"$1,330,000\", \"$450,000\", \"$150,000\", \"$340,000\"] .",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "higher",
+        "key": "higher",
+        "label": "higher",
+        "options": [
+          "lower",
+          "higher"
+        ],
+        "selected": "higher"
+      },
+      {
+        "correct": "$840,000",
+        "key": "840000",
+        "label": "840000",
+        "options": [
+          "$840,000",
+          "$730,000",
+          "$990,000",
+          "$450,000",
+          "$150,000"
+        ],
+        "selected": "$840,000"
+      },
+      {
+        "correct": "assuming the same coach salary",
+        "key": "assumingSalary",
+        "label": "assumingSalary",
+        "options": [
+          "regardless of the coach salary",
+          "assuming the same coach salary"
+        ],
+        "selected": "assuming the same coach salary"
+      },
+      {
+        "correct": "increase",
+        "key": "increase",
+        "label": "increase",
+        "options": [
+          "decrease",
+          "increase"
+        ],
+        "selected": "increase"
+      },
+      {
+        "correct": "$150,000",
+        "key": "150000",
+        "label": "150000",
+        "options": [
+          "$600,000",
+          "$490,000",
+          "$40,000",
+          "$150,000",
+          "$1,330,000"
+        ],
+        "selected": "$150,000"
+      },
+      {
+        "correct": "$450,000",
+        "key": "450000",
+        "label": "The model intercept estimate suggests that if a non-SEC coach somehow earned a $0 salary, we'd expect their max bonus to equal .",
+        "options": [
+          "$1,290,000",
+          "$1,330,000",
+          "$450,000",
+          "$150,000",
+          "$340,000"
+        ],
+        "selected": "$450,000"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/Bonus%253D0.45%252B0.15%255Cast%2520Salary%252B0.84%255Cast%2520SEC-0.11%255Cast%255Cleft(Salary%255Cast%2520SEC%255Cright)?scale=1"
+    ],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 6,
+    "name": "multiple_dropdowns: The grocery.csv file contains pricing data on 40 different…",
+    "questionType": "multiple_dropdowns_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The grocery.csv file contains pricing data on 40 different products collected from 16 different Texas stores. Variables include in this data frame include: category: type of product (Cereal, Drink, Fruit, Snack, Spread/Sauce, Staple) city: store location (Austin, Fort Worth, Houston) income: average income in ZIP code where the store is located, in dollars population: population in ZIP code where the store is located price: cost of product, in dollars product: one of 40 grocery products appearing in various sample stores. (baseline category: \"12 Pack DrPepper\") type: type of store (Convenience, Grocery, High-end Grocery, Natural, Small Format) A prevalent social policy problem in many communities, \"food deserts\" describe urban, low-income areas that are under-served by grocery stores selling affordable quality fresh food. In a food desert, the best option for groceries might be a convenience store, rather than a full-service grocery store. If convenience stores charge more for the same product (perhaps due to lack of scale) under-privileged citizens might end up paying more for food than others living in more affluent areas. Do consumers in lower-income ZIP codes pay more or less for groceries? You decide to fit a regression model to investigate this phenomenon. To facilitate interpretation of the model, first add to the data frame a new column called income10k to record the income variable in units of ten-thousand (10000) dollars. Then, fit a model to predict price in terms of two predictors: (1) income10k and (2) product. Use large-sample inference to generate confidence intervals. Fill in each blank below with the best answer based on results of this model: The [ Select ] [\"positive\", \"negative\"] sign of the income10k coefficient suggests that consumers in lower-income ZIP codes pay [ Select ] [\"more\", \"less\"] on average for the same product. The 95% confidence interval for income10k suggests that (when comparing prices for the same product) an increase of $10000 is associated with a decrease of at most approximately [ Select ] [\"1/2 cent\", \"3 cents\", \"2 cents\", \"1 cent\"] in price. Because the confidence interval for income10k [ Select ] [\"does not include zero\", \"includes zero\"] we may conclude that this [ Select ] [\"overall relationship\", \"partial relationship\"] is [ Select ] [\"not statistically significant\", \"statistically significant\"] . This model estimates [ Select ] [\"the same slope\", \"different slopes\"] for the relationship between price and income10k across product categories.",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "negative",
+        "key": "negative",
+        "label": "negative",
+        "options": [
+          "positive",
+          "negative"
+        ],
+        "selected": "negative"
+      },
+      {
+        "correct": "more",
+        "key": "more",
+        "label": "more",
+        "options": [
+          "more",
+          "less"
+        ],
+        "selected": "more"
+      },
+      {
+        "correct": "3 cents",
+        "key": "3_cents",
+        "label": "The 95% confidence interval for income10k suggests that (when comparing prices for the same product) an increase of $10000 is associated with a decrease of at most approximately in price.",
+        "options": [
+          "1/2 cent",
+          "3 cents",
+          "2 cents",
+          "1 cent"
+        ],
+        "selected": "3 cents"
+      },
+      {
+        "correct": "includes zero",
+        "key": "contains_zero",
+        "label": "contains_zero",
+        "options": [
+          "does not include zero",
+          "includes zero"
+        ],
+        "selected": "includes zero"
+      },
+      {
+        "correct": "partial relationship",
+        "key": "partial_relationship",
+        "label": "partial_relationship",
+        "options": [
+          "overall relationship",
+          "partial relationship"
+        ],
+        "selected": "partial relationship"
+      },
+      {
+        "correct": "not statistically significant",
+        "key": "not_statistically_significant",
+        "label": "not_statistically_significant",
+        "options": [
+          "not statistically significant",
+          "statistically significant"
+        ],
+        "selected": "not statistically significant"
+      },
+      {
+        "correct": "the same slope",
+        "key": "the_same_slope",
+        "label": "This model estimates for the relationship between price and income10k across product categories.",
+        "options": [
+          "the same slope",
+          "different slopes"
+        ],
+        "selected": "the same slope"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [
+      "grocery.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 12,
+    "name": "numerical: This question revisits the data on video-game reaction time…",
+    "questionType": "numerical_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "This question revisits the data on video-game reaction time that we analyzed in class and in Lesson 14. Specifically, we'll consider three variables from this data set (two that we looked at before, and one that we didn't): PictureTarget.RT: the subject's reaction time in milliseconds when presented with a visual stimulus FarAway: a dummy variable for whether the stimulus (i.e. the “bad guy” popping up on the screen) was near (0) or far away (1) within the visual scene. SceneLetter: a letter code (b, c, d, e, or f) indicating which of five scenes the subject was presented with. (Note: the scene letters start at b; there is no scene a in this data set) Consider the following model and its corresponding regression table: lm(PictureTarget.RT ~ FarAway + SceneLetter + FarAway:SceneLetter, data=rxntime) %>% get_regression_table() %>% select(-std_error, - statistic, - p_value) Based on this regression table, what is the predicted reaction time for Scene b when the stimulus is not far away? Enter your answer rounded to the nearest millisecond.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "answerText": "475",
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://utexas.instructure.com/assessment_questions/43745886/files/74628463/download?verifier=KJl9jdQzoCa97N5oqTzXQDui04BFmgkkAZ9oLRM8"
+    ],
+    "imagesAttached": 1
+  },
+  {
+    "_idx": 18,
+    "name": "multiple_choice: Imagine that you are a consulting data scientist for…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Imagine that you are a consulting data scientist for a candidate in the 2024 presidential election, working with data on political and economic metrics. You fit a linear model regressing presidential approval rates (percentage from Gallup polls) on the following predictors: cpi -- Consumer Price Index gasprice -- average gas price (dollars) sp500 -- S&P 500 index unemploy -- unemployment rate (percent) You use the model results to produce standardized estimates and intervals: Parameter | Std. Coef. | 95% CI ----------------------------------------- (Intercept) | 0.00000001 | [-0.11, 0.11] gasprice | -0.43 | [-0.72, -0.14] unemploy | 0.05 | [-0.13, 0.23] cpi | -0.40 | [-0.69, -0.11] sp500 | -0.06 | [-0.27, 0.15] Which of the following statements is accurate with respect to these model results? Holding constant other model predictors: (1) a 1% increase in unemployment is associated with an increase in approval rates of 0.05 standard deviations. (2) a one-standard deviation increase in the Consumer Price Index (cpi) is associated with a decrease in approval rates not exceeding 69%, with 95% confidence. (3) a one-standard-deviation increase in gas price is associated with a minimum decrease in approval rates of 0.14 standard deviations, with 95% confidence.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "None of the above",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "C"
+    ],
+    "correctChoices": [
+      "C"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 24,
+    "name": "multiple_dropdowns: Fill in the blanks below to indicate whether the…",
+    "questionType": "multiple_dropdowns_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Fill in the blanks below to indicate whether the statement applies to practical significance or statistical significance. There is no statistical test for practical significance . When we ask how large an effect a predictor variable has on an outcome variable, in context-specific terms, we are interested in [ Select ] [\"statistical significance\", \"practical significance\"] . [ Select ] [\"Statistical significance\", \"Practical significance\"] may be assessed by calculating a p-value. The units of variables and measurement scales of variables matter when we are assessing [ Select ] [\"practical significance\", \"statistical significance\"] . [ Select ] [\"Practical significance\", \"Statistical significance\"] is usually assessed by looking at a confidence interval and reasoning about the range of plausible effect sizes in the context of the problem. [ Select ] [\"Practical significance\", \"Statistical significance\"] can usually be assessed by checking whether or not zero falls within the range of plausible values represented by a confidence interval. If determining whether or not a measured effect may be distinguished from zero, we are interested in [ Select ] [\"statistical significance\", \"practical significance\"] .",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "practical significance",
+        "key": "effect2",
+        "label": "effect2",
+        "options": [
+          "statistical significance",
+          "practical significance"
+        ],
+        "selected": "practical significance"
+      },
+      {
+        "correct": "practical significance",
+        "key": "effect3",
+        "label": "effect3",
+        "options": [
+          "statistical significance",
+          "practical significance"
+        ],
+        "selected": "practical significance"
+      },
+      {
+        "correct": "Statistical significance",
+        "key": "effect4",
+        "label": "effect4",
+        "options": [
+          "Statistical significance",
+          "Practical significance"
+        ],
+        "selected": "Statistical significance"
+      },
+      {
+        "correct": "practical significance",
+        "key": "units",
+        "label": "units",
+        "options": [
+          "practical significance",
+          "statistical significance"
+        ],
+        "selected": "practical significance"
+      },
+      {
+        "correct": "Practical significance",
+        "key": "interval1",
+        "label": "interval1",
+        "options": [
+          "Practical significance",
+          "Statistical significance"
+        ],
+        "selected": "Practical significance"
+      },
+      {
+        "correct": "Statistical significance",
+        "key": "interval2",
+        "label": "interval2",
+        "options": [
+          "Practical significance",
+          "Statistical significance"
+        ],
+        "selected": "Statistical significance"
+      },
+      {
+        "correct": "statistical significance",
+        "key": "effect",
+        "label": "effect",
+        "options": [
+          "statistical significance",
+          "practical significance"
+        ],
+        "selected": "statistical significance"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 30,
+    "name": "matching: The Amazon e-commerce data science team fits a model…",
+    "questionType": "matching_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The Amazon e-commerce data science team fits a model to gain understanding of the extent to which having an Amazon Prime membership leads customers to buy more from the platform than customers without a Prime membership. The data set includes two variables: total Sales revenue for a customer account and a dummy variable representing whether the customer had a Prime membership (0 = no, 1 = yes). The fitted model equation is: Sales=764+1323∗Prime+e Match each equation component with its appropriate label below.",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "baseline",
+        "key": "blank1",
+        "label": "764",
+        "options": [
+          "baseline"
+        ],
+        "selected": "baseline"
+      },
+      {
+        "correct": "offset",
+        "key": "blank2",
+        "label": "1323",
+        "options": [
+          "offset"
+        ],
+        "selected": "offset"
+      },
+      {
+        "correct": "response Y variable",
+        "key": "blank3",
+        "label": "Sales",
+        "options": [
+          "response Y variable"
+        ],
+        "selected": "response Y variable"
+      },
+      {
+        "correct": "predictor X variable",
+        "key": "blank4",
+        "label": "Prime",
+        "options": [
+          "predictor X variable"
+        ],
+        "selected": "predictor X variable"
+      },
+      {
+        "correct": "residual",
+        "key": "blank5",
+        "label": "e",
+        "options": [
+          "residual"
+        ],
+        "selected": "residual"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 36,
+    "name": "multiple_choice: As discussed in class and in Lesson 14.4, which…",
+    "questionType": "multiple_choice_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "As discussed in class and in Lesson 14.4, which of the following is among the methods that we use to diagnose interactions and decide whether to include an interaction term in our model? (1) Considering subject-matter knowledge about the data science context. (2) Creating a plot to visually diagnose the presence (or lack thereof) of an interaction between variables. (3) Fitting a model with an interaction, then examining a conﬁdence interval for the interaction term.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "1 and 3 only",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "E"
+    ],
+    "correctChoices": [
+      "E"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 42,
+    "name": "numerical: Next semester, your work-study position involves data science support…",
+    "questionType": "numerical_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Next semester, your work-study position involves data science support for a visiting scholar interested in dragon demography. You are working with the dragons.csv file, a data frame on 2000 magnificent beasts randomly sampled from the extensive Care of Magical Creatures database including the following variables: lifespan -- age of dragon in years color -- color of dragon (black, blue, green, red) spikes -- indicator for spikes on body or tail (spikes, without) lost_teeth -- number of lost teeth scars -- number of scars height -- in yards weight -- in tons Fit a linear model regressing height on two predictors: weight and color. Calculate model fit statistics. What proportion of the variability in height is explained in terms of weight and color? Enter your answer in decimal form, rounded to two digits. For example, enter 0.99 for an answer of ninety-nine percent.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "answerText": "0.77",
+    "datasetRefs": [
+      "dragons.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 48,
+    "name": "multiple_choice: A data scientist fits a groupwise linear model to…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "A data scientist fits a groupwise linear model to predict Revenue from research grants in terms of affiliation of the research team with 1 of 8 academic Institutions in the University of Texas system: UT Arlington UT Austin UT Dallas UT El Paso UT Permian Basin UT Rio Grande Valley UT San Antonio UT Tyler If this model has a \"baseline/offset\" form, how many dummy variables would it use to encode the variable for academic Institution?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "4",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "2",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "0",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "8",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "7",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "1",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "E"
+    ],
+    "correctChoices": [
+      "E"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 54,
+    "name": "matching: Which of the following is accurate with respect to…",
+    "questionType": "matching_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following is accurate with respect to randomization in experimental design? Select TRUE or FALSE for each statement below.",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "TRUE",
+        "key": "blank1",
+        "label": "Randomization works, essentially, by flipping a coin independently for each subject in a study: heads, you get the treatment; tails, you get the control.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "FALSE",
+        "key": "blank2",
+        "label": "Randomization ensures that the sample of participants included in the experiment are representative of the larger population of interest.",
+        "options": [
+          "FALSE"
+        ],
+        "selected": "FALSE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank3",
+        "label": "The fundamental source of uncertainty in an experiment arises from the random assignment of experimental units to treatment or control.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "FALSE",
+        "key": "blank4",
+        "label": "We use randomization to identify nuisance factors that could affect the outcome of the experiment.",
+        "options": [
+          "FALSE"
+        ],
+        "selected": "FALSE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank5",
+        "label": "Randomization ensures balance, on average, even for possible confounding factors of which the experimenter is not aware.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 60,
+    "name": "multiple_answers: Best practices in good experimental design include which of…",
+    "questionType": "multiple_answers_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Best practices in good experimental design include which of the following? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "When there is a potential confounding variable for which it is impractical or impossible to use blocking, the researcher should use their best judgment to decide which study participants will go in the treatment group and which will go into the control group.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "Use a control group.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "When an experimental design uses blocking, randomization is not required for a rigorous study.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "Use blocking when you can.",
+        "type": "checkbox"
+      }
+    ],
+    "selectedChoices": [
+      "B",
+      "D"
+    ],
+    "correctChoices": [
+      "B",
+      "D"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 66,
+    "name": "multiple_choice: Walt Disney Studios encompasses a collection of respected film…",
+    "questionType": "multiple_choice_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Walt Disney Studios encompasses a collection of respected film studios --- Disney, Walt Disney Animation Studios, Pixar Animation Studios, Lucasfilm, Marvel Studios, Searchlight Pictures, and 20th Century Studios --- and has produced more than 600 movies since their debut film, Snow White and the Seven Dwarfs, was released in 1937. Data from a large sample of these movies produced before 2004 are available in the disney_films.csv file, including box office gross revenues providing insights into the financial success of Disney films across different eras. The data frame includes the following variables: title name of film date date of release year year of release genre category for film types based on shared characteristics such as setting, plot, characters, mood, tone, and theme (Action, Adventure, Comedy, Drama, Musical, Romantic Comedy, Thriller/Suspense, Western) rating Motion Picture Association rating (G, PG, PG-13, R) total_gross total box office revenue (in millions of dollars) each movie earned in its original time period adjusted_gross inflation-adjusted total box office revenue (in millions of dollars) Which of the following represents the cases of this data frame? Choose the best answer.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "princesses",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "musicals",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "revenues",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "theme parks",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "ratings",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "characters",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "studios",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "comedies",
+        "type": "radio"
+      },
+      {
+        "label": "I",
+        "text": "broadcasts",
+        "type": "radio"
+      },
+      {
+        "label": "J",
+        "text": "years",
+        "type": "radio"
+      },
+      {
+        "label": "K",
+        "text": "actors",
+        "type": "radio"
+      },
+      {
+        "label": "L",
+        "text": "genres",
+        "type": "radio"
+      },
+      {
+        "label": "M",
+        "text": "cartoons",
+        "type": "radio"
+      },
+      {
+        "label": "N",
+        "text": "None of the other answers represent the cases of this data frame.",
+        "type": "radio"
+      },
+      {
+        "label": "O",
+        "text": "producers",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "N"
+    ],
+    "correctChoices": [
+      "N"
+    ],
+    "datasetRefs": [
+      "disney_films.csv"
+    ],
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/-?scale=1"
+    ],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 72,
+    "name": "multiple_answers: In a linear regression model, we describe data by…",
+    "questionType": "multiple_answers_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "In a linear regression model, we describe data by an equation: yi=β0+β1∗xi+ei Which of the following is accurate for this equation? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "The slope of the regression line is β 1 The slope of the regression line is β1\\beta_1",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "The predictor (explanatory) variable is represented by x i The predictor (explanatory) variable is represented by xix_i",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "Model error is represented by e i Model error is represented by eie_i",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "The intercept of the regression line is β 0 The intercept of the regression line is β0\\beta_0",
+        "type": "checkbox"
+      }
+    ],
+    "selectedChoices": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "correctChoices": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/y_i%253D%255Cbeta_0%252B%255Cbeta_1%255Cast%2520x_i%252Be_i",
+      "https://utexas.instructure.com/equation_images/%255Cbeta_1?scale=1",
+      "https://utexas.instructure.com/equation_images/x_i",
+      "https://utexas.instructure.com/equation_images/e_i",
+      "https://utexas.instructure.com/equation_images/%255Cbeta_0?scale=1"
+    ],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 78,
+    "name": "multiple_answers: Which of the following statements is accurate with respect…",
+    "questionType": "multiple_answers_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following statements is accurate with respect to the normal distribution? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "Normal distributions are unimodal and symmetric.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "The probability is about 95% that a normal random variable X will take on a value within two standard deviations of its expected value (mean).",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "The normal distribution is characterized with two parameters: the mean and the standard deviation.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "The normal distribution is characterized with two parameters: the median and the IQR.",
+        "type": "checkbox"
+      },
+      {
+        "label": "E",
+        "text": "The normal distribution is also known informally as a \"bell curve\" and more formally as a Gaussian distribution.",
+        "type": "checkbox"
+      }
+    ],
+    "selectedChoices": [
+      "A",
+      "B",
+      "C",
+      "E"
+    ],
+    "correctChoices": [
+      "A",
+      "B",
+      "C",
+      "E"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 84,
+    "name": "numerical: The owner of Borgin and Burkes, an antiquities and…",
+    "questionType": "numerical_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The owner of Borgin and Burkes, an antiquities and consignment shop, fits a linear model predicting daily sales revenue ($) from the number of customers who visit the store each day. The model equation is: Salesi=10.56+5.23⋅Customersi+ei If 70 customers visit the shop tomorrow, what is the daily sales revenue predicted by this model? Round your answer to the nearest dollar.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "answerText": "377",
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/Sales_i%253D10.56%252B5.23%255Ccdot%2520Customers_i%252Be_i"
+    ],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 90,
+    "name": "multiple_dropdowns: A world's fair, also known as a universal exhibition…",
+    "questionType": "multiple_dropdowns_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "A world's fair, also known as a universal exhibition or an expo, is a large global exhibition designed to showcase the achievements of nations. These exhibitions vary in character and are held in different parts of the world at a specific site for a period of time, typically between three and six months. The fairs.csv file contains information on 70 world's fairs, including these variables: name and theme --- used to describe the fair city and country --- location where fair was held month and year --- dates for when the fair began visitors --- number of visitors in millions cost --- cost in millions of U.S. dollars Imagine that you are an international event planner working with historical data on some of the world's grandest gatherings. You want to predict expenditures in terms of the scale of the event (e.g., size of crowds): Fit a linear model to explore the extent to which the number of fair visitors explains variation in event cost. Considering how sample results might generalize to a broader population of large international events, use bootstrapping with 10000 iterations to generate 95% confidence intervals for model estimates and model fit statistics. Use these results to fill in the blanks below with the best answer: If we converted measurement units for cost from U.S. Dollars to Chinese Yuan, the R-squared estimate for these variables would [ Select ] [\"change\", \"not change\"] . We are 95% confident that the typical model error we expect in predicting cost from visitors is not greater than approximately [ Select ] [\"$26 million\", \"$870 million\", \"$430 million\", \"$66 million\", \"$50 million\", \"$1.1 billion\"] . The association between the number of visitors and cost is [ Select ] [\"not statistically significant\", \"practically significant\", \"statistically significant\", \"not practically significant\"] with 95% confidence because zero is NOT included in the interval as a plausible value for the population [ Select ] [\"estimate\", \"estimand\"] .",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "not change",
+        "key": "not_change",
+        "label": "If we converted measurement units for cost from U.S. Dollars to Chinese Yuan, the R-squared estimate for these variables would .",
+        "options": [
+          "change",
+          "not change"
+        ],
+        "selected": "not change"
+      },
+      {
+        "correct": "$1.1 billion",
+        "key": "sigma_interval",
+        "label": "We are 95% confident that the typical model error we expect in predicting cost from visitors is not greater than approximately .",
+        "options": [
+          "$26 million",
+          "$870 million",
+          "$430 million",
+          "$66 million",
+          "$50 million",
+          "$1.1 billion"
+        ],
+        "selected": "$1.1 billion"
+      },
+      {
+        "correct": "statistically significant",
+        "key": "significant",
+        "label": "significant",
+        "options": [
+          "not statistically significant",
+          "practically significant",
+          "statistically significant",
+          "not practically significant"
+        ],
+        "selected": "statistically significant"
+      },
+      {
+        "correct": "is NOT included",
+        "key": "included",
+        "label": "included",
+        "options": [
+          "is included",
+          "is NOT included"
+        ],
+        "selected": "is NOT included"
+      },
+      {
+        "correct": "estimand",
+        "key": "estimand",
+        "label": "estimand",
+        "options": [
+          "estimate",
+          "estimand"
+        ],
+        "selected": "estimand"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [
+      "fairs.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 96,
+    "name": "multiple_choice: Which of the following is among key properties of…",
+    "questionType": "multiple_choice_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following is among key properties of bootstrapping? (1) Bootstrapping involves repeatedly resampling from the original sample to quantify our uncertainty related to sampling variability. (2) Each bootstrap sample may contain duplicates and omissions from the original sample. (3) Each bootstrap sample is sampled with replacement from the original sample.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "1 and 3",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "2 and 3",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "1 and 2",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "None of the above",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "B"
+    ],
+    "correctChoices": [
+      "B"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 102,
+    "name": "matching: A world's fair is a large global exhibition designed…",
+    "questionType": "matching_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "A world's fair is a large global exhibition designed to showcase the achievements of nations. The fairs.csv file contains information on each of 70 world's fairs, including a variable for the number of official attending countries. Assuming that the sample is representative of a broader population of large-scale international gatherings, an event production engineer calculates a 95% confidence interval for the mean of number attending countries: (39, 59) Which of the following is an accurate interpretation of this analysis? Select TRUE or FALSE for each option below.",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "FALSE",
+        "key": "blank1",
+        "label": "We are 95% confident that the mean number of attending countries observed in the sample is within the range of values represented by this interval.",
+        "options": [
+          "FALSE"
+        ],
+        "selected": "FALSE"
+      },
+      {
+        "correct": "FALSE",
+        "key": "blank2",
+        "label": "We expect for 95% of fairs in the population to have at most 59 attending countries.",
+        "options": [
+          "FALSE"
+        ],
+        "selected": "FALSE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank3",
+        "label": "If we were to take repeated random samples of the same number of fairs using the same data-generating process, and then construct a confidence interval for each of these samples, we'd expect that 95% of those intervals would contain the population mean.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "FALSE",
+        "key": "blank4",
+        "label": "The margin of error for this interval is approximately 20 countries.",
+        "options": [
+          "FALSE"
+        ],
+        "selected": "FALSE"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [
+      "fairs.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 108,
+    "name": "multiple_answers: Recall that \"statistical uncertainty\" is concerned with repeatability. Your…",
+    "questionType": "multiple_answers_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Recall that \"statistical uncertainty\" is concerned with repeatability. Your results are \"certain\" if the results are repeatable (i.e., you observe little fluctuation in summary estimates) across different samples from the same random data-generating process.Which of the following is among the reasons that bootstrapping works as a practical tool for statistical inference? Select all accurate statements.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "Resampling creates synthetic variability for our statistical summaries (i.e., sample estimates), helping us to quantify our uncertainty related to sampling variance.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "Bootstrapping uses Monte Carlo simulation to approximate the variability that we would observe IF it were feasible to sample repeatedly from the same population.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "In the context of statistical inference, uncertainty arises from randomness inherent to our sampling procedure, not as a characteristic of any one particular sample generated by that procedure.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "Summary statistics (i.e., sample estimates) from different bootstrap samples will differ from one another—and theamountby which they differ from one another provides us a quantitative measure of our statistical uncertainty.",
+        "type": "checkbox"
+      }
+    ],
+    "selectedChoices": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "correctChoices": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 114,
+    "name": "multiple_choice: Walt Disney Studios encompasses a collection of respected film…",
+    "questionType": "multiple_choice_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Walt Disney Studios encompasses a collection of respected film studios --- Disney, Walt Disney Animation Studios, Pixar Animation Studios, Lucasfilm, Marvel Studios, Searchlight Pictures, and 20th Century Studios --- and has produced more than 600 movies since their debut film, Snow White and the Seven Dwarfs, was released in 1937. Data from a large sample of these movies produced before 2004 are available in the disney_films.csv file, including box office gross revenues providing insights into the financial success of Disney films across different eras. The data frame includes the following variables: title − name of film date − date of release year − year of release genre − category for film types based on shared characteristics such as setting, plot, characters, mood, tone, and theme (Action, Adventure, Comedy, Drama, Musical, Romantic Comedy, Thriller/Suspense, Western) rating − Motion Picture Association rating (G, PG, PG-13, R) total_gross − total box office revenue (in millions of dollars) each movie earned in its original time period adjusted_gross − inflation-adjusted total box office revenue (in millions of dollars) Which genre has the highest median adjusted gross revenue?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "Drama",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "Adventure",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "Romantic Comedy",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "Musical",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "Thriller/Suspense",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "Action",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "Comedy",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "Western",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "D"
+    ],
+    "correctChoices": [
+      "D"
+    ],
+    "datasetRefs": [
+      "disney_films.csv"
+    ],
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/-?scale=1"
+    ],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 120,
+    "name": "multiple_choice: Scooby-Doo is an American media franchise based on an…",
+    "questionType": "multiple_choice_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Scooby-Doo is an American media franchise based on an animated television series (c. 1969) featuring four teenagers and their talking Great Dane dog named Scooby-Doo who solve mysteries sometimes involving supposedly supernatural forces. In 2013, Scooby-Doo was ranked as the fifth-greatest TV cartoon of all time. The data frame in scooby.csv contains information on 527 episodes, including these variables: title -- name of episode date -- date episode aired in the U.S. network -- TV network on which episode aired setting -- type of terrain (e.g., Air, Cave, Coast,...) motive -- objective of antagonist/monster (e.g., Abduction, Counterfeit, Extortion,...) rating -- IMDB.com rating of the episode on a scale from 1 - 10 engagement -- number of reviews on IMDB.com time -- duration of the episode in minutes Which setting is the most common for episodes with a below-average rating wherein the antagonist motive is \"Competition\"?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "Desert",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "Snow",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "Island",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "Forest",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "Urban",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "Rural",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "Jungle",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "E"
+    ],
+    "correctChoices": [
+      "E"
+    ],
+    "datasetRefs": [
+      "scooby.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 126,
+    "name": "multiple_choice: The distribution of OWL Standardized Test scores is normal…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The distribution of OWL Standardized Test scores is normal with a mean of 600 points and a standard deviation of 100 points. Students who cherish the ambition to join the Auror Office must earn a test score greater than 777. The proportion of test-takers who exceed this threshold is closest to which of the following?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "11%",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "74%",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "96%",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "4%",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "7%",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "26%",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "D"
+    ],
+    "correctChoices": [
+      "D"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 132,
+    "name": "numerical: Around 34% of registered voters in the U.S identify…",
+    "questionType": "numerical_question",
+    "mode": "calc",
+    "verified": false,
+    "answerSource": "none",
+    "outcome": "incorrect",
+    "questionText": "Around 34% of registered voters in the U.S identify as independents, according to 2022 electorate data. Using the Binomial model, what is the probability of observing at most 125 independents in a random sample of 400 registered voters? Enter your answer as a fraction rounded to two decimal places (e.g., eighty-eight percent = 0.88).",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "answerText": "0.14",
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 138,
+    "name": "numerical: This question assesses whether you're able to download and…",
+    "questionType": "numerical_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "This question assesses whether you're able to download and import a data set into R, load a library, and run a block of code. Download the data in microfi_households.csv. Follow the steps outlined in lessons 1 and 2 of our online course packet to: 1) Import the data set into R, saving the data set in an object called microfi_households. 2) Load the tidyverse library (which you'll need to install first if you haven't already). Then, type the commands below into a new script, and run the commands. It's not important that you understand what the commands are doing right now; (though you will soon understand!) The purpose of this exercise is to check whether everything is working on your end by running a block of code that produces known behavior. Then, verify that you arrive at the correct answer below. Below is the code for the commands to type and run in a RStudio script: microfi_households %>% filter(village == 46) %>% summarize(loan_prop = mean(loan)) %>% round(3) Upon running these commands, you should see a three-digit decimal number printed out under the word \"loan_prop\" in your console. What number do you see?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "answerText": "0.073",
+    "datasetRefs": [
+      "microfi_households.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 144,
+    "name": "matching: As an Advanced Accounting Analytics intern at Gringotts Bank,…",
+    "questionType": "matching_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "As an Advanced Accounting Analytics intern at Gringotts Bank, you are tasked with investigating factors that explain variation in account balances accrued by credit card holders. The credit.csv file contains a data set with information on 400 credit card account holders, including the following variables: ID: identifier variable for each cardholder Cards: number of credit card accounts held Education: years of formal education Income: annual income ($ thousands of dollars) Limit: credit spending limit ($ dollars) Married: Yes/No indicator for whether or not cardholder is married Rating: credit rating Student: Yes/No indicator for whether or not cardholder is a part-time or full-time student For each of the variables below, identify the type as either Categorical or Numerical:",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "Numerical",
+        "key": "blank1",
+        "label": "Income",
+        "options": [
+          "Numerical"
+        ],
+        "selected": "Numerical"
+      },
+      {
+        "correct": "Numerical",
+        "key": "blank2",
+        "label": "Cards",
+        "options": [
+          "Numerical"
+        ],
+        "selected": "Numerical"
+      },
+      {
+        "correct": "Numerical",
+        "key": "blank3",
+        "label": "Education",
+        "options": [
+          "Numerical"
+        ],
+        "selected": "Numerical"
+      },
+      {
+        "correct": "Categorical",
+        "key": "blank4",
+        "label": "Married",
+        "options": [
+          "Categorical"
+        ],
+        "selected": "Categorical"
+      },
+      {
+        "correct": "Numerical",
+        "key": "blank5",
+        "label": "Rating",
+        "options": [
+          "Numerical"
+        ],
+        "selected": "Numerical"
+      },
+      {
+        "correct": "Categorical",
+        "key": "blank6",
+        "label": "ID",
+        "options": [
+          "Categorical"
+        ],
+        "selected": "Categorical"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [
+      "credit.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  }
+]

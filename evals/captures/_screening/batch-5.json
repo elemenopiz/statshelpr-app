@@ -1,0 +1,1302 @@
+[
+  {
+    "_idx": 4,
+    "name": "multiple_answers: This is one of multiple questions about the same…",
+    "questionType": "multiple_answers_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "This is one of multiple questions about the same scenario. NCAA coaches may be compensated with salary as well as with an annual bonus. The amount of that bonus may be contingent on team performance as well as meeting off-field thresholds with respect to players' grades and conduct. The distribution of salary and bonus is something that coaches negotiate with the Athletic Director at a NCAA school. A college football coach-who-will-not-be-named is evaluating the job market and wants to predict what sort of bonus compensation he might expect to earn at various NCAA schools. Using NCAA Salaries data, he fits a model with the following variables: Bonus: maximum annual bonus (in millions of dollars) Salary: annual salary (in millions of dollars) SEC: whether the school is in the Southeastern Conference (SEC = 1) or not (SEC = 0) The model equation is: Which of the follow statements is accurate, in light of the fitted model? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "This model incorporates an interaction term.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "At both SEC schools and non-SEC schools, bonuses increase at a rate of $150,000 for a $1 million-increase in salary.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "As salaries increase at SEC schools, bonuses also tend to increase. However, that increase is more slow and gradual than at non-SEC schools.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "As salaries increase at SEC schools, bonuses tend to decrease.",
+        "type": "checkbox"
+      }
+    ],
+    "selectedChoices": [
+      "A",
+      "C"
+    ],
+    "correctChoices": [
+      "A",
+      "C"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/Bonus%253D0.45%252B0.15%255Cast%2520Salary%252B0.84%255Cast%2520SEC-0.11%255Cast%255Cleft(Salary%255Cast%2520SEC%255Cright)?scale=1"
+    ],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 10,
+    "name": "multiple_choice: As an Advanced Accounting Analytics intern at Gringotts Bank,…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "As an Advanced Accounting Analytics intern at Gringotts Bank, you are tasked with investigating factors that explain variation in credit card account balances. You are working with a data set with information on 400 credit card accounts, including the following variables: Balance: credit card balance, i.e. debt owed to bank ($ dollars) Income: cardholder annual income ($ thousands of dollars) Limit: credit spending limit ($ dollars) Student: Yes/No indicator for whether cardholder is a part- or full-time student, or else not a student You fit a linear regression model for Balance in terms of the following predictors: Income Limit Student the interaction between Student and Limit Then, you use the results of this model to generate standardized coefficients and intervals: Parameter | Coefficient (std.) | 95% CI------------------------------------------------------(Intercept) | -0.09 | [-0.12, -0.07]Income | -0.61 | [-0.65, -0.57]StudentYes | 0.93 | [ 0.86, 1.00]Limit | 1.33 | [ 1.30, 1.37]StudentYes:Limit | 0.16 | [ 0.09, 0.24] Based on the table above, which of the following conclusions below is accurate? Choose the best answer.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "The relationship between balance and credit limit is not statistically significantly different for students versus non-students (adjusting for income).",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "None of the other answers is correct.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "For non-student cardholders earning the same annual income, we expect a 1.33-standard deviation balance increase for a one-standard deviation increase in credit limit.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "With 95% confidence, we estimate a balance decrease of as much as $0.65 for a one-dollar increase in cardholder annual income.",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "We are 95% confident that the main effect for the Student variable implies a balance increase of at least 86 cents.",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "C"
+    ],
+    "correctChoices": [
+      "C"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 16,
+    "name": "multiple_choice: In Lesson 15.5, we fit a multiple regression model…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "In Lesson 15.5, we fit a multiple regression model to predict the listing price of a house in Saratoga County, New York. We concluded that the variable age (age of the house in years) should be included in a model attempting to isolate the partial relationship between fireplaces and price. Which of the following is among the reasons that we decided to include age in the model? (1) The confidence interval for the age coefficient did not contain zero. (2) The inclusion of the age variable affected the magnitude of the coefficient of interest: fireplaces. (3) Age was correlated with both the response variable (price) and the predictor variable of interest (fireplaces).",
+    "choices": [
+      {
+        "label": "A",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "1 only",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "F"
+    ],
+    "correctChoices": [
+      "F"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 22,
+    "name": "multiple_choice: A local grocery store collects data on daily sales…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "A local grocery store collects data on daily sales of pints of guacamole. The following jitter plots shows sales versus two variables: whether it is a weekend or a weekday whether there are free samples of guacamole (No/Yes) The orange dots show the group means for each scenario. Which of the following statements is accurate, based on the visual evidence in the above plot? (1) The effect on sales of offering free samples looks larger on a weekend than it does on a weekday. (2) The effect on sales of offering free samples looks larger on a weekday than it does on a weekend. (3) A regression model to predict sales in terms of the weekend variable and the free samples variable should likely also include an interaction between these two predictors.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "None of the above",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "C"
+    ],
+    "correctChoices": [
+      "C"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://utexas.instructure.com/assessment_questions/41171665/files/56244577/download?verifier=mcrhcJIwCkdtmrMLA2vKy13ljUTFiFf6mp5EH2lJ"
+    ],
+    "imagesAttached": 1
+  },
+  {
+    "_idx": 28,
+    "name": "multiple_choice: Buildings that invest in energy efficiency reduce global-warming greenhouse…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Buildings that invest in energy efficiency reduce global-warming greenhouse gas emissions and costs associated with energy consumption. Sustainability may also be appealing to building tenants. Do “green-certified” buildings offer a premium on the commercial real-estate market? An analyst at an architecture firm uses data on 7,894 commercial buildings to fit a model predicting revenue per square foot by whether the building has a green rating, producing the following results: lm(rev_psf ~ green_rating, data=greenbuildings) %>% get_regression_table(digits=1) %>% select(-std_error:-p_value) Next, they fit the model with an additional predictor variable for building age in years: lm(rev_psf ~ green_rating + age, data=greenbuildings) %>% get_regression_table(digits=1) %>% select(-std_error:-p_value) Which of the following statements is accurate with respect to the results of these two regression models? (1) Both models suggest (with 95% confidence) that a green rating is associated with an increase in revenue. (2) The second model's green rating coefficient suggests that some of the green rating effect observed with the first model was, in fact, partially attributable to variation in building age. (3) The first model estimates an overall relationship between green rating and revenue.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "3 only",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "D"
+    ],
+    "correctChoices": [
+      "D"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://utexas.instructure.com/assessment_questions/46199553/files/80959746/download?verifier=pKpAhKixxWYCrOo7zyAwTaYJWxtYldXtWw2na26u",
+      "https://utexas.instructure.com/assessment_questions/46199553/files/80959747/download?verifier=Xj8vDSbnQxkgoJYsdfeGEtg5do6LYsZAtonONUSy"
+    ],
+    "imagesAttached": 2
+  },
+  {
+    "_idx": 34,
+    "name": "multiple_choice: An EPA analyst works with a data frame containing…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "An EPA analyst works with a data frame containing information on virtually every model of vehicle offered for sale to U.S. consumers during 2020, including the following variables: make -- one of 41 car manufacturers. The baseline category of this variable is Acura. city -- city gas mileage in miles per gallon highway -- highway gas mileage in miles per gallon displacement -- engine size in liters emissions -- emissions of carbon dioxide (CO2), measured in grams of CO2 per mile driven powertrain -- vehicle engine type: Diesel, EV, FFV, Gasoline, Hybrid, or Plug-in Hybrid category -- type of vehicle: Car, Small Car, SUV/Van, Truck, TwoSeater, Wagon They fit a regression model to predict highway gas mileage in terms of engine displacement and vehicle type category: lm(highway ~ displacement + category, data=cars) %>% get_regression_table(digits=1) %>% select(-std_error, -statistic, -p_value) producing the following results: Based on this regression table, which of the following statements is accurate? Choose the best answer.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "For vehicles in the SUV/Van category, we expect a decrease of 7.5 highway miles-per-gallon for a one-liter increase in engine displacement.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "We are 95% confident that vehicles in the Wagon category get between 0.2 and 3.3 fewer highway miles per gallon for a one-liter increase in engine displacement.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "Vehicles in the Car category get between 38-40 highway miles-per-gallon.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "When comparing vehicles with the same engine displacement, we expect a decrease in highway miles-per-gallon for each vehicle category relative to the baseline Car category.",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "D"
+    ],
+    "correctChoices": [
+      "D"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://utexas.instructure.com/assessment_questions/45450559/files/80898820/download?verifier=wLxW9PVDebmfehpIL9XSHXFMlXp8YF0MUad6sC5l"
+    ],
+    "imagesAttached": 1
+  },
+  {
+    "_idx": 40,
+    "name": "multiple_choice: This question revisits the data on video-game reaction time…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "This question revisits the data on video-game reaction time that we analyzed in class and in Lesson 14. Specifically, we'll consider three variables from this data set (two that we looked at before, and one that we didn't): PictureTarget.RT: the subject's reaction time in milliseconds when presented with a visual stimulus FarAway: a dummy variable for whether the stimulus (i.e. the “bad guy” popping up on the screen) was near (0) or far away (1) within the visual scene. SceneLetter: a letter code (b, c, d, e, or f) indicating which of five scenes the subject was presented with. (Note: the letters start at b; there is no scene a in this data set) Consider the following model and its corresponding regression table: lm(PictureTarget.RT ~ FarAway + SceneLetter, data=rxntime) %>% get_regression_table() %>% select(-std_error, -statistic, -p_value) Based on this model output, the predicted reaction time for scene e when FarAway=0 is closest to which of the following?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "576 milliseconds",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "626 milliseconds",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "523 milliseconds",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "50 milliseconds",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "473 milliseconds",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "103 milliseconds",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "A"
+    ],
+    "correctChoices": [
+      "A"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://utexas.instructure.com/assessment_questions/44990888/files/74628435/download?verifier=AWehN2es6Dqo8t31xA6xqjwcERBSsyWwlm6MgNqy"
+    ],
+    "imagesAttached": 1
+  },
+  {
+    "_idx": 46,
+    "name": "multiple_choice: For a regression model: with a dummy variable (0…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "For a regression model: with a dummy variable (0 or 1) predictor x, the coefficient b1 may be interpreted as:",
+    "choices": [
+      {
+        "label": "A",
+        "text": "the predicted value of the outcome variable when the dummy variable is equal to 0.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "the differential effect on the outcome variable of having the dummy variable equal to 1, rather than 0.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "the predicted value of the outcome variable when the dummy variable is equal to 1.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "the improvement in R-squared that we get from including x in the model.",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "B"
+    ],
+    "correctChoices": [
+      "B"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/y%2520%253D%2520b_%257B0%257D%2520%2520%252Bb%2520_%257B1%257D*%2520x_%257B1%257D%252Be_%257Bi%257D"
+    ],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 52,
+    "name": "multiple_choice: Choose the best answer. A conditional ('if/then') statement about…",
+    "questionType": "multiple_choice_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Choose the best answer. A conditional ('if/then') statement about some event that may not have actually occurred is known as:",
+    "choices": [
+      {
+        "label": "A",
+        "text": "a placebo effect.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "a counterfactual.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "a balanced comparison.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "a confounder.",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "a control group.",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "B"
+    ],
+    "correctChoices": [
+      "B"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 58,
+    "name": "multiple_choice: Choose the best answer. A competing causal explanation for…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Choose the best answer. A competing causal explanation for some observed correlation is known as:",
+    "choices": [
+      {
+        "label": "A",
+        "text": "a counterfactual.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "a balanced comparison.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "a randomized controlled trial.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "a control group.",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "a confounder.",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "E"
+    ],
+    "correctChoices": [
+      "E"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 64,
+    "name": "matching: There is a distinction between causal questions and statistical…",
+    "questionType": "matching_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "There is a distinction between causal questions and statistical questions. Causal questions are about cause and effect (i.e., questions about counterfactual statements). Statistical questions, on the other hand, are about correlations (i.e., patterns we observe with data). Identify each of the examples below as either a STATISTICAL sort of question or a CAUSAL sort of question:",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "CAUSAL",
+        "key": "blank1",
+        "label": "If we invested more money in our school system, how much faster would our economy grow?",
+        "options": [
+          "CAUSAL"
+        ],
+        "selected": "CAUSAL"
+      },
+      {
+        "correct": "STATISTICAL",
+        "key": "blank2",
+        "label": "How are education spending and economic growth related in a data set representing many world countries?",
+        "options": [
+          "STATISTICAL"
+        ],
+        "selected": "STATISTICAL"
+      },
+      {
+        "correct": "CAUSAL",
+        "key": "blank3",
+        "label": "If I ate more vegetables than I do now, how much longer would I live?",
+        "options": [
+          "CAUSAL"
+        ],
+        "selected": "CAUSAL"
+      },
+      {
+        "correct": "STATISTICAL",
+        "key": "blank4",
+        "label": "Do people who eat a lot of vegetables live longer, on average, than people who don’t?",
+        "options": [
+          "STATISTICAL"
+        ],
+        "selected": "STATISTICAL"
+      },
+      {
+        "correct": "CAUSAL",
+        "key": "blank5",
+        "label": "If we hire extra teachers at our school and reduce our class sizes, will our students’ test scores improve?",
+        "options": [
+          "CAUSAL"
+        ],
+        "selected": "CAUSAL"
+      },
+      {
+        "correct": "STATISTICAL",
+        "key": "blank6",
+        "label": "Do students in smaller classes tend to have higher test scores?",
+        "options": [
+          "STATISTICAL"
+        ],
+        "selected": "STATISTICAL"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 70,
+    "name": "multiple_choice: To what extent does a patient’s body mass index…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "To what extent does a patient’s body mass index (bmi) predict the medical insurance charges for their care? The file insurance.csv contains data on 325 patients from the southwest region who incurred medical insurance charges, including the following variables: bmi: body mass index of patient charges: insurance charges for patient’s medical care in dollars Fit a linear model for charges (Y) in terms of bmi (X). Based on these model results, which of the following statements is accurate? (1) For a 10-point increase in patient bmi, we'd expect medical charges to increase by approximately $45.27. (2) For a patient with a bmi of 25, we would predict their medical charges to be approximately $9,800. (3) If a patient somehow had zero bmi, we’d expect their medical charges to be approximately -$1,503.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "1 only",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "B"
+    ],
+    "correctChoices": [
+      "B"
+    ],
+    "datasetRefs": [
+      "insurance.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 76,
+    "name": "multiple_choice: Choose the best answer. Holding other factors constant, increasing…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Choose the best answer. Holding other factors constant, increasing the size of a sample used to calculate a confidence interval for a mean will:",
+    "choices": [
+      {
+        "label": "A",
+        "text": "increase the margin of error.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "widen the confidence interval.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "decrease the standard error.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "eliminate our uncertainty related to sampling variability.",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "result in more systematic sampling bias.",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "C"
+    ],
+    "correctChoices": [
+      "C"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 82,
+    "name": "multiple_choice: Why is it useful to approximate the sampling distribution…",
+    "questionType": "multiple_choice_question",
+    "mode": "concept",
+    "verified": false,
+    "answerSource": "none",
+    "outcome": "incorrect",
+    "questionText": "Why is it useful to approximate the sampling distribution of a statistical summary? Choose the best answer below.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "The sampling distribution measures the repeatability of our answer in the presence of randomness, and therefore can be used to quantify our level of statistical uncertainty.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "The sampling distribution can eliminate our uncertainty about how the results from a sample can be generalized to the wider population.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "The sampling distribution is the variability in a measure that we observe in only one particular sample.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "The sampling distribution can reduce our uncertainty about how the results from a sample can be generalized to the wider population.",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 88,
+    "name": "multiple_answers: De Moivre’s equation is a function of which of…",
+    "questionType": "multiple_answers_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "De Moivre’s equation is a function of which of the following? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "The multiplier associated with our interval, e.g., approximately 2 for 95% confidence.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "The bootstrap standard error associated with the sample mean calculated after Monte Carlo simulation.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "The confidence level associated with our interval, e.g. 95%.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "The number of data points that you are averaging to calculate a sample mean, i.e., the sample size.",
+        "type": "checkbox"
+      },
+      {
+        "label": "E",
+        "text": "The variability of a single data point in the distribution, i.e., the sample standard deviation.",
+        "type": "checkbox"
+      }
+    ],
+    "selectedChoices": [
+      "D",
+      "E"
+    ],
+    "correctChoices": [
+      "D",
+      "E"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 94,
+    "name": "multiple_dropdowns: The file franchise.csv contains data from 807 respondents to…",
+    "questionType": "multiple_dropdowns_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The file franchise.csv contains data from 807 respondents to a scientific survey about the Star Wars film franchise, including these variables: SeenFilms: Yes/No indicator for whether respondent has seen any of the Star Wars franchise films ConsiderFan: Yes/No indicator for whether respondent considers themselves a fan of the Star Wars film franchise Gender: indicator for whether respondent identifies as a Female, or else not_Female Age --- in years Income --- annual income in U.S. dollars Education --- level of education (High school, Bachelor, Graduate, etc) Region --- location of residence in U.S. (Mountain, Pacific, New England, etc) A data scientist interested Star Wars fanbase demography wonders about the extent to which age is a factor in whether someone considers themselves to be a fan of the franchise? Are 'Yes' respondents to the ConsiderFan variable significantly older or younger (on average) relative to 'No' respondents to the ConsiderFan variable? Use these variables along with a 95% bootstrap confidence interval (based on 5000 simulations) to fill in the blanks below with the best answer from each dropdown list: Respondents who consider themselves fans are [ Select ] [\"older\", \"younger\"] (on average) than non-fans by approximately [ Select ] [\"4\", \"45\", \"1\", \"49\", \"6\"] years. The observed age difference is [ Select ] [\"not generalizable\", \"generalizable\"] to a broader reference population because the range of plausible values for the true group difference represented by the calculated bootstrap interval [ Select ] [\"consists of both positive and negative numbers\", \"does not contain zero\"] . With 95% confidence, individuals who do NOT consider themselves to be Star Wars fans are at least approximately [ Select ] [\"2 years\", \"47 years\", \"6 years\", \"1 year\", \"4 years\"] older than those who do consider themselves to be Star Wars fans.",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "younger",
+        "key": "younger",
+        "label": "younger",
+        "options": [
+          "older",
+          "younger"
+        ],
+        "selected": "younger"
+      },
+      {
+        "correct": "4",
+        "key": "diffmean",
+        "label": "diffmean",
+        "options": [
+          "4",
+          "45",
+          "1",
+          "49",
+          "6"
+        ],
+        "selected": "4"
+      },
+      {
+        "correct": "generalizable",
+        "key": "significant",
+        "label": "significant",
+        "options": [
+          "not generalizable",
+          "generalizable"
+        ],
+        "selected": "generalizable"
+      },
+      {
+        "correct": "does not contain zero",
+        "key": "interval",
+        "label": "interval",
+        "options": [
+          "consists of both positive and negative numbers",
+          "does not contain zero"
+        ],
+        "selected": "does not contain zero"
+      },
+      {
+        "correct": "1 year",
+        "key": "upper_limit",
+        "label": "With 95% confidence, individuals who do NOT consider themselves to be Star Wars fans are at least approximately older than those who do consider themselves to be Star Wars fans.",
+        "options": [
+          "2 years",
+          "47 years",
+          "6 years",
+          "1 year",
+          "4 years"
+        ],
+        "selected": "1 year"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [
+      "franchise.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 100,
+    "name": "multiple_dropdowns: Understanding the difference between statistical significance versus practical significance…",
+    "questionType": "multiple_dropdowns_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Understanding the difference between statistical significance versus practical significance is an important distinction in data science. Fill in the blanks below with the appropriate type of \"significance.\" Statistical significance can usually be assessed by checking whether or not zero falls within the range of plausible values represented by a confidence interval. When we ask about the extent to which the numerical magnitude of something is large enough to matter to in the data science context, we are concerned with practical significance. . [ Select ] [\"Statistical significance\", \"Practical significance\"] necessarily involves subjective judgment on what effects are \"large enough to matter.\" Variable units and measurement scales matter when we are assessing [ Select ] [\"practical significance.\", \"statistical significance.\"] .",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "Statistical significance",
+        "key": "interval2",
+        "label": "interval2",
+        "options": [
+          "Practical significance",
+          "Statistical significance"
+        ],
+        "selected": "Statistical significance"
+      },
+      {
+        "correct": "practical significance.",
+        "key": "meaningful",
+        "label": "meaningful",
+        "options": [
+          "statistical significance.",
+          "practical significance."
+        ],
+        "selected": "practical significance."
+      },
+      {
+        "correct": "Practical significance",
+        "key": "subjective",
+        "label": "subjective",
+        "options": [
+          "Statistical significance",
+          "Practical significance"
+        ],
+        "selected": "Practical significance"
+      },
+      {
+        "correct": "practical significance.",
+        "key": "units",
+        "label": "units",
+        "options": [
+          "practical significance.",
+          "statistical significance."
+        ],
+        "selected": "practical significance."
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 106,
+    "name": "multiple_answers: Which of the following is/are among the RStudio functions…",
+    "questionType": "multiple_answers_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following is/are among the RStudio functions that we will use for every* bootstrap analysis in STA 301? * Note that there are many methods to implement bootstrapping with R and in other programs. In this course, our bootstrapping will apply the same \"recipe\" that incorporates a consistent set of functions.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "prop()",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "resample()",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "mean()",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "do()",
+        "type": "checkbox"
+      },
+      {
+        "label": "E",
+        "text": "group_by()",
+        "type": "checkbox"
+      },
+      {
+        "label": "F",
+        "text": "mutate()",
+        "type": "checkbox"
+      }
+    ],
+    "selectedChoices": [
+      "B",
+      "D"
+    ],
+    "correctChoices": [
+      "B",
+      "D"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 112,
+    "name": "multiple_answers: Which of the following statements is accurate with respect…",
+    "questionType": "multiple_answers_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following statements is accurate with respect to statistical uncertainty? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "The concept of \"statistical uncertainty\" is useful in every application of data science.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "The concept of \"statistical uncertainty\" has a much more narrow definition compared to the general concept of \"uncertainty\" as relating to what is unknown.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "In statistics, to be “certain” means that your results arerepeatableunder idealized conditions. Your results are considered \"uncertain\" if they fluctuate upon repeated observations.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "Any measure of \"statistical uncertainty\" will overstate the amount of \"real-world uncertainty\" that is, in fact, associated with the phenomenon of interest.",
+        "type": "checkbox"
+      },
+      {
+        "label": "E",
+        "text": "Any measure of \"statistical uncertainty\" will understate the amount of \"real-world uncertainty\" that is, in fact, associated with the phenomenon of interest.",
+        "type": "checkbox"
+      }
+    ],
+    "selectedChoices": [
+      "B",
+      "C",
+      "E"
+    ],
+    "correctChoices": [
+      "B",
+      "C",
+      "E"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 118,
+    "name": "multiple_choice: Scooby-Doo is an American media franchise based on an…",
+    "questionType": "multiple_choice_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Scooby-Doo is an American media franchise based on an animated television series (c. 1969) featuring four teenagers and their talking Great Dane dog named Scooby-Doo who solve mysteries sometimes involving supposedly supernatural forces. In 2013, Scooby-Doo was ranked as the fifth-greatest TV cartoon of all time. The data frame in scooby.csv contains information on 527 episodes, including these variables: title -- name of episode date -- date episode aired in the U.S. network -- TV network on which episode aired setting -- type of terrain (e.g., Air, Cave, Coast,...) motive -- objective of antagonist/monster (e.g., Abduction, Counterfeit, Extortion,...) rating -- IMDB.com rating of the episode on a scale from 1 - 10 engagement -- number of reviews on IMDB.com time -- duration of the episode in minutes Which motive is the most common in episodes with an above-average rating and a \"Coast\" setting?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "Competition",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "Treasure",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "Conquest",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "Inheritance",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "Smuggling",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "Theft",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "Natural Resource",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "A"
+    ],
+    "correctChoices": [
+      "A"
+    ],
+    "datasetRefs": [
+      "scooby.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 124,
+    "name": "multiple_choice: The Auror Recruitment Office looks for student candidates who…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The Auror Recruitment Office looks for student candidates who score in the top 7% on the NEWT-level Potions exam. Scores for this exam follow a normal distribution with a mean of 500 points and a standard deviation of 100 points. Which of the following is closest to the cutoff score for a compelling application to the Auror training program? HINT: use the qnorm() function as seen in class",
+    "choices": [
+      {
+        "label": "A",
+        "text": "352",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "421",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "748",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "777",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "648",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "500",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "E"
+    ],
+    "correctChoices": [
+      "E"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 130,
+    "name": "matching: Match each description below to the most appropriate probability…",
+    "questionType": "matching_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Match each description below to the most appropriate probability model: Binomial or Normal.",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "Normal",
+        "key": "blank1",
+        "label": "This model describes the shape of most sampling distributions.",
+        "options": [
+          "Normal"
+        ],
+        "selected": "Normal"
+      },
+      {
+        "correct": "Binomial",
+        "key": "blank2",
+        "label": "Observing a fixed number of random events with binary outcomes.",
+        "options": [
+          "Binomial"
+        ],
+        "selected": "Binomial"
+      },
+      {
+        "correct": "Binomial",
+        "key": "blank3",
+        "label": "This model is for discrete random variables.",
+        "options": [
+          "Binomial"
+        ],
+        "selected": "Binomial"
+      },
+      {
+        "correct": "Normal",
+        "key": "blank4",
+        "label": "This model is for continuous random variables.",
+        "options": [
+          "Normal"
+        ],
+        "selected": "Normal"
+      },
+      {
+        "correct": "Normal",
+        "key": "blank5",
+        "label": "This distribution has \"thin tails\" because large outliers are unlikely to occur.",
+        "options": [
+          "Normal"
+        ],
+        "selected": "Normal"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 136,
+    "name": "multiple_choice: O's Cafe offers a pizza lunch during which each…",
+    "questionType": "multiple_choice_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "O's Cafe offers a pizza lunch during which each customer selects exactly one slice of pizza, choosing either cheese or pepperoni. It is known that customers are thrice as likely* to choose cheese relative to pepperoni. Assuming that the pizza selection of one resident does not affect those of others, which of the following statements is TRUE? On a regular day with 80 customers, 20 of them are expected to choose pepperoni pizza. On a busy day with 120 customers, the probability that no more than 30 of them will choose pepperoni pizza is 0.25. On a slow day with 40 customers, the probability that all 40 of them will choose cheese pizza is 1. * In other words, three out of every four slices selected are cheese; there is a 25% probability that a customer selects pepperoni.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "C"
+    ],
+    "correctChoices": [
+      "C"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 142,
+    "name": "matching: Which of the following statements about using scripts in…",
+    "questionType": "matching_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following statements about using scripts in RStudio is accurate? Select TRUE or FALSE for each statement.",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "TRUE",
+        "key": "blank1",
+        "label": "A script is a file that collects multiple statements (i.e. lines of R code) in a single document.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank2",
+        "label": "One way to run R statements from a script is to highlight those statements and then hit Control-Enter on the keyboard.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank3",
+        "label": "Scripts make it simple to save your work and pick up where you left off, without having to remember what you’ve accomplished already.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank4",
+        "label": "Scripts make it easy to modify a complex analysis by adding or changing steps in the middle of a long chain of statements.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  }
+]

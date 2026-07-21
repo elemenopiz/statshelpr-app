@@ -1,0 +1,28 @@
+{
+  "name": "numerical: Applicants for career opportunities at the prestigious R Institute…",
+  "request": {
+    "questionText": "Applicants for career opportunities at the prestigious R Institute take a 39-item comprehensive exam. An applicant will be sent an offer letter if they complete the exam within 56 minutes and make mistakes on no more than 2 items. Historical data show the following: The time required to complete the exam follows a Normal distribution with a mean of 1 hour and standard deviation of 15 minutes The probability an applicant makes a mistake is 8% Mistakes for one item do not impact the likelihood of mistakes for any other item The time required to complete the exam and the number of mistakes made are independent What is the probability that a randomly chosen applicant will receive an offer letter? Express your answer in percentage units rounded to the nearest whole number (e.g. enter 99 for ninety-nine percent).",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [],
+    "answerContains": [
+      "15"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106925?headless=1",
+    "capturedAt": 1784653057243,
+    "questionType": "numerical_question",
+    "canvasQuestionId": "32360046"
+  }
+}

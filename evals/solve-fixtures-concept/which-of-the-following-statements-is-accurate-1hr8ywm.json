@@ -1,0 +1,49 @@
+{
+  "name": "multiple_answers: Which of the following statements is accurate with respect…",
+  "request": {
+    "questionText": "Which of the following statements is accurate with respect to statistical uncertainty? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "The concept of \"statistical uncertainty\" is useful in every application of data science.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "The concept of \"statistical uncertainty\" has a much more narrow definition compared to the general concept of \"uncertainty\" as relating to what is unknown.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "In statistics, to be “certain” means that your results arerepeatableunder idealized conditions. Your results are considered \"uncertain\" if they fluctuate upon repeated observations.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "Any measure of \"statistical uncertainty\" will overstate the amount of \"real-world uncertainty\" that is, in fact, associated with the phenomenon of interest.",
+        "type": "checkbox"
+      },
+      {
+        "label": "E",
+        "text": "Any measure of \"statistical uncertainty\" will understate the amount of \"real-world uncertainty\" that is, in fact, associated with the phenomenon of interest.",
+        "type": "checkbox"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [
+      "B",
+      "C",
+      "E"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106918?headless=1",
+    "capturedAt": 1784653071236,
+    "questionType": "multiple_answers_question",
+    "canvasQuestionId": "32223242"
+  }
+}

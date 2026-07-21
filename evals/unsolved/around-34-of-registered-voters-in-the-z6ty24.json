@@ -1,0 +1,26 @@
+{
+  "name": "numerical: Around 34% of registered voters in the U.S identify…",
+  "questionText": "Around 34% of registered voters in the U.S identify as independents, according to 2022 electorate data. Using the Binomial model, what is the probability of observing at most 125 independents in a random sample of 400 registered voters? Enter your answer as a fraction rounded to two decimal places (e.g., eighty-eight percent = 0.88).",
+  "choices": [
+    {
+      "label": "A",
+      "text": "(fill in your answer)",
+      "type": "text"
+    }
+  ],
+  "selectedChoices": [],
+  "correctChoices": [],
+  "outcome": "incorrect",
+  "answerSource": "none",
+  "verified": false,
+  "mode": "calc",
+  "templateId": "1rc9gjv",
+  "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106926/history?version=1",
+  "capturedAt": 1784653039513,
+  "answerText": "0.14",
+  "courseId": "1445339",
+  "quizId": "2106926",
+  "questionHtml": "<p><span style=\"font-size: 12pt;\">Around 34% of registered voters in the U.S identify as&nbsp;<em>independents,&nbsp;</em>according to 2022 electorate data. <a class=\"inline_disabled\" href=\"https://bookdown.org/jgscott/DSGI/probability-models.html#example-airline-no-shows\" target=\"_blank\">Using the Binomial model</a>, what is the probability of observing at most 125 independents in a random sample of 400 registered voters? </span></p>\n<p><span style=\"font-size: 12pt;\">Enter your answer as a fraction r</span><span style=\"font-size: 12pt;\">ounded to two decimal places (e.g., eighty-eight percent = 0.88).</span></p>",
+  "questionType": "numerical_question",
+  "canvasQuestionId": "32223372"
+}

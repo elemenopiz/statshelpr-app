@@ -1,0 +1,62 @@
+{
+  "name": "multiple_choice: Imagine that you sell vintage posters and memorabilia from…",
+  "request": {
+    "questionText": "Imagine that you sell vintage posters and memorabilia from classic video games. You collect data on customer transactions at your Etsy webpage, including the following variables: Spend: amount spent by customer in U.S. dollars US: a dummy variable for whether the customer's webpage visit originated from a US-based IP address (US = 1) or else not (US = 0) Nin: a dummy variable for whether the customer bought a Nintendo-related product (Nin = 1), versus a product for some other video-game platform (Nin = 0) Curious about the extent to which customer origin and video game brand might impact sales, you bust out RStudio and apply your STA 301-acquired skills to fit this regression model: Spend = 15.5 - (2.7*US) + (4.6*Nin) - (1.4*US*Nin) Which of the following statements about this model is accurate? (1) This model assumes that the effect of the US and Nintendo variables are separable (i.e., their joint effect is equal to the sum of the individual effects). (2) This model incorporates an interaction. (3) Non US-based customers searching for non-Nintendo products are expected to spend $15.50, on average.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "None of the above",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "F"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106917?headless=1",
+    "capturedAt": 1784656821285,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32408271"
+  }
+}

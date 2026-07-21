@@ -1,0 +1,62 @@
+{
+  "name": "multiple_choice: Identify all accurate statements to complete the sentence. In…",
+  "request": {
+    "questionText": "Identify all accurate statements to complete the sentence. In the context of hypothesis testing, the test statistic _________ : (1) is a measure of the strength of evidence against the null hypothesis. (2) should be less than 5% to reject the null hypothesis. (3) is a probability that the null hypothesis is true, given that we have observed our p-value.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "2 and 3 only",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "D"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106934?headless=1",
+    "capturedAt": 1784653082869,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32385369"
+  }
+}

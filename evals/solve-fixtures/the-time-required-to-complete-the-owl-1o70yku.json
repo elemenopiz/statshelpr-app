@@ -1,0 +1,28 @@
+{
+  "name": "numerical: The time required to complete the OWL Standardized Test…",
+  "request": {
+    "questionText": "The time required to complete the OWL Standardized Test is approximately normally distributed with a mean of 70 minutes and a standard deviation of 10 minutes. What is the 25th percentile for completion time for this exam? Round your answer to the nearest minute. HINT: use the qnorm() function as seen in class",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [],
+    "answerContains": [
+      "63"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106925?headless=1",
+    "capturedAt": 1784653057170,
+    "questionType": "numerical_question",
+    "canvasQuestionId": "32223352"
+  }
+}

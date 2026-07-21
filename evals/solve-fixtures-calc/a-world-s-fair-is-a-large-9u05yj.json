@@ -1,0 +1,76 @@
+{
+  "name": "matching: A world's fair is a large global exhibition designed…",
+  "request": {
+    "questionText": "A world's fair is a large global exhibition designed to showcase the achievements of nations. The fairs.csv file contains information on each of 70 world's fairs, including a variable for the number of official attending countries. Assuming that the sample is representative of a broader population of large-scale international gatherings, an event production engineer calculates a 95% confidence interval for the mean of number attending countries: (39, 59) Which of the following is an accurate interpretation of this analysis? Select TRUE or FALSE for each option below.",
+    "dataFiles": [
+      {
+        "filename": "fairs.csv",
+        "content": "\"name\",\"theme\",\"country\",\"city\",\"month\",\"year\",\"type\",\"visitors\",\"cost\",\"area\",\"attending\",\"notables\"\n\"The Great Exhibition\",\"Industry of all Nations\",\"United Kingdom\",\"London\",\"April\",1851,\"World\",6,165,10,25,\"The Crystal Palace\"\n\"Exposition Universelle / Paris International\",\"Agriculture, Industry and Arts\",\"France\",\"Paris\",\"May\",1855,\"World\",5,2,15,25,\"Palais d'Industrie, Bordeaux Wine classification\"\n\"International Exhibition\",\"Industry and Arts\",\"United Kingdom\",\"London\",\"May\",1862,\"World\",6,2,15,39,NA\n\"Exposition Universelle / Paris International\",\"Agriculture, Industry and Arts\",\"France\",\"Paris\",\"April\",1867,\"World\",15,45,69,42,\"Champ de Mars\"\n\"Weltausstellung 1873 Wien / Austrian International Exposition\",\"Culture and Education\",\"Austria-Hungary\",\"Vienna\",\"May\",1873,\"World\",7.25,95,233,35,\"Rotunde\"\n\"Centennial Exposition\",\"Arts, Manufactures and Products of the Soil and Mine\",\"United States\",\"Philadelphia\",\"May\",1876,\"World\",10,8,115,35,\"Centennial Arboretum, Telephone, Heinz Ketchup\"\n\"Exposition Universelle / Paris International Exposition\",\"New Technologies\",\"France\",\"Paris\",\"May\",1878,\"World\",16,11,75,36,\"Statue of Liberty, Telephone, Braille\"\n\"Melbourne International Exhibition\",\"Arts, Manufacturing, Agriculture and Industrial Products of all Nations\",\"Colony of Victoria\",\"Melbourne\",\"October\",1880,\"World\",1.3,16,25,33,\"Royal Exhibition Buildings & Carlton Gardens\"\n\"Exposician Universal de Barcelona (1888)\",\"Fine and Industrial Art\",\"Spain\",\"Barcelona\",\"April\",1888,\"World\",2.3,17,47,30,\"Arc de Triomf, Columbus Monument\"\n\"Exposition Universelle / Paris International Exposition\",\"French Revolution\",\"France\",\"Paris\",\"May\",1889,\"World\",32,3,96,35,\"Eiffel Tower, Annie Oakley\"\n\"World's Columbian Exposition\",\"Discovery of America\",\"United States\",\"Chicago\",\"May\",1893,\"World\",27.5,27,279,19,\"Midway Plaisance, Fine Arts Building, Fluorescent lamp, Ferris wheel\"\n\"Brussels International Exposition\",\"Modern Life\",\"Belgium\",\"Brussels\",\"May\",1897,\"World\",7.8,NA,132,27,NA\n\"Paris International\",\"19th Century: an overview\",\"France\",\"Paris\",\"April\",1900,\"World\",50.8,1875,120,58,\"Motion Pictures, Escalator, Summer Olympics\"\n\"Louisiana Purchase\",\"Louisiana Purchase\",\"United States\",\"St. Louis\",\"April\",1904,\"World\",19.69,315,515,63,\"Forest Park, Palace of Fine Art, Vulcan statue, In conjunction with Summer Olympics\"\n\"Liage International (1905)\",\"Commemoration of the 75th anniversary of independence\",\"Belgium\",\"Liège\",\"April\",1905,\"World\",7,29,70,31,NA\n\"Milan International\",\"Transport\",\"Italy\",\"Milan\",\"April\",1906,\"World\",10,26,100,25,\"Electric Tramways\"\n\"Brussels International Exhibition\",\"Works of Art and Science, Agricultural and Industrial Products of All Nations\",\"Belgium\",\"Brussels\",\"April\",1910,\"World\",13,35,90,26,NA\n\"Esposizione internazionale dell'industria e del lavoro\",\"Exposition of Industry and Labor\",\"Italy\",\"Turin\",\"April\",1911,\"World\",7,NA,100,30,NA\n\"Exposition universelle et international / Ghent International Exposition\",\"Peace, Industry and Arts\",\"Belgium\",\"Ghent\",\"April\",1913,\"World\",9.5,33,130,24,\"Gent-Sint-Pieters railway station\"\n\"Panama Pacific International Exposition\",\"Inauguration of the Panama Canal\",\"United States\",\"San Francisco\",\"February\",1915,\"World\",19,258,254,32,\"Tower of Jewels, Palace of Fine Arts\"\n\"Barcelona International Exposition\",\"Arts, Industry and Sport\",\"Spain\",\"Barcelona\",\"May\",1929,\"World\",5.8,25,118,29,\"Barcelona Pavilion, Palau Nacional, Montjuïc Stadium\"\n\"Century of Progress\",\"The interdependence among Industry and scientific research\",\"United States\",\"Chicago\",\"May\",1933,\"World\",38.8,429,170,19,\"Sky Ride, Graf Zeppelin, Homes of Tomorrow, First MLB All Star Game\"\n\"Brussels International Exposition\",\"Transports\",\"Belgium\",\"Brussels\",\"April\",1935,\"World\",20,197,152,30,NA\n\"ILIS 1936\",\"Aviation\",\"Sweden\",\"Stockholm\",\"May\",1936,\"Specialised\",NA,NA,0.5,8,\"Stockholm Bromma Airport\"\n\"Exposition Internationale des Arts et Techniques dans la Vie Moderne / Paris International Exposition\",\"Arts and Technology in modern life\",\"France\",\"Paris\",\"May\",1937,\"World\",31,1400,105,44,\"Arc de Triomphe\"\n\"Second International Aeronautic Exhibition\",\"Aerospace\",\"Finland\",\"Helsinki\",\"May\",1938,\"Specialised\",NA,NA,0.08,25,\"Malmi Airterminal\"\n\"Exposition internationale de l'eau (1939)\",\"Art of Water\",\"Belgium\",\"Liège\",\"May\",1939,\"Specialised\",NA,NA,50,8,\"Albert Canal\"\n\"New York World's Fair\",\"Building The World of Tomorrow\",\"United States\",\"New York City\",\"April\",1939,\"World\",45,500,54,75,\"Flushing Park, Bell Labs' Voder, Magna Carta1st World Science Fiction Convention\"\n\"International Exhibition on Urbanism and Housing\",\"Urbanism and Housing\",\"France\",\"Paris\",\"July\",1947,\"Specialised\",NA,NA,6.35,14,\"Immeubles d’Etat\"\n\"Universal Sport Exhibition (1949)\",\"Sport and physical culture\",\"Sweden\",\"Stockholm\",\"July\",1949,\"Specialised\",NA,NA,NA,37,\"Pehr Henrik Ling\"\n\"The International Exhibition of Rural Habitat in Lyon\",\"Rural Habitat\",\"France\",\"Lyon\",\"September\",1949,\"Specialised\",NA,NA,110,18,\"Foire de Lyon\"\n\"Exposition internationale du bicentenaire de Port-au-Prince\",\"The festival of Peace\",\"Haiti\",\"Port-au-Prince\",\"December\",1949,\"World\",NA,NA,24,15,\"Gulf of Gonâve\"\n\"The International Textile Exhibition\",\"Textile\",\"France\",\"Lille\",\"April\",1951,\"Specialised\",1.5,NA,15,22,\"Textile\"\n\"EA 53\",\"Agriculture\",\"Italy\",\"Rome\",\"July\",1953,\"Specialised\",1.7,NA,12,19,\"Esposizione Universale Roma, Palazzo della Civiltà Italiana\"\n\"Conquest of the Desert (exhibition)\",\"Conquest of the Desert\",\"Israel\",\"Jerusalem\",\"September\",1953,\"Specialised\",NA,NA,4.6,13,NA\n\"The International Exhibition of Navigation (1954)\",\"Navigation\",\"Italy\",\"Naples\",\"May\",1954,\"Specialised\",NA,NA,100,25,NA\n\"The International Expo of Sport (1955)\",\"Sport\",\"Italy\",\"Turin\",\"May\",1955,\"Specialised\",NA,NA,NA,11,NA\n\"Helsingborg Exhibition 1955\",\"Modern Man in the Environment\",\"Sweden\",\"Helsingborg\",\"June\",1955,\"Specialised\",NA,NA,NA,10,NA\n\"Exhibition of Citriculture\",\"Citrus\",\"Israel\",\"Beit Dagan\",\"May\",1956,\"Specialised\",NA,NA,55,17,NA\n\"Interbau\",\"Reconstruction of Hansa District\",\"West Germany\",\"West Berlin\",\"July\",1957,\"Specialised\",1,NA,53,13,\"Hansaviertel\"\n\"Brussels World's Fair\",\"A World View: A New Humanism\",\"Belgium\",\"Brussels\",\"July\",1958,\"World\",41,2500,200,42,\"Heysel, Atomium\"\n\"Expo 61\",\"Celebration of centennial of Italian unity\",\"Italy\",\"Turin\",\"May\",1961,\"Specialised\",5,NA,50,19,\"Palazzo del Lavoro\"\n\"Century 21 Exposition\",\"Man in the Space Age\",\"United States\",\"Seattle\",\"April\",1962,\"World\",9.6,47,30,24,\"Seattle Center, Space Needle, Seattle Monorail\"\n\"IVA 65\",\"Transport\",\"West Germany\",\"Munich\",\"June\",1965,\"Specialised\",3.2,NA,50.2,36,\"E03\"\n\"Expo '67\",\"Man and His World\",\"Canada\",\"Montreal\",\"April\",1967,\"World\",50.3,431,365,62,\"Canadian Centennial, IMAXMontreal Metro, Habitat '67Montreal Biosphère\"\n\"HemisFair '68\",\"Confluence of Civilizations in the Americas\",\"United States\",\"San Antonio\",\"April\",1968,\"Specialised\",6.4,156,37.64,23,\"Tower of the Americas, Institute of Texan Cultures, Hemis, Fair Arena\"\n\"Expo '70\",\"Progress and Harmony for Mankind\",\"Japan\",\"Osaka\",\"March\",1970,\"World\",64.2,30,329.82,75,\"Tower of the Sun, Moon rock, Electric Cars\"\n\"Expo 71\",\"The Hunt through the World\",\"Hungary\",\"Budapest\",\"August\",1971,\"Specialised\",1.9,NA,35,52,\"International Council for Game and Wildlife Conservation (CIC)\"\n\"Expo '74\",\"Celebrating Tomorrow's Fresh New Environment\",\"United States\",\"Spokane\",\"May\",1974,\"Specialised\",5.6,784,41,10,\"IMAX\"\n\"Expo '75\",\"The Sea We would like to See\",\"Japan\",\"Okinawa\",\"July\",1975,\"Specialised\",3.48,NA,100,35,\"Okinawa Churaumi Aquarium\"\n\"Expo 81\",\"Hunting\",\"Bulgaria\",\"Plovdiv\",\"June\",1981,\"Specialised\",NA,NA,NA,50,\"International Fair Plovdiv\"\n\"1982 World's Fair\",\"Energy Turns the World\",\"United States\",\"Knoxville\",\"May\",1982,\"Specialised\",11,42,30,16,\"Sunsphere\"\n\"1984 World's Fair\",\"The World of Rivers– Fresh Water as a source of life\",\"United States\",\"New Orleans\",\"May\",1984,\"Specialised\",7.35,350,33.99,15,\"Convention Center\"\n\"Expo 85 (Tsukuba, Japan)\",\"Dwellings and Surroundings – Science and Technology for Man at Home\",\"Japan\",\"Tsukuba\",\"March\",1985,\"Specialised\",20.3,NA,100,48,\"HSSTJumbotron\"\n\"Expo 85 (Plovdiv, Bulgaria)\",\"Inventions\",\"Bulgaria\",\"Plovdiv\",\"November\",1985,\"Specialised\",1,NA,5.8,73,\"International Fair Plovdiv\"\n\"Expo '86\",\"Transportation and Communication: World in Motion - World in Touch\",\"Canada\",\"Vancouver\",\"May\",1986,\"Specialised\",22.11,311,70,55,\"Science World, Skytrain, BC Place, Canada Place\"\n\"Expo '88\",\"Leisure in the Age of Technology\",\"Australia\",\"Brisbane\",\"April\",1988,\"Specialised\",18.5,625,40,36,\"Sunsails, Nepal Peace Pagoda, Skyneedle\"\n\"Expo 91\",\"The activity of young people in the service of a World of Peace\",\"Bulgaria\",\"Plovdiv\",\"June\",1991,\"Specialised\",NA,NA,NA,8,\"World Intellectual Property Organization\"\n\"Expo Colombo '92\",\"Christopher Columbus, The Ship and the Sea\",\"Italy\",\"Genoa\",\"May\",1992,\"Specialised\",0.8,NA,6,54,\"Aquarium of Genoa\"\n\"Expo '92\",\"The Era of Discovery\",\"Spain\",\"Seville\",\"April\",1992,\"World\",41.8,NA,215,108,\"Puente del Alamillo\"\n\"Expo '93\",\"The Challenge of a New Road of Development\",\"South Korea\",\"Daejeon\",\"August\",1993,\"Specialised\",14.5,NA,90.1,141,\"Expo Science Park, Daejeon Museum of Art\"\n\"Expo '98\",\"The Oceans: A Heritage for the Future\",\"Portugal\",\"Lisbon\",\"May\",1998,\"Specialised\",10.1,NA,50,143,\"Pavilhão Atlântico, Lisbon Oceanarium, Pavilion of Portugal\"\n\"Expo 2000\",\"Man, Nature, Technology\",\"Germany\",\"Hanover\",\"June\",2000,\"World\",18.1,3400,160,155,\"Hannover Principles\"\n\"Expo 2005\",\"Nature's Wisdom\",\"Japan\",\"Aichi\",\"March\",2005,\"World\",22.04,NA,173,121,\"Satsuki and Mei's House, ASIMOThe Frozen Mammoth\"\n\"Expo 2008\",\"Water and Sustainable development\",\"Spain\",\"Zaragoza\",\"June\",2008,\"Specialised\",5.65,NA,25,108,\"Bridge Pavilion, Water Tower\"\n\"Expo 2010\",\"Better City, Better Life\",\"People's Republic of China\",\"Shanghai\",\"May\",2010,\"World\",73.08,4200,523,192,\"Expo Axis, Oriental Crown (Currently China Art Museum, Shanghai)\"\n\"Expo 2012\",\"The Living Ocean and Coast\",\"South Korea\",\"Yeosu\",\"May\",2012,\"Specialised\",8.2,1769,25,103,\"The Big-OThe Sky Tower\"\n\"Expo 2015\",\"Feeding the planet, Energy for life\",\"Italy\",\"Milan\",\"May\",2015,\"World\",21.5,NA,110,145,\"The Tree of Life\"\n\"Expo 2017\",\"Future Energy\",\"Kazakhstan\",\"Astana\",\"June\",2017,\"Specialised\",4.1,NA,25,115,\"The Nur Alem Sphere\"\n\"Expo 2020\",\"Connecting Minds, Creating the Future\",\"United Arab Emirates\",\"Dubai\",\"October\",2021,\"World\",24.103,NA,438,192,\"Al Wasl Plaza\"\n"
+      }
+    ],
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "We are 95% confident that the mean number of attending countries observed in the sample is within the range of values represented by this interval.",
+        "options": [
+          "FALSE"
+        ]
+      },
+      {
+        "key": "blank2",
+        "label": "We expect for 95% of fairs in the population to have at most 59 attending countries.",
+        "options": [
+          "FALSE"
+        ]
+      },
+      {
+        "key": "blank3",
+        "label": "If we were to take repeated random samples of the same number of fairs using the same data-generating process, and then construct a confidence interval for each of these samples, we'd expect that 95% of those intervals would contain the population mean.",
+        "options": [
+          "TRUE"
+        ]
+      },
+      {
+        "key": "blank4",
+        "label": "The margin of error for this interval is approximately 20 countries.",
+        "options": [
+          "FALSE"
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [],
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "We are 95% confident that the mean number of attending countries observed in the sample is within the range of values represented by this interval.",
+        "correct": "FALSE"
+      },
+      {
+        "key": "blank2",
+        "label": "We expect for 95% of fairs in the population to have at most 59 attending countries.",
+        "correct": "FALSE"
+      },
+      {
+        "key": "blank3",
+        "label": "If we were to take repeated random samples of the same number of fairs using the same data-generating process, and then construct a confidence interval for each of these samples, we'd expect that 95% of those intervals would contain the population mean.",
+        "correct": "TRUE"
+      },
+      {
+        "key": "blank4",
+        "label": "The margin of error for this interval is approximately 20 countries.",
+        "correct": "FALSE"
+      }
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106915?headless=1",
+    "capturedAt": 1784653074765,
+    "questionType": "matching_question",
+    "canvasQuestionId": "32384106"
+  }
+}

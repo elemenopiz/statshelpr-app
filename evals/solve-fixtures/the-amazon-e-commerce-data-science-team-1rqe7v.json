@@ -1,0 +1,31 @@
+{
+  "name": "numerical: The Amazon e-commerce data science team fits a model…",
+  "request": {
+    "questionText": "The Amazon e-commerce data science team fits a model to gain understanding of the extent to which having an Amazon Prime membership leads customers to buy more from the platform than customers without a Prime membership. The data set includes two variables: total Sales revenue for a customer account and a dummy variable representing whether the customer had a Prime membership (0 = no, 1 = yes). The fitted model equation is: Sales=764+1323∗Prime+e What is the predicted sales revenue for a customer who is a Prime member? Round your answer to the nearest dollar.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [],
+    "answerContains": [
+      "2,087"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106923",
+    "capturedAt": 1784657077892,
+    "questionType": "numerical_question",
+    "canvasQuestionId": "32408199",
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/Sales%2520%253D%2520764%2520%252B%25201323*Prime%2520%252B%2520e"
+    ]
+  }
+}

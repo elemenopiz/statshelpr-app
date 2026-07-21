@@ -1,0 +1,57 @@
+{
+  "name": "multiple_choice: Hooli, one of the world's largest tech firms, is…",
+  "request": {
+    "questionText": "Hooli, one of the world's largest tech firms, is researching opportunities to develop data centers in various locations around the world. They collect information on each potential site including the property size in acres, the country in which the site is located, estimated cost to acquire the site, and whether or not competitors have a presence within 100 miles of the site. Which of the following represents the cases of this data frame?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "miles",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "site locations",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "countries",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "acres",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "competitors",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "acquisition costs",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "tech firms",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [
+      "B"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106921",
+    "capturedAt": 1784652973471,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32223284"
+  }
+}

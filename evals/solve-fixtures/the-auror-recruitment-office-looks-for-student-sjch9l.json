@@ -1,0 +1,52 @@
+{
+  "name": "multiple_choice: The Auror Recruitment Office looks for student candidates who…",
+  "request": {
+    "questionText": "The Auror Recruitment Office looks for student candidates who score in the top 7% on the NEWT-level Potions exam. Scores for this exam follow a normal distribution with a mean of 500 points and a standard deviation of 100 points. Which of the following is closest to the cutoff score for a compelling application to the Auror training program? HINT: use the qnorm() function as seen in class",
+    "choices": [
+      {
+        "label": "A",
+        "text": "352",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "421",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "748",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "777",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "648",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "500",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "E"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106925?headless=1",
+    "capturedAt": 1784653057192,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32223351"
+  }
+}

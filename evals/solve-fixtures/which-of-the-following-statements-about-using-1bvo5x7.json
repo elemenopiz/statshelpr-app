@@ -1,0 +1,70 @@
+{
+  "name": "matching: Which of the following statements about using scripts in…",
+  "request": {
+    "questionText": "Which of the following statements about using scripts in RStudio is accurate? Select TRUE or FALSE for each statement.",
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "A script is a file that collects multiple statements (i.e. lines of R code) in a single document.",
+        "options": [
+          "TRUE"
+        ]
+      },
+      {
+        "key": "blank2",
+        "label": "One way to run R statements from a script is to highlight those statements and then hit Control-Enter on the keyboard.",
+        "options": [
+          "TRUE"
+        ]
+      },
+      {
+        "key": "blank3",
+        "label": "Scripts make it simple to save your work and pick up where you left off, without having to remember what you’ve accomplished already.",
+        "options": [
+          "TRUE"
+        ]
+      },
+      {
+        "key": "blank4",
+        "label": "Scripts make it easy to modify a complex analysis by adding or changing steps in the middle of a long chain of statements.",
+        "options": [
+          "TRUE"
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [],
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "A script is a file that collects multiple statements (i.e. lines of R code) in a single document.",
+        "correct": "TRUE"
+      },
+      {
+        "key": "blank2",
+        "label": "One way to run R statements from a script is to highlight those statements and then hit Control-Enter on the keyboard.",
+        "correct": "TRUE"
+      },
+      {
+        "key": "blank3",
+        "label": "Scripts make it simple to save your work and pick up where you left off, without having to remember what you’ve accomplished already.",
+        "correct": "TRUE"
+      },
+      {
+        "key": "blank4",
+        "label": "Scripts make it easy to modify a complex analysis by adding or changing steps in the middle of a long chain of statements.",
+        "correct": "TRUE"
+      }
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106921",
+    "capturedAt": 1784652973517,
+    "questionType": "matching_question",
+    "canvasQuestionId": "32223289"
+  }
+}

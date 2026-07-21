@@ -1,0 +1,97 @@
+{
+  "name": "multiple_dropdowns: In the candies.csv file we have information on each…",
+  "questionText": "In the candies.csv file we have information on each of 83 candy products, including these variables: Chocolate -- does it contain chocolate or else no chocolate Caramel -- does it contain caramel or else no caramel Imagine that you have recently been recruited to the analytics team at Wonka Industries. You are investigating the extent to which the probability of a candy containing chocolate depends on other ingredients in the product. For example: are caramel candies more likely or less likely to contain chocolate compared to candies with no caramel? Use these data to fill in the blanks below. In this sample, [ Select ] [\"55%\", \"45%\", \"33%\", \"29%\", \"71%\", \"38%\"] of candies contain chocolate. Of the caramel candies in this sample, [ Select ] [\"29%\", \"62%\", \"71%\", \"38%\", \"19%\", \"33%\"] contain chocolate, a [ Select ] [\"smaller\", \"larger\"] percentage relative to candies with no caramel. A 95% bootstrap confidence interval for the difference in proportions suggests that the proportion with chocolate is larger for caramel candies by at least [ Select ] [\"approximately 58%\", \"approximately 71%\", \"approximately 33%\", \"approximately 38%\", \"approximately 4%\"] relative to candies with no caramel. The result presented in the confidence interval is [ Select ] [\"practically significant\", \"NOT practically significant\", \"statistically significant\", \"NOT statistically significant\"] because the population difference in proportions is distinguishable from zero with 95% confidence. NOTE: Remember that we expect some Monte Carlo variability in confidence interval results. If your simulation returns an interval limit close to but not equal to one of the options below, choose that close answer with confidence (no pun intended). For example, if your simulation returns 0.77 as an interval limit and the closest choice in dropdown menu is 78%... do not hesitate to choose 78% (the nearest answer). WE ARE NOT TRYING TO TRICK ANYONE WITH SUBTLE DIFFERENCES IN ROUNDING.",
+  "choices": [],
+  "selectedChoices": [],
+  "correctChoices": [],
+  "outcome": "incorrect",
+  "answerSource": "none",
+  "verified": false,
+  "mode": "calc",
+  "templateId": "1wpfphq",
+  "url": "https://utexas.instructure.com/courses/1445339/quizzes/2126523",
+  "capturedAt": 1784653090676,
+  "blanks": [
+    {
+      "correct": "",
+      "key": "prop_chocolate",
+      "label": "In this sample, of candies contain chocolate.",
+      "options": [
+        "55%",
+        "45%",
+        "33%",
+        "29%",
+        "71%",
+        "38%"
+      ],
+      "selected": "45%"
+    },
+    {
+      "correct": "",
+      "key": "prop_caramel",
+      "label": "prop_caramel",
+      "options": [
+        "29%",
+        "62%",
+        "71%",
+        "38%",
+        "19%",
+        "33%"
+      ],
+      "selected": "71%"
+    },
+    {
+      "correct": "",
+      "key": "larger",
+      "label": "larger",
+      "options": [
+        "smaller",
+        "larger"
+      ],
+      "selected": "larger"
+    },
+    {
+      "correct": "",
+      "key": "lower",
+      "label": "A 95% bootstrap confidence interval for the difference in proportions suggests that the proportion with chocolate is larger for caramel candies by at least relative to candies with no caramel.",
+      "options": [
+        "approximately 58%",
+        "approximately 71%",
+        "approximately 33%",
+        "approximately 38%",
+        "approximately 4%"
+      ],
+      "selected": "approximately 38%"
+    },
+    {
+      "correct": "",
+      "key": "significant",
+      "label": "The result presented in the confidence interval is because the population difference in proportions is distinguishable from zero with 95% confidence.",
+      "options": [
+        "practically significant",
+        "NOT practically significant",
+        "statistically significant",
+        "NOT statistically significant"
+      ],
+      "selected": "statistically significant"
+    },
+    {
+      "correct": "",
+      "key": "distinguishable",
+      "label": "distinguishable",
+      "options": [
+        "distinguishable",
+        "NOT distinguishable"
+      ],
+      "selected": "distinguishable"
+    }
+  ],
+  "datasetRefs": [
+    "candies.csv"
+  ],
+  "courseId": "1445339",
+  "quizId": "2126523",
+  "questionHtml": "<p><span style=\"font-size: 12pt;\">In the <span style=\"color: #3232d7;\"><strong>candies.csv</strong></span> file we have information on each of 83 candy products, including these variables:&nbsp;</span></p>\n<ul>\n<li style=\"list-style-type: none;\">\n<ul>\n<li><strong>Chocolate -- </strong>does it contain <em>chocolate</em> or else <em>no chocolate</em></li>\n<li><strong>Caramel -- </strong>does it contain <em>caramel</em> or else&nbsp;<em>no caramel</em></li>\n</ul>\n</li>\n</ul>\n<p><span style=\"font-size: 12pt;\">Imagine that you have recently been recruited to the analytics team at Wonka Industries. You are investigating the extent to which the probability of a candy containing <em>chocolate </em>depends on other ingredients in the product. For example: are caramel<em> </em>candies more likely or less likely to contain <em>chocolate</em><strong> </strong>compared to candies with <em>no caramel</em>?</span><span style=\"font-size: 12pt;\"> </span><br><em></em></p>\n<p><span style=\"font-size: 12pt;\">Use these data to fill in the blanks below.&nbsp;</span></p>\n<ul>\n<li><span style=\"font-size: 12pt;\">In this sample, \n  \n    [ Select ]\n  \n  [\"55%\", \"45%\", \"33%\", \"29%\", \"71%\", \"38%\"]\n\n of candies contain <em>chocolate</em>.&nbsp;</span></li>\n<li>\n<h4><span style=\"font-size: 12pt;\">Of the <em>caramel</em> candies in this sample, \n  \n    [ Select ]\n  \n  [\"29%\", \"62%\", \"71%\", \"38%\", \"19%\", \"33%\"]\n\n contain <em>chocolate</em>, a \n  \n    [ Select ]\n  \n  [\"smaller\", \"larger\"]\n\n percentage relative to candies with <em>no caramel</em>.</span></h4>\n</li>\n<li>\n<h4><span style=\"font-size: 12pt;\">A 95% bootstrap confidence interval for the difference in proportions suggests that the proportion with <em>chocolate </em>is larger&nbsp;</span><span style=\"font-size: 12pt;\">for <em>caramel </em>candies&nbsp;</span><span style=\"font-size: 12pt;\">by at least \n  \n    [ Select ]\n  \n  [\"approximately 58%\", \"approximately 71%\", \"approximately 33%\", \"approximately 38%\", \"approximately 4%\"]\n\n&nbsp;</span><span style=\"font-size: 12pt;\">relative to candies with <em>no caramel</em></span><span style=\"font-size: 12pt;\">.</span></h4>\n</li>\n<li>\n<h4><span style=\"font-size: 12pt;\">The result presented in the confidence interval is \n  \n    [ Select ]\n  \n  [\"practically significant\", \"NOT practically significant\", \"statistically significant\", \"NOT statistically significant\"]\n\n because the population difference in proportions is \n  \n    [ Select ]\n  \n  [\"distinguishable\", \"NOT distinguishable\"]\n\n from zero with 95% confidence.</span></h4>\n</li>\n</ul>\n<p>&nbsp;</p>\n<p><span style=\"font-size: 8pt;\">NOTE: Remember that we expect some Monte Carlo variability in confidence interval results. If your simulation returns an interval limit <em>close to</em> but not equal to one of the options below, choose that close answer with confidence (no pun intended). For example, if your simulation returns 0.77 as an interval limit and the closest choice in dropdown menu is 78%... do not hesitate to choose 78% (the nearest answer). WE ARE NOT TRYING TO TRICK ANYONE WITH SUBTLE DIFFERENCES IN ROUNDING.&nbsp;</span></p>",
+  "questionType": "multiple_dropdowns_question",
+  "canvasQuestionId": "32387385"
+}

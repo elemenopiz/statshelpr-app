@@ -1,0 +1,1178 @@
+[
+  {
+    "_idx": 5,
+    "name": "numerical: The Amazon e-commerce data science team fits a model…",
+    "questionType": "numerical_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The Amazon e-commerce data science team fits a model to gain understanding of the extent to which having an Amazon Prime membership leads customers to buy more from the platform than customers without a Prime membership. The data set includes two variables: total Sales revenue for a customer account and a dummy variable representing whether the customer had a Prime membership (0 = no, 1 = yes). The fitted model equation is: Sales=764+1323∗Prime+e What is the predicted sales revenue for a customer who is a Prime member? Round your answer to the nearest dollar.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "answerText": "2,087",
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/Sales%2520%253D%2520764%2520%252B%25201323*Prime%2520%252B%2520e"
+    ],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 11,
+    "name": "multiple_choice: As an Advanced Accounting Analytics intern at Gringotts Bank,…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "As an Advanced Accounting Analytics intern at Gringotts Bank, you are tasked with investigating factors that explain variation in account balances accrued by credit card holders. The credit.csv file contains a data set with information on 400 credit card account holders, including the following variables: Balance: credit card balance, i.e. debt owed to bank ($ dollars) Income: cardholder annual income ($ thousands of dollars) Limit: credit spending limit ($ dollars) Student: Yes/No indicator for whether or not the cardholder is a part-time or full-time student Fit a linear regression model for Balance in terms of the following predictors: Income Student Limit the interaction between Student and Limit Use this model to predict the account balance for a student cardholder with an annual income of $15,000 and a credit spending limit of $3,000. This amount is closest to which of the following?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "$628",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "$900",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "$773",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "$262",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "$1,320",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "$531",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "A"
+    ],
+    "correctChoices": [
+      "A"
+    ],
+    "datasetRefs": [
+      "credit.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 17,
+    "name": "multiple_choice: This question revisits the data on video-game reaction time…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "This question revisits the data on video-game reaction time that we analyzed in class and in Lesson 14. Specifically, we'll consider three variables from this data set (two that we looked at before, and one that we didn't): PictureTarget.RT: the subject's reaction time in milliseconds when presented with a visual stimulus FarAway: a dummy variable for whether the stimulus (i.e. the “bad guy” popping up on the screen) was near (0) or far away (1) within the visual scene. SceneLetter: a letter code (b, c, d, e, or f) indicating which of five scenes the subject was presented with. (Note: the scene letters start at b; there is no scene a in this data set) Consider the following model and its corresponding regression table: lm(PictureTarget.RT ~ FarAway + SceneLetter + FarAway:SceneLetter, data=rxntime) %>% get_regression_table() %>% select(-std_error, - statistic, - p_value) Based on this regression table, which of the following statements is accurate? (1) This model includes an interaction term for the FarAway and SceneLetter variables. (2) The interaction of SceneLetter: d and a FarAway stimulus implies some decrease in reaction time (with 95% confidence) after accounting for the main effects. (3) If the stimulus is FarAway and the interface shows SceneLetter: a , we expect a slower reaction time by approximately 20-75 milliseconds with 95% confidence.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "2 only",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "A"
+    ],
+    "correctChoices": [
+      "A"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://utexas.instructure.com/assessment_questions/43745886/files/74628463/download?verifier=KJl9jdQzoCa97N5oqTzXQDui04BFmgkkAZ9oLRM8"
+    ],
+    "imagesAttached": 1
+  },
+  {
+    "_idx": 23,
+    "name": "multiple_answers: Which of the following statements about interactions and /…",
+    "questionType": "multiple_answers_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following statements about interactions and / or correlated predictors is accurate? Choose all correct statements.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "One simple way to diagnose an interaction between a numerical predictor and a categorical predictor is to make a plot -- to visualize a separate trend line in each category and to compare their slopes.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "Any time two predictor variables X1 and X2 are correlated, we would expect to need an interaction between those two variables in our model.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "Interaction terms are used in regression models to describe situations where the relationship between some X predictor variable and response variable Y depends on some other variable in the context.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "There could be an interaction effect between two variables even if those variables are statistically independent of one another.",
+        "type": "checkbox"
+      }
+    ],
+    "selectedChoices": [
+      "A",
+      "C",
+      "D"
+    ],
+    "correctChoices": [
+      "A",
+      "C",
+      "D"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 29,
+    "name": "multiple_answers: In 1990, the United Nations created a single measure…",
+    "questionType": "multiple_answers_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "In 1990, the United Nations created a single measure that ranges between zero and one -- the Human Development Index (HDI) -- to summarize health, education, and economic status for world countries. Below is the equation for a fitted model to predict response variable HDI in terms of two predictor variables: Life expectancy and average years of School. HDI = -0.34 + (0.01 * Life) + (0.02 * School) + E Which of the following is an accurate interpretation of the coefficient for Life expectancy? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "The change in HDI associated with a one-year increase in Life expectancy, holding other predictors constant.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "The overall relationship between Life expectancy and HDI.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "For every one-year increase in Life expectancy, we expect HDI to increase by 0.01 (irrespective of years of School).",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "A partial slope representing the relationship between Life expectancy and HDI, adjusting for average years of School.",
+        "type": "checkbox"
+      }
+    ],
+    "selectedChoices": [
+      "A",
+      "D"
+    ],
+    "correctChoices": [
+      "A",
+      "D"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 35,
+    "name": "multiple_choice: The data set in cars.csv includes information on the…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The data set in cars.csv includes information on the gas mileage of virtually every model of vehicle offered for sale to U.S. consumers during 2020. You will fit a regression model to predict city fuel economy in miles per gallon (city variable) in terms of the following predictor variables: powertrain -- vehicle powertrain type: Diesel, EV, FFV, Gasoline, Hybrid, or Plug-in Hybrid category -- vehicle type: Car, Small Car, SUV/Van, Truck, Two-seater, or Wagon The EV level of the powertrain variable corresponds to battery EVs --- that is, electric vehicles like Teslas and Nissan Leafs. (In case you're curious, for EVs, the government reports the city variable as the \"equivalent\" MPG based on the vehicle's battery usage.) Which of the following statements about the powertrain: EV coefficient is accurate? (1) EVs have an average of 82.6 city miles-per-gallon (equivalent). (2) EVs have an average that is 82.6 city miles-per-gallon (equivalent) higher than that of vehicles with a Diesel Powertrain. (3) EVs have an average of 102.8 city miles-per-gallon (equivalent).",
+    "choices": [
+      {
+        "label": "A",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "None of the above",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "E"
+    ],
+    "correctChoices": [
+      "E"
+    ],
+    "datasetRefs": [
+      "cars.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 41,
+    "name": "numerical: Next semester, your work-study position involves data science support…",
+    "questionType": "numerical_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Next semester, your work-study position involves data science support for a visiting scholar interested in dragon demography. You are working with the dragons.csv file, a data frame on 2000 magnificent beasts randomly sampled from the extensive Care of Magical Creatures database including the following variables: lifespan -- age of dragon in years color -- color of dragon (black, blue, green, red) spikes -- indicator for spikes on body or tail (spikes, without) lost_teeth -- number of lost teeth scars -- number of scars height -- in yards weight -- in tons Fit a linear model regressing height on two predictors: weight and color. Calculate model fit statistics. What is the typical error that we expect in using this model to predict height? Enter your numerical answer rounded to two digits.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "answerText": "3.39",
+    "datasetRefs": [
+      "dragons.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 47,
+    "name": "matching: The georgia.csv file contains Georgia’s county-level voting data from…",
+    "questionType": "matching_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The georgia.csv file contains Georgia’s county-level voting data from the 2000 presidential election. The 2000 election was among the most controversial in history; it turned on an esoteric set of issues surrounding voting machines and vote counts, and wasn't finally resolved until the Supreme Court's ruling in Bush v. Gore. For our purposes, the relevant variables are: votes: number of votes recorded ballots: number of ballots cast equipment: indicator for whether county used Optical scan voting machines or else Other equipment urban: indicator for whether county is predominantly Urban or Rural based on population density Use the mutate() function to define a new variable called ucountPct: measuring the percentage of ballots in a county that were \"undercounted\" or \"spoiled\", (i.e., ballots cast where no legal vote was recorded because the machine could not read the vote). Was there a difference, on average, in undercount percentages between Urban counties versus Rural counties? Use these variables, along with a large-sample 95% confidence interval, to evaluate the following statements:",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "TRUE",
+        "key": "blank1",
+        "label": "In the sample, the undercount rate was higher in Rural counties.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "FALSE",
+        "key": "blank2",
+        "label": "The difference in means is not statistically significant with 95% confidence.",
+        "options": [
+          "FALSE"
+        ],
+        "selected": "FALSE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank3",
+        "label": "With 95% confidence, the undercount rate is at most around 2% lower in Urban counties.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "FALSE",
+        "key": "blank4",
+        "label": "In the sample, the undercount rate was higher in Urban counties.",
+        "options": [
+          "FALSE"
+        ],
+        "selected": "FALSE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank5",
+        "label": "The difference in means is statistically significant with 95% confidence.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [
+      "georgia.csv"
+    ],
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/ucountPct%253D(ballots-votes)%252Fballots?scale=1"
+    ],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 53,
+    "name": "multiple_choice: Why do we need a control group in experimental…",
+    "questionType": "multiple_choice_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Why do we need a control group in experimental design? Identify the accurate statements below. (1) To rule out natural change and variation (as distinct from change related to some experimental treatment) as an explanation for the outcomes we observe. (2) To rule out alternative explanations for the outcome of the experiment related to placebo effects. (3) To provide a basis for comparison for those who received the treatment.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "2 and 3 only",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "B"
+    ],
+    "correctChoices": [
+      "B"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 59,
+    "name": "multiple_choice: Which of the following are key ingredients of a…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following are key ingredients of a confidence interval based on the Central Limit Theorem? (1) A summary statistic from your sample (2) A critical value based on the level of confidence (e.g., 95%) associated with the interval (3) A formula for the standard error of your summary statistic",
+    "choices": [
+      {
+        "label": "A",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "H"
+    ],
+    "correctChoices": [
+      "H"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 65,
+    "name": "multiple_answers: In a linear regression model, we describe data by…",
+    "questionType": "multiple_answers_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "In a linear regression model, we describe data by an equation: Which of the following is accurate for this equation? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "The slope of the regression line is β 1",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "The predictor (explanatory) variable is represented by x i",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "Model error is represented by e i",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "The intercept of the regression line is β 0",
+        "type": "checkbox"
+      }
+    ],
+    "selectedChoices": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "correctChoices": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/y_i%253D%255Cbeta_0%252B%255Cbeta_1%255Cast%2520x_i%252Be_i",
+      "https://utexas.instructure.com/equation_images/%255Cbeta_1?scale=1",
+      "https://utexas.instructure.com/equation_images/x_i",
+      "https://utexas.instructure.com/equation_images/e_i",
+      "https://utexas.instructure.com/equation_images/%255Cbeta_0?scale=1"
+    ],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 71,
+    "name": "multiple_dropdowns: To what extent does a patient’s body mass index…",
+    "questionType": "multiple_dropdowns_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "To what extent does a patient’s body mass index (bmi) predict the medical insurance charges for their care? The file insurance.csv contains data on 325 patients from the southwest region who incurred medical insurance charges, including the following variables: bmi: body mass index of patient charges: insurance charges for patient’s medical care in dollars Fit a linear model for charges (Y) in terms of bmi (X). Based on the results of your model, fill in the correct values for the coefficients below: The model intercept is [ Select ] [\"453\", \"29\", \"-1503\", \"0.0001\"] . The model slope is [ Select ] [\"0.0001\", \"-1503\", \"453\", \"29\"] .",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "-1503",
+        "key": "intercept",
+        "label": "intercept",
+        "options": [
+          "453",
+          "29",
+          "-1503",
+          "0.0001"
+        ],
+        "selected": "-1503"
+      },
+      {
+        "correct": "453",
+        "key": "slope",
+        "label": "slope",
+        "options": [
+          "0.0001",
+          "-1503",
+          "453",
+          "29"
+        ],
+        "selected": "453"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [
+      "insurance.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 77,
+    "name": "multiple_choice: A tech journalist blogged recently about a perceived lack…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "A tech journalist blogged recently about a perceived lack of female founders in the latest batch of startups accepted to the Hooli Hive accelerator, operated by one of the world’s leading digital technology platforms. Recent industry statistics indicate that 33% of US tech startups have at least one female founder. Of the 75 founding teams admitted to the Hooli Hive accelerator, only 16 included a female founder. Is this seemingly low proportion of females an indication of gender bias at Hooli? On the other hand, could this observation simply be the result of natural sampling variability in founding team demographics? You are on the Hooli data science team and want to help mount a defense by quantifying the extent to which the observed data are consistent with the null hypothesis. Which of the following represents the null hypothesis in this scenario?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "16%",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "33%",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "50%",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "25%",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "75%",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "21%",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "B"
+    ],
+    "correctChoices": [
+      "B"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 83,
+    "name": "multiple_answers: Which of the following is true of the t…",
+    "questionType": "multiple_answers_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following is true of the t distribution? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "Use of the t-distribution does not assume that we know the population standard deviation sigma (σ).",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "When we use an estimate of sigma (σ) rather than the true σ (as assumed with de Moivre’s equation), it introduces in our calculation an extra source of uncertainty for which the t-distribution attempts to compensate.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "The RStudio function t.test() is based on this distribution.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "Calculating a confidence interval based on the t-distribution is effectively computing a confidence interval based on the Central Limit Theorem and de Moivre’s equation, with a minor correction that widens the interval to account for small sample sizes.",
+        "type": "checkbox"
+      },
+      {
+        "label": "E",
+        "text": "The t distribution is unimodal and symmetric, similar to the normal distribution.",
+        "type": "checkbox"
+      }
+    ],
+    "selectedChoices": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E"
+    ],
+    "correctChoices": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 89,
+    "name": "matching: Match each description of the Patriots' coin toss example…",
+    "questionType": "matching_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Match each description of the Patriots' coin toss example below to its corresponding major element of our process for hypothesis testing.",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "null hypothesis",
+        "key": "blank1",
+        "label": "The pre-game coin tosses were truly random, and the Patriots' coin toss wins can therefore be explained by luck.",
+        "options": [
+          "null hypothesis"
+        ],
+        "selected": "null hypothesis"
+      },
+      {
+        "correct": "test statistic",
+        "key": "blank2",
+        "label": "The number of Patriots' coin-toss wins.",
+        "options": [
+          "test statistic"
+        ],
+        "selected": "test statistic"
+      },
+      {
+        "correct": "p-value",
+        "key": "blank3",
+        "label": "We calculated this number to assess the extent to which our test statistic looked plausible under the null hypothesis.",
+        "options": [
+          "p-value"
+        ],
+        "selected": "p-value"
+      },
+      {
+        "correct": "alternative hypothesis",
+        "key": "blank4",
+        "label": "The pre-game coin toss procedure may have been systematically compromised resulting in this implausibly long stretch of coin toss wins.",
+        "options": [
+          "alternative hypothesis"
+        ],
+        "selected": "alternative hypothesis"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 95,
+    "name": "multiple_answers: The data science team at Florean Fortescue's Ice-Cream Parlour…",
+    "questionType": "multiple_answers_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The data science team at Florean Fortescue's Ice-Cream Parlour is interested in how weather might impact sales. Over a period of a few months, they collect data on the quantity of ice cream orders during specific time frames as well as the outside temperature during that time frame. Their goal is to use a statistical model to understand how changes in temperature predict changes in consumer demand for ice cream, as measured by quantity of orders sold. Which of the following statements accurately describe such a model? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "With a linear model, the model intercept represents (mathematically) what we'd expect ice cream sales quantity to be if the outside temperature was zero degrees.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "With a linear model, the model intercept represents (mathematically) how many degrees we'd expect the outside temperature to be if no ice cream was sold (i.e., the ice cream sales quantity equals zero).",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "Quantity sold should be the response Y variable, and temperature should be the predictor X variable.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "Quantity sold should be the predictor X variable, and temperature should be the response Y variable.",
+        "type": "checkbox"
+      }
+    ],
+    "selectedChoices": [
+      "A",
+      "C"
+    ],
+    "correctChoices": [
+      "A",
+      "C"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 101,
+    "name": "multiple_choice: Which of the following statements is accurate of the…",
+    "questionType": "multiple_choice_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following statements is accurate of the image below (Figure 9.3 from our textbook)?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "All of the other answer choices are accurate.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "Each of the vertical bars represents a single confidence interval from a single sample.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "This figure illustrates the use of Monte Carlo simulation to assess whether bootstrapping satisfies the \"coverage principle.\"",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "This figure illustrates that bootstrapping sometimes produces confidence intervals that do not contain the \"truth\", i.e., the population estimand.",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "A"
+    ],
+    "correctChoices": [
+      "A"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://bookdown.org/jgscott/DSGI/DSGI_files/figure-html/bootstrap-coverage1-1.png"
+    ],
+    "imagesAttached": 1
+  },
+  {
+    "_idx": 107,
+    "name": "multiple_choice: Which of the following statements about statistical inference is…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following statements about statistical inference is accurate? (1) Sampling variance refers to non-systematic (random) differences between estimand and estimate. (2) Sampling bias refers to systematic (non-random) differences between estimand and estimate. (3) Bootstrapping helps us to quantify the statistical uncertainty we have about a sample estimate and what it can tell us about some population estimand.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "3 only",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "B"
+    ],
+    "correctChoices": [
+      "B"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 113,
+    "name": "numerical: The owner of Borgin and Burkes, an antiquities and…",
+    "questionType": "numerical_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The owner of Borgin and Burkes, an antiquities and consignment shop, fits a linear model predicting daily sales revenue ($) from the number of customers who visit the store each day. The model equation is: If 70 customers visit the shop tomorrow, what is the daily sales revenue predicted by this model? Round your answer to the nearest dollar.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "answerText": "377",
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/Sales_i%253D10.56%252B5.23%255Ccdot%2520Customers_i%252Be_i"
+    ],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 119,
+    "name": "multiple_choice: A scholar interested in dragon demography is working with…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "A scholar interested in dragon demography is working with a data frame containing information on 2000 dragons including the following variables: lifespan -- age of dragon in years scars -- number of scars height -- in yards weight -- in tons They fit a simple linear model to predict height in terms of weight. What measurement units does the model slope have?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "Weight per height",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "Scholars per sample",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "Yards per ton",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "Units per model",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "Dragons per scale",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "Tons per year",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "Tons per yard",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "Years per yard",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "C"
+    ],
+    "correctChoices": [
+      "C"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 125,
+    "name": "numerical: The time required to complete the OWL Standardized Test…",
+    "questionType": "numerical_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The time required to complete the OWL Standardized Test is approximately normally distributed with a mean of 70 minutes and a standard deviation of 10 minutes. What is the 25th percentile for completion time for this exam? Round your answer to the nearest minute. HINT: use the qnorm() function as seen in class",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "answerText": "63",
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 131,
+    "name": "numerical: Contract bridge, or simply bridge, is a trick-taking card…",
+    "questionType": "numerical_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Contract bridge, or simply bridge, is a trick-taking card game using a standard 52-card deck. One of the world's most popular card games, it is played by four players in two competing partnerships, with partners sitting opposite each other around a table. Imagine that you are president of the Bevo Bridge Club. It is your duty to organize game gatherings each week. One regular concern is whether or not an even table split will turn up to play. There are 15 club members. You need either 4 or 8 or 12 players in order to have the right split for tables. Over time, you have observed that a 70% probability that any given club member will attend any given gathering. Assuming that members attend independently of each other, what is the probability that exactly 4 players OR exactly 8 players OR exactly 12 players will show up for the next gathering? Enter your answer as a decimal rounded to three digits.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "answerText": "0.252",
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 137,
+    "name": "matching: Match the random variable described with its correct type:…",
+    "questionType": "matching_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Match the random variable described with its correct type: Discrete or Continuous?",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "Discrete",
+        "key": "blank1",
+        "label": "The count of Haribo gummy bears in a bag.",
+        "options": [
+          "Discrete"
+        ],
+        "selected": "Discrete"
+      },
+      {
+        "correct": "Continuous",
+        "key": "blank2",
+        "label": "The distance that a car travels with one tank of gas",
+        "options": [
+          "Continuous"
+        ],
+        "selected": "Continuous"
+      },
+      {
+        "correct": "Continuous",
+        "key": "blank3",
+        "label": "The weight of the contents of a bag of Haribo gummy bears.",
+        "options": [
+          "Continuous"
+        ],
+        "selected": "Continuous"
+      },
+      {
+        "correct": "Discrete",
+        "key": "blank4",
+        "label": "The number of cards drawn from a deck until a Queen is selected.",
+        "options": [
+          "Discrete"
+        ],
+        "selected": "Discrete"
+      },
+      {
+        "correct": "Discrete",
+        "key": "blank5",
+        "label": "The number of STA 301 students who will attend class on Day 28.",
+        "options": [
+          "Discrete"
+        ],
+        "selected": "Discrete"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 143,
+    "name": "matching: Match the terms below to their correct definitions.",
+    "questionType": "matching_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Match the terms below to their correct definitions.",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "Population",
+        "key": "blank1",
+        "label": "The set of all possible cases that might have been included in a data set.",
+        "options": [
+          "Population"
+        ],
+        "selected": "Population"
+      },
+      {
+        "correct": "Sample",
+        "key": "blank2",
+        "label": "A specific selection of cases from the population.",
+        "options": [
+          "Sample"
+        ],
+        "selected": "Sample"
+      },
+      {
+        "correct": "Data frame",
+        "key": "blank3",
+        "label": "A tabular representation of a data set in which the rows correspond to cases and the columns to variables.",
+        "options": [
+          "Data frame"
+        ],
+        "selected": "Data frame"
+      },
+      {
+        "correct": "Code book",
+        "key": "blank4",
+        "label": "A file or separate list that provides all the necessary information to interpret each variable in a data set",
+        "options": [
+          "Code book"
+        ],
+        "selected": "Code book"
+      },
+      {
+        "correct": "Unit of analysis",
+        "key": "blank5",
+        "label": "The type of entity on which you choose to focus for some analysis of data",
+        "options": [
+          "Unit of analysis"
+        ],
+        "selected": "Unit of analysis"
+      },
+      {
+        "correct": "Sampling bias",
+        "key": "blank6",
+        "label": "Any systematic discrepancy between a sample and the corresponding population",
+        "options": [
+          "Sampling bias"
+        ],
+        "selected": "Sampling bias"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  }
+]

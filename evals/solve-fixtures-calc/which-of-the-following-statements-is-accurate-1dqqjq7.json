@@ -1,0 +1,62 @@
+{
+  "name": "multiple_choice: Which of the following statements is accurate with respect…",
+  "request": {
+    "questionText": "Which of the following statements is accurate with respect to sampling distributions? (1) A sampling distribution is the theoretical distribution of sample estimates across many repeated samples. (2) A sampling distribution represents the results of a thought experiment: specifically, how much your answer might change from one sample to the next under the same random process that generated your data. (3) The sampling variability that we observe in some summary statistic is not a characteristic of the particular sample from which that statistic was calculated, but rather associated with the sample-generating procedure.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "2 and 3 only",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "F"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106918?headless=1",
+    "capturedAt": 1784653071370,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32223243"
+  }
+}

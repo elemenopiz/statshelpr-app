@@ -1,0 +1,28 @@
+{
+  "name": "numerical: Some University of Hogwarts stakeholders have expressed concern that…",
+  "request": {
+    "questionText": "Some University of Hogwarts stakeholders have expressed concern that the Ministry responsible for state governance is interfering with academic affairs. One point of contention is a perceived lack of minority representation at the senior leadership level. At the University of Hogwarts, 2 of the 18 college Deans identify as a member of a minority racial or ethnic group. Research provides a national baseline suggesting that people of color held 30% of top leadership roles in higher education during the year 2023. Use Monte Carlo simulation with 100000 iterations to calculate a p-value under the null hypothesis that Hogwarts' leadership demographics are indistinguishable from the baseline rate for academic institutions. What is the estimated p-value? Enter your p-value in percentage units OR decimal format. For example, for a p-value equal to thirteen percent, enter 13 or 0.13.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [],
+    "answerContains": [
+      "0.06"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106934",
+    "capturedAt": 1784653094063,
+    "questionType": "numerical_question",
+    "canvasQuestionId": "32385374"
+  }
+}

@@ -67,11 +67,24 @@ export function deriveBlankAnswers(
   if (!blanks?.length) return [];
   const lines = answer.split("\n");
   return blanks.map((blank, i) => {
-    // 1) "Blank 3: <option>" / "Answer 3 - <option>" / "3. <option>"
-    const byIndex = answer.match(
-      new RegExp(`^\\s*(?:blank|answer|item|#)?\\s*${i + 1}\\s*[:.)\\-]\\s*(.+?)\\s*$`, "im"),
+    // 1) "Blank <n>: <option>" anywhere on a line — the exact format
+    //    buildBlanksPrompt asks for. Tolerant of a leading "Answer:" prefix
+    //    (e.g. "Answer: Blank 1: $8.60") and of several blanks packed on one
+    //    line (captures up to the next "Blank <m>" or line end). This is the
+    //    model's most common, most reliable output; without it a fully-correct
+    //    answer parses to nothing and the dropdown is left blank.
+    const byBlank = answer.match(
+      new RegExp(`blank\\s*${i + 1}\\s*[:.)\\-]\\s*(.+?)(?=\\s+blank\\s*\\d\\b|$)`, "im"),
     );
-    let picked = byIndex?.[1] ? matchOption(byIndex[1], blank.options) : "";
+    let picked = byBlank?.[1] ? matchOption(byBlank[1], blank.options) : "";
+    // 1b) bare "<n>. <option>" / "Answer <n> - <option>" / "#<n>: <option>" at
+    //     the start of a line (formats without the word "Blank")
+    if (!picked) {
+      const byIndex = answer.match(
+        new RegExp(`^\\s*(?:answer|item|#)?\\s*${i + 1}\\s*[:.)\\-]\\s*(.+?)\\s*$`, "im"),
+      );
+      if (byIndex?.[1]) picked = matchOption(byIndex[1], blank.options);
+    }
     // 2) a line that echoes this blank's label, then names an option
     if (!picked && blank.label) {
       const key = blank.label.toLowerCase().slice(0, 24);

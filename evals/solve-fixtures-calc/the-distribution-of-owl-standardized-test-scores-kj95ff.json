@@ -1,0 +1,52 @@
+{
+  "name": "multiple_choice: The distribution of OWL Standardized Test scores is normal…",
+  "request": {
+    "questionText": "The distribution of OWL Standardized Test scores is normal with a mean of 600 points and a standard deviation of 100 points. Students who cherish the ambition to join the Auror Office must earn a test score greater than 777. The proportion of test-takers who exceed this threshold is closest to which of the following?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "11%",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "74%",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "96%",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "4%",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "7%",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "26%",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "D"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106925?headless=1",
+    "capturedAt": 1784653057148,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32223349"
+  }
+}

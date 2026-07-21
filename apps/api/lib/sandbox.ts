@@ -59,6 +59,12 @@ function getCredentials() {
  * (slow — only for the snapshot-creation script or a one-off dev test).
  */
 export async function runR(rCode: string, files: RFile[] = []): Promise<RunRResult> {
+  // Local eval backend (`pnpm eval`): run R via the WebR sidecar — the same
+  // engine production uses client-side — instead of the Vercel sandbox, which
+  // needs cloud creds the local rig lacks and which production never uses.
+  // Unset R_WEBR_URL in production, where the Vercel path below runs.
+  if (process.env.R_WEBR_URL) return runRViaWebr(process.env.R_WEBR_URL, rCode, files);
+
   const snapshotId = process.env.R_SANDBOX_SNAPSHOT_ID;
   const credentials = getCredentials();
 
@@ -92,8 +98,11 @@ export async function runR(rCode: string, files: RFile[] = []): Promise<RunRResu
       "options(warn = 1)",
       "options(width = 160)",
       "set.seed(123)",
+      dataPreamble(files, (f) => f.filename.replace(/[^a-zA-Z0-9._-]/g, "_")),
       rCode,
-    ].join("\n");
+    ]
+      .filter(Boolean)
+      .join("\n");
     const scriptB64 = Buffer.from(wrappedRCode, "utf-8").toString("base64");
     await sandbox.runCommand("sh", [
       "-c",
@@ -117,6 +126,63 @@ export async function runR(rCode: string, files: RFile[] = []): Promise<RunRResu
   } finally {
     await sandbox.stop();
   }
+}
+
+/**
+ * Load each provided data file into a variable named after its file stem
+ * (ads.csv -> `ads`), so R code can reference the dataframe by the same name
+ * the model is shown in the "R ENVIRONMENT CONTEXT" (buildDataContext) without
+ * an explicit read.csv. The context advertises these frames as already present,
+ * so the model routinely writes `mean(ads$views)` assuming they're loaded;
+ * this makes that assumption true and deterministic. Uses assign() so any stem
+ * is valid, and tryCatch so a missing/bad file yields NULL (a clear downstream
+ * error the repair loop can act on) rather than aborting the whole script.
+ * `readName` maps a file to its on-disk name (sanitized for the Vercel sandbox,
+ * verbatim for the WebR sidecar).
+ */
+function dataPreamble(files: RFile[], readName: (f: RFile) => string): string {
+  if (files.length === 0) return "";
+  const lines = files.map((f) => {
+    const stem = f.filename.replace(/\.(csv|tsv|txt)$/i, "");
+    return `assign(${jsq(stem)}, tryCatch(read.csv(${jsq(readName(f))}, stringsAsFactors = FALSE), error = function(e) NULL))`;
+  });
+  return ["# auto-loaded datasets (available by name, per the R environment context)", ...lines].join("\n");
+}
+
+function jsq(s: string): string {
+  return JSON.stringify(s);
+}
+
+/**
+ * Local eval R backend: POST the script to the WebR sidecar
+ * (scripts/webr-eval-server.cjs). Wraps the code identically to the Vercel
+ * path so output/formatting/seed match.
+ */
+async function runRViaWebr(baseUrl: string, rCode: string, files: RFile[]): Promise<RunRResult> {
+  const wrappedRCode = [
+    "options(warn = 1)",
+    "options(width = 160)",
+    "set.seed(123)",
+    dataPreamble(files, (f) => f.filename), // sidecar writes each file verbatim at FS root
+    rCode,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const res = await fetch(`${baseUrl.replace(/\/$/, "")}/runR`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code: wrappedRCode, files }),
+  });
+  if (!res.ok) {
+    throw new Error(`WebR sidecar ${res.status}: ${await res.text()}`);
+  }
+  const j = (await res.json()) as Partial<RunRResult>;
+  return {
+    stdout: j.stdout ?? "",
+    stderr: j.stderr ?? "",
+    exitCode: j.exitCode ?? 0,
+    durationMs: j.durationMs ?? 0,
+  };
 }
 
 /** One-time install — used by the snapshot creation script. */

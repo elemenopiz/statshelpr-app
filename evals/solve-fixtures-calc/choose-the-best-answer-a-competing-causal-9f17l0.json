@@ -1,0 +1,47 @@
+{
+  "name": "multiple_choice: Choose the best answer. A competing causal explanation for…",
+  "request": {
+    "questionText": "Choose the best answer. A competing causal explanation for some observed correlation is known as:",
+    "choices": [
+      {
+        "label": "A",
+        "text": "a counterfactual.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "a balanced comparison.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "a randomized controlled trial.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "a control group.",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "a confounder.",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "E"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106922?headless=1",
+    "capturedAt": 1784656811422,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32406784"
+  }
+}

@@ -167,10 +167,30 @@ interface CaptureOutputItem {
 }
 
 /**
+ * Load each data file into a variable named after its file stem (ads.csv ->
+ * `ads`) before the model's code runs, so code that references the dataframe by
+ * name — as the /solve prompt's "R ENVIRONMENT CONTEXT" advertises it — works
+ * without an explicit read.csv(). The model routinely writes `mean(ads$views)`
+ * assuming the frame is already loaded; this makes that assumption true.
+ * assign() accepts any stem; tryCatch yields NULL on a bad/missing file (a
+ * clear downstream error) instead of aborting. Mirrors
+ * apps/api/lib/sandbox.ts dataPreamble. */
+function dataLoadPreamble(dataFiles: DataFileInput[]): string {
+  if (dataFiles.length === 0) return "";
+  return dataFiles
+    .map((f) => {
+      const stem = f.filename.replace(/\.(csv|tsv|txt)$/i, "");
+      return `assign(${JSON.stringify(stem)}, tryCatch(read.csv(${JSON.stringify(f.filename)}, stringsAsFactors = FALSE), error = function(e) NULL))`;
+    })
+    .join("\n");
+}
+
+/**
  * Run R code inside WebR and capture its output.
  *
  * - Writes each data file to WebR's virtual FS at `/<filename>` before
- *   evaluating the code.
+ *   evaluating the code, and auto-loads each into a stem-named variable
+ *   (see dataLoadPreamble).
  * - Captures stdout/stderr (and R conditions — messages/warnings/errors)
  *   via a fresh Shelter, so R objects created during the run don't leak
  *   between solves. The shelter is purged after every run, win or lose.
@@ -188,7 +208,8 @@ export async function runR(code: string, dataFiles: DataFileInput[]): Promise<Ru
       await webR.FS.writeFile(`/${f.filename}`, bytes);
     }
 
-    const { output } = await shelter.captureR(code, {
+    const preamble = dataLoadPreamble(dataFiles);
+    const { output } = await shelter.captureR(preamble ? `${preamble}\n${code}` : code, {
       captureStreams: true,
       captureConditions: true,
       withAutoprint: false,

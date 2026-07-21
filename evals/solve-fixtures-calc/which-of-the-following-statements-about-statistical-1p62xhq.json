@@ -1,0 +1,62 @@
+{
+  "name": "multiple_choice: Which of the following statements about statistical inference is…",
+  "request": {
+    "questionText": "Which of the following statements about statistical inference is accurate? (1) Sampling variance refers to non-systematic (random) differences between estimand and estimate. (2) Sampling bias refers to systematic (non-random) differences between estimand and estimate. (3) Bootstrapping helps us to quantify the statistical uncertainty we have about a sample estimate and what it can tell us about some population estimand.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "3 only",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "B"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106915?headless=1",
+    "capturedAt": 1784653073673,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32384263"
+  }
+}

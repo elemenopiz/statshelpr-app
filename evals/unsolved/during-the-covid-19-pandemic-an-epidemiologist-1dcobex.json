@@ -1,0 +1,60 @@
+{
+  "name": "multiple_choice: During the covid-19 pandemic, an epidemiologist wanted to estimate…",
+  "questionText": "During the covid-19 pandemic, an epidemiologist wanted to estimate the proportion of college students in Texas who were following guidelines for \"social distancing\" off campus. In October 2021, they conducted an anonymous survey with a random sample of 1,200 undergraduates from public Texas universities, of whom 741 admitted to having fraternized off campus without masks and/or maintaining social distance guidelines. Which of the following is true of the results of this survey? (1) The population estimand is 62%. (2) The sample estimate is 62%. (3) A different sample of size 1,200 from the same population would likely result in a different sample estimate.",
+  "choices": [
+    {
+      "label": "A",
+      "text": "2 and 3 only",
+      "type": "radio"
+    },
+    {
+      "label": "B",
+      "text": "3 only",
+      "type": "radio"
+    },
+    {
+      "label": "C",
+      "text": "All of the above (1, 2, and 3)",
+      "type": "radio"
+    },
+    {
+      "label": "D",
+      "text": "2 only",
+      "type": "radio"
+    },
+    {
+      "label": "E",
+      "text": "1 and 2 only",
+      "type": "radio"
+    },
+    {
+      "label": "F",
+      "text": "1 and 3 only",
+      "type": "radio"
+    },
+    {
+      "label": "G",
+      "text": "1 only",
+      "type": "radio"
+    },
+    {
+      "label": "H",
+      "text": "None of the above",
+      "type": "radio"
+    }
+  ],
+  "selectedChoices": [],
+  "correctChoices": [],
+  "outcome": "incorrect",
+  "answerSource": "none",
+  "verified": false,
+  "mode": "calc",
+  "templateId": "15qpj9u",
+  "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106918?headless=1",
+  "capturedAt": 1784653071485,
+  "courseId": "1445339",
+  "quizId": "2106918",
+  "questionHtml": "<p>During the covid-19 pandemic, an epidemiologist wanted to estimate the proportion of college students in Texas who were following guidelines for \"social distancing\" off campus. In October 2021, they conducted an anonymous survey with a random sample of 1,200 undergraduates from public Texas universities, of whom 741 admitted to having fraternized off campus without masks and/or maintaining social distance guidelines.&nbsp;</p>\n<p>Which of the following is true of the results of this survey?&nbsp;</p>\n<p style=\"padding-left: 40px;\">(1) The population <strong>estimand </strong>is 62%.</p>\n<p style=\"padding-left: 40px;\">(2) The sample <strong>estimate </strong>is 62%.</p>\n<p style=\"padding-left: 40px;\">(3) A different sample of size 1,200 from the same population would likely result in a different sample <strong>estimate</strong>.</p>",
+  "questionType": "multiple_choice_question",
+  "canvasQuestionId": "32223246"
+}

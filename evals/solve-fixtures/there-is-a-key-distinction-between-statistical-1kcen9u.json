@@ -1,0 +1,70 @@
+{
+  "name": "matching: There is a key distinction between statistical significance and…",
+  "request": {
+    "questionText": "There is a key distinction between statistical significance and practical significance. Which of the following statements is accurate with respect to these concepts? Select TRUE or FALSE for each statement below:",
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "Evaluating practical significance necessarily involves subjective judgment on what effect sizes are large enough to matter in context.",
+        "options": [
+          "TRUE"
+        ]
+      },
+      {
+        "key": "blank2",
+        "label": "We are assessing statistical significance when we interpret confidence intervals solely in terms of whether zero appears in the interval.",
+        "options": [
+          "TRUE"
+        ]
+      },
+      {
+        "key": "blank3",
+        "label": "We consider practical significance when interpreting confidence intervals in terms of a range of values in the same measurement units as the focal variable.",
+        "options": [
+          "TRUE"
+        ]
+      },
+      {
+        "key": "blank4",
+        "label": "Effects of a research study labeled as \"statistically significant\" are certain to be meaningful for stakeholders in the relevant industry.",
+        "options": [
+          "FALSE"
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [],
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "Evaluating practical significance necessarily involves subjective judgment on what effect sizes are large enough to matter in context.",
+        "correct": "TRUE"
+      },
+      {
+        "key": "blank2",
+        "label": "We are assessing statistical significance when we interpret confidence intervals solely in terms of whether zero appears in the interval.",
+        "correct": "TRUE"
+      },
+      {
+        "key": "blank3",
+        "label": "We consider practical significance when interpreting confidence intervals in terms of a range of values in the same measurement units as the focal variable.",
+        "correct": "TRUE"
+      },
+      {
+        "key": "blank4",
+        "label": "Effects of a research study labeled as \"statistically significant\" are certain to be meaningful for stakeholders in the relevant industry.",
+        "correct": "FALSE"
+      }
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2126523?headless=1",
+    "capturedAt": 1784653086083,
+    "questionType": "matching_question",
+    "canvasQuestionId": "32387389"
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "name": "matching: Match each description of the Patriots' coin toss example…",
+  "request": {
+    "questionText": "Match each description of the Patriots' coin toss example below to its corresponding major element of our process for hypothesis testing.",
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "The pre-game coin tosses were truly random, and the Patriots' coin toss wins can therefore be explained by luck.",
+        "options": [
+          "null hypothesis"
+        ]
+      },
+      {
+        "key": "blank2",
+        "label": "The number of Patriots' coin-toss wins.",
+        "options": [
+          "test statistic"
+        ]
+      },
+      {
+        "key": "blank3",
+        "label": "We calculated this number to assess the extent to which our test statistic looked plausible under the null hypothesis.",
+        "options": [
+          "p-value"
+        ]
+      },
+      {
+        "key": "blank4",
+        "label": "The pre-game coin toss procedure may have been systematically compromised resulting in this implausibly long stretch of coin toss wins.",
+        "options": [
+          "alternative hypothesis"
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [],
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "The pre-game coin tosses were truly random, and the Patriots' coin toss wins can therefore be explained by luck.",
+        "correct": "null hypothesis"
+      },
+      {
+        "key": "blank2",
+        "label": "The number of Patriots' coin-toss wins.",
+        "correct": "test statistic"
+      },
+      {
+        "key": "blank3",
+        "label": "We calculated this number to assess the extent to which our test statistic looked plausible under the null hypothesis.",
+        "correct": "p-value"
+      },
+      {
+        "key": "blank4",
+        "label": "The pre-game coin toss procedure may have been systematically compromised resulting in this implausibly long stretch of coin toss wins.",
+        "correct": "alternative hypothesis"
+      }
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106934?headless=1",
+    "capturedAt": 1784653085429,
+    "questionType": "matching_question",
+    "canvasQuestionId": "32385370"
+  }
+}

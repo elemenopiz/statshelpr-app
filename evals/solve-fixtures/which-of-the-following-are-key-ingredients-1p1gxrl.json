@@ -1,0 +1,62 @@
+{
+  "name": "multiple_choice: Which of the following are key ingredients of a…",
+  "request": {
+    "questionText": "Which of the following are key ingredients of a confidence interval based on the Central Limit Theorem? (1) A summary statistic from your sample (2) A critical value based on the level of confidence (e.g., 95%) associated with the interval (3) A formula for the standard error of your summary statistic",
+    "choices": [
+      {
+        "label": "A",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "H"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106920?headless=1",
+    "capturedAt": 1784656811403,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32406734"
+  }
+}

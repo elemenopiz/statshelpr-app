@@ -1,0 +1,28 @@
+{
+  "name": "numerical: The Quibbler magazine is considering the launch of a…",
+  "request": {
+    "questionText": "The Quibbler magazine is considering the launch of a digital edition, but only if the editor can be convinced that more subscribers would upgrade than the historical new-feature conversion rate of 19% would indicate. The staff poll a random sample of 270 subscribers, of whom 58 expressed interest in upgrading to digital. Use Monte Carlo simulation with 100000 iterations to calculate a p-value under the appropriate null hypothesis. What is the estimated p-value? Enter your answer in percentage units rounded to the nearest percent. For example, enter 99 for an answer of ninety-nine percent.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [],
+    "answerContains": [
+      "17"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106934",
+    "capturedAt": 1784653094476,
+    "questionType": "numerical_question",
+    "canvasQuestionId": "32385377"
+  }
+}

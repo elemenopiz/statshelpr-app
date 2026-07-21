@@ -1,0 +1,91 @@
+{
+  "name": "matching: The georgia.csv file contains Georgia’s county-level voting data from…",
+  "request": {
+    "questionText": "The georgia.csv file contains Georgia’s county-level voting data from the 2000 presidential election. The 2000 election was among the most controversial in history; it turned on an esoteric set of issues surrounding voting machines and vote counts, and wasn't finally resolved until the Supreme Court's ruling in Bush v. Gore. For our purposes, the relevant variables are: votes: number of votes recorded ballots: number of ballots cast equipment: indicator for whether county used Optical scan voting machines or else Other equipment urban: indicator for whether county is predominantly Urban or Rural based on population density Use the mutate() function to define a new variable called ucountPct: ucountPct=(ballots−votes)/ballots measuring the percentage of ballots in a county that were \"undercounted\" or \"spoiled\", (i.e., ballots cast where no legal vote was recorded because the machine could not read the vote). Was there a difference, on average, in undercount percentages between Urban counties versus Rural counties? Use these variables, along with a large-sample 95% confidence interval, to evaluate the following statements:",
+    "dataFiles": [
+      {
+        "filename": "georgia.csv",
+        "content": "\"county\",\"ballots\",\"votes\",\"gore\",\"bush\",\"equipment\",\"urban\",\"atlanta\",\"perAA\",\"poverty\"\n\"APPLING\",6617,6099,2093,3940,\"Other\",\"Rural\",\"No\",18.2,\"Yes\"\n\"ATKINSON\",2149,2071,821,1228,\"Other\",\"Rural\",\"No\",23,\"Yes\"\n\"BACON\",3347,2995,956,2010,\"Other\",\"Rural\",\"No\",13.1,\"Yes\"\n\"BAKER\",1607,1519,893,615,\"Optical\",\"Rural\",\"No\",47.6,\"Yes\"\n\"BALDWIN\",12785,12126,5893,6041,\"Other\",\"Rural\",\"No\",35.9,\"No\"\n\"BANKS\",4773,4533,1220,3202,\"Other\",\"Rural\",\"No\",2.4,\"No\"\n\"BARROW\",12522,12102,3657,7925,\"Optical\",\"Urban\",\"No\",7.9,\"No\"\n\"BARTOW\",23735,22780,7508,14720,\"Optical\",\"Urban\",\"Yes\",7.9,\"No\"\n\"BEN.HILL\",5741,4661,2234,2381,\"Optical\",\"Rural\",\"No\",28.2,\"Yes\"\n\"BERRIEN\",4475,4410,1640,2718,\"Optical\",\"Rural\",\"No\",10.7,\"Yes\"\n\"BIBB\",52075,49776,24996,24071,\"Optical\",\"Urban\",\"No\",39.6,\"No\"\n\"BLECKLEY\",3867,3749,1273,2436,\"Other\",\"Rural\",\"No\",16.6,\"No\"\n\"BRANTLEY\",4910,4566,1372,3118,\"Other\",\"Rural\",\"No\",3.6,\"Yes\"\n\"BROOKS\",4754,4551,2096,2406,\"Other\",\"Rural\",\"No\",34.1,\"Yes\"\n\"BRYAN\",7059,7059,2172,4835,\"Other\",\"Urban\",\"No\",13,\"No\"\n\"BULLOCH\",15371,14782,5561,8990,\"Optical\",\"Rural\",\"No\",21.8,\"No\"\n\"BURKE\",7431,7135,3720,3381,\"Other\",\"Rural\",\"No\",46.5,\"Yes\"\n\"BUTTS\",5907,5635,2281,3198,\"Optical\",\"Rural\",\"No\",25.2,\"No\"\n\"CALHOUN\",2065,1887,1107,768,\"Other\",\"Rural\",\"No\",56.2,\"Yes\"\n\"CAMDEN\",10204,10119,3636,6371,\"Other\",\"Rural\",\"No\",19.2,\"No\"\n\"CANDLER\",2846,2722,1053,1643,\"Other\",\"Rural\",\"No\",23.9,\"Yes\"\n\"CARROLL\",26740,25741,8752,16326,\"Optical\",\"Urban\",\"No\",12.8,\"No\"\n\"CATOOSA\",18114,17721,5470,12033,\"Optical\",\"Urban\",\"No\",0.9,\"No\"\n\"CHARLTON\",2963,2816,1015,1770,\"Other\",\"Rural\",\"No\",23.1,\"Yes\"\n\"CHATHAM\",78381,76474,37590,37847,\"Optical\",\"Urban\",\"No\",34.1,\"No\"\n\"CHATTAHOOCHEE\",1227,1207,600,590,\"Other\",\"Urban\",\"No\",34.4,\"No\"\n\"CHATTOOGA\",6823,6477,2729,3640,\"Optical\",\"Rural\",\"No\",8.5,\"No\"\n\"CHEROKEE\",53458,52348,12295,38033,\"Optical\",\"Urban\",\"Yes\",2.1,\"No\"\n\"CLARKE\",29519,28904,15167,11850,\"Other\",\"Urban\",\"No\",24.2,\"No\"\n\"CLAY\",1334,1277,821,448,\"Other\",\"Rural\",\"No\",56.3,\"Yes\"\n\"CLAYTON\",63309,61398,40042,19966,\"Other\",\"Urban\",\"Yes\",50.9,\"No\"\n\"CLINCH\",1996,1929,816,1091,\"Other\",\"Rural\",\"No\",25.2,\"No\"\n\"COBB\",236525,235026,86676,140494,\"Optical\",\"Urban\",\"Yes\",16,\"No\"\n\"COFFEE\",9687,9430,3593,5756,\"Other\",\"Rural\",\"No\",25.9,\"No\"\n\"COLQUITT\",10355,9972,3297,6589,\"Other\",\"Rural\",\"No\",20,\"Yes\"\n\"COLUMBIA\",37606,36008,8969,26660,\"Other\",\"Urban\",\"No\",9.9,\"No\"\n\"COOK\",4280,3944,1639,2279,\"Optical\",\"Rural\",\"No\",25.2,\"Yes\"\n\"COWETA\",32104,31225,9056,21327,\"Optical\",\"Urban\",\"Yes\",14.4,\"No\"\n\"CRAWFORD\",3632,3567,1513,1987,\"Other\",\"Rural\",\"No\",25.1,\"No\"\n\"CRISP\",5973,5609,2268,3285,\"Other\",\"Rural\",\"No\",32.6,\"Yes\"\n\"DADE\",5290,5049,1628,3333,\"Other\",\"Urban\",\"No\",0.5,\"No\"\n\"DAWSON\",6003,5898,1458,4210,\"Optical\",\"Rural\",\"No\",0.1,\"No\"\n\"DECATUR\",7898,7648,3398,4187,\"Other\",\"Rural\",\"No\",33.1,\"Yes\"\n\"DEKALB\",228352,219980,154509,58807,\"Other\",\"Urban\",\"Yes\",51.4,\"No\"\n\"DODGE\",6044,5877,2326,3472,\"Other\",\"Rural\",\"No\",23.1,\"Yes\"\n\"DOOLY\",3755,3520,1901,1588,\"Other\",\"Rural\",\"No\",46.3,\"Yes\"\n\"DOUGHERTY\",30752,29064,16650,12248,\"Optical\",\"Urban\",\"No\",52.3,\"Yes\"\n\"DOUGLAS\",31943,30963,11162,18893,\"Optical\",\"Urban\",\"Yes\",16.9,\"No\"\n\"EARLY\",3798,3585,1622,1938,\"Optical\",\"Rural\",\"No\",36.5,\"Yes\"\n\"ECHOLS\",954,898,272,614,\"Other\",\"Rural\",\"No\",7.7,\"Yes\"\n\"EFFINGHAM\",11436,10650,3232,7326,\"Other\",\"Urban\",\"No\",10.9,\"No\"\n\"ELBERT\",5960,5853,2527,3262,\"Optical\",\"Rural\",\"No\",25.7,\"Yes\"\n\"EMANUEL\",6262,6262,2835,3343,\"Other\",\"Rural\",\"No\",29.8,\"Yes\"\n\"EVANS\",3203,3080,1217,1841,\"Other\",\"Rural\",\"No\",29.6,\"No\"\n\"FANNIN\",8691,8390,2736,5463,\"Optical\",\"Rural\",\"No\",0.1,\"No\"\n\"FAYETTE\",42766,42449,11912,29338,\"Optical\",\"Urban\",\"Yes\",10.1,\"No\"\n\"FLOYD\",27820,26825,10282,16194,\"Optical\",\"Rural\",\"No\",10.7,\"No\"\n\"FORSYTH\",37078,35755,6694,27769,\"Other\",\"Urban\",\"Yes\",0.3,\"No\"\n\"FRANKLIN\",6183,5762,2040,3659,\"Optical\",\"Rural\",\"No\",6.1,\"No\"\n\"FULTON\",280975,263211,152039,104870,\"Other\",\"Urban\",\"Yes\",41.6,\"No\"\n\"GILMER\",7616,7370,2230,4941,\"Optical\",\"Rural\",\"No\",0,\"No\"\n\"GLASCOCK\",1100,1020,249,763,\"Other\",\"Rural\",\"No\",7,\"Yes\"\n\"GLYNN\",23151,22384,7778,14346,\"Optical\",\"Rural\",\"No\",21.2,\"No\"\n\"GORDON\",12899,12205,4032,7944,\"Optical\",\"Rural\",\"No\",3.3,\"No\"\n\"GRADY\",7195,6703,2721,3894,\"Other\",\"Rural\",\"No\",24.2,\"Yes\"\n\"GREENE\",5550,5197,2137,2980,\"Optical\",\"Rural\",\"No\",36.6,\"Yes\"\n\"GWINNETT\",192303,191110,61434,121756,\"Optical\",\"Urban\",\"Yes\",11.4,\"No\"\n\"HABERSHAM\",10377,9691,2530,6964,\"Other\",\"Rural\",\"No\",1.8,\"No\"\n\"HALL\",39247,38150,10259,26841,\"Optical\",\"Rural\",\"Yes\",6.5,\"No\"\n\"HANCOCK\",3255,3086,2414,662,\"Other\",\"Rural\",\"No\",76.5,\"Yes\"\n\"HARALSON\",8609,8167,2869,5153,\"Optical\",\"Rural\",\"No\",4.5,\"No\"\n\"HARRIS\",8738,8562,2912,5554,\"Other\",\"Urban\",\"No\",15.9,\"No\"\n\"HART\",7731,7536,3192,4242,\"Other\",\"Rural\",\"No\",14.2,\"No\"\n\"HEARD\",3369,3198,1178,1947,\"Optical\",\"Rural\",\"No\",10.1,\"Yes\"\n\"HENRY\",39851,38867,11971,25815,\"Other\",\"Urban\",\"Yes\",13.6,\"No\"\n\"HOUSTON\",38139,36988,13301,23174,\"Optical\",\"Urban\",\"No\",19.9,\"No\"\n\"IRWIN\",2887,2852,1105,1720,\"Other\",\"Rural\",\"No\",22,\"No\"\n\"JACKSON\",11980,11635,3420,7878,\"Optical\",\"Rural\",\"No\",5.9,\"No\"\n\"JASPER\",4186,3943,1558,2298,\"Other\",\"Rural\",\"No\",25.2,\"No\"\n\"JEFF.DAVIS\",4574,4221,1379,2797,\"Other\",\"Rural\",\"No\",14.3,\"Yes\"\n\"JEFFERSON\",5810,5566,2973,2559,\"Other\",\"Rural\",\"No\",52.6,\"Yes\"\n\"JENKINS\",2704,2593,1250,1317,\"Other\",\"Rural\",\"No\",37.1,\"Yes\"\n\"JOHNSON\",2961,2883,1065,1797,\"Other\",\"Rural\",\"No\",27.9,\"Yes\"\n\"JONES\",8430,8068,3102,4850,\"Optical\",\"Urban\",\"No\",22.9,\"No\"\n\"LAMAR\",5452,5230,2194,2912,\"Optical\",\"Rural\",\"No\",25.5,\"No\"\n\"LANIER\",2023,1904,832,1048,\"Other\",\"Rural\",\"No\",23.4,\"Yes\"\n\"LAURENS\",14565,14036,5724,8133,\"Other\",\"Rural\",\"No\",28.8,\"Yes\"\n\"LEE\",8130,7884,1936,5872,\"Other\",\"Urban\",\"No\",13.5,\"No\"\n\"LIBERTY\",10320,9972,5347,4455,\"Other\",\"Rural\",\"No\",43.5,\"Yes\"\n\"LINCOLN\",3300,3103,1275,1807,\"Other\",\"Rural\",\"No\",31,\"Yes\"\n\"LONG\",2402,2314,975,1320,\"Other\",\"Rural\",\"No\",22.4,\"Yes\"\n\"LOWNDES\",25911,25432,10616,14462,\"Optical\",\"Rural\",\"No\",28.8,\"No\"\n\"LUMPKIN\",6886,6750,2121,4427,\"Optical\",\"Rural\",\"No\",1.1,\"No\"\n\"MACON\",4603,4355,2757,1566,\"Other\",\"Rural\",\"No\",57.8,\"Yes\"\n\"MADISON\",8254,7993,2285,5529,\"Other\",\"Urban\",\"No\",7,\"No\"\n\"MARION\",2186,2184,982,1187,\"Other\",\"Rural\",\"No\",33.7,\"Yes\"\n\"MCDUFFIE\",6832,6550,2580,3926,\"Optical\",\"Urban\",\"No\",31.7,\"Yes\"\n\"MCINTOSH\",4144,3837,2047,1766,\"Other\",\"Rural\",\"No\",38.6,\"Yes\"\n\"MERIWETHER\",7178,6709,3441,3162,\"Optical\",\"Rural\",\"No\",39.2,\"Yes\"\n\"MILLER\",2215,2150,783,1349,\"Other\",\"Rural\",\"No\",22,\"No\"\n\"MITCHELL\",6292,5799,2971,2790,\"Optical\",\"Rural\",\"No\",41.4,\"Yes\"\n\"MONROE\",7837,7541,2839,4561,\"Optical\",\"Rural\",\"No\",23,\"No\"\n\"MONTGOMERY\",2573,2509,1013,1465,\"Other\",\"Rural\",\"No\",24.3,\"Yes\"\n\"MORGAN\",6199,5902,2238,3524,\"Optical\",\"Rural\",\"No\",23.1,\"No\"\n\"MURRAY\",8742,8372,2684,5539,\"Optical\",\"Rural\",\"No\",0.3,\"No\"\n\"MUSCOGEE\",54471,52163,28193,23479,\"Optical\",\"Urban\",\"No\",39.6,\"No\"\n\"NEWTON\",19157,18375,6703,11127,\"Other\",\"Urban\",\"No\",19.7,\"No\"\n\"OCONEE\",11361,11168,3184,7611,\"Optical\",\"Urban\",\"No\",4.2,\"No\"\n\"OGLETHORPE\",4602,4385,1519,2706,\"Optical\",\"Rural\",\"No\",15.6,\"No\"\n\"PAULDING\",24947,24260,6743,16881,\"Other\",\"Urban\",\"Yes\",6.7,\"No\"\n\"PEACH\",7296,7137,3540,3525,\"Other\",\"Urban\",\"No\",41.1,\"Yes\"\n\"PICKENS\",8303,8201,2489,5488,\"Other\",\"Urban\",\"No\",0.7,\"No\"\n\"PIERCE\",4897,4681,1300,3348,\"Other\",\"Rural\",\"No\",10.7,\"No\"\n\"PIKE\",5055,4885,1413,3358,\"Optical\",\"Rural\",\"No\",13.8,\"No\"\n\"POLK\",10520,10116,4112,5841,\"Optical\",\"Rural\",\"No\",11.7,\"No\"\n\"PULASKI\",3547,3346,1390,1922,\"Other\",\"Rural\",\"No\",26.7,\"No\"\n\"PUTNAM\",6712,6299,2612,3596,\"Optical\",\"Rural\",\"No\",26.7,\"No\"\n\"QUITMAN\",931,904,542,348,\"Other\",\"Rural\",\"No\",41.8,\"Yes\"\n\"RABUN\",5536,5341,1776,3451,\"Other\",\"Rural\",\"No\",0.2,\"No\"\n\"RANDOLPH\",3021,2569,1381,1174,\"Optical\",\"Rural\",\"No\",52.7,\"Yes\"\n\"RICHMOND\",60904,57538,31413,25485,\"Other\",\"Urban\",\"No\",45.4,\"No\"\n\"ROCKDALE\",25229,24490,8295,15440,\"Optical\",\"Urban\",\"Yes\",14.5,\"No\"\n\"SCHLEY\",1199,1176,460,706,\"Other\",\"Rural\",\"No\",27.7,\"No\"\n\"SCREVEN\",4832,4719,2233,2461,\"Other\",\"Rural\",\"No\",38.5,\"Yes\"\n\"SEMINOLE\",3058,2877,1313,1537,\"Other\",\"Rural\",\"No\",27.1,\"Yes\"\n\"SPALDING\",15798,15391,5831,9271,\"Other\",\"Urban\",\"No\",23.3,\"No\"\n\"STEPHENS\",8706,8376,2869,5370,\"Other\",\"Rural\",\"No\",9,\"No\"\n\"STEWART\",2077,1954,1267,675,\"Other\",\"Rural\",\"No\",59.9,\"Yes\"\n\"SUMTER\",10315,9697,4748,4847,\"Other\",\"Rural\",\"No\",43.1,\"Yes\"\n\"TALBOT\",2601,2531,1662,844,\"Other\",\"Rural\",\"No\",58.1,\"Yes\"\n\"TALIAFERRO\",881,832,556,271,\"Other\",\"Rural\",\"No\",59.6,\"Yes\"\n\"TATTNALL\",6025,5610,1963,3597,\"Other\",\"Rural\",\"No\",21.8,\"Yes\"\n\"TAYLOR\",3084,2780,1340,1412,\"Optical\",\"Rural\",\"No\",40.2,\"Yes\"\n\"TELFAIR\",3855,3493,1777,1693,\"Other\",\"Rural\",\"No\",30.2,\"Yes\"\n\"TERRELL\",3279,3113,1584,1504,\"Other\",\"Rural\",\"No\",54.6,\"Yes\"\n\"THOMAS\",12777,12058,4862,7093,\"Optical\",\"Rural\",\"No\",31.4,\"No\"\n\"TIFT\",10803,10328,3547,6678,\"Other\",\"Rural\",\"No\",21.6,\"Yes\"\n\"TOOMBS\",7667,7210,2643,4487,\"Other\",\"Rural\",\"No\",21.4,\"Yes\"\n\"TOWNS\",4621,4497,1495,2902,\"Optical\",\"Rural\",\"No\",0,\"No\"\n\"TREUTLEN\",2168,1963,879,1062,\"Optical\",\"Rural\",\"No\",29.3,\"Yes\"\n\"TROUP\",18479,17804,6379,11198,\"Optical\",\"Rural\",\"No\",24.4,\"No\"\n\"TURNER\",2661,2456,1169,1258,\"Other\",\"Rural\",\"No\",35.2,\"Yes\"\n\"TWIGGS\",3884,3615,1977,1570,\"Other\",\"Urban\",\"No\",44.6,\"Yes\"\n\"UNION\",7221,6956,2230,4567,\"Optical\",\"Rural\",\"No\",0,\"No\"\n\"UPSON\",8791,8282,3158,5019,\"Optical\",\"Rural\",\"No\",24.1,\"No\"\n\"WALKER\",19654,18895,6341,12326,\"Optical\",\"Urban\",\"No\",3.4,\"No\"\n\"WALTON\",19785,19083,5484,12966,\"Optical\",\"Urban\",\"No\",11.8,\"No\"\n\"WARE\",10283,9628,3480,6099,\"Optical\",\"Rural\",\"No\",22.1,\"Yes\"\n\"WARREN\",2226,2145,1196,933,\"Other\",\"Rural\",\"No\",54.9,\"Yes\"\n\"WASHINGTON\",6927,6691,3476,3162,\"Other\",\"Rural\",\"No\",46.2,\"Yes\"\n\"WAYNE\",8342,8004,2736,5219,\"Optical\",\"Rural\",\"No\",15.2,\"Yes\"\n\"WEBSTER\",950,909,541,359,\"Other\",\"Rural\",\"No\",45.4,\"Yes\"\n\"WHEELER\",1733,1575,752,813,\"Optical\",\"Rural\",\"No\",25.4,\"Yes\"\n\"WHITE\",7338,7043,2014,4857,\"Other\",\"Rural\",\"No\",1.9,\"No\"\n\"WHITFIELD\",23854,23302,7034,15852,\"Optical\",\"Rural\",\"No\",4,\"No\"\n\"WILCOX\",2430,2365,962,1381,\"Other\",\"Rural\",\"No\",26.5,\"Yes\"\n\"WILKES\",4136,4026,1940,2044,\"Other\",\"Rural\",\"No\",38.6,\"No\"\n\"WILKINSON\",3792,3740,1884,1800,\"Other\",\"Rural\",\"No\",40.8,\"Yes\"\n\"WORTH\",6458,6061,2214,3792,\"Other\",\"Rural\",\"No\",26.6,\"Yes\"\n"
+      }
+    ],
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "In the sample, the undercount rate was higher in Rural counties.",
+        "options": [
+          "TRUE"
+        ]
+      },
+      {
+        "key": "blank2",
+        "label": "The difference in means is not statistically significant with 95% confidence.",
+        "options": [
+          "FALSE"
+        ]
+      },
+      {
+        "key": "blank3",
+        "label": "With 95% confidence, the undercount rate is at most around 2% lower in Urban counties.",
+        "options": [
+          "TRUE"
+        ]
+      },
+      {
+        "key": "blank4",
+        "label": "In the sample, the undercount rate was higher in Urban counties.",
+        "options": [
+          "FALSE"
+        ]
+      },
+      {
+        "key": "blank5",
+        "label": "The difference in means is statistically significant with 95% confidence.",
+        "options": [
+          "TRUE"
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [],
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "In the sample, the undercount rate was higher in Rural counties.",
+        "correct": "TRUE"
+      },
+      {
+        "key": "blank2",
+        "label": "The difference in means is not statistically significant with 95% confidence.",
+        "correct": "FALSE"
+      },
+      {
+        "key": "blank3",
+        "label": "With 95% confidence, the undercount rate is at most around 2% lower in Urban counties.",
+        "correct": "TRUE"
+      },
+      {
+        "key": "blank4",
+        "label": "In the sample, the undercount rate was higher in Urban counties.",
+        "correct": "FALSE"
+      },
+      {
+        "key": "blank5",
+        "label": "The difference in means is statistically significant with 95% confidence.",
+        "correct": "TRUE"
+      }
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106920?headless=1",
+    "capturedAt": 1784656813462,
+    "questionType": "matching_question",
+    "canvasQuestionId": "32406744",
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/ucountPct%253D(ballots-votes)%252Fballots?scale=1"
+    ]
+  }
+}

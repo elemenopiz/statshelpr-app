@@ -1,0 +1,74 @@
+{
+  "name": "multiple_dropdowns: Understanding the difference between statistical significance versus practical significance…",
+  "request": {
+    "questionText": "Understanding the difference between statistical significance versus practical significance is an important distinction in data science. Fill in the blanks below with the appropriate type of \"significance.\" Statistical significance can usually be assessed by checking whether or not zero falls within the range of plausible values represented by a confidence interval. When we ask about the extent to which the numerical magnitude of something is large enough to matter to in the data science context, we are concerned with practical significance. . [ Select ] [\"Statistical significance\", \"Practical significance\"] necessarily involves subjective judgment on what effects are \"large enough to matter.\" Variable units and measurement scales matter when we are assessing [ Select ] [\"practical significance.\", \"statistical significance.\"] .",
+    "blanks": [
+      {
+        "key": "interval2",
+        "label": "interval2",
+        "options": [
+          "Practical significance",
+          "Statistical significance"
+        ]
+      },
+      {
+        "key": "meaningful",
+        "label": "meaningful",
+        "options": [
+          "statistical significance.",
+          "practical significance."
+        ]
+      },
+      {
+        "key": "subjective",
+        "label": "subjective",
+        "options": [
+          "Statistical significance",
+          "Practical significance"
+        ]
+      },
+      {
+        "key": "units",
+        "label": "units",
+        "options": [
+          "practical significance.",
+          "statistical significance."
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [],
+    "blanks": [
+      {
+        "key": "interval2",
+        "label": "interval2",
+        "correct": "Statistical significance"
+      },
+      {
+        "key": "meaningful",
+        "label": "meaningful",
+        "correct": "practical significance."
+      },
+      {
+        "key": "subjective",
+        "label": "subjective",
+        "correct": "Practical significance"
+      },
+      {
+        "key": "units",
+        "label": "units",
+        "correct": "practical significance."
+      }
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106915?headless=1",
+    "capturedAt": 1784653075535,
+    "questionType": "multiple_dropdowns_question",
+    "canvasQuestionId": "32384107"
+  }
+}

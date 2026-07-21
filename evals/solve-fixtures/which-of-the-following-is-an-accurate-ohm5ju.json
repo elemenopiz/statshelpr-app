@@ -1,0 +1,82 @@
+{
+  "name": "matching: Which of the following is an accurate statement about…",
+  "request": {
+    "questionText": "Which of the following is an accurate statement about bootstrapping? Indicate below whether each statement is TRUE or FALSE.",
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "Each bootstrap sample must be of a different size than the original sample.",
+        "options": [
+          "FALSE"
+        ]
+      },
+      {
+        "key": "blank2",
+        "label": "Each bootstrap sample could contain duplicates and omissions from the original sample.",
+        "options": [
+          "TRUE"
+        ]
+      },
+      {
+        "key": "blank3",
+        "label": "Each bootstrap sample must be sampled with replacement.",
+        "options": [
+          "TRUE"
+        ]
+      },
+      {
+        "key": "blank4",
+        "label": "Bootstrapping involves repeatedly resampling from the original sample to track the extent to which the estimate varies across samples.",
+        "options": [
+          "TRUE"
+        ]
+      },
+      {
+        "key": "blank5",
+        "label": "Simulation of a sampling distribution with the bootstrap is one method to reduce our uncertainty related to sampling variance.",
+        "options": [
+          "FALSE"
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [],
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "Each bootstrap sample must be of a different size than the original sample.",
+        "correct": "FALSE"
+      },
+      {
+        "key": "blank2",
+        "label": "Each bootstrap sample could contain duplicates and omissions from the original sample.",
+        "correct": "TRUE"
+      },
+      {
+        "key": "blank3",
+        "label": "Each bootstrap sample must be sampled with replacement.",
+        "correct": "TRUE"
+      },
+      {
+        "key": "blank4",
+        "label": "Bootstrapping involves repeatedly resampling from the original sample to track the extent to which the estimate varies across samples.",
+        "correct": "TRUE"
+      },
+      {
+        "key": "blank5",
+        "label": "Simulation of a sampling distribution with the bootstrap is one method to reduce our uncertainty related to sampling variance.",
+        "correct": "FALSE"
+      }
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106915?headless=1",
+    "capturedAt": 1784653073299,
+    "questionType": "matching_question",
+    "canvasQuestionId": "32384095"
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "name": "multiple_choice: According to guidelines for data scientists in Lesson 15.6,…",
+  "request": {
+    "questionText": "According to guidelines for data scientists in Lesson 15.6, which of the following describe some hypothetical variable --- let's call it X2 --- that we would typically EXCLUDE from a multiple regression model? (1) X2 explains no variability in the response variable Y. (2) X2 conveys some information about the response variable Y, but offers little or no unique information. In other words, X2 conveys information that is redundant with information conveyed by other X variables already in the model). (3) X2 represents a common effect of Y and another X1 in the model (rather than a common cause of both X1 and Y). In other words, X2 is causally downstream of X1 and Y.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "1 and 3",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "2 and 3",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "1 and 2",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "3 only",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "D"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106928?headless=1",
+    "capturedAt": 1784656831921,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32444523"
+  }
+}

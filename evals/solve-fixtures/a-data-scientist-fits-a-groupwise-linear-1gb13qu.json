@@ -1,0 +1,52 @@
+{
+  "name": "multiple_choice: A data scientist fits a groupwise linear model to…",
+  "request": {
+    "questionText": "A data scientist fits a groupwise linear model to predict Revenue from research grants in terms of affiliation of the research team with 1 of 8 academic Institutions in the University of Texas system: UT Arlington UT Austin UT Dallas UT El Paso UT Permian Basin UT Rio Grande Valley UT San Antonio UT Tyler If this model has a \"baseline/offset\" form, how many dummy variables would it use to encode the variable for academic Institution?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "4",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "2",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "0",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "8",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "7",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "1",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "E"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106923?headless=1",
+    "capturedAt": 1784656816869,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32408201"
+  }
+}

@@ -1,0 +1,1368 @@
+[
+  {
+    "_idx": 1,
+    "name": "matching: As an Advanced Accounting Analytics intern at Gringotts Bank,…",
+    "questionType": "matching_question",
+    "mode": "calc",
+    "verified": false,
+    "answerSource": "none",
+    "outcome": "incorrect",
+    "questionText": "As an Advanced Accounting Analytics intern at Gringotts Bank, you are tasked with investigating factors that explain variation in account balances accrued by credit card holders. The credit.csv file contains a data set with information on 400 credit card account holders, including the following variables: Balance: credit card balance, i.e. debt owed to bank ($ dollars) Income: cardholder annual income ($ thousands of dollars) Limit: credit spending limit ($ dollars) Student: Yes/No indicator for whether or not the cardholder is a part-time or full-time student Fit a linear regression model for Balance in terms of the following predictors: Income Student Limit the interaction between Student and Limit Which of the following is an accurate interpretation of the results of this model? Select TRUE below for accurate interpretations or FALSE for inaccurate interpretations.",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "",
+        "key": "blank1",
+        "label": "For cardholders who are students, we estimate a balance increase of approximately $0.27 for every one-dollar increase in credit limit (when comparing cardholders with the same income level).",
+        "options": [
+          "FALSE"
+        ],
+        "selected": "FALSE"
+      },
+      {
+        "correct": "",
+        "key": "blank2",
+        "label": "For cardholders with the same student status and credit limit, we are 95% confident that an increase in annual Income is associated with a decrease in credit card Balance.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "",
+        "key": "blank3",
+        "label": "For cardholders who are students, relative to non-students, we estimate a balance decrease of $144 (adjusting for annual income and credit limit).",
+        "options": [
+          "FALSE"
+        ],
+        "selected": "FALSE"
+      },
+      {
+        "correct": "",
+        "key": "blank4",
+        "label": "For cardholders who are students, we estimate a balance increase of approximately $275 for every one-dollar increase in credit limit (when comparing cardholders with the same income level).",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [
+      "credit.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 7,
+    "name": "multiple_dropdowns: The rentals.csv file contains data on 98 short-term rentals…",
+    "questionType": "multiple_dropdowns_question",
+    "mode": "calc",
+    "verified": false,
+    "answerSource": "none",
+    "outcome": "incorrect",
+    "questionText": "The rentals.csv file contains data on 98 short-term rentals in Santa Fe, New Mexico, including the following variables: Superhost -- yes/no indicator for whether rental is managed by a Superhost Cancellation -- yes/no indicator for whether rental policy allows cancellation of reservations without penalty Customers often prefer to have the option of cancelling a short-term rental if their travel plans change. Are rentals managed by Superhosts more likely or less likely to allow for Cancellation compared to non-Superhosts? Use these data (along with large-sample inference) to fill in the blanks below. In this sample, the percentage of Superhosts who do not allow cancellation was [ Select ] [\"57%\", \"43%\", \"64%\", \"53%\", \"36%\", \"32%\"] . This is a smaller percentage compared to that of non-Superhosts. The 95% large-sample confidence interval for the difference in proportions has an upper limit of approximately [ Select ] [\"43%\", \"0%\", \"53%\", \"64%\", \"21%\"] , suggesting that the proportion of rentals that allow for cancellation could be that much higher for [ Select ] [\"Superhosts\", \"non-Superhosts\"] . The population difference in proportions is [ Select ] [\"not practically significant\", \"not statistically significant\", \"practically significant\", \"statistically significant\"] with 95% confidence because the interval contains [ Select ] [\"negative values only\", \"positive values only\", \"both positive and negative values\"] . In this sample, the proportion of all rentals that allow for cancellation is [ Select ] [\"52%\", \"48%\", \"57%\", \"21%\", \"43%\"] .",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "",
+        "key": "super",
+        "label": "In this sample, the percentage of Superhosts who do not allow cancellation was . This is a smaller percentage compared to that of non-Superhosts.",
+        "options": [
+          "57%",
+          "43%",
+          "64%",
+          "53%",
+          "36%",
+          "32%"
+        ],
+        "selected": "43%"
+      },
+      {
+        "correct": "",
+        "key": "smaller",
+        "label": "smaller",
+        "options": [
+          "smaller",
+          "larger",
+          "almost identical"
+        ],
+        "selected": "smaller"
+      },
+      {
+        "correct": "",
+        "key": "upper_limit",
+        "label": "upper_limit",
+        "options": [
+          "43%",
+          "0%",
+          "53%",
+          "64%",
+          "21%"
+        ],
+        "selected": "21%"
+      },
+      {
+        "correct": "",
+        "key": "superhosts",
+        "label": "superhosts",
+        "options": [
+          "Superhosts",
+          "non-Superhosts"
+        ],
+        "selected": "Superhosts"
+      },
+      {
+        "correct": "",
+        "key": "not_distinguishable",
+        "label": "not_distinguishable",
+        "options": [
+          "not practically significant",
+          "not statistically significant",
+          "practically significant",
+          "statistically significant"
+        ],
+        "selected": "statistically significant"
+      },
+      {
+        "correct": "",
+        "key": "significance",
+        "label": "significance",
+        "options": [
+          "negative values only",
+          "positive values only",
+          "both positive and negative values"
+        ],
+        "selected": "positive values only"
+      },
+      {
+        "correct": "",
+        "key": "cancellation",
+        "label": "In this sample, the proportion of all rentals that allow for cancellation is .",
+        "options": [
+          "52%",
+          "48%",
+          "57%",
+          "21%",
+          "43%"
+        ],
+        "selected": "52%"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [
+      "rentals.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 13,
+    "name": "multiple_answers: Which of the following statements is true of \"colliders\"…",
+    "questionType": "multiple_answers_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following statements is true of \"colliders\" in the context of regression modeling? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "\"Collider\" is just another synonym for a confounder.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "Confounders tend to be causally \"upstream\" of X and Y, while colliders are causally \"downstream\" of X and Y.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "Exploratory data analysis (like plots and simple model fits) will help you tell the difference between a confounder and a collider.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "If our goal is to isolate a partial relationship between X and Y, confounders and colliders must both be included in our regression model.",
+        "type": "checkbox"
+      },
+      {
+        "label": "E",
+        "text": "If our goal is to isolate a partial relationship between X and Y, confounders should be included in the model, while colliders should be excluded.",
+        "type": "checkbox"
+      }
+    ],
+    "selectedChoices": [
+      "B",
+      "E"
+    ],
+    "correctChoices": [
+      "B",
+      "E"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 19,
+    "name": "multiple_choice: As an Advanced Accounting Analytics intern at Gringotts Bank,…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "As an Advanced Accounting Analytics intern at Gringotts Bank, you are tasked with investigating factors that explain variation in credit card account balances. You are working with a data set with information on 400 credit card accounts, including the following variables: Balance: average credit card balance, i.e. debt owed to the bank ($ dollars) Income: card holder annual income ($ thousands of dollars) Limit: credit spending limit ($ dollars) First, you fit a model to predict Balance in terms of one predictor --- Income --- and produce the following results: term estimate lower_ci upper_ci1 intercept 247. 181. 312. 2 Income 6.05 4.91 7.19 Next, you fit a model for Balance in terms of two predictors --- Income and Limit --- and produce the following results: term estimate lower_ci upper_ci1 intercept -385. -423. -347. 2 Income -7.66 -8.42 -6.91 3 Limit 0.264 0.253 0.276 Which of the following statements is accurate with respect to the results of these two regression models and the relationship between Balance and Income? (1) The overall relationship suggests that an increase in income is associated with an increase in account balance. (2) The partial relationship, adjusting for credit limit, suggests that an increase in income is associated with a decrease in account balance. (3) Credit limit is a confounder of the relationship between balance and income.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "2 only",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "C"
+    ],
+    "correctChoices": [
+      "C"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 25,
+    "name": "matching: Next semester, your work-study position involves data science support…",
+    "questionType": "matching_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Next semester, your work-study position involves data science support for a visiting scholar interested in dragon demography. You help them to fit a linear model using the dragons.csv file, a data frame on 2000 magnificent beasts randomly sampled from the extensive Care of Magical Creatures database including the following variables: lifespan -- age of dragon in years color -- color of dragon (black, blue, green, red) spikes -- indicator for spikes on body or tail (spikes, without) lost_teeth -- number of lost teeth scars -- number of scars height -- in yards weight -- in tons Fit a linear model predicting lifespan in terms of the variables for spikes, scars, lost teeth, and color. Which of the following conclusions is accurate for the results of this regression model? Evaluate each statement below as TRUE or FALSE.",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "TRUE",
+        "key": "blank1",
+        "label": "The model suggests that a black dragon with spikes who has no lost teeth or scars will live for at most 613 years, with 95% confidence.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "FALSE",
+        "key": "blank2",
+        "label": "Adjusting for spikes, scars, and teeth, black dragons have (on average) the shortest lifespan relative to dragons of other colors.",
+        "options": [
+          "FALSE"
+        ],
+        "selected": "FALSE"
+      },
+      {
+        "correct": "FALSE",
+        "key": "blank3",
+        "label": "For each additional lost tooth, we expect green dragons to live for almost 2 years more, on average (adjusting for scars and spikes).",
+        "options": [
+          "FALSE"
+        ],
+        "selected": "FALSE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank4",
+        "label": "The increase in lifespan associated with an additional scar is approximately 40 years, holding constant other model predictors.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "FALSE",
+        "key": "blank5",
+        "label": "We are 95% confident that red dragons will live at least 5 fewer years on average relative to dragons of all other colors.",
+        "options": [
+          "FALSE"
+        ],
+        "selected": "FALSE"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [
+      "dragons.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 31,
+    "name": "multiple_answers: In 1990, the United Nations created a single measure…",
+    "questionType": "multiple_answers_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "In 1990, the United Nations created a single measure that ranges between zero and one -- the Human Development Index (HDI) -- to summarize health, education, and economic status for world countries. Below is the equation for a fitted model to predict response variable HDI in terms of two predictor variables: Life expectancy and average years of School. HDI = -0.34 + (0.01 * Life) + (0.02 * School) + E Which of the following is an accurate interpretation of the coefficient for years of School? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "When the average years of School in a country increases by one year, we expect HDI to increase by 0.02, irrespective of variation in Life expectancy.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "We expect HDI to increase by 0.02 for every one-year increase in the School variable, after adjusting for the simultaneous effect of Life expectancy on HDI.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "When comparing countries with similar life expectancies but a difference of one year in years of School, we'd expect their HDIs to differ by 0.02.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "An estimated slope for the overall relationship between years of School and HDI.",
+        "type": "checkbox"
+      }
+    ],
+    "selectedChoices": [
+      "B",
+      "C"
+    ],
+    "correctChoices": [
+      "B",
+      "C"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 37,
+    "name": "multiple_choice: The data set in cars.csv includes information on the…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The data set in cars.csv includes information on the gas mileage of virtually every model of vehicle offered for sale to U.S. consumers during 2020. You will fit a regression model to predict city fuel economy in miles per gallon (city variable) in terms of the following predictor variables: powertrain -- vehicle powertrain type: Diesel, EV, FFV, Gasoline, Hybrid, or Plug-in Hybrid category -- vehicle type: Car, Small Car, SUV/Van, Truck, Two-seater, or Wagon Which of the following is closest to the estimated coefficient on the category: Small Car dummy variable in your fitted model? Round your answer to one decimal place.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "6.7",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "-4.5",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "27.4",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "-6.8",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "-3.3",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "-0.2",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "E"
+    ],
+    "correctChoices": [
+      "E"
+    ],
+    "datasetRefs": [
+      "cars.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 43,
+    "name": "matching: Next semester, your work-study position involves data science support…",
+    "questionType": "matching_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Next semester, your work-study position involves data science support for a visiting scholar interested in dragon demography. You help them to fit a linear model using the dragons.csv file, a data frame on 2000 magnificent beasts randomly sampled from the extensive Care of Magical Creatures database including the following variables: lifespan -- age of dragon in years color -- color of dragon (black, blue, green, red) spikes -- indicator for spikes on body or tail (spikes, without) lost_teeth -- number of lost teeth scars -- number of scars height -- in yards weight -- in tons Fit a linear model regressing height on two predictors: weight and color. Which of the following is an accurate interpretation of the model results? Evaluate each statement below as TRUE or FALSE.",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "TRUE",
+        "key": "blank1",
+        "label": "The intercept represents the predicted height of a black dragon weighing zero tons.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank2",
+        "label": "This model estimates a partial relationship between height and weight, adjusting for the simultaneous effects of color.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank3",
+        "label": "The blue color coefficient represents the effect of being a blue dragon on height, for dragons of equivalent weight.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank4",
+        "label": "When we compare dragons of the same color, a one-ton increase in weight is associated with an increase in height of approximately 3 yards.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [
+      "dragons.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 49,
+    "name": "numerical: The Amazon e-commerce data science team fits a model…",
+    "questionType": "numerical_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The Amazon e-commerce data science team fits a model to gain understanding of the extent to which having an Amazon Prime membership leads customers to buy more from the platform than customers without a Prime membership. The data set includes two variables: total Sales revenue for a customer account and a dummy variable representing whether the customer had a Prime membership (0 = no, 1 = yes). The fitted model equation is: What is the predicted sales revenue for a customer who is a Prime member? Round your answer to the nearest dollar.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "answerText": "2,087",
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/Sales%2520%253D%2520764%2520%252B%25201323*Prime%2520%252B%2520e"
+    ],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 55,
+    "name": "numerical: The rentals.csv data frame contains data on 98 short-term…",
+    "questionType": "numerical_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The rentals.csv data frame contains data on 98 short-term rentals in Santa Fe, New Mexico, including a variable called Cancellation indicating whether rental policy allows cancellation of reservations without penalty. Calculate a large-sample 95% confidence interval for the population proportion of rental properties allowing cancellation. What is the lower limit of this interval? Enter your answer in percentage units rounded to the nearest whole number.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "answerText": "42",
+    "datasetRefs": [
+      "rentals.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 61,
+    "name": "matching: Match each of the following large-sample inference procedures with…",
+    "questionType": "matching_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Match each of the following large-sample inference procedures with the corresponding 'shortcut' function(s) that we use for that procedure in RStudio:",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "t.test()",
+        "key": "blank1",
+        "label": "Confidence interval for a mean",
+        "options": [
+          "t.test()"
+        ],
+        "selected": "t.test()"
+      },
+      {
+        "correct": "prop.test()",
+        "key": "blank2",
+        "label": "Confidence interval for a proportion",
+        "options": [
+          "prop.test()"
+        ],
+        "selected": "prop.test()"
+      },
+      {
+        "correct": "t.test()",
+        "key": "blank3",
+        "label": "Confidence interval for a difference of means",
+        "options": [
+          "t.test()"
+        ],
+        "selected": "t.test()"
+      },
+      {
+        "correct": "prop.test()",
+        "key": "blank4",
+        "label": "Confidence interval for a difference of proportions",
+        "options": [
+          "prop.test()"
+        ],
+        "selected": "prop.test()"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 67,
+    "name": "multiple_answers: A social media influencer wants to understand the relationship…",
+    "questionType": "multiple_answers_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "A social media influencer wants to understand the relationship between the length of each video they post and the number of viewers who watch the video in its entirety. They decide to build a model to predict Viewers (total numbers of viewers who watch each entire video) from Length of video (in seconds). Viewers = 12.2 + (7.4 * Length) + error The R-squared for this model is 0.23. Which statements below are true of the interpretation of R-squared for this model? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "R-squared is unit-less, i.e., does not depend on the measurement units by which the response and predictor variables are expressed.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "Twenty-three percent (23%) of variability in the number of viewers is explained by factors other than the length of the video.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "Twenty-three percent (23%) of the variability in the number of viewers is explained by the length of the video.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "R-squared always ranges between -1 and 1.",
+        "type": "checkbox"
+      },
+      {
+        "label": "E",
+        "text": "The \"typical error\" associated with predictions using this model is plus or minus 0.23 viewers.",
+        "type": "checkbox"
+      }
+    ],
+    "selectedChoices": [
+      "A",
+      "C"
+    ],
+    "correctChoices": [
+      "A",
+      "C"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 73,
+    "name": "numerical: The Quibbler magazine is considering the launch of a…",
+    "questionType": "numerical_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The Quibbler magazine is considering the launch of a digital edition, but only if the editor can be convinced that more subscribers would upgrade than the historical new-feature conversion rate of 19% would indicate. The staff poll a random sample of 270 subscribers, of whom 58 expressed interest in upgrading to digital. Use Monte Carlo simulation with 100000 iterations to calculate a p-value under the appropriate null hypothesis. What is the estimated p-value? Enter your answer in percentage units rounded to the nearest percent. For example, enter 99 for an answer of ninety-nine percent.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "answerText": "17",
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 79,
+    "name": "multiple_choice: Payton Hobart is running for class president. Pre-election polls…",
+    "questionType": "multiple_choice_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Payton Hobart is running for class president. Pre-election polls have generally agreed that he has the support of 63% of the student body. However, his chief data scientist recently surveyed a random sample of 75 students and observed that only 44 of them were Hobart supporters. She decides to conduct a hypothesis test to determine if the recent poll results were anomalously low, or whether the results reflect random sampling variability but remain consistent with previous pre-election polls. The null hypothesis for this test assumes which of the following for the probability (p) that a randomly chosen member of the student body will support Hobart?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "50%",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "63%",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "75%",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "58%",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "44%",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "47%",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "B"
+    ],
+    "correctChoices": [
+      "B"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 85,
+    "name": "multiple_choice: Which of the following statements is true of the…",
+    "questionType": "multiple_choice_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following statements is true of the Central Limit Theorem? (1) The mean of a sufficiently large sample has an approximately normal sampling distribution. (2) To apply the Central Limit Theorem, a variable must be normally distributed in the underlying population of interest. (3) The sampling distributions of a sample mean looks more normal as the size of the sample N increases.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "1 only",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "C"
+    ],
+    "correctChoices": [
+      "C"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 91,
+    "name": "multiple_choice: Identify all accurate statements to complete the sentence. In…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Identify all accurate statements to complete the sentence. In the context of hypothesis testing, the test statistic _________ : (1) is a measure of the strength of evidence against the null hypothesis. (2) should be less than 5% to reject the null hypothesis. (3) is a probability that the null hypothesis is true, given that we have observed our p-value.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "2 and 3 only",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "D"
+    ],
+    "correctChoices": [
+      "D"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 97,
+    "name": "multiple_choice: Walt Disney Studios encompasses a collection of respected film…",
+    "questionType": "multiple_choice_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Walt Disney Studios encompasses a collection of respected film studios --- Disney, Walt Disney Animation Studios, Pixar Animation Studios, Lucasfilm, Marvel Studios, Searchlight Pictures, and 20th Century Studios --- and has produced more than 600 movies since their debut film, Snow White and the Seven Dwarfs, was released in 1937. Data from a large sample of these movies produced before 2004 are available in the disney_films.csv file, including box office gross revenues providing insights into the financial success of Disney films across different eras. The data frame includes the following variables: title − name of film date − date of release year − year of release genre − category for film types based on shared characteristics such as setting, plot, characters, mood, tone, and theme (Action, Adventure, Comedy, Drama, Musical, Romantic Comedy, Thriller/Suspense, Western) rating − Motion Picture Association rating (G, PG, PG-13, R) total_gross − total box office revenue (in millions of dollars) each movie earned in its original time period adjusted_gross − inflation-adjusted total box office revenue (in millions of dollars) Which of the following represents the cases of this data frame? Choose the best answer.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "princesses",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "musicals",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "revenues",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "theme parks",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "ratings",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "characters",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "studios",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "comedies",
+        "type": "radio"
+      },
+      {
+        "label": "I",
+        "text": "broadcasts",
+        "type": "radio"
+      },
+      {
+        "label": "J",
+        "text": "years",
+        "type": "radio"
+      },
+      {
+        "label": "K",
+        "text": "actors",
+        "type": "radio"
+      },
+      {
+        "label": "L",
+        "text": "genres",
+        "type": "radio"
+      },
+      {
+        "label": "M",
+        "text": "cartoons",
+        "type": "radio"
+      },
+      {
+        "label": "N",
+        "text": "None of the other answers represent the cases of this data frame.",
+        "type": "radio"
+      },
+      {
+        "label": "O",
+        "text": "producers",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "N"
+    ],
+    "correctChoices": [
+      "N"
+    ],
+    "datasetRefs": [
+      "disney_films.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 103,
+    "name": "multiple_dropdowns: The data in the CPS85.csv file are from the…",
+    "questionType": "multiple_dropdowns_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The data in the CPS85.csv file are from the 1985 Current Population Survey (CPS), which is used to supplement U.S. census information between census years. The data frame is a random sample of people living in the U.S. for whom we have information on wages and other characteristics, including sex, number of years of education, years of work experience, occupational status, region of residence, and union membership status. Consider the wage variable, which refers to the hourly wage (in nominal 1985 dollars) of each respondent. Form a bootstrap sampling distribution, using at least 10000 bootstrap samples, for the MEDIAN wage of CPS survey respondents. HINT: you may find it helpful to base your analysis on the example in Lesson 9.2. Except instead of using the mean() function as in Lesson 9.2, use the median() function instead. Use this distribution to form a 95% confidence interval for the MEDIAN wage in the wider population: Lower bound closest to: [ Select ] [\"$7.80\", \"$8.50\", \"$9.00\", \"$7.40\", \"$9.40\"] Upper bound closest to: [ Select ] [\"$9.40\", \"$7.80\", \"$7.40\", \"$8.50\", \"$9.00\"]",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "$7.40",
+        "key": "lower",
+        "label": "lower",
+        "options": [
+          "$7.80",
+          "$8.50",
+          "$9.00",
+          "$7.40",
+          "$9.40"
+        ],
+        "selected": "$7.40"
+      },
+      {
+        "correct": "$8.50",
+        "key": "upper",
+        "label": "upper",
+        "options": [
+          "$9.40",
+          "$7.80",
+          "$7.40",
+          "$8.50",
+          "$9.00"
+        ],
+        "selected": "$8.50"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [
+      "CPS85.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 109,
+    "name": "matching: Which of the following is an accurate statement about…",
+    "questionType": "matching_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following is an accurate statement about bootstrapping? Indicate below whether each statement is TRUE or FALSE.",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "FALSE",
+        "key": "blank1",
+        "label": "Each bootstrap sample must be of a different size than the original sample.",
+        "options": [
+          "FALSE"
+        ],
+        "selected": "FALSE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank2",
+        "label": "Each bootstrap sample could contain duplicates and omissions from the original sample.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank3",
+        "label": "Each bootstrap sample must be sampled with replacement.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank4",
+        "label": "Bootstrapping involves repeatedly resampling from the original sample to track the extent to which the estimate varies across samples.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "FALSE",
+        "key": "blank5",
+        "label": "Simulation of a sampling distribution with the bootstrap is one method to reduce our uncertainty related to sampling variance.",
+        "options": [
+          "FALSE"
+        ],
+        "selected": "FALSE"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 115,
+    "name": "multiple_choice: Walt Disney Studios encompasses a collection of respected film…",
+    "questionType": "multiple_choice_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Walt Disney Studios encompasses a collection of respected film studios --- Disney, Walt Disney Animation Studios, Pixar Animation Studios, Lucasfilm, Marvel Studios, Searchlight Pictures, and 20th Century Studios --- and has produced more than 600 movies since their debut film, Snow White and the Seven Dwarfs, was released in 1937. Data from a large sample of these movies produced before 2004 are available in the disney_films.csv file, including box office gross revenues providing insights into the financial success of Disney films across different eras. The data frame includes the following variables: title − name of film date − date of release year − year of release genre − category for film types based on shared characteristics such as setting, plot, characters, mood, tone, and theme (Action, Adventure, Comedy, Drama, Musical, Romantic Comedy, Thriller/Suspense, Western) rating − Motion Picture Association rating (G, PG, PG-13, R) total_gross − total box office revenue (in millions of dollars) each movie earned in its original time period adjusted_gross − inflation-adjusted total box office revenue (in millions of dollars) Which genre has the highest median total gross revenue?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "Adventure",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "Romantic Comedy",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "Thriller/Suspense",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "Musical",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "Western",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "Drama",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "Action",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "Comedy",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "E"
+    ],
+    "correctChoices": [
+      "E"
+    ],
+    "datasetRefs": [
+      "disney_films.csv"
+    ],
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/-?scale=1"
+    ],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 121,
+    "name": "multiple_dropdowns: Identify the name of the most appropriate R function…",
+    "questionType": "multiple_dropdowns_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Identify the name of the most appropriate R function to fill in the blanks below: Use the [ Select ] [\"select()\", \"arrange()\", \"mutate()\", \"summarize()\", \"filter()\"] function to select a subset of cases as per logical tests for variable values. The [ Select ] [\"mutate()\", \"group_by()\", \"summarize()\", \"select()\", \"filter()\"] function alters the structure of a data frame, allowing us to change our unit of analysis. Calculate statistics to characterize sets of values with the [ Select ] [\"arrange()\", \"group_by()\", \"filter()\", \"mutate()\", \"summarize()\"] function. The [ Select ] [\"filter()\", \"group_by()\", \"arrange()\", \"summarize()\", \"select()\"] function uses specified column headings to isolate a set of variables in a data frame.",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "filter()",
+        "key": "filter",
+        "label": "Use the function to select a subset of cases as per logical tests for variable values.",
+        "options": [
+          "select()",
+          "arrange()",
+          "mutate()",
+          "summarize()",
+          "filter()"
+        ],
+        "selected": "filter()"
+      },
+      {
+        "correct": "group_by()",
+        "key": "group_by",
+        "label": "The function alters the structure of a data frame, allowing us to change our unit of analysis.",
+        "options": [
+          "mutate()",
+          "group_by()",
+          "summarize()",
+          "select()",
+          "filter()"
+        ],
+        "selected": "group_by()"
+      },
+      {
+        "correct": "summarize()",
+        "key": "summarize",
+        "label": "Calculate statistics to characterize sets of values with the function.",
+        "options": [
+          "arrange()",
+          "group_by()",
+          "filter()",
+          "mutate()",
+          "summarize()"
+        ],
+        "selected": "summarize()"
+      },
+      {
+        "correct": "select()",
+        "key": "select",
+        "label": "The function uses specified column headings to isolate a set of variables in a data frame.",
+        "options": [
+          "filter()",
+          "group_by()",
+          "arrange()",
+          "summarize()",
+          "select()"
+        ],
+        "selected": "select()"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 127,
+    "name": "multiple_choice: Which of the following statements is accurate with respect…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following statements is accurate with respect to the normal distribution? (1) The normal distribution is characterized with two parameters: the mean and the standard deviation. (2) The normal distribution is characterized with two parameters: the median and the IQR. (3) Approximately 95% of the observations in a normal distribution will take on a value within plus or minus two standard deviations of the mean.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "None of the above",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "A"
+    ],
+    "correctChoices": [
+      "A"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 133,
+    "name": "numerical: Around 34% of registered voters in the U.S identify…",
+    "questionType": "numerical_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Around 34% of registered voters in the U.S identify as independents, according to 2022 electorate data. Consider a random sample of 25 registered voters. Assuming that the number of registered independents in the sample is a Binomial random variable, what is the expected value? Round your answer to one decimal place.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "answerText": "8.5",
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 139,
+    "name": "multiple_answers: Make sure you're familiar with the concept of an…",
+    "questionType": "multiple_answers_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Make sure you're familiar with the concept of an \"object\" from our course packet, which is essential to coding in R. Then consider the following block of R code. objectA = 10objectB = 2*objectA + 10objectC = objectB/6 Which of the following statements about this code block is accurate? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "If we were to run this block of code, one result will be that objectB should now store the value 30.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "If we were to run this block of code, one result will be that objectC should now store the value 10.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "The statement \"objectC = objectB/6\" is not correct, because the left-hand side and the right-hand side of the equals sign are not actually equal to each other.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "This block of code illustrates the assignment of values to objects using R's assignment operator (=).",
+        "type": "checkbox"
+      },
+      {
+        "label": "E",
+        "text": "This code block will run just fine if you type it directly into the console. But the best practice here would be to type the commands into a script instead, and then run those commands from the script.",
+        "type": "checkbox"
+      }
+    ],
+    "selectedChoices": [
+      "A",
+      "D",
+      "E"
+    ],
+    "correctChoices": [
+      "A",
+      "D",
+      "E"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 145,
+    "name": "multiple_choice: Hooli, one of the world's largest tech firms, is…",
+    "questionType": "multiple_choice_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Hooli, one of the world's largest tech firms, is researching opportunities to develop data centers in various locations around the world. They collect information on each potential site including the property size in acres, the country in which the site is located, estimated cost to acquire the site, and whether or not competitors have a presence within 100 miles of the site. Which of the following represents the cases of this data frame?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "miles",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "site locations",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "countries",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "acres",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "competitors",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "acquisition costs",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "tech firms",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "B"
+    ],
+    "correctChoices": [
+      "B"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  }
+]

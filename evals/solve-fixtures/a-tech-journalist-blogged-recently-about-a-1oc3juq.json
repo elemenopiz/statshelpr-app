@@ -1,0 +1,52 @@
+{
+  "name": "multiple_choice: A tech journalist blogged recently about a perceived lack…",
+  "request": {
+    "questionText": "A tech journalist blogged recently about a perceived lack of female founders in the latest batch of startups accepted to the Hooli Hive accelerator, operated by one of the world’s leading digital technology platforms. Recent industry statistics indicate that 33% of US tech startups have at least one female founder. Of the 75 founding teams admitted to the Hooli Hive accelerator, only 16 included a female founder. Is this seemingly low proportion of females an indication of gender bias at Hooli? On the other hand, could this observation simply be the result of natural sampling variability in founding team demographics? You are on the Hooli data science team and want to help mount a defense by quantifying the extent to which the observed data are consistent with the null hypothesis. Which of the following represents the null hypothesis in this scenario?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "16%",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "33%",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "50%",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "25%",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "75%",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "21%",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "B"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106934",
+    "capturedAt": 1784653091673,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32385366"
+  }
+}

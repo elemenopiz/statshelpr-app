@@ -1,0 +1,43 @@
+{
+  "name": "multiple_answers: The data science team at Florean Fortescue's Ice-Cream Parlour…",
+  "request": {
+    "questionText": "The data science team at Florean Fortescue's Ice-Cream Parlour is interested in how weather might impact sales. Over a period of a few months, they collect data on the quantity of ice cream orders during specific time frames as well as the outside temperature during that time frame. Their goal is to use a statistical model to understand how changes in temperature predict changes in consumer demand for ice cream, as measured by quantity of orders sold. Which of the following statements accurately describe such a model? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "With a linear model, the model intercept represents (mathematically) what we'd expect ice cream sales quantity to be if the outside temperature was zero degrees.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "With a linear model, the model intercept represents (mathematically) how many degrees we'd expect the outside temperature to be if no ice cream was sold (i.e., the ice cream sales quantity equals zero).",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "Quantity sold should be the response Y variable, and temperature should be the predictor X variable.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "Quantity sold should be the predictor X variable, and temperature should be the response Y variable.",
+        "type": "checkbox"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "A",
+      "C"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106929?headless=1",
+    "capturedAt": 1784653078886,
+    "questionType": "multiple_answers_question",
+    "canvasQuestionId": "32223437"
+  }
+}

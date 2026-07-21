@@ -1,0 +1,40 @@
+{
+  "name": "multiple_choice: Why is it useful to approximate the sampling distribution…",
+  "questionText": "Why is it useful to approximate the sampling distribution of a statistical summary? Choose the best answer below.",
+  "choices": [
+    {
+      "label": "A",
+      "text": "The sampling distribution measures the repeatability of our answer in the presence of randomness, and therefore can be used to quantify our level of statistical uncertainty.",
+      "type": "radio"
+    },
+    {
+      "label": "B",
+      "text": "The sampling distribution can eliminate our uncertainty about how the results from a sample can be generalized to the wider population.",
+      "type": "radio"
+    },
+    {
+      "label": "C",
+      "text": "The sampling distribution is the variability in a measure that we observe in only one particular sample.",
+      "type": "radio"
+    },
+    {
+      "label": "D",
+      "text": "The sampling distribution can reduce our uncertainty about how the results from a sample can be generalized to the wider population.",
+      "type": "radio"
+    }
+  ],
+  "selectedChoices": [],
+  "correctChoices": [],
+  "outcome": "incorrect",
+  "answerSource": "none",
+  "verified": false,
+  "mode": "concept",
+  "templateId": "13g2g45",
+  "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106918",
+  "capturedAt": 1784653088490,
+  "courseId": "1445339",
+  "quizId": "2106918",
+  "questionHtml": "Why is it useful to approximate the sampling distribution of a statistical summary? Choose the <em>best </em>answer below.",
+  "questionType": "multiple_choice_question",
+  "canvasQuestionId": "32223247"
+}

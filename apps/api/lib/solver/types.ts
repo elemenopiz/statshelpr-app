@@ -37,4 +37,7 @@ export interface SolveBody {
   dataFiles?: DataFile[];
   stream?: boolean;
   debug?: boolean;
+  /** Optional per-request model override (for eval/benchmarking A/B); falls
+   * back to the default MODEL when unset. */
+  model?: string;
 }

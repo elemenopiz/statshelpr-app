@@ -1,0 +1,52 @@
+{
+  "name": "multiple_choice: Hoping to gain a foothold in the competitive cloud…",
+  "request": {
+    "questionText": "Hoping to gain a foothold in the competitive cloud computing market, software-as-a-service start-up firm Nimbus 2K is weighing the uncertainty around a proposal to pursue a major contract. Their data scientist estimates the following set of potential outcomes: There is a 20% chance the firm wins the contract and earns a profit of $500,000 There is a 15% chance the firm wins the contract but incurs higher expenses, earning a profit of $300,000 Otherwise, the firm loses the contract and they earn no profit. The expected value of the contract profit is closest to which of the following?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "$210,000",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "$500,000",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "$100,000",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "$174,000",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "$186,000",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "$145,000",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "F"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106926/history?version=1",
+    "capturedAt": 1784653039466,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32223367"
+  }
+}

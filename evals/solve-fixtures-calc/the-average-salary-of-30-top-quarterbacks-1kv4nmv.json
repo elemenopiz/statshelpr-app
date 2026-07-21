@@ -1,0 +1,62 @@
+{
+  "name": "multiple_choice: The average salary of 30 top quarterbacks in the…",
+  "request": {
+    "questionText": "The average salary of 30 top quarterbacks in the 2017 National Football League was just over $13,000,000. A linear regression to predict Salary from Total QBR (an overall measure of performance based on various game statistics) produced the following equation: Salary = 150,000 + 225,000 * Total QBR Tom Brady (then of the New England Patriots) had a Total QBR of 83 and was paid $14,000,000 in 2016. Which of the following can we conclude based on the results of this linear model? (1) In 2016, Brady was underpaid by about $4.8 million, versus what we'd predict with this model given his QBR. (2) Top NFL quarterback salaries increase, on average, by about $150,000 for every one-point increase in the player's Total QBR. (3) A quarterback with a Total QBR = 70 has a predicted salary of $15,900,000.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "1 only",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "G"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106936?headless=1",
+    "capturedAt": 1784656824693,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32408325"
+  }
+}

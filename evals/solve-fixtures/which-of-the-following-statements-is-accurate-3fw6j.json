@@ -1,0 +1,82 @@
+{
+  "name": "matching: Which of the following statements is accurate with respect…",
+  "request": {
+    "questionText": "Which of the following statements is accurate with respect to the Binomial distribution? Select TRUE or FALSE for each statement below.",
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "The Binomial model describes the result of a fixed number of random events, each having a binary outcome.",
+        "options": [
+          "TRUE"
+        ]
+      },
+      {
+        "key": "blank2",
+        "label": "The outcome of each random event depends on the outcomes of preceding random events in a Binomial situation.",
+        "options": [
+          "FALSE"
+        ]
+      },
+      {
+        "key": "blank3",
+        "label": "Binomial random variables are characterized by two parameters: the mean and standard deviation.",
+        "options": [
+          "FALSE"
+        ]
+      },
+      {
+        "key": "blank4",
+        "label": "Binomial random variables are discrete random variables.",
+        "options": [
+          "TRUE"
+        ]
+      },
+      {
+        "key": "blank5",
+        "label": "Binomial random variables are characterized by two parameters: the number of random events and the probability of a 'success' outcome for each event.",
+        "options": [
+          "TRUE"
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [],
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "The Binomial model describes the result of a fixed number of random events, each having a binary outcome.",
+        "correct": "TRUE"
+      },
+      {
+        "key": "blank2",
+        "label": "The outcome of each random event depends on the outcomes of preceding random events in a Binomial situation.",
+        "correct": "FALSE"
+      },
+      {
+        "key": "blank3",
+        "label": "Binomial random variables are characterized by two parameters: the mean and standard deviation.",
+        "correct": "FALSE"
+      },
+      {
+        "key": "blank4",
+        "label": "Binomial random variables are discrete random variables.",
+        "correct": "TRUE"
+      },
+      {
+        "key": "blank5",
+        "label": "Binomial random variables are characterized by two parameters: the number of random events and the probability of a 'success' outcome for each event.",
+        "correct": "TRUE"
+      }
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106926/history?version=1",
+    "capturedAt": 1784653039446,
+    "questionType": "matching_question",
+    "canvasQuestionId": "32223366"
+  }
+}

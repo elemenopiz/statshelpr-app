@@ -1,0 +1,108 @@
+{
+  "name": "multiple_dropdowns: The rentals.csv file contains data on 98 short-term rentals…",
+  "questionText": "The rentals.csv file contains data on 98 short-term rentals in Santa Fe, New Mexico, including the following variables: Superhost -- yes/no indicator for whether rental is managed by a Superhost Cancellation -- yes/no indicator for whether rental policy allows cancellation of reservations without penalty Customers often prefer to have the option of cancelling a short-term rental if their travel plans change. Are rentals managed by Superhosts more likely or less likely to allow for Cancellation compared to non-Superhosts? Use these data (along with large-sample inference) to fill in the blanks below. In this sample, the percentage of Superhosts who do not allow cancellation was [ Select ] [\"57%\", \"43%\", \"64%\", \"53%\", \"36%\", \"32%\"] . This is a smaller percentage compared to that of non-Superhosts. The 95% large-sample confidence interval for the difference in proportions has an upper limit of approximately [ Select ] [\"43%\", \"0%\", \"53%\", \"64%\", \"21%\"] , suggesting that the proportion of rentals that allow for cancellation could be that much higher for [ Select ] [\"Superhosts\", \"non-Superhosts\"] . The population difference in proportions is [ Select ] [\"not practically significant\", \"not statistically significant\", \"practically significant\", \"statistically significant\"] with 95% confidence because the interval contains [ Select ] [\"negative values only\", \"positive values only\", \"both positive and negative values\"] . In this sample, the proportion of all rentals that allow for cancellation is [ Select ] [\"52%\", \"48%\", \"57%\", \"21%\", \"43%\"] .",
+  "choices": [],
+  "selectedChoices": [],
+  "correctChoices": [],
+  "outcome": "incorrect",
+  "answerSource": "none",
+  "verified": false,
+  "mode": "calc",
+  "templateId": "aj6x8",
+  "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106920",
+  "capturedAt": 1784657069931,
+  "blanks": [
+    {
+      "correct": "",
+      "key": "super",
+      "label": "In this sample, the percentage of Superhosts who do not allow cancellation was . This is a smaller percentage compared to that of non-Superhosts.",
+      "options": [
+        "57%",
+        "43%",
+        "64%",
+        "53%",
+        "36%",
+        "32%"
+      ],
+      "selected": "43%"
+    },
+    {
+      "correct": "",
+      "key": "smaller",
+      "label": "smaller",
+      "options": [
+        "smaller",
+        "larger",
+        "almost identical"
+      ],
+      "selected": "smaller"
+    },
+    {
+      "correct": "",
+      "key": "upper_limit",
+      "label": "upper_limit",
+      "options": [
+        "43%",
+        "0%",
+        "53%",
+        "64%",
+        "21%"
+      ],
+      "selected": "21%"
+    },
+    {
+      "correct": "",
+      "key": "superhosts",
+      "label": "superhosts",
+      "options": [
+        "Superhosts",
+        "non-Superhosts"
+      ],
+      "selected": "Superhosts"
+    },
+    {
+      "correct": "",
+      "key": "not_distinguishable",
+      "label": "not_distinguishable",
+      "options": [
+        "not practically significant",
+        "not statistically significant",
+        "practically significant",
+        "statistically significant"
+      ],
+      "selected": "statistically significant"
+    },
+    {
+      "correct": "",
+      "key": "significance",
+      "label": "significance",
+      "options": [
+        "negative values only",
+        "positive values only",
+        "both positive and negative values"
+      ],
+      "selected": "positive values only"
+    },
+    {
+      "correct": "",
+      "key": "cancellation",
+      "label": "In this sample, the proportion of all rentals that allow for cancellation is .",
+      "options": [
+        "52%",
+        "48%",
+        "57%",
+        "21%",
+        "43%"
+      ],
+      "selected": "52%"
+    }
+  ],
+  "datasetRefs": [
+    "rentals.csv"
+  ],
+  "courseId": "1445339",
+  "quizId": "2106920",
+  "questionHtml": "<p><span style=\"font-size: 12pt;\">The <strong>rentals.csv </strong>file contains data on 98 short-term rentals in Santa Fe, New Mexico, including the following variables:</span></p>\n<ul>\n<li style=\"list-style-type: none;\">\n<ul>\n<li><span style=\"font-size: 12pt;\"><strong>Superhost </strong>-- yes/no indicator for whether rental is managed by a Superhost</span></li>\n<li><span style=\"font-size: 12pt;\"><strong>Cancellation </strong>-- yes/no indicator for whether rental policy allows cancellation of reservations without penalty</span></li>\n</ul>\n</li>\n</ul>\n<p><span style=\"font-size: 12pt;\">Customers often prefer to have the option of cancelling a short-term rental if their travel plans change. Are rentals managed by <strong>Superhosts </strong>more likely or less likely to allow for <strong>Cancellation </strong>compared to <strong>non-Superhosts</strong>? Use these data (along with <a class=\"inline_disabled\" href=\"https://bookdown.org/jgscott/DSGI/large-sample-inference.html#example-3-difference-of-proportions\" target=\"_blank\">large-sample inference</a>) to fill in the blanks below.&nbsp;</span></p>\n<ul>\n<li>\n<h4><span style=\"font-size: 12pt;\">In this sample, the percentage of Superhosts who do <em>not</em> allow cancellation was \n  \n    [ Select ]\n  \n  [\"57%\", \"43%\", \"64%\", \"53%\", \"36%\", \"32%\"]\n\n. This is a \n  \n    [ Select ]\n  \n  [\"smaller\", \"larger\", \"almost identical\"]\n\n percentage compared to that of non-Superhosts.</span></h4>\n</li>\n<li>\n<h4><span style=\"font-size: 12pt;\">The 95% <em>large-sample confidence interval </em>for the difference in proportions has an upper limit of approximately \n  \n    [ Select ]\n  \n  [\"43%\", \"0%\", \"53%\", \"64%\", \"21%\"]\n\n, suggesting that the proportion of rentals that allow for cancellation could be that much higher for \n  \n    [ Select ]\n  \n  [\"Superhosts\", \"non-Superhosts\"]\n\n.</span></h4>\n</li>\n<li>\n<h4><span style=\"font-size: 12pt;\">The population difference in proportions is \n  \n    [ Select ]\n  \n  [\"not practically significant\", \"not statistically significant\", \"practically significant\", \"statistically significant\"]\n\n with 95% confidence because the interval contains \n  \n    [ Select ]\n  \n  [\"negative values only\", \"positive values only\", \"both positive and negative values\"]\n\n.</span></h4>\n</li>\n<li>\n<h4><span style=\"font-size: 12pt;\">In this sample, the proportion of all rentals that allow for cancellation is \n  \n    [ Select ]\n  \n  [\"52%\", \"48%\", \"57%\", \"21%\", \"43%\"]\n\n.</span></h4>\n</li>\n</ul>",
+  "questionType": "multiple_dropdowns_question",
+  "canvasQuestionId": "32406742"
+}

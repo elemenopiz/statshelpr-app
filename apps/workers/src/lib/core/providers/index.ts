@@ -1,10 +1,11 @@
-import { geminiProvider, DEFAULT_MODEL as GEMINI_DEFAULT_MODEL } from "./gemini";
+import { geminiProvider, DEFAULT_MODEL as GEMINI_DEFAULT_MODEL, IMAGE_MODEL as GEMINI_IMAGE_MODEL } from "./gemini";
 import type { LlmChatRequest } from "./types";
 
 export { GEMINI_BASE_URL, geminiProvider } from "./gemini";
 
 export const defaultLlmProvider = geminiProvider;
 export const DEFAULT_MODEL: string = GEMINI_DEFAULT_MODEL;
+export const IMAGE_MODEL: string = GEMINI_IMAGE_MODEL;
 
 export function chat(apiKey: string, req: LlmChatRequest) {
   return defaultLlmProvider.chat(apiKey, req);

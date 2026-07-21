@@ -1,0 +1,48 @@
+{
+  "name": "multiple_answers: Which of the following statements is true of \"colliders\"…",
+  "request": {
+    "questionText": "Which of the following statements is true of \"colliders\" in the context of regression modeling? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "\"Collider\" is just another synonym for a confounder.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "Confounders tend to be causally \"upstream\" of X and Y, while colliders are causally \"downstream\" of X and Y.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "Exploratory data analysis (like plots and simple model fits) will help you tell the difference between a confounder and a collider.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "If our goal is to isolate a partial relationship between X and Y, confounders and colliders must both be included in our regression model.",
+        "type": "checkbox"
+      },
+      {
+        "label": "E",
+        "text": "If our goal is to isolate a partial relationship between X and Y, confounders should be included in the model, while colliders should be excluded.",
+        "type": "checkbox"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "B",
+      "E"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106928",
+    "capturedAt": 1784656839861,
+    "questionType": "multiple_answers_question",
+    "canvasQuestionId": "32444526"
+  }
+}

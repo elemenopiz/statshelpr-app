@@ -1,0 +1,897 @@
+{
+  "ranAt": "2026-07-21T21:11:01.185Z",
+  "model": "gemini-3.5-flash-lite",
+  "baseUrl": "http://localhost:3030",
+  "fixturesDir": "/Users/zsha/Documents/statshelpr-app/evals/solve-fixtures-calc",
+  "summary": {
+    "total": 92,
+    "passed": 78,
+    "failed": 14,
+    "tokens": {
+      "prompt": 751697,
+      "completion": 8562,
+      "total": 829665,
+      "cached": 0,
+      "output": 77968,
+      "thinking": 69406
+    },
+    "estCostUsd": 0.4204
+  },
+  "failures": [
+    {
+      "name": "multiple_dropdowns: A world's fair, also known as a universal exhibition…",
+      "expected": {
+        "mode": "calc",
+        "selectedChoices": [],
+        "blanks": [
+          {
+            "key": "not_change",
+            "label": "If we converted measurement units for cost from U.S. Dollars to Chinese Yuan, the R-squared estimate for these variables would .",
+            "correct": "not change"
+          },
+          {
+            "key": "sigma_interval",
+            "label": "We are 95% confident that the typical model error we expect in predicting cost from visitors is not greater than approximately .",
+            "correct": "$1.1 billion"
+          },
+          {
+            "key": "significant",
+            "label": "significant",
+            "correct": "statistically significant"
+          },
+          {
+            "key": "included",
+            "label": "included",
+            "correct": "is NOT included"
+          },
+          {
+            "key": "estimand",
+            "label": "estimand",
+            "correct": "estimand"
+          }
+        ]
+      },
+      "checks": [
+        {
+          "label": "blanks (5)",
+          "pass": false,
+          "expected": "5/5 correct",
+          "actual": "We are 95% confident that the typical model error we expect in predicting cost from visitors is not greater than approximately .: want \"$1.1 billion\", got \"$430 million\""
+        }
+      ],
+      "question": "A world's fair, also known as a universal exhibition or an expo, is a large global exhibition designed to showcase the achievements of nations. These exhibitions vary in character and are held in different parts of the world at a specific site for a period of time, typically between three and six months. The fairs.csv file contains information on 70 world's fairs, including these variables: name and theme --- used to describe the fair city and country --- location where fair was held month and year --- dates for when the fair began visitors --- number of visitors in millions cost --- cost in millions of U.S. dollars Imagine that you are an international event planner working with historical data on some of the world's grandest gatherings. You want to predict expenditures in terms of the scale of the event (e.g., size of crowds): Fit a linear model to explore the extent to which the number of fair visitors explains variation in event cost. Considering how sample results might generalize to a broader population of large international events, use bootstrapping with 10000 iterations to generate 95% confidence intervals for model estimates and model fit statistics. Use these results to fill in the blanks below with the best answer: If we converted measurement units for cost from U.S. Dollars to Chinese Yuan, the R-squared estimate for these variables would [ Select ] [\"change\", \"not change\"] . We are 95% confident that the typical model error we expect in predicting cost from visitors is not greater than approximately [ Select ] [\"$26 million\", \"$870 million\", \"$430 million\", \"$66 million\", \"$50 million\", \"$1.1 billion\"] . The association between the number of visitors and cost is [ Select ] [\"not statistically significant\", \"practically significant\", \"statistically significant\", \"not practically significant\"] with 95% confidence because zero is NOT included in the interval as a plausible value for the population [ Select ] [\"estimate\", \"estimand\"] .",
+      "response": {
+        "mode": "calc",
+        "selectedChoices": [],
+        "blanks": [
+          {
+            "key": "not_change",
+            "answer": "not change"
+          },
+          {
+            "key": "sigma_interval",
+            "answer": "$430 million"
+          },
+          {
+            "key": "significant",
+            "answer": "statistically significant"
+          },
+          {
+            "key": "included",
+            "answer": "is NOT included"
+          },
+          {
+            "key": "estimand",
+            "answer": "estimand"
+          }
+        ],
+        "answer": "Answer: \nBlank 1: not change\nBlank 2: $430 million\nBlank 3: statistically significant\nBlank 4: is NOT included\nBlank 5: estimand",
+        "rCode": "# PLAN: lm, bootstrap residual standard error to find upper bound for model error, print 5 dropdown answers\nlibrary(tidyverse)\nlibrary(mosaic)\ndf_clean <- fairs %>%\n  mutate(cost = as.numeric(as.character(cost)), visitors = as.numeric(as.character(visitors))) %>%\n  drop_na(cost, visitors)\nset.seed(123)\nboot_err <- do(1000)*sigma(lm(cost ~ visitors, data = resample(df_clean)))\nci_up <- quantile(boot_err$result, 0.975)\nopts <- c(26, 870, 430, 66, 50, 1100)\nnames(opts) <- c(\"$26 million\", \"$870 million\", \"$430 million\", \"$66 million\", \"$50 million\", \"$1.1 billion\")\nb2 <- names(opts)[which.min(abs(opts - ci_up))]\ncat(\"Blank 1: not change\\n\")\ncat(\"Blank 2:\", b2, \"\\n\")\ncat(\"Blank 3: statistically significant\\n\")\ncat(\"Blank 4: is NOT included\\n\")\ncat(\"Blank 5: estimand\\n\")",
+        "rOutput": "Blank 1: not change\nBlank 2:  \nBlank 3: statistically significant\nBlank 4: is NOT included\nBlank 5: estimand",
+        "rExitCode": 0,
+        "usage": {
+          "first": {
+            "prompt_tokens": 9439,
+            "completion_tokens": 300,
+            "total_tokens": 13276
+          },
+          "interpret": {
+            "prompt_tokens": 10777,
+            "completion_tokens": 51,
+            "total_tokens": 10828
+          }
+        },
+        "debug": {
+          "route": "calc",
+          "rawFirst": "[RCODE]\n# PLAN: lm, bootstrap residual standard error to find upper bound for model error, print 5 dropdown answers\nlibrary(tidyverse)\nlibrary(mosaic)\ndf_clean <- fairs %>%\n  mutate(cost = as.numeric(as.character(cost)), visitors = as.numeric(as.character(visitors))) %>%\n  drop_na(cost, visitors)\nset.seed(123)\nboot_err <- do(1000)*sigma(lm(cost ~ visitors, data = resample(df_clean)))\nci_up <- quantile(boot_err$result, 0.975)\nopts <- c(26, 870, 430, 66, 50, 1100)\nnames(opts) <- c(\"$26 million\", \"$870 million\", \"$430 million\", \"$66 million\", \"$50 million\", \"$1.1 billion\")\nb2 <- names(opts)[which.min(abs(opts - ci_up))]\ncat(\"Blank 1: not change\\n\")\ncat(\"Blank 2:\", b2, \"\\n\")\ncat(\"Blank 3: statistically significant\\n\")\ncat(\"Blank 4: is NOT included\\n\")\ncat(\"Blank 5: estimand\\n\")\n\nCONFIDENCE: High",
+          "rawInterpret": "[CONCEPT]\nAnswer: \nBlank 1: not change\nBlank 2: $430 million\nBlank 3: statistically significant\nBlank 4: is NOT included\nBlank 5: estimand\n\nCONFIDENCE: High",
+          "selectedChoices": [],
+          "rCode": "# PLAN: lm, bootstrap residual standard error to find upper bound for model error, print 5 dropdown answers\nlibrary(tidyverse)\nlibrary(mosaic)\ndf_clean <- fairs %>%\n  mutate(cost = as.numeric(as.character(cost)), visitors = as.numeric(as.character(visitors))) %>%\n  drop_na(cost, visitors)\nset.seed(123)\nboot_err <- do(1000)*sigma(lm(cost ~ visitors, data = resample(df_clean)))\nci_up <- quantile(boot_err$result, 0.975)\nopts <- c(26, 870, 430, 66, 50, 1100)\nnames(opts) <- c(\"$26 million\", \"$870 million\", \"$430 million\", \"$66 million\", \"$50 million\", \"$1.1 billion\")\nb2 <- names(opts)[which.min(abs(opts - ci_up))]\ncat(\"Blank 1: not change\\n\")\ncat(\"Blank 2:\", b2, \"\\n\")\ncat(\"Blank 3: statistically significant\\n\")\ncat(\"Blank 4: is NOT included\\n\")\ncat(\"Blank 5: estimand\\n\")",
+          "rStdout": "Blank 1: not change\nBlank 2:  \nBlank 3: statistically significant\nBlank 4: is NOT included\nBlank 5: estimand",
+          "rStderr": "",
+          "rExitCode": 0,
+          "usage": {
+            "first": {
+              "prompt_tokens": 9439,
+              "completion_tokens": 300,
+              "total_tokens": 13276
+            },
+            "interpret": {
+              "prompt_tokens": 10777,
+              "completion_tokens": 51,
+              "total_tokens": 10828
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "multiple_choice: Identify all accurate statements to complete the sentence. In…",
+      "expected": {
+        "mode": "calc",
+        "selectedChoices": [
+          "D"
+        ]
+      },
+      "checks": [
+        {
+          "label": "selectedChoices",
+          "pass": false,
+          "expected": "D",
+          "actual": "A"
+        }
+      ],
+      "question": "Identify all accurate statements to complete the sentence. In the context of hypothesis testing, the test statistic _________ : (1) is a measure of the strength of evidence against the null hypothesis. (2) should be less than 5% to reject the null hypothesis. (3) is a probability that the null hypothesis is true, given that we have observed our p-value.",
+      "response": {
+        "mode": "concept",
+        "selectedChoices": [
+          "A"
+        ],
+        "answer": "Answer: A",
+        "usage": {
+          "prompt_tokens": 5603,
+          "completion_tokens": 12,
+          "total_tokens": 6697
+        },
+        "debug": {
+          "route": "concept",
+          "rawFirst": "[CONCEPT]\nAnswer: A\nCONFIDENCE: Med",
+          "selectedChoices": [
+            "A"
+          ],
+          "usage": {
+            "prompt_tokens": 5603,
+            "completion_tokens": 12,
+            "total_tokens": 6697
+          }
+        }
+      }
+    },
+    {
+      "name": "multiple_choice: In Lesson 15.5, we fit a multiple regression model…",
+      "expected": {
+        "mode": "calc",
+        "selectedChoices": [
+          "F"
+        ]
+      },
+      "checks": [
+        {
+          "label": "selectedChoices",
+          "pass": false,
+          "expected": "F",
+          "actual": "D"
+        }
+      ],
+      "question": "In Lesson 15.5, we fit a multiple regression model to predict the listing price of a house in Saratoga County, New York. We concluded that the variable age (age of the house in years) should be included in a model attempting to isolate the partial relationship between fireplaces and price. Which of the following is among the reasons that we decided to include age in the model? (1) The confidence interval for the age coefficient did not contain zero. (2) The inclusion of the age variable affected the magnitude of the coefficient of interest: fireplaces. (3) Age was correlated with both the response variable (price) and the predictor variable of interest (fireplaces).",
+      "response": {
+        "mode": "concept",
+        "selectedChoices": [
+          "D"
+        ],
+        "answer": "Answer: D",
+        "usage": {
+          "prompt_tokens": 5663,
+          "completion_tokens": 12,
+          "total_tokens": 6524
+        },
+        "debug": {
+          "route": "concept",
+          "rawFirst": "[CONCEPT]\nAnswer: D\nCONFIDENCE: Med",
+          "selectedChoices": [
+            "D"
+          ],
+          "usage": {
+            "prompt_tokens": 5663,
+            "completion_tokens": 12,
+            "total_tokens": 6524
+          }
+        }
+      }
+    },
+    {
+      "name": "numerical: The Amazon e-commerce data science team fits a model…",
+      "expected": {
+        "mode": "calc",
+        "selectedChoices": [],
+        "answerContains": [
+          "2,087"
+        ]
+      },
+      "checks": [
+        {
+          "label": "answer contains \"2,087\"",
+          "pass": false,
+          "expected": "2,087",
+          "actual": "Answer: Not provided in prompt"
+        }
+      ],
+      "question": "The Amazon e-commerce data science team fits a model to gain understanding of the extent to which having an Amazon Prime membership leads customers to buy more from the platform than customers without a Prime membership. The data set includes two variables: total Sales revenue for a customer account and a dummy variable representing whether the customer had a Prime membership (0 = no, 1 = yes). The fitted model equation is: What is the predicted sales revenue for a customer who is a Prime member? Round your answer to the nearest dollar.",
+      "response": {
+        "mode": "concept",
+        "selectedChoices": [],
+        "answer": "Answer: Not provided in prompt",
+        "usage": {
+          "prompt_tokens": 5592,
+          "completion_tokens": 15,
+          "total_tokens": 5971
+        },
+        "debug": {
+          "route": "concept",
+          "rawFirst": "[CONCEPT]\nAnswer: Not provided in prompt\nCONFIDENCE: Low",
+          "selectedChoices": [],
+          "usage": {
+            "prompt_tokens": 5592,
+            "completion_tokens": 15,
+            "total_tokens": 5971
+          }
+        }
+      }
+    },
+    {
+      "name": "multiple_dropdowns: The data in the CPS85.csv file are from the…",
+      "expected": {
+        "mode": "calc",
+        "selectedChoices": [],
+        "blanks": [
+          {
+            "key": "lower",
+            "label": "lower",
+            "correct": "$8.60"
+          },
+          {
+            "key": "upper",
+            "label": "upper",
+            "correct": "$9.50"
+          }
+        ]
+      },
+      "checks": [
+        {
+          "label": "blanks (2)",
+          "pass": false,
+          "expected": "2/2 correct",
+          "actual": "lower: want \"$8.60\", got \"∅\" · upper: want \"$9.50\", got \"∅\""
+        }
+      ],
+      "question": "The data in the CPS85.csv file are from the 1985 Current Population Survey (CPS), which is used to supplement U.S. census information between census years. The data frame is a random sample of people living in the U.S. for whom we have information on wages and other characteristics, including sex, number of years of education, years of work experience, occupational status, region of residence, and union membership status. Consider the wage variable, which refers to the hourly wage (in nominal 1985 dollars) of each respondent. Form a bootstrap sampling distribution, using at least 10000 bootstrap samples, for the mean wage of respondents. You may find it helpful to base your analysis on this example in Lesson 9.2. Use this distribution to form a 95% confidence interval for the MEAN wage in the wider population: Lower bound closest to: [ Select ] [\"$7.80\", \"$9.50\", \"$7.50\", \"$9.00\", \"$8.60\"] Upper bound closest to: [ Select ] [\"$8.60\", \"$7.50\", \"$7.80\", \"$9.50\", \"$9.00\"]",
+      "response": {
+        "mode": "calc",
+        "selectedChoices": [],
+        "blanks": [
+          {
+            "key": "lower",
+            "answer": ""
+          },
+          {
+            "key": "upper",
+            "answer": ""
+          }
+        ],
+        "answer": "Answer: Blank 1: $8.60\\nBlank 2: $9.50",
+        "rCode": "# PLAN: bootstrap, wage, do(10000)*mean(~wage, data=resample(CPS85))\nlibrary(mosaic)\nset.seed(123)\nboot_wages <- do(10000) * mean(~wage, data = resample(CPS85))\nci <- confint(boot_wages, level = 0.95)\nprint(ci)\nlower_val <- ci$lower\nupper_val <- ci$upper\noptions_lower <- c(\"$7.80\", \"$9.50\", \"$7.50\", \"$9.00\", \"$8.60\")\noptions_upper <- c(\"$8.60\", \"$7.50\", \"$7.80\", \"$9.50\", \"$9.00\")\nbest_lower <- options_lower[which.min(abs(as.numeric(gsub(\"\\\\$\", \"\", options_lower)) - lower_val))]\nbest_upper <- options_upper[which.min(abs(as.numeric(gsub(\"\\\\$\", \"\", options_upper)) - upper_val))]\ncat(\"Blank 1:\", best_lower, \"\\n\")\ncat(\"Blank 2:\", best_upper, \"\\n\")\ncat(\"Final answer: Blank 1:\", best_lower, \"Blank 2:\", best_upper, \"\\n\")",
+        "rOutput": "  name    lower    upper level     method estimate\n1 mean 8.593865 9.468301  0.95 percentile 9.024064\nBlank 1: $8.60 \nBlank 2: $9.50 \nFinal answer: Blank 1: $8.60 Blank 2: $9.50 ",
+        "rExitCode": 0,
+        "usage": {
+          "first": {
+            "prompt_tokens": 6273,
+            "completion_tokens": 300,
+            "total_tokens": 7301
+          },
+          "interpret": {
+            "prompt_tokens": 7428,
+            "completion_tokens": 31,
+            "total_tokens": 7459
+          }
+        },
+        "debug": {
+          "route": "calc",
+          "rawFirst": "# PLAN: bootstrap, wage, do(10000)*mean(~wage, data=resample(CPS85))\nlibrary(mosaic)\nset.seed(123)\nboot_wages <- do(10000) * mean(~wage, data = resample(CPS85))\nci <- confint(boot_wages, level = 0.95)\nprint(ci)\nlower_val <- ci$lower\nupper_val <- ci$upper\noptions_lower <- c(\"$7.80\", \"$9.50\", \"$7.50\", \"$9.00\", \"$8.60\")\noptions_upper <- c(\"$8.60\", \"$7.50\", \"$7.80\", \"$9.50\", \"$9.00\")\nbest_lower <- options_lower[which.min(abs(as.numeric(gsub(\"\\\\$\", \"\", options_lower)) - lower_val))]\nbest_upper <- options_upper[which.min(abs(as.numeric(gsub(\"\\\\$\", \"\", options_upper)) - upper_val))]\ncat(\"Blank 1:\", best_lower, \"\\n\")\ncat(\"Blank 2:\", best_upper, \"\\n\")\ncat(\"Final answer: Blank 1:\", best_lower, \"Blank 2:\", best_upper, \"\\n\")",
+          "rawInterpret": "[CONCEPT]\nAnswer: Blank 1: $8.60\\nBlank 2: $9.50\nCONFIDENCE: High",
+          "selectedChoices": [],
+          "rCode": "# PLAN: bootstrap, wage, do(10000)*mean(~wage, data=resample(CPS85))\nlibrary(mosaic)\nset.seed(123)\nboot_wages <- do(10000) * mean(~wage, data = resample(CPS85))\nci <- confint(boot_wages, level = 0.95)\nprint(ci)\nlower_val <- ci$lower\nupper_val <- ci$upper\noptions_lower <- c(\"$7.80\", \"$9.50\", \"$7.50\", \"$9.00\", \"$8.60\")\noptions_upper <- c(\"$8.60\", \"$7.50\", \"$7.80\", \"$9.50\", \"$9.00\")\nbest_lower <- options_lower[which.min(abs(as.numeric(gsub(\"\\\\$\", \"\", options_lower)) - lower_val))]\nbest_upper <- options_upper[which.min(abs(as.numeric(gsub(\"\\\\$\", \"\", options_upper)) - upper_val))]\ncat(\"Blank 1:\", best_lower, \"\\n\")\ncat(\"Blank 2:\", best_upper, \"\\n\")\ncat(\"Final answer: Blank 1:\", best_lower, \"Blank 2:\", best_upper, \"\\n\")",
+          "rStdout": "  name    lower    upper level     method estimate\n1 mean 8.593865 9.468301  0.95 percentile 9.024064\nBlank 1: $8.60 \nBlank 2: $9.50 \nFinal answer: Blank 1: $8.60 Blank 2: $9.50 ",
+          "rStderr": "",
+          "rExitCode": 0,
+          "usage": {
+            "first": {
+              "prompt_tokens": 6273,
+              "completion_tokens": 300,
+              "total_tokens": 7301
+            },
+            "interpret": {
+              "prompt_tokens": 7428,
+              "completion_tokens": 31,
+              "total_tokens": 7459
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "multiple_dropdowns: The file franchise.csv contains data from 807 respondents to…",
+      "expected": {
+        "mode": "calc",
+        "selectedChoices": [],
+        "blanks": [
+          {
+            "key": "younger",
+            "label": "younger",
+            "correct": "younger"
+          },
+          {
+            "key": "diffmean",
+            "label": "diffmean",
+            "correct": "4"
+          },
+          {
+            "key": "significant",
+            "label": "significant",
+            "correct": "generalizable"
+          },
+          {
+            "key": "interval",
+            "label": "interval",
+            "correct": "does not contain zero"
+          },
+          {
+            "key": "upper_limit",
+            "label": "With 95% confidence, individuals who do NOT consider themselves to be Star Wars fans are at least approximately older than those who do consider themselves to be Star Wars fans.",
+            "correct": "1 year"
+          }
+        ]
+      },
+      "checks": [
+        {
+          "label": "blanks (5)",
+          "pass": false,
+          "expected": "5/5 correct",
+          "actual": "With 95% confidence, individuals who do NOT consider themselves to be Star Wars fans are at least approximately older than those who do consider themselves to be Star Wars fans.: want \"1 year\", got \"4 years\""
+        }
+      ],
+      "question": "The file franchise.csv contains data from 807 respondents to a scientific survey about the Star Wars film franchise, including these variables: SeenFilms: Yes/No indicator for whether respondent has seen any of the Star Wars franchise films ConsiderFan: Yes/No indicator for whether respondent considers themselves a fan of the Star Wars film franchise Gender: indicator for whether respondent identifies as a Female, or else not_Female Age --- in years Income --- annual income in U.S. dollars Education --- level of education (High school, Bachelor, Graduate, etc) Region --- location of residence in U.S. (Mountain, Pacific, New England, etc) A data scientist interested Star Wars fanbase demography wonders about the extent to which age is a factor in whether someone considers themselves to be a fan of the franchise? Are 'Yes' respondents to the ConsiderFan variable significantly older or younger (on average) relative to 'No' respondents to the ConsiderFan variable? Use these variables along with a 95% bootstrap confidence interval (based on 5000 simulations) to fill in the blanks below with the best answer from each dropdown list: Respondents who consider themselves fans are [ Select ] [\"older\", \"younger\"] (on average) than non-fans by approximately [ Select ] [\"4\", \"45\", \"1\", \"49\", \"6\"] years. The observed age difference is [ Select ] [\"not generalizable\", \"generalizable\"] to a broader reference population because the range of plausible values for the true group difference represented by the calculated bootstrap interval [ Select ] [\"consists of both positive and negative numbers\", \"does not contain zero\"] . With 95% confidence, individuals who do NOT consider themselves to be Star Wars fans are at least approximately [ Select ] [\"2 years\", \"47 years\", \"6 years\", \"1 year\", \"4 years\"] older than those who do consider themselves to be Star Wars fans.",
+      "response": {
+        "mode": "calc",
+        "selectedChoices": [],
+        "blanks": [
+          {
+            "key": "younger",
+            "answer": "younger"
+          },
+          {
+            "key": "diffmean",
+            "answer": "4"
+          },
+          {
+            "key": "significant",
+            "answer": "generalizable"
+          },
+          {
+            "key": "interval",
+            "answer": "does not contain zero"
+          },
+          {
+            "key": "upper_limit",
+            "answer": "4 years"
+          }
+        ],
+        "answer": "Answer:\nBlank 1: younger\nBlank 2: 4\nBlank 3: generalizable\nBlank 4: does not contain zero\nBlank 5: 4 years",
+        "rCode": "# PLAN: bootstrap, Age ~ ConsiderFan, franchise data\nlibrary(mosaic)\nset.seed(42)\nboot_diff <- do(5000) * diffmean(Age ~ ConsiderFan, data = resample(franchise))\nci <- confint(boot_diff)\npt_diff <- diffmean(Age ~ ConsiderFan, data = franchise)\nprint(pt_diff)\nprint(ci)\nmean_by_group <- mean(Age ~ ConsiderFan, data = franchise)\nprint(mean_by_group)\n\n# Determine the answers for the blanks\n# Blank 1: younger / older (Are Yes respondents older or younger than No respondents?)\n# Blank 2: value (diff rounded)\n# Blank 3: generalizable / not generalizable\n# Blank 4: does not contain zero / consists of both positive and negative numbers\n# Blank 5: at least approximately X years older/younger (lower bound of interval for No vs Yes)\n\nans1 <- if(mean_by_group[\"Yes\"] < mean_by_group[\"No\"]) \"younger\" else \"older\"\ndiff_val <- round(abs(mean_by_group[\"Yes\"] - mean_by_group[\"No\"]))\n# let's find the closest option among 4, 45, 1, 49, 6\noptions_diff <- c(4, 45, 1, 49, 6)\nclosest_diff <- options_diff[which.min(abs(options_diff - abs(pt_diff)))]\n\nsig <- if(ci$lower > 0 || ci$upper < 0) \"generalizable\" else \"not generalizable\"\ncontain <- if((ci$lower > 0 && ci$upper > 0) || (ci$lower < 0 && ci$upper < 0)) \"does not contain zero\" else \"consists of both positive and negative numbers\"\n\ncat(\"Blank 1:\", ans1, \"\\n\")\ncat(\"Blank 2:\", closest_diff, \"\\n\")\ncat(\"Blank 3:\", sig, \"\\n\")\ncat(\"Blank 4:\", contain, \"\\n\")\ncat(\"Blank 5:\", paste(closest_diff, \"years\"), \"\\n\")\ncat(\"CONFIDENCE: High\\n\")",
+        "rOutput": " diffmean \n-3.633288 \n      name     lower      upper level     method  estimate\n1 diffmean -6.372666 -0.9133388  0.95 percentile -3.633288\n      No      Yes \n49.13235 45.49907 \nBlank 1: younger \nBlank 2: 4 \nBlank 3: generalizable \nBlank 4: does not contain zero \nBlank 5: 4 years \nCONFIDENCE: High",
+        "rExitCode": 0,
+        "usage": {
+          "first": {
+            "prompt_tokens": 6515,
+            "completion_tokens": 513,
+            "total_tokens": 7979
+          },
+          "interpret": {
+            "prompt_tokens": 8358,
+            "completion_tokens": 48,
+            "total_tokens": 8406
+          }
+        },
+        "debug": {
+          "route": "calc",
+          "rawFirst": "[RCODE]\n# PLAN: bootstrap, Age ~ ConsiderFan, franchise data\nlibrary(mosaic)\nset.seed(42)\nboot_diff <- do(5000) * diffmean(Age ~ ConsiderFan, data = resample(franchise))\nci <- confint(boot_diff)\npt_diff <- diffmean(Age ~ ConsiderFan, data = franchise)\nprint(pt_diff)\nprint(ci)\nmean_by_group <- mean(Age ~ ConsiderFan, data = franchise)\nprint(mean_by_group)\n\n# Determine the answers for the blanks\n# Blank 1: younger / older (Are Yes respondents older or younger than No respondents?)\n# Blank 2: value (diff rounded)\n# Blank 3: generalizable / not generalizable\n# Blank 4: does not contain zero / consists of both positive and negative numbers\n# Blank 5: at least approximately X years older/younger (lower bound of interval for No vs Yes)\n\nans1 <- if(mean_by_group[\"Yes\"] < mean_by_group[\"No\"]) \"younger\" else \"older\"\ndiff_val <- round(abs(mean_by_group[\"Yes\"] - mean_by_group[\"No\"]))\n# let's find the closest option among 4, 45, 1, 49, 6\noptions_diff <- c(4, 45, 1, 49, 6)\nclosest_diff <- options_diff[which.min(abs(options_diff - abs(pt_diff)))]\n\nsig <- if(ci$lower > 0 || ci$upper < 0) \"generalizable\" else \"not generalizable\"\ncontain <- if((ci$lower > 0 && ci$upper > 0) || (ci$lower < 0 && ci$upper < 0)) \"does not contain zero\" else \"consists of both positive and negative numbers\"\n\ncat(\"Blank 1:\", ans1, \"\\n\")\ncat(\"Blank 2:\", closest_diff, \"\\n\")\ncat(\"Blank 3:\", sig, \"\\n\")\ncat(\"Blank 4:\", contain, \"\\n\")\ncat(\"Blank 5:\", paste(closest_diff, \"years\"), \"\\n\")\ncat(\"CONFIDENCE: High\\n\")\n",
+          "rawInterpret": "[CONCEPT]\nAnswer:\nBlank 1: younger\nBlank 2: 4\nBlank 3: generalizable\nBlank 4: does not contain zero\nBlank 5: 4 years\nCONFIDENCE: High",
+          "selectedChoices": [],
+          "rCode": "# PLAN: bootstrap, Age ~ ConsiderFan, franchise data\nlibrary(mosaic)\nset.seed(42)\nboot_diff <- do(5000) * diffmean(Age ~ ConsiderFan, data = resample(franchise))\nci <- confint(boot_diff)\npt_diff <- diffmean(Age ~ ConsiderFan, data = franchise)\nprint(pt_diff)\nprint(ci)\nmean_by_group <- mean(Age ~ ConsiderFan, data = franchise)\nprint(mean_by_group)\n\n# Determine the answers for the blanks\n# Blank 1: younger / older (Are Yes respondents older or younger than No respondents?)\n# Blank 2: value (diff rounded)\n# Blank 3: generalizable / not generalizable\n# Blank 4: does not contain zero / consists of both positive and negative numbers\n# Blank 5: at least approximately X years older/younger (lower bound of interval for No vs Yes)\n\nans1 <- if(mean_by_group[\"Yes\"] < mean_by_group[\"No\"]) \"younger\" else \"older\"\ndiff_val <- round(abs(mean_by_group[\"Yes\"] - mean_by_group[\"No\"]))\n# let's find the closest option among 4, 45, 1, 49, 6\noptions_diff <- c(4, 45, 1, 49, 6)\nclosest_diff <- options_diff[which.min(abs(options_diff - abs(pt_diff)))]\n\nsig <- if(ci$lower > 0 || ci$upper < 0) \"generalizable\" else \"not generalizable\"\ncontain <- if((ci$lower > 0 && ci$upper > 0) || (ci$lower < 0 && ci$upper < 0)) \"does not contain zero\" else \"consists of both positive and negative numbers\"\n\ncat(\"Blank 1:\", ans1, \"\\n\")\ncat(\"Blank 2:\", closest_diff, \"\\n\")\ncat(\"Blank 3:\", sig, \"\\n\")\ncat(\"Blank 4:\", contain, \"\\n\")\ncat(\"Blank 5:\", paste(closest_diff, \"years\"), \"\\n\")\ncat(\"CONFIDENCE: High\\n\")",
+          "rStdout": " diffmean \n-3.633288 \n      name     lower      upper level     method  estimate\n1 diffmean -6.372666 -0.9133388  0.95 percentile -3.633288\n      No      Yes \n49.13235 45.49907 \nBlank 1: younger \nBlank 2: 4 \nBlank 3: generalizable \nBlank 4: does not contain zero \nBlank 5: 4 years \nCONFIDENCE: High",
+          "rStderr": "",
+          "rExitCode": 0,
+          "usage": {
+            "first": {
+              "prompt_tokens": 6515,
+              "completion_tokens": 513,
+              "total_tokens": 7979
+            },
+            "interpret": {
+              "prompt_tokens": 8358,
+              "completion_tokens": 48,
+              "total_tokens": 8406
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "multiple_dropdowns: The grocery.csv file contains pricing data on 40 different…",
+      "expected": {
+        "mode": "calc",
+        "selectedChoices": [],
+        "blanks": [
+          {
+            "key": "negative",
+            "label": "negative",
+            "correct": "negative"
+          },
+          {
+            "key": "more",
+            "label": "more",
+            "correct": "more"
+          },
+          {
+            "key": "3_cents",
+            "label": "The 95% confidence interval for income10k suggests that (when comparing prices for the same product) an increase of $10000 is associated with a decrease of at most approximately in price.",
+            "correct": "3 cents"
+          },
+          {
+            "key": "contains_zero",
+            "label": "contains_zero",
+            "correct": "includes zero"
+          },
+          {
+            "key": "partial_relationship",
+            "label": "partial_relationship",
+            "correct": "partial relationship"
+          },
+          {
+            "key": "not_statistically_significant",
+            "label": "not_statistically_significant",
+            "correct": "not statistically significant"
+          },
+          {
+            "key": "the_same_slope",
+            "label": "This model estimates for the relationship between price and income10k across product categories.",
+            "correct": "the same slope"
+          }
+        ]
+      },
+      "checks": [
+        {
+          "label": "blanks (7)",
+          "pass": false,
+          "expected": "7/7 correct",
+          "actual": "The 95% confidence interval for income10k suggests that (when comparing prices for the same product) an increase of $10000 is associated with a decrease of at most approximately in price.: want \"3 cents\", got \"1 cent\""
+        }
+      ],
+      "question": "The grocery.csv file contains pricing data on 40 different products collected from 16 different Texas stores. Variables include in this data frame include: category: type of product (Cereal, Drink, Fruit, Snack, Spread/Sauce, Staple) city: store location (Austin, Fort Worth, Houston) income: average income in ZIP code where the store is located, in dollars population: population in ZIP code where the store is located price: cost of product, in dollars product: one of 40 grocery products appearing in various sample stores. (baseline category: \"12 Pack DrPepper\") type: type of store (Convenience, Grocery, High-end Grocery, Natural, Small Format) A prevalent social policy problem in many communities, \"food deserts\" describe urban, low-income areas that are under-served by grocery stores selling affordable quality fresh food. In a food desert, the best option for groceries might be a convenience store, rather than a full-service grocery store. If convenience stores charge more for the same product (perhaps due to lack of scale) under-privileged citizens might end up paying more for food than others living in more affluent areas. Do consumers in lower-income ZIP codes pay more or less for groceries? You decide to fit a regression model to investigate this phenomenon. To facilitate interpretation of the model, first add to the data frame a new column called income10k to record the income variable in units of ten-thousand (10000) dollars. Then, fit a model to predict price in terms of two predictors: (1) income10k and (2) product. Use large-sample inference to generate confidence intervals. Fill in each blank below with the best answer based on results of this model: The [ Select ] [\"positive\", \"negative\"] sign of the income10k coefficient suggests that consumers in lower-income ZIP codes pay [ Select ] [\"more\", \"less\"] on average for the same product. The 95% confidence interval for income10k suggests that (when comparing prices for the same product) an increase of $10000 is associated with a decrease of at most approximately [ Select ] [\"1/2 cent\", \"3 cents\", \"2 cents\", \"1 cent\"] in price. Because the confidence interval for income10k [ Select ] [\"does not include zero\", \"includes zero\"] we may conclude that this [ Select ] [\"overall relationship\", \"partial relationship\"] is [ Select ] [\"not statistically significant\", \"statistically significant\"] . This model estimates [ Select ] [\"the same slope\", \"different slopes\"] for the relationship between price and income10k across product categories.",
+      "response": {
+        "mode": "concept",
+        "selectedChoices": [],
+        "blanks": [
+          {
+            "key": "negative",
+            "answer": "negative"
+          },
+          {
+            "key": "more",
+            "answer": "more"
+          },
+          {
+            "key": "3_cents",
+            "answer": "1 cent"
+          },
+          {
+            "key": "contains_zero",
+            "answer": "includes zero"
+          },
+          {
+            "key": "partial_relationship",
+            "answer": "partial relationship"
+          },
+          {
+            "key": "not_statistically_significant",
+            "answer": "not statistically significant"
+          },
+          {
+            "key": "the_same_slope",
+            "answer": "the same slope"
+          }
+        ],
+        "answer": "Answer:\nBlank 1: negative\nBlank 2: more\nBlank 3: 1 cent\nBlank 4: includes zero\nBlank 5: partial relationship\nBlank 6: not statistically significant\nBlank 7: the same slope",
+        "usage": {
+          "prompt_tokens": 7219,
+          "completion_tokens": 61,
+          "total_tokens": 10137
+        },
+        "debug": {
+          "route": "concept",
+          "rawFirst": "[CONCEPT]\nAnswer:\nBlank 1: negative\nBlank 2: more\nBlank 3: 1 cent\nBlank 4: includes zero\nBlank 5: partial relationship\nBlank 6: not statistically significant\nBlank 7: the same slope\n\nCONFIDENCE: Med",
+          "selectedChoices": [],
+          "usage": {
+            "prompt_tokens": 7219,
+            "completion_tokens": 61,
+            "total_tokens": 10137
+          }
+        }
+      }
+    },
+    {
+      "name": "numerical: The owner of Borgin and Burkes, an antiquities and…",
+      "expected": {
+        "mode": "calc",
+        "selectedChoices": [],
+        "answerContains": [
+          "377"
+        ]
+      },
+      "checks": [
+        {
+          "label": "answer contains \"377\"",
+          "pass": false,
+          "expected": "377",
+          "actual": "Answer: Cannot be determined (missing model equation)"
+        }
+      ],
+      "question": "The owner of Borgin and Burkes, an antiquities and consignment shop, fits a linear model predicting daily sales revenue ($) from the number of customers who visit the store each day. The model equation is: If 70 customers visit the shop tomorrow, what is the daily sales revenue predicted by this model? Round your answer to the nearest dollar.",
+      "response": {
+        "mode": "concept",
+        "selectedChoices": [],
+        "answer": "Answer: Cannot be determined (missing model equation)",
+        "usage": {
+          "prompt_tokens": 5560,
+          "completion_tokens": 19,
+          "total_tokens": 6038
+        },
+        "debug": {
+          "route": "concept",
+          "rawFirst": "[CONCEPT]\nAnswer: Cannot be determined (missing model equation)\nCONFIDENCE: Low",
+          "selectedChoices": [],
+          "usage": {
+            "prompt_tokens": 5560,
+            "completion_tokens": 19,
+            "total_tokens": 6038
+          }
+        }
+      }
+    },
+    {
+      "name": "numerical: The rentals.csv data frame contains data on 98 short-term…",
+      "expected": {
+        "mode": "calc",
+        "selectedChoices": [],
+        "answerContains": [
+          "42"
+        ]
+      },
+      "checks": [
+        {
+          "label": "answer contains \"42\"",
+          "pass": false,
+          "expected": "42",
+          "actual": "Answer: 38"
+        }
+      ],
+      "question": "The rentals.csv data frame contains data on 98 short-term rentals in Santa Fe, New Mexico, including a variable called Cancellation indicating whether rental policy allows cancellation of reservations without penalty. Calculate a large-sample 95% confidence interval for the population proportion of rental properties allowing cancellation. What is the lower limit of this interval? Enter your answer in percentage units rounded to the nearest whole number.",
+      "response": {
+        "mode": "calc",
+        "selectedChoices": [],
+        "answer": "Answer: 38",
+        "rCode": "# PLAN: prop.test, Cancellation (yes), n=nrow(rentals), correct=FALSE\nx <- sum(rentals$Cancellation == \"yes\")\nn <- nrow(rentals)\npt <- prop.test(x, n, correct = FALSE)\nans <- round(pt$conf.int[1] * 100)\ncat('Final answer:', ans, '\\n')",
+        "rOutput": "Final answer: 38 ",
+        "rExitCode": 0,
+        "usage": {
+          "first": {
+            "prompt_tokens": 6560,
+            "completion_tokens": 97,
+            "total_tokens": 8674
+          },
+          "interpret": {
+            "prompt_tokens": 6949,
+            "completion_tokens": 14,
+            "total_tokens": 6963
+          }
+        },
+        "debug": {
+          "route": "calc",
+          "rawFirst": "[RCODE]\n# PLAN: prop.test, Cancellation (yes), n=nrow(rentals), correct=FALSE\nx <- sum(rentals$Cancellation == \"yes\")\nn <- nrow(rentals)\npt <- prop.test(x, n, correct = FALSE)\nans <- round(pt$conf.int[1] * 100)\ncat('Final answer:', ans, '\\n')\nCONFIDENCE: High",
+          "rawInterpret": "[CONCEPT]\nAnswer: 38\nCONFIDENCE: High",
+          "selectedChoices": [],
+          "rCode": "# PLAN: prop.test, Cancellation (yes), n=nrow(rentals), correct=FALSE\nx <- sum(rentals$Cancellation == \"yes\")\nn <- nrow(rentals)\npt <- prop.test(x, n, correct = FALSE)\nans <- round(pt$conf.int[1] * 100)\ncat('Final answer:', ans, '\\n')",
+          "rStdout": "Final answer: 38 ",
+          "rStderr": "",
+          "rExitCode": 0,
+          "usage": {
+            "first": {
+              "prompt_tokens": 6560,
+              "completion_tokens": 97,
+              "total_tokens": 8674
+            },
+            "interpret": {
+              "prompt_tokens": 6949,
+              "completion_tokens": 14,
+              "total_tokens": 6963
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "multiple_answers: This is one of multiple questions about the same…",
+      "expected": {
+        "mode": "calc",
+        "selectedChoices": [
+          "A",
+          "C"
+        ]
+      },
+      "checks": [
+        {
+          "label": "selectedChoices",
+          "pass": false,
+          "expected": "A, C",
+          "actual": ""
+        }
+      ],
+      "question": "This is one of multiple questions about the same scenario. NCAA coaches may be compensated with salary as well as with an annual bonus. The amount of that bonus may be contingent on team performance as well as meeting off-field thresholds with respect to players' grades and conduct. The distribution of salary and bonus is something that coaches negotiate with the Athletic Director at a NCAA school. A college football coach-who-will-not-be-named is evaluating the job market and wants to predict what sort of bonus compensation he might expect to earn at various NCAA schools. Using NCAA Salaries data, he fits a model with the following variables: Bonus: maximum annual bonus (in millions of dollars) Salary: annual salary (in millions of dollars) SEC: whether the school is in the Southeastern Conference (SEC = 1) or not (SEC = 0) The model equation is: Which of the follow statements is accurate, in light of the fitted model? Select all correct answers.",
+      "response": {
+        "mode": "concept",
+        "selectedChoices": [],
+        "answer": "Answer: I am not confident",
+        "usage": {
+          "prompt_tokens": 5752,
+          "completion_tokens": 15,
+          "total_tokens": 7102
+        },
+        "debug": {
+          "route": "concept",
+          "rawFirst": "[CONCEPT]\nAnswer: I am not confident\nCONFIDENCE: Low",
+          "selectedChoices": [],
+          "usage": {
+            "prompt_tokens": 5752,
+            "completion_tokens": 15,
+            "total_tokens": 7102
+          }
+        }
+      }
+    },
+    {
+      "name": "multiple_choice: This is one of multiple questions about the same…",
+      "expected": {
+        "mode": "calc",
+        "selectedChoices": [
+          "A"
+        ]
+      },
+      "checks": [
+        {
+          "label": "selectedChoices",
+          "pass": false,
+          "expected": "A",
+          "actual": ""
+        }
+      ],
+      "question": "This is one of multiple questions about the same scenario. NCAA coaches may be compensated with salary as well as with an annual bonus. The amount of that bonus may be contingent on team performance as well as meeting off-field thresholds with respect to players' grades and conduct. The distribution of salary and bonus is something that coaches negotiate with the Athletic Director at a NCAA school. A college football coach-who-will-not-be-named is evaluating the job market and wants to predict what sort of bonus compensation he might expect to earn at various NCAA schools. Using NCAA Salaries data, he fits a model with the following variables: Bonus: maximum annual bonus (in millions of dollars) Salary: annual salary (in millions of dollars) SEC: whether the school is in the Southeastern Conference (SEC = 1) or not (SEC = 0) The model equation is: The predicted maximum annual bonus for a coaching position at a non-SEC school with a salary of $2 million is closest to which of the following?",
+      "response": {
+        "mode": "concept",
+        "selectedChoices": [],
+        "answer": "Answer: Not confident",
+        "usage": {
+          "prompt_tokens": 5735,
+          "completion_tokens": 13,
+          "total_tokens": 6250
+        },
+        "debug": {
+          "route": "concept",
+          "rawFirst": "[CONCEPT]\nAnswer: Not confident\nCONFIDENCE: Low",
+          "selectedChoices": [],
+          "usage": {
+            "prompt_tokens": 5735,
+            "completion_tokens": 13,
+            "total_tokens": 6250
+          }
+        }
+      }
+    },
+    {
+      "name": "multiple_choice: This is one of multiple questions about the same…",
+      "expected": {
+        "mode": "calc",
+        "selectedChoices": [
+          "D"
+        ]
+      },
+      "checks": [
+        {
+          "label": "selectedChoices",
+          "pass": false,
+          "expected": "D",
+          "actual": "B"
+        }
+      ],
+      "question": "This is one of multiple questions about the same scenario. NCAA coaches may be compensated with salary as well as with an annual bonus. The amount of that bonus may be contingent on team performance as well as meeting off-field thresholds with respect to players' grades and conduct. The distribution of salary and bonus is something that coaches negotiate with the Athletic Director at a NCAA school. A college football coach-who-will-not-be-named is evaluating the job market and wants to predict what sort of bonus compensation he might expect to earn at various NCAA schools. Using NCAA Salaries data, he fits a model with the following variables: Bonus: maximum annual bonus (in millions of dollars) Salary: annual salary (in millions of dollars) SEC: whether the school is in the Southeastern Conference (SEC = 1) or not (SEC = 0) The model equation is: Bonus=0.45+0.15∗Salary+0.84∗SEC−0.11∗(Salary∗SEC) The coefficient of 0.84 in the equation above indicates that:",
+      "response": {
+        "mode": "concept",
+        "selectedChoices": [
+          "B"
+        ],
+        "answer": "Answer: B",
+        "usage": {
+          "prompt_tokens": 5787,
+          "completion_tokens": 12,
+          "total_tokens": 7473
+        },
+        "debug": {
+          "route": "concept",
+          "rawFirst": "[CONCEPT]\nAnswer: B\nCONFIDENCE: High",
+          "selectedChoices": [
+            "B"
+          ],
+          "usage": {
+            "prompt_tokens": 5787,
+            "completion_tokens": 12,
+            "total_tokens": 7473
+          }
+        }
+      }
+    },
+    {
+      "name": "multiple_dropdowns: This is one of multiple questions about the same…",
+      "expected": {
+        "mode": "calc",
+        "selectedChoices": [],
+        "blanks": [
+          {
+            "key": "higher",
+            "label": "higher",
+            "correct": "higher"
+          },
+          {
+            "key": "840000",
+            "label": "840000",
+            "correct": "$840,000"
+          },
+          {
+            "key": "assumingSalary",
+            "label": "assumingSalary",
+            "correct": "assuming the same coach salary"
+          },
+          {
+            "key": "increase",
+            "label": "increase",
+            "correct": "increase"
+          },
+          {
+            "key": "150000",
+            "label": "150000",
+            "correct": "$150,000"
+          },
+          {
+            "key": "450000",
+            "label": "The model intercept estimate suggests that if a non-SEC coach somehow earned a $0 salary, we'd expect their max bonus to equal .",
+            "correct": "$450,000"
+          }
+        ]
+      },
+      "checks": [
+        {
+          "label": "blanks (6)",
+          "pass": false,
+          "expected": "6/6 correct",
+          "actual": "higher: want \"higher\", got \"∅\" · 840000: want \"$840,000\", got \"∅\" · assumingSalary: want \"assuming the same coach salary\", got \"∅\" · increase: want \"increase\", got \"∅\" · 150000: want \"$150,000\", got \"∅\" · The model intercept estimate suggests that if a non-SEC coach somehow earned a $0 salary, we'd expect their max bonus to equal .: want \"$450,000\", got \"∅\""
+        }
+      ],
+      "question": "This is one of multiple questions about the same scenario. NCAA coaches may be compensated with salary as well as with an annual bonus. The amount of that bonus may be contingent on team performance as well as meeting off-field thresholds with respect to players' grades and conduct. The distribution of salary and bonus is something that coaches negotiate with the Athletic Director at a NCAA school. A college football coach-who-will-not-be-named is evaluating the job market and wants to predict what sort of bonus compensation he might expect to earn at various NCAA schools. Using NCAA Salaries data, he fits a model with the following variables: Bonus: maximum annual bonus (in millions of dollars) Salary: annual salary (in millions of dollars) SEC: whether the school is in the Southeastern Conference (SEC = 1) or not (SEC = 0) The model equation is: Use this model equation to fill in the blanks below with the best option: At SEC schools, maximum bonuses are [ Select ] [\"lower\", \"higher\"] by about [ Select ] [\"$840,000\", \"$730,000\", \"$990,000\", \"$450,000\", \"$150,000\"] relative to non-SEC schools, [ Select ] [\"regardless of the coach salary\", \"assuming the same coach salary\"] . At non-SEC schools, bonuses [ Select ] [\"decrease\", \"increase\"] at a rate of [ Select ] [\"$600,000\", \"$490,000\", \"$40,000\", \"$150,000\", \"$1,330,000\"] for a $1 million-increase in salary. The model intercept estimate suggests that if a non-SEC coach somehow earned a $0 salary, we'd expect their max bonus to equal [ Select ] [\"$1,290,000\", \"$1,330,000\", \"$450,000\", \"$150,000\", \"$340,000\"] .",
+      "response": {
+        "mode": "concept",
+        "selectedChoices": [],
+        "blanks": [
+          {
+            "key": "higher",
+            "answer": ""
+          },
+          {
+            "key": "840000",
+            "answer": ""
+          },
+          {
+            "key": "assumingSalary",
+            "answer": ""
+          },
+          {
+            "key": "increase",
+            "answer": ""
+          },
+          {
+            "key": "150000",
+            "answer": ""
+          },
+          {
+            "key": "450000",
+            "answer": ""
+          }
+        ],
+        "answer": "Answer: I am not confident because the regression model equation and coefficients were omitted from the prompt.",
+        "usage": {
+          "prompt_tokens": 6251,
+          "completion_tokens": 28,
+          "total_tokens": 7067
+        },
+        "debug": {
+          "route": "concept",
+          "rawFirst": "[CONCEPT]\nAnswer: I am not confident because the regression model equation and coefficients were omitted from the prompt.\nCONFIDENCE: Low",
+          "selectedChoices": [],
+          "usage": {
+            "prompt_tokens": 6251,
+            "completion_tokens": 28,
+            "total_tokens": 7067
+          }
+        }
+      }
+    },
+    {
+      "name": "multiple_choice: This question revisits the data on video-game reaction time…",
+      "expected": {
+        "mode": "calc",
+        "selectedChoices": [
+          "A"
+        ]
+      },
+      "checks": [
+        {
+          "label": "selectedChoices",
+          "pass": false,
+          "expected": "A",
+          "actual": "G"
+        }
+      ],
+      "question": "This question revisits the data on video-game reaction time that we analyzed in class and in Lesson 14. Specifically, we'll consider three variables from this data set (two that we looked at before, and one that we didn't): PictureTarget.RT: the subject's reaction time in milliseconds when presented with a visual stimulus FarAway: a dummy variable for whether the stimulus (i.e. the “bad guy” popping up on the screen) was near (0) or far away (1) within the visual scene. SceneLetter: a letter code (b, c, d, e, or f) indicating which of five scenes the subject was presented with. (Note: the scene letters start at b; there is no scene a in this data set) Consider the following model and its corresponding regression table: lm(PictureTarget.RT ~ FarAway + SceneLetter + FarAway:SceneLetter, data=rxntime) %>% get_regression_table() %>% select(-std_error, - statistic, - p_value) Based on this regression table, which of the following statements is accurate? (1) This model includes an interaction term for the FarAway and SceneLetter variables. (2) The interaction of SceneLetter: d and a FarAway stimulus implies some decrease in reaction time (with 95% confidence) after accounting for the main effects. (3) If the stimulus is FarAway and the interface shows SceneLetter: a , we expect a slower reaction time by approximately 20-75 milliseconds with 95% confidence.",
+      "response": {
+        "mode": "concept",
+        "selectedChoices": [
+          "G"
+        ],
+        "answer": "Answer: G",
+        "usage": {
+          "prompt_tokens": 7038,
+          "completion_tokens": 12,
+          "total_tokens": 7709
+        },
+        "debug": {
+          "route": "concept",
+          "rawFirst": "[CONCEPT]\nAnswer: G\nCONFIDENCE: High",
+          "selectedChoices": [
+            "G"
+          ],
+          "usage": {
+            "prompt_tokens": 7038,
+            "completion_tokens": 12,
+            "total_tokens": 7709
+          }
+        }
+      }
+    }
+  ]
+}

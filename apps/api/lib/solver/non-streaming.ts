@@ -8,7 +8,7 @@ import { runR } from "@/lib/sandbox";
 import { deriveBlankAnswers, deriveSelectedChoices } from "./choices";
 import { buildFollowupContent, buildQuestionPrompt, buildUserContent } from "./prompts";
 import { repairRCode } from "./r-repair";
-import { MAX_TOKENS_FIRST, MAX_TOKENS_SECOND, MODEL } from "./settings";
+import { MAX_TOKENS_FIRST, MAX_TOKENS_SECOND, resolveModel } from "./settings";
 import type { DataFile, SolveBody } from "./types";
 
 interface NonStreamArgs {
@@ -20,13 +20,14 @@ interface NonStreamArgs {
 
 export async function solveNonStreaming(args: NonStreamArgs) {
   const { apiKey, body, dataContext, dataFiles } = args;
+  const model = resolveModel(body);
   const hasImage = (body.images?.length ?? 0) > 0;
   const hasBlanks = (body.blanks?.length ?? 0) >= 2;
   const system = buildSystemPrompt({ dataContext, imageMode: hasImage, hasBlanks });
   const questionPrompt = buildQuestionPrompt(body);
   const userContent = buildUserContent(questionPrompt, body.images);
 
-  const first = await runFirstPass(apiKey, system, userContent);
+  const first = await runFirstPass(apiKey, system, userContent, model);
   const parsed = parseResponse(first.text);
 
   if (parsed.mode === "concept") {
@@ -73,6 +74,7 @@ export async function solveNonStreaming(args: NonStreamArgs) {
 
   const finalParsed = parseResponse(interpret.text);
   const selectedChoices = deriveSelectedChoices(finalParsed.body, body.choices);
+  const blanks = deriveBlankAnswers(finalParsed.body, body.blanks);
 
   return {
     mode: "calc",
@@ -82,6 +84,7 @@ export async function solveNonStreaming(args: NonStreamArgs) {
     rDurationMs: runResult.durationMs,
     answer: finalParsed.body,
     selectedChoices,
+    ...(blanks.length ? { blanks } : {}),
     confidence: finalParsed.confidence,
     lowConfidence: finalParsed.lowConfidence,
     usage: {
@@ -114,9 +117,10 @@ async function runFirstPass(
   apiKey: string,
   system: string,
   userContent: Parameters<typeof chat>[1]["messages"][number]["content"],
+  model: string,
 ) {
   return chat(apiKey, {
-    model: MODEL,
+    model,
     system,
     messages: [{ role: "user", content: userContent }],
     maxTokens: MAX_TOKENS_FIRST,
@@ -174,7 +178,7 @@ async function runInterpretStage({
   rOutput,
 }: InterpretStageArgs) {
   return chat(apiKey, {
-    model: MODEL,
+    model: resolveModel(body),
     system,
     messages: [
       { role: "user", content: userContent },

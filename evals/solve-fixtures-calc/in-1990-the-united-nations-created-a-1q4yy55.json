@@ -1,0 +1,43 @@
+{
+  "name": "multiple_answers: In 1990, the United Nations created a single measure…",
+  "request": {
+    "questionText": "In 1990, the United Nations created a single measure that ranges between zero and one -- the Human Development Index (HDI) -- to summarize health, education, and economic status for world countries. Below is the equation for a fitted model to predict response variable HDI in terms of two predictor variables: Life expectancy and average years of School. HDI = -0.34 + (0.01 * Life) + (0.02 * School) + E Which of the following is an accurate interpretation of the coefficient for Life expectancy? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "The change in HDI associated with a one-year increase in Life expectancy, holding other predictors constant.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "The overall relationship between Life expectancy and HDI.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "For every one-year increase in Life expectancy, we expect HDI to increase by 0.01 (irrespective of years of School).",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "A partial slope representing the relationship between Life expectancy and HDI, adjusting for average years of School.",
+        "type": "checkbox"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "A",
+      "D"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106919?headless=1",
+    "capturedAt": 1784656827664,
+    "questionType": "multiple_answers_question",
+    "canvasQuestionId": "32444480"
+  }
+}

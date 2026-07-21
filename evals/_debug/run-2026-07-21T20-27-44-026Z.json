@@ -1,0 +1,36 @@
+{
+  "ranAt": "2026-07-21T20:27:44.027Z",
+  "baseUrl": "http://localhost:3030",
+  "fixturesDir": "/private/tmp/eval-costtest",
+  "summary": {
+    "total": 1,
+    "passed": 0,
+    "failed": 1,
+    "tokens": {
+      "input": 0,
+      "output": 0,
+      "cached": 0
+    },
+    "estCostUsd": 0
+  },
+  "failures": [
+    {
+      "name": "multiple_answers: Which of the following types of summary statistics generally…",
+      "error": "HTTP 429: Rate limited by Gemini — wait a moment and retry.",
+      "expected": {
+        "mode": "concept",
+        "selectedChoices": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F",
+          "G"
+        ]
+      },
+      "checks": [],
+      "question": "Which of the following types of summary statistics generally have sampling distributions that are unimodal and symmetric (i.e., normally distributed)? Select all correct answers."
+    }
+  ]
+}

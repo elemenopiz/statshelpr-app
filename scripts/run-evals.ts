@@ -1,4 +1,4 @@
-import { readdir, readFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import * as path from "node:path";
 
 interface Choice {
@@ -7,20 +7,52 @@ interface Choice {
   type?: "radio" | "checkbox";
 }
 
+interface SolveBlank {
+  key: string;
+  label: string;
+  options: string[];
+}
+
 interface SolveRequest {
   questionText?: string;
   choices?: Choice[];
+  blanks?: SolveBlank[];
   images?: unknown[];
   dataFiles?: Array<{ filename: string; content: string }>;
   stream?: boolean;
   debug?: boolean;
 }
 
+interface BlankAnswer {
+  key: string;
+  answer: string;
+}
+
+interface Usage {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  total_tokens?: number;
+  cached_tokens?: number;
+}
+
 interface SolveResponse {
   mode?: string;
   answer?: string;
   selectedChoices?: string[];
+  blanks?: BlankAnswer[];
+  rCode?: string;
+  rOutput?: string;
+  rExitCode?: number;
+  /** Concept returns a flat Usage; calc returns { first, interpret }. */
+  usage?: Usage | { first?: Usage; interpret?: Usage };
+  debug?: unknown;
   error?: string;
+}
+
+interface ExpectedBlank {
+  key: string;
+  label?: string;
+  correct: string;
 }
 
 interface EvalFixture {
@@ -30,6 +62,7 @@ interface EvalFixture {
     mode: "concept" | "calc";
     selectedChoices: string[];
     answerContains?: string[];
+    blanks?: ExpectedBlank[];
   };
 }
 
@@ -38,6 +71,8 @@ interface CheckResult {
   pass: boolean;
   expected: string;
   actual: string;
+  /** Informational checks (e.g. mode) are shown but don't affect pass/fail. */
+  counted?: boolean;
 }
 
 const scriptPath = process.argv[1] ? path.resolve(process.cwd(), process.argv[1]) : __filename;
@@ -69,7 +104,7 @@ async function main() {
   }
 
   console.log(`Running ${fixtures.length} solve evals against ${baseUrl}`);
-  const results: Array<{ fixture: EvalFixture; checks: CheckResult[]; error?: string }> = [];
+  const results: FixtureResult[] = [];
 
   for (const fixture of fixtures) {
     const result = await runFixture(fixture);
@@ -77,13 +112,131 @@ async function main() {
     printFixtureResult(result);
   }
 
-  const failed = results.filter((result) => result.error || result.checks.some((c) => !c.pass));
+  const failed = results.filter(
+    (result) => result.error || result.checks.some((c) => c.counted !== false && !c.pass),
+  );
   console.log("");
   console.log(`${results.length - failed.length}/${results.length} fixtures passed`);
+
+  await writeRunArtifacts(results, failed);
 
   if (failed.length > 0) {
     process.exitCode = 1;
   }
+}
+
+interface TokenTotals {
+  prompt: number;
+  /** Visible answer tokens (Gemini's candidatesTokenCount). */
+  completion: number;
+  /** prompt + completion + thinking — the only place thinking tokens show up. */
+  total: number;
+  cached: number;
+}
+
+/** Sum a response's usage (concept = flat, calc = { first, interpret }). */
+function sumUsage(u: SolveResponse["usage"]): TokenTotals {
+  const acc: TokenTotals = { prompt: 0, completion: 0, total: 0, cached: 0 };
+  const add = (x?: Usage) => {
+    if (!x) return;
+    acc.prompt += x.prompt_tokens ?? 0;
+    acc.completion += x.completion_tokens ?? 0;
+    acc.total += x.total_tokens ?? 0;
+    acc.cached += x.cached_tokens ?? 0;
+  };
+  if (u && ("first" in u || "interpret" in u)) {
+    add((u as { first?: Usage }).first);
+    add((u as { interpret?: Usage }).interpret);
+  } else {
+    add(u as Usage);
+  }
+  return acc;
+}
+
+// Per-M token prices (USD), Jul 2026. Output covers completion + thinking, both
+// billed at the output rate. Keyed by the model the server runs (GEMINI_MODEL).
+const MODEL_PRICES: Record<string, { in: number; out: number; cached: number }> = {
+  "gemini-3.5-flash-lite": { in: 0.3, out: 2.5, cached: 0.03 },
+  "gemini-3.5-flash": { in: 1.5, out: 9, cached: 0.15 },
+  "gemini-3.6-flash": { in: 1.5, out: 7.5, cached: 0.15 },
+};
+const evalModel = process.env["GEMINI_MODEL"] ?? "gemini-3.5-flash-lite";
+const price = MODEL_PRICES[evalModel] ?? MODEL_PRICES["gemini-3.5-flash-lite"]!;
+
+/** Billable cost. Output = total − prompt (= completion + thinking); the cached
+ * slice of the prompt bills at the cheaper cache rate. */
+function costUsd(t: TokenTotals): number {
+  const output = Math.max(0, t.total - t.prompt);
+  const uncachedInput = Math.max(0, t.prompt - t.cached);
+  return (uncachedInput * price.in + t.cached * price.cached + output * price.out) / 1e6;
+}
+
+/**
+ * Persist a per-run artifact under evals/_debug/: full request/response/debug
+ * for every FAILED fixture (so a miss can be triaged later with zero further
+ * API calls), plus a token/cost summary from the usage the API reports. This
+ * is the "diagnose misses for free" record.
+ */
+async function writeRunArtifacts(results: FixtureResult[], failed: FixtureResult[]) {
+  const totals: TokenTotals = { prompt: 0, completion: 0, total: 0, cached: 0 };
+  for (const r of results) {
+    const u = sumUsage(r.response?.usage);
+    totals.prompt += u.prompt;
+    totals.completion += u.completion;
+    totals.total += u.total;
+    totals.cached += u.cached;
+  }
+  const cost = costUsd(totals);
+  const withUsage = results.filter((r) => r.response?.usage).length;
+  const output = Math.max(0, totals.total - totals.prompt);
+  const thinking = Math.max(0, output - totals.completion);
+
+  console.log("");
+  if (withUsage > 0) {
+    console.log(
+      `[${evalModel}] tokens: prompt ${totals.prompt.toLocaleString()} (cached ${totals.cached.toLocaleString()}), ` +
+        `output ${output.toLocaleString()} (thinking ${thinking.toLocaleString()}) | ` +
+        `est. cost $${cost.toFixed(4)} (~$${(cost / Math.max(1, withUsage)).toFixed(5)}/solve over ${withUsage})`,
+    );
+  }
+
+  const debugDir = path.resolve(repoRoot, "evals/_debug");
+  await mkdir(debugDir, { recursive: true });
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const outPath = path.join(debugDir, `run-${stamp}.json`);
+  const artifact = {
+    ranAt: new Date().toISOString(),
+    model: evalModel,
+    baseUrl,
+    fixturesDir,
+    summary: {
+      total: results.length,
+      passed: results.length - failed.length,
+      failed: failed.length,
+      tokens: { ...totals, output, thinking },
+      estCostUsd: Number(cost.toFixed(4)),
+    },
+    failures: failed.map((r) => ({
+      name: r.fixture.name,
+      error: r.error,
+      expected: r.fixture.expected,
+      checks: r.checks.filter((c) => c.counted !== false && !c.pass),
+      question: r.fixture.request.questionText,
+      response: r.response && {
+        mode: r.response.mode,
+        selectedChoices: r.response.selectedChoices,
+        blanks: r.response.blanks,
+        answer: r.response.answer,
+        rCode: r.response.rCode,
+        rOutput: r.response.rOutput,
+        rExitCode: r.response.rExitCode,
+        usage: r.response.usage,
+        debug: r.response.debug,
+      },
+    })),
+  };
+  await writeFile(outPath, JSON.stringify(artifact, null, 2) + "\n", "utf8");
+  console.log(`debug artifact: ${path.relative(process.cwd(), outPath)} (${failed.length} failures with full detail)`);
 }
 
 async function loadFixtures(dir: string): Promise<EvalFixture[]> {
@@ -98,9 +251,14 @@ async function loadFixtures(dir: string): Promise<EvalFixture[]> {
   return fixtures;
 }
 
-async function runFixture(
-  fixture: EvalFixture,
-): Promise<{ fixture: EvalFixture; checks: CheckResult[]; error?: string }> {
+interface FixtureResult {
+  fixture: EvalFixture;
+  checks: CheckResult[];
+  error?: string;
+  response?: SolveResponse;
+}
+
+async function runFixture(fixture: EvalFixture): Promise<FixtureResult> {
   let response: SolveResponse;
   try {
     response = await postSolve(fixture.request);
@@ -112,13 +270,22 @@ async function runFixture(
     };
   }
 
-  const checks = [
-    checkEqual("mode", fixture.expected.mode, response.mode ?? ""),
-    checkChoices(fixture.expected.selectedChoices, response.selectedChoices ?? []),
-    ...checkAnswerContains(fixture.expected.answerContains ?? [], response.answer ?? ""),
-  ];
+  // mode is informational only: the capture's concept/calc label is a weak
+  // heuristic (it mislabels data-computation MCQs as "concept"), while the
+  // model routes at runtime. Answer correctness is what decides pass/fail.
+  const modeCheck = checkEqual("mode", fixture.expected.mode, response.mode ?? "");
+  modeCheck.counted = false;
+  const checks: CheckResult[] = [modeCheck];
 
-  return { fixture, checks };
+  if (fixture.request.blanks?.length) {
+    // Matching / multiple-dropdowns: score each blank against its known answer.
+    checks.push(checkBlanks(fixture.expected.blanks ?? [], response.blanks ?? []));
+  } else {
+    checks.push(checkChoices(fixture.expected.selectedChoices, response.selectedChoices ?? []));
+    checks.push(...checkAnswerContains(fixture.expected.answerContains ?? [], response.answer ?? ""));
+  }
+
+  return { fixture, checks, response };
 }
 
 async function postSolve(request: SolveRequest): Promise<SolveResponse> {
@@ -131,7 +298,7 @@ async function postSolve(request: SolveRequest): Promise<SolveResponse> {
     const res = await fetch(`${baseUrl.replace(/\/$/, "")}/api/solve`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ ...request, stream: false }),
+      body: JSON.stringify({ ...request, stream: false, debug: true }),
       signal: controller.signal,
     });
 
@@ -161,11 +328,35 @@ function checkChoices(expected: string[], actual: string[]): CheckResult {
   };
 }
 
+/** Score a matching / multiple-dropdowns answer: every blank's chosen option
+ * (from the API's deriveBlankAnswers) must equal its known-correct option,
+ * compared case-insensitively and whitespace-normalized. */
+function checkBlanks(expected: ExpectedBlank[], actual: BlankAnswer[]): CheckResult {
+  const norm = (s: string) => s.replace(/\s+/g, " ").trim().toLowerCase();
+  const byKey = new Map(actual.map((b) => [b.key, b.answer]));
+  const misses: string[] = [];
+  for (const e of expected) {
+    const got = byKey.get(e.key) ?? "";
+    if (norm(got) !== norm(e.correct)) {
+      misses.push(`${e.label ?? e.key}: want "${e.correct}", got "${got || "∅"}"`);
+    }
+  }
+  return {
+    label: `blanks (${expected.length})`,
+    pass: expected.length > 0 && misses.length === 0,
+    expected: `${expected.length}/${expected.length} correct`,
+    actual: misses.length ? misses.join(" · ") : "all correct",
+  };
+}
+
 function checkAnswerContains(expected: string[], answer: string): CheckResult[] {
-  const lower = answer.toLowerCase();
+  // Drop thousands separators on both sides so a "2,087" key still matches a
+  // model that prints "2087" (a common false-negative on numerical questions).
+  const dropThousands = (s: string) => s.replace(/,(?=\d)/g, "");
+  const lower = dropThousands(answer.toLowerCase());
   return expected.map((snippet) => ({
     label: `answer contains "${snippet}"`,
-    pass: lower.includes(snippet.toLowerCase()),
+    pass: lower.includes(dropThousands(snippet.toLowerCase())),
     expected: snippet,
     actual: answer.length > 140 ? `${answer.slice(0, 137)}...` : answer,
   }));
@@ -208,11 +399,12 @@ function printFixtureResult(result: {
     return;
   }
 
-  const passed = result.checks.every((check) => check.pass);
+  const passed = result.checks.every((check) => check.counted === false || check.pass);
   console.log(`\n${passed ? "PASS" : "FAIL"} ${result.fixture.name}`);
   for (const check of result.checks) {
-    const marker = check.pass ? "ok" : "not ok";
-    console.log(`  ${marker} ${check.label}`);
+    const info = check.counted === false;
+    const marker = check.pass ? "ok" : info ? "info" : "not ok";
+    console.log(`  ${marker} ${check.label}${info && !check.pass ? " (informational)" : ""}`);
     if (!check.pass) {
       console.log(`    expected: ${check.expected}`);
       console.log(`    actual:   ${check.actual}`);

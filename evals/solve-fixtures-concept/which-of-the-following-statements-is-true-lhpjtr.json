@@ -1,0 +1,62 @@
+{
+  "name": "multiple_choice: Which of the following statements is true of the…",
+  "request": {
+    "questionText": "Which of the following statements is true of the Central Limit Theorem? (1) The mean of a sufficiently large sample has an approximately normal sampling distribution. (2) To apply the Central Limit Theorem, a variable must be normally distributed in the underlying population of interest. (3) The sampling distributions of a sample mean looks more normal as the size of the sample N increases.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "1 only",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [
+      "C"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106931?headless=1",
+    "capturedAt": 1784653086702,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32385389"
+  }
+}

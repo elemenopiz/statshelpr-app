@@ -1,0 +1,62 @@
+{
+  "name": "multiple_choice: What factors predict how much money a film will…",
+  "request": {
+    "questionText": "What factors predict how much money a film will earn? A data scientist at a top movie studio fits a multiple regression model to predict domestic Gross earnings ($ millions) from: the film Budget ($ millions), the film Run Time (minutes) average Rotten Tomatoes Rating score [0, 100] Gross = -27 + (1.1 * Budget) - (0.43 * RunTime) + (2.6 * Rating) + error Which of the following is an accurate interpretation of the beta slope coefficient for Rating? (1) An estimated slope for a partial relationship. (2) The change that we expect to see in Gross earnings for a one-point increase in a film's Rotten Tomatoes Rating if we compare films with different Ratings but with the same Budget and RunTime. (3) We expect Gross earnings to increase by $2.6 million for every one-point increase in a film's Rotten Tomatoes Rating, after adjusting for the concurrent effects of Budget and Run Time on earnings.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "1 and 3",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "1 and 2",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "2 and 3",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "H"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106919",
+    "capturedAt": 1784656839032,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32444491"
+  }
+}

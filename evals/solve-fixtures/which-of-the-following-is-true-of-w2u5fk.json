@@ -1,0 +1,51 @@
+{
+  "name": "multiple_answers: Which of the following is true of the t…",
+  "request": {
+    "questionText": "Which of the following is true of the t distribution? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "Use of the t-distribution does not assume that we know the population standard deviation sigma (σ).",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "When we use an estimate of sigma (σ) rather than the true σ (as assumed with de Moivre’s equation), it introduces in our calculation an extra source of uncertainty for which the t-distribution attempts to compensate.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "The RStudio function t.test() is based on this distribution.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "Calculating a confidence interval based on the t-distribution is effectively computing a confidence interval based on the Central Limit Theorem and de Moivre’s equation, with a minor correction that widens the interval to account for small sample sizes.",
+        "type": "checkbox"
+      },
+      {
+        "label": "E",
+        "text": "The t distribution is unimodal and symmetric, similar to the normal distribution.",
+        "type": "checkbox"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106931?headless=1",
+    "capturedAt": 1784653088176,
+    "questionType": "multiple_answers_question",
+    "canvasQuestionId": "32385385"
+  }
+}

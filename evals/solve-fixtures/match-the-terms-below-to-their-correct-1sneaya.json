@@ -1,0 +1,94 @@
+{
+  "name": "matching: Match the terms below to their correct definitions.",
+  "request": {
+    "questionText": "Match the terms below to their correct definitions.",
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "The set of all possible cases that might have been included in a data set.",
+        "options": [
+          "Population"
+        ]
+      },
+      {
+        "key": "blank2",
+        "label": "A specific selection of cases from the population.",
+        "options": [
+          "Sample"
+        ]
+      },
+      {
+        "key": "blank3",
+        "label": "A tabular representation of a data set in which the rows correspond to cases and the columns to variables.",
+        "options": [
+          "Data frame"
+        ]
+      },
+      {
+        "key": "blank4",
+        "label": "A file or separate list that provides all the necessary information to interpret each variable in a data set",
+        "options": [
+          "Code book"
+        ]
+      },
+      {
+        "key": "blank5",
+        "label": "The type of entity on which you choose to focus for some analysis of data",
+        "options": [
+          "Unit of analysis"
+        ]
+      },
+      {
+        "key": "blank6",
+        "label": "Any systematic discrepancy between a sample and the corresponding population",
+        "options": [
+          "Sampling bias"
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [],
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "The set of all possible cases that might have been included in a data set.",
+        "correct": "Population"
+      },
+      {
+        "key": "blank2",
+        "label": "A specific selection of cases from the population.",
+        "correct": "Sample"
+      },
+      {
+        "key": "blank3",
+        "label": "A tabular representation of a data set in which the rows correspond to cases and the columns to variables.",
+        "correct": "Data frame"
+      },
+      {
+        "key": "blank4",
+        "label": "A file or separate list that provides all the necessary information to interpret each variable in a data set",
+        "correct": "Code book"
+      },
+      {
+        "key": "blank5",
+        "label": "The type of entity on which you choose to focus for some analysis of data",
+        "correct": "Unit of analysis"
+      },
+      {
+        "key": "blank6",
+        "label": "Any systematic discrepancy between a sample and the corresponding population",
+        "correct": "Sampling bias"
+      }
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106921",
+    "capturedAt": 1784652973495,
+    "questionType": "matching_question",
+    "canvasQuestionId": "32223290"
+  }
+}

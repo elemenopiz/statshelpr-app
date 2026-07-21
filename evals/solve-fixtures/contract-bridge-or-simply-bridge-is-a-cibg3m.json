@@ -1,0 +1,28 @@
+{
+  "name": "numerical: Contract bridge, or simply bridge, is a trick-taking card…",
+  "request": {
+    "questionText": "Contract bridge, or simply bridge, is a trick-taking card game using a standard 52-card deck. One of the world's most popular card games, it is played by four players in two competing partnerships, with partners sitting opposite each other around a table. Imagine that you are president of the Bevo Bridge Club. It is your duty to organize game gatherings each week. One regular concern is whether or not an even table split will turn up to play. There are 15 club members. You need either 4 or 8 or 12 players in order to have the right split for tables. Over time, you have observed that a 70% probability that any given club member will attend any given gathering. Assuming that members attend independently of each other, what is the probability that exactly 4 players OR exactly 8 players OR exactly 12 players will show up for the next gathering? Enter your answer as a decimal rounded to three digits.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [],
+    "answerContains": [
+      "0.252"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106926/history?version=1",
+    "capturedAt": 1784653039526,
+    "questionType": "numerical_question",
+    "canvasQuestionId": "32223376"
+  }
+}

@@ -1,0 +1,1322 @@
+[
+  {
+    "_idx": 3,
+    "name": "matching: Lesson 15.6 summarized guidelines for data scientists on what…",
+    "questionType": "matching_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Lesson 15.6 summarized guidelines for data scientists on what sorts of variables to include or exclude in fitting multiple regression models. Which of the following guidelines is accurate with respect to variables that we generally want to INCLUDE as predictors?",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "TRUE",
+        "key": "blank1",
+        "label": "It is essential to incorporate variables that are correlated with both the outcome (Y) and the particular X predictor of interest.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank2",
+        "label": "It is beneficial, but not strictly essential, to include variables that are correlated with Y even if they are not correlated with a particular X predictor of interest.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "FALSE",
+        "key": "blank3",
+        "label": "Always include an interaction term for two X predictors if those predictors are both main effects in the model.",
+        "options": [
+          "FALSE"
+        ],
+        "selected": "FALSE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank4",
+        "label": "Failing to include an important confounder as a model predictor could lead to “omitted-variable bias.”",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "FALSE",
+        "key": "blank5",
+        "label": "\"Colliders\" should be predictors in the model if they can be identified and reliably measured.",
+        "options": [
+          "FALSE"
+        ],
+        "selected": "FALSE"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 9,
+    "name": "multiple_dropdowns: This is one of multiple questions about the same…",
+    "questionType": "multiple_dropdowns_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "This is one of multiple questions about the same scenario. NCAA coaches may be compensated with salary as well as with an annual bonus. The amount of that bonus may be contingent on team performance as well as meeting off-field thresholds with respect to players' grades and conduct. The distribution of salary and bonus is something that coaches negotiate with the Athletic Director at a NCAA school. A college football coach-who-will-not-be-named is evaluating the job market and wants to predict what sort of bonus compensation he might expect to earn at various NCAA schools. Using NCAA Salaries data, he fits a model with the following variables: Bonus: maximum annual bonus (in millions of dollars) Salary: annual salary (in millions of dollars) SEC: whether the school is in the Southeastern Conference (SEC = 1) or not (SEC = 0) The model equation is: Bonus=0.45+0.15∗Salary+0.84∗SEC−0.11∗(Salary∗SEC) Use this model equation to fill in the blanks below with the best option: At SEC schools, maximum bonuses are [ Select ] [\"lower\", \"higher\"] by about [ Select ] [\"$840,000\", \"$730,000\", \"$990,000\", \"$450,000\", \"$150,000\"] relative to non-SEC schools, [ Select ] [\"regardless of the coach salary\", \"assuming the same coach salary\"] . At non-SEC schools, bonuses [ Select ] [\"decrease\", \"increase\"] at a rate of [ Select ] [\"$600,000\", \"$490,000\", \"$40,000\", \"$150,000\", \"$1,330,000\"] for a $1 million-increase in salary. The model intercept estimate suggests that if a non-SEC coach somehow earned a $0 salary, we'd expect their max bonus to equal [ Select ] [\"$1,290,000\", \"$1,330,000\", \"$450,000\", \"$150,000\", \"$340,000\"] .",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "higher",
+        "key": "higher",
+        "label": "higher",
+        "options": [
+          "lower",
+          "higher"
+        ],
+        "selected": "higher"
+      },
+      {
+        "correct": "$840,000",
+        "key": "840000",
+        "label": "840000",
+        "options": [
+          "$840,000",
+          "$730,000",
+          "$990,000",
+          "$450,000",
+          "$150,000"
+        ],
+        "selected": "$840,000"
+      },
+      {
+        "correct": "assuming the same coach salary",
+        "key": "assumingSalary",
+        "label": "assumingSalary",
+        "options": [
+          "regardless of the coach salary",
+          "assuming the same coach salary"
+        ],
+        "selected": "assuming the same coach salary"
+      },
+      {
+        "correct": "increase",
+        "key": "increase",
+        "label": "increase",
+        "options": [
+          "decrease",
+          "increase"
+        ],
+        "selected": "increase"
+      },
+      {
+        "correct": "$150,000",
+        "key": "150000",
+        "label": "150000",
+        "options": [
+          "$600,000",
+          "$490,000",
+          "$40,000",
+          "$150,000",
+          "$1,330,000"
+        ],
+        "selected": "$150,000"
+      },
+      {
+        "correct": "$450,000",
+        "key": "450000",
+        "label": "The model intercept estimate suggests that if a non-SEC coach somehow earned a $0 salary, we'd expect their max bonus to equal .",
+        "options": [
+          "$1,290,000",
+          "$1,330,000",
+          "$450,000",
+          "$150,000",
+          "$340,000"
+        ],
+        "selected": "$450,000"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/Bonus%253D0.45%252B0.15%255Cast%2520Salary%252B0.84%255Cast%2520SEC-0.11%255Cast%255Cleft(Salary%255Cast%2520SEC%255Cright)?scale=1"
+    ],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 15,
+    "name": "multiple_choice: What factors predict how much money a film will…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "What factors predict how much money a film will earn? A data scientist at a top movie studio fits a multiple regression model to predict domestic Gross earnings ($ millions) from: the film Budget ($ millions), the film Run Time (minutes) average Rotten Tomatoes Rating score [0, 100] Gross = -27 + (1.1 * Budget) - (0.43 * RunTime) + (2.6 * Rating) + error Which of the following is an accurate interpretation of the beta slope coefficient for Rating? (1) An estimated slope for a partial relationship. (2) The change that we expect to see in Gross earnings for a one-point increase in a film's Rotten Tomatoes Rating if we compare films with different Ratings but with the same Budget and RunTime. (3) We expect Gross earnings to increase by $2.6 million for every one-point increase in a film's Rotten Tomatoes Rating, after adjusting for the concurrent effects of Budget and Run Time on earnings.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "1 and 3",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "1 and 2",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "2 and 3",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "H"
+    ],
+    "correctChoices": [
+      "H"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 21,
+    "name": "multiple_choice: For a regression model: y=b0+b1∗x1+ei with a dummy variable…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "For a regression model: y=b0+b1∗x1+ei with a dummy variable (0 or 1) predictor x, the coefficient b1 may be interpreted as:",
+    "choices": [
+      {
+        "label": "A",
+        "text": "the predicted value of the outcome variable when the dummy variable is equal to 0.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "the differential effect on the outcome variable of having the dummy variable equal to 1, rather than 0.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "the predicted value of the outcome variable when the dummy variable is equal to 1.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "the improvement in R-squared that we get from including x in the model.",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "B"
+    ],
+    "correctChoices": [
+      "B"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/y%2520%253D%2520b_%257B0%257D%2520%2520%252Bb%2520_%257B1%257D*%2520x_%257B1%257D%252Be_%257Bi%257D"
+    ],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 27,
+    "name": "multiple_answers: This is one of multiple questions about the same…",
+    "questionType": "multiple_answers_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "This is one of multiple questions about the same scenario. NCAA coaches may be compensated with salary as well as with an annual bonus. The amount of that bonus may be contingent on team performance as well as meeting off-field thresholds with respect to players' grades and conduct. The distribution of salary and bonus is something that coaches negotiate with the Athletic Director at a NCAA school. A college football coach-who-will-not-be-named is evaluating the job market and wants to predict what sort of bonus compensation he might expect to earn at various NCAA schools. Using NCAA Salaries data, he fits a model with the following variables: Bonus: maximum annual bonus (in millions of dollars) Salary: annual salary (in millions of dollars) SEC: whether the school is in the Southeastern Conference (SEC = 1) or not (SEC = 0) The model equation is: Bonus=0.45+0.15∗Salary+0.84∗SEC−0.11∗(Salary∗SEC) Which of the follow statements is accurate, in light of the fitted model? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "This model incorporates an interaction term.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "At both SEC schools and non-SEC schools, bonuses increase at a rate of $150,000 for a $1 million-increase in salary.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "As salaries increase at SEC schools, bonuses also tend to increase. However, that increase is more slow and gradual than at non-SEC schools.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "As salaries increase at SEC schools, bonuses tend to decrease.",
+        "type": "checkbox"
+      }
+    ],
+    "selectedChoices": [
+      "A",
+      "C"
+    ],
+    "correctChoices": [
+      "A",
+      "C"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 33,
+    "name": "numerical: The data set in cars.csv includes information on the…",
+    "questionType": "numerical_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The data set in cars.csv includes information on the gas mileage of virtually every model of vehicle offered for sale to U.S. consumers during 2020. You will fit a regression model to predict city fuel economy in miles per gallon (city variable) in terms of the following predictor variables: powertrain -- vehicle powertrain type: Diesel, EV, FFV, Gasoline, Hybrid, or Plug-in Hybrid category -- vehicle type: Car, Small Car, SUV/Van, Truck, Two-seater, or Wagon What does the model predict for the expected city miles-per-gallon for a vehicle of the category SUV/Van with a Hybrid powertrain? Round your answer to the nearest mile-per-gallon.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "answerText": "30",
+    "datasetRefs": [
+      "cars.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 39,
+    "name": "multiple_dropdowns: This question revisits the data on video-game reaction time…",
+    "questionType": "multiple_dropdowns_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "This question revisits the data on video-game reaction time that we analyzed in class and in Lesson 14. Specifically, we'll consider three variables from this data set (two that we looked at before, and one that we didn't): PictureTarget.RT: the subject's reaction time in milliseconds when presented with a visual stimulus FarAway: a dummy variable for whether the stimulus (i.e. the “bad guy” popping up on the screen) was near (0) or far away (1) within the visual scene. SceneLetter: a letter code (b, c, d, e, or f) indicating which of five scenes the subject was presented with. (Note: the letters start at b; there is no scene a in this data set) Consider the following model and its corresponding regression table: lm(PictureTarget.RT ~ FarAway + SceneLetter, data=rxntime) %>% get_regression_table() %>% select(-std_error, -statistic, -p_value) Based on this model output, which of the following statements is/are accurate? When the stimulus is far away, we expect [ Select ] [\"a decrease\", \"an increase\"] in reaction time of at least approximately [ Select ] [\"50\", \"38\", \"62\"] milliseconds (with 95% confidence, adjusting for the scene). [ Select ] [\"Scene f\", \"Scene b\", \"Scene e\", \"Scene d\", \"Scene c\"] is associated with the slowest reaction time, on average. [ Select ] [\"Scene f\", \"Scene b\", \"Scene e\", \"Scene c\", \"Scene d\"] is associated with the fastest reaction time, on average. When the stimulus is near, average reaction time for scene b is not more than [ Select ] [\"458\", \"473\", \"488\"] milliseconds (with 95% confidence).",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "an increase",
+        "key": "an_increase",
+        "label": "an_increase",
+        "options": [
+          "a decrease",
+          "an increase"
+        ],
+        "selected": "an increase"
+      },
+      {
+        "correct": "38",
+        "key": "38",
+        "label": "38",
+        "options": [
+          "50",
+          "38",
+          "62"
+        ],
+        "selected": "38"
+      },
+      {
+        "correct": "Scene e",
+        "key": "SceneE",
+        "label": "SceneE",
+        "options": [
+          "Scene f",
+          "Scene b",
+          "Scene e",
+          "Scene d",
+          "Scene c"
+        ],
+        "selected": "Scene e"
+      },
+      {
+        "correct": "Scene b",
+        "key": "SceneB",
+        "label": "SceneB",
+        "options": [
+          "Scene f",
+          "Scene b",
+          "Scene e",
+          "Scene c",
+          "Scene d"
+        ],
+        "selected": "Scene b"
+      },
+      {
+        "correct": "488",
+        "key": "488",
+        "label": "When the stimulus is near, average reaction time for scene b is not more than milliseconds (with 95% confidence).",
+        "options": [
+          "458",
+          "473",
+          "488"
+        ],
+        "selected": "488"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://utexas.instructure.com/assessment_questions/44977580/files/74628265/download?verifier=G57wrvsP1ILpJuoW4E5pvOgwcI3ihzllcqi3zKlg"
+    ],
+    "imagesAttached": 1
+  },
+  {
+    "_idx": 45,
+    "name": "multiple_dropdowns: This question revisits the data on video-game reaction time…",
+    "questionType": "multiple_dropdowns_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "This question revisits the data on video-game reaction time that we analyzed in class and in Lesson 14. Specifically, we'll consider three variables from this data set (two that we looked at before, and one that we didn't): PictureTarget.RT: the subject's reaction time in milliseconds when presented with a visual stimulus FarAway: a dummy variable for whether the stimulus (i.e. the “bad guy” popping up on the screen) was near (0) or far away (1) within the visual scene. SceneLetter: a letter code (b, c, d, e, or f) indicating which of five scenes the subject was presented with. (Note: the letters start at b; there is no scene a in this data set) Consider the following model and its corresponding regression table: lm(PictureTarget.RT ~ FarAway + SceneLetter, data=rxntime) %>% get_regression_table() %>% select(-std_error, -statistic, -p_value) Based on this model output, which of the following statements is/are accurate? When the stimulus is far away, we expect [ Select ] [\"an increase\", \"a decrease\"] in reaction time of at least approximately [ Select ] [\"38\", \"62\", \"50\"] milliseconds (with 95% confidence, adjusting for the scene). [ Select ] [\"Scene f\", \"Scene d\", \"Scene b\", \"Scene c\", \"Scene e\"] is associated with the slowest reaction time, on average. [ Select ] [\"Scene f\", \"Scene b\", \"Scene d\", \"Scene c\", \"Scene e\"] is associated with the fastest reaction time, on average. When the stimulus is near, average reaction time for scene b is not more than [ Select ] [\"458\", \"473\", \"488\"] milliseconds (with 95% confidence).",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "an increase",
+        "key": "an_increase",
+        "label": "an_increase",
+        "options": [
+          "an increase",
+          "a decrease"
+        ],
+        "selected": "an increase"
+      },
+      {
+        "correct": "38",
+        "key": "38",
+        "label": "38",
+        "options": [
+          "38",
+          "62",
+          "50"
+        ],
+        "selected": "38"
+      },
+      {
+        "correct": "Scene e",
+        "key": "SceneE",
+        "label": "SceneE",
+        "options": [
+          "Scene f",
+          "Scene d",
+          "Scene b",
+          "Scene c",
+          "Scene e"
+        ],
+        "selected": "Scene e"
+      },
+      {
+        "correct": "Scene b",
+        "key": "SceneB",
+        "label": "SceneB",
+        "options": [
+          "Scene f",
+          "Scene b",
+          "Scene d",
+          "Scene c",
+          "Scene e"
+        ],
+        "selected": "Scene b"
+      },
+      {
+        "correct": "488",
+        "key": "488",
+        "label": "When the stimulus is near, average reaction time for scene b is not more than milliseconds (with 95% confidence).",
+        "options": [
+          "458",
+          "473",
+          "488"
+        ],
+        "selected": "488"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://utexas.instructure.com/assessment_questions/44977580/files/74628265/download?verifier=G57wrvsP1ILpJuoW4E5pvOgwcI3ihzllcqi3zKlg"
+    ],
+    "imagesAttached": 1
+  },
+  {
+    "_idx": 51,
+    "name": "matching: The georgia.csv file contains Georgia’s county-level voting data from…",
+    "questionType": "matching_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The georgia.csv file contains Georgia’s county-level voting data from the 2000 presidential election. The 2000 election was among the most controversial in history; it turned on an esoteric set of issues surrounding voting machines and vote counts, and wasn't finally resolved until the Supreme Court's ruling in Bush v. Gore. For our purposes, the relevant variables are: votes: number of votes recorded ballots: number of ballots cast equipment: indicator for whether county used Optical scan voting machines or else Other equipment urban: indicator for whether county is predominantly Urban or Rural based on population density Use the mutate() function to define a new variable called ucountPct: ucountPct=(ballots−votes)/ballots measuring the percentage of ballots in a county that were \"undercounted\" or \"spoiled\", (i.e., ballots cast where no legal vote was recorded because the machine could not read the vote). Was there a difference, on average, in undercount percentages between Urban counties versus Rural counties? Use these variables, along with a large-sample 95% confidence interval, to evaluate the following statements:",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "TRUE",
+        "key": "blank1",
+        "label": "In the sample, the undercount rate was higher in Rural counties.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "FALSE",
+        "key": "blank2",
+        "label": "The difference in means is not statistically significant with 95% confidence.",
+        "options": [
+          "FALSE"
+        ],
+        "selected": "FALSE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank3",
+        "label": "With 95% confidence, the undercount rate is at most around 2% lower in Urban counties.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "FALSE",
+        "key": "blank4",
+        "label": "In the sample, the undercount rate was higher in Urban counties.",
+        "options": [
+          "FALSE"
+        ],
+        "selected": "FALSE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank5",
+        "label": "The difference in means is statistically significant with 95% confidence.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [
+      "georgia.csv"
+    ],
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/ucountPct%253D(ballots-votes)%252Fballots?scale=1"
+    ],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 57,
+    "name": "matching: The rentals.csv data frame contains data on 98 short-term…",
+    "questionType": "matching_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The rentals.csv data frame contains data on 98 short-term rentals in Santa Fe, New Mexico, including a variable for the number of listed Amenities (e.g., pool, laundry room, fireplace) on the webpage for each rental. Calculate the observed sample mean, as well a large-sample 95% confidence interval for the average number of rental property Amenities in the population. Which of the following is an accurate interpretation of this analysis? Select TRUE or FALSE for each option below.",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "FALSE",
+        "key": "blank1",
+        "label": "We are 95% confident that the mean number of amenities in this population of rental properties is approximately 23.5.",
+        "options": [
+          "FALSE"
+        ],
+        "selected": "FALSE"
+      },
+      {
+        "correct": "FALSE",
+        "key": "blank2",
+        "label": "In this population, 95% of short-term rentals will have between approximately 21 to 26 listed amenities.",
+        "options": [
+          "FALSE"
+        ],
+        "selected": "FALSE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank3",
+        "label": "We are 95% confident that the population mean may be found in the range of values represented by this interval.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank4",
+        "label": "If we were to take repeated random samples of the same number of rentals using the same data-generating process, and then construct a confidence interval for each of these samples, we'd expect that 95% of those intervals would contain the population mean.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [
+      "rentals.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 63,
+    "name": "multiple_answers: Which of the following types of summary statistics generally…",
+    "questionType": "multiple_answers_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following types of summary statistics generally have sampling distributions that are unimodal and symmetric (i.e., normally distributed)? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "Differences of means",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "Regression model coefficients",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "Regression model fit statistics",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "Standard deviations",
+        "type": "checkbox"
+      },
+      {
+        "label": "E",
+        "text": "Interquartile ranges",
+        "type": "checkbox"
+      },
+      {
+        "label": "F",
+        "text": "Medians",
+        "type": "checkbox"
+      },
+      {
+        "label": "G",
+        "text": "Proportions",
+        "type": "checkbox"
+      }
+    ],
+    "selectedChoices": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G"
+    ],
+    "correctChoices": [
+      "A",
+      "B",
+      "C",
+      "D",
+      "E",
+      "F",
+      "G"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 69,
+    "name": "numerical: To what extent does a patient’s body mass index…",
+    "questionType": "numerical_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "To what extent does a patient’s body mass index (bmi) predict the medical insurance charges for their care? The file insurance.csv contains data on 325 patients from the southwest region who incurred medical insurance charges, including the following variables: bmi: body mass index of patient charges: insurance charges for patient’s medical care in dollars Fit a linear model for charges (Y) in terms of bmi (X). Based on these model results, what is the proportion of variability in charges explained by the regression on bmi? Round your answer to two decimal places.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "answerText": "0.05",
+    "datasetRefs": [
+      "insurance.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 75,
+    "name": "multiple_choice: A confidence interval using de Moivre's equation is valid…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "A confidence interval using de Moivre's equation is valid if which of the following conditions is true?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "We are calculating a confidence interval for a population proportion based on a sample proportion.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "We are calculating a confidence interval for a coefficient in a regression model based on a sample model estimate.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "We are calculating a confidence interval for a population mean based on a sample mean.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "We are calculating a confidence interval for the population difference in group proportions based on the difference in proportions from a sample.",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "C"
+    ],
+    "correctChoices": [
+      "C"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 81,
+    "name": "multiple_choice: During 2023, the UT Athletic Director's data science team…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": false,
+    "answerSource": "none",
+    "outcome": "incorrect",
+    "questionText": "During 2023, the UT Athletic Director's data science team sent a well-designed survey to a large group of alumni who have in the past purchased season tickets for Longhorns athletics. Their objective was to estimate the proportion of contributing alumni who supported early withdrawal from the Big 12 Conference in the following athletic year. After data collection, they observed that 371 respondents in a random sample of 525 alumni indicated yes in support of the plan for early withdrawal. Which of the following is true of the results of this analysis? Choose the best answer.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "The sampling distribution in this context is the distribution of sample proportions that we'd expect to see if it were possible to repeatedly administer this same survey to random samples of 525 alumni.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "The sample estimate is 525.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "The population estimand is 71%.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "The population estimand is 371.",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "Sampling variability means that a different sample from the same population would likely produce exactly the same sample proportion.",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 87,
+    "name": "matching: There is a key distinction between statistical significance and…",
+    "questionType": "matching_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "There is a key distinction between statistical significance and practical significance. Which of the following statements is accurate with respect to these concepts? Select TRUE or FALSE for each statement below:",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "TRUE",
+        "key": "blank1",
+        "label": "Evaluating practical significance necessarily involves subjective judgment on what effect sizes are large enough to matter in context.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank2",
+        "label": "We are assessing statistical significance when we interpret confidence intervals solely in terms of whether zero appears in the interval.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank3",
+        "label": "We consider practical significance when interpreting confidence intervals in terms of a range of values in the same measurement units as the focal variable.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "FALSE",
+        "key": "blank4",
+        "label": "Effects of a research study labeled as \"statistically significant\" are certain to be meaningful for stakeholders in the relevant industry.",
+        "options": [
+          "FALSE"
+        ],
+        "selected": "FALSE"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 93,
+    "name": "multiple_choice: Which of the following statements is accurate with respect…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following statements is accurate with respect to p-values? (1) Smaller p-values are indicative of more evidence against the null hypothesis. (2) The p-value measures the probability that you have made a mistake in rejecting the null hypothesis. (3) A p-value is the probability of observing our specific test statistic, given that the null hypothesis is true.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "2 only",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "B"
+    ],
+    "correctChoices": [
+      "B"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 99,
+    "name": "multiple_choice: A sociologist uses data from the General Social Survey…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "A sociologist uses data from the General Social Survey to estimate the typical \"occupational prestige factor\" of professions of U.S. adult residents. The survey includes a variable called Prestige, a numerical scale 0-100 for job prestige attempting to measure the level of respect/admiration for the job in society. In the sample, survey respondents' have a median prestige score of 45.1. The sociologist uses bootstrapping to calculate a 95% confidence interval for the population median prestige score: (44, 46) Which of the following is an accurate interpretation of this analysis? Choose the best answer.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "We are 95% confident that between 44% -- 46% of U.S. adults have a prestige score association with their occupation.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "We are 95% confident that the true median prestige score for U.S. adults is 45.1.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "We are confident that 95% of all U.S. adults have an occupation with a prestige score between 44 and 46.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "We are 95% confident that the interval 44-46 contains the true median prestige score for U.S. adults.",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "D"
+    ],
+    "correctChoices": [
+      "D"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 105,
+    "name": "multiple_answers: Which of the following represent(s) the concept of \"sampling…",
+    "questionType": "multiple_answers_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following represent(s) the concept of \"sampling WITH replacement\"? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "McCombs randomly selects 10 different BBA students to participate in an academic decathlon with other UT Austin colleges.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "Amazon randomly samples customer transactions to track order fulfillment speed. Once a customer's transaction is selected by the sampling process, that transaction is recorded as part of the sample, but cannot be selected again during the sampling process.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "Professor Snape selects a sample of students to \"cold call\" during each of his NEWT-level Potions classes. For each question, he uses a Resampulus charm, wherein his wand randomly points to a student irrespective of who was called previously. There is no limit on the number of times that an individual student might be selected during any given class session.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "We randomly choose two playing cards from a standard 52-card deck as follows: we draw the first card from the deck and set it aside. Then from the 51 cards that remain in the deck, we draw a second card.",
+        "type": "checkbox"
+      }
+    ],
+    "selectedChoices": [
+      "C"
+    ],
+    "correctChoices": [
+      "C"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 111,
+    "name": "multiple_choice: Which of the following statements is accurate with respect…",
+    "questionType": "multiple_choice_question",
+    "mode": "calc",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following statements is accurate with respect to sampling distributions? (1) A sampling distribution is the theoretical distribution of sample estimates across many repeated samples. (2) A sampling distribution represents the results of a thought experiment: specifically, how much your answer might change from one sample to the next under the same random process that generated your data. (3) The sampling variability that we observe in some summary statistic is not a characteristic of the particular sample from which that statistic was calculated, but rather associated with the sample-generating procedure.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "2 and 3 only",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "F"
+    ],
+    "correctChoices": [
+      "F"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 117,
+    "name": "multiple_choice: The ads data frame contains information on 233 Super…",
+    "questionType": "multiple_choice_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The ads data frame contains information on 233 Super Bowl television commercials, including the following variables: year: year between 2000-2020 when the commercial aired brand: one of ten brands with the most commercials during 2000-2020 views: number of views on YouTube likes: number of likes on YouTube dislikes: number of dislikes on YouTube During which year did Super Bowl commercials in this sample have the smallest average number of views?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "2000",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "2002",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "2017",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "2020",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "2012",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "2005",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "F"
+    ],
+    "correctChoices": [
+      "F"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 123,
+    "name": "multiple_choice: The dragons.csv file contains data on 2000 magnificent beasts…",
+    "questionType": "multiple_choice_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "The dragons.csv file contains data on 2000 magnificent beasts randomly sampled from the extensive Care of Magical Creatures database. Variables include: color -- color of dragon (black, blue, green, red) height -- dragon height in yards The distribution of height for dragons is unimodal and symmetric. Which of the following is closest to the probability of observing a dragon shorter than 58 yards?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "96%",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "92%",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "87%",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "81%",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "8%",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "4%",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "19%",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "13%",
+        "type": "radio"
+      }
+    ],
+    "selectedChoices": [
+      "C"
+    ],
+    "correctChoices": [
+      "C"
+    ],
+    "datasetRefs": [
+      "dragons.csv"
+    ],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 129,
+    "name": "multiple_answers: Which of the following is true of the normal…",
+    "questionType": "multiple_answers_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following is true of the normal distribution model? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "A normal random variable is a discrete random variable.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "Phenomena that don’t look obviously normal can be sometimes described using the normal distribution as a building block.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "The parameters of the normal distribution are the median and the rate.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "It is a family of bell-shaped density curves, each with a different mean and standard deviation.",
+        "type": "checkbox"
+      },
+      {
+        "label": "E",
+        "text": "The area under a normal density curve represents probability.",
+        "type": "checkbox"
+      }
+    ],
+    "selectedChoices": [
+      "B",
+      "D",
+      "E"
+    ],
+    "correctChoices": [
+      "B",
+      "D",
+      "E"
+    ],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 135,
+    "name": "matching: Which of the following statements is accurate with respect…",
+    "questionType": "matching_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Which of the following statements is accurate with respect to the Binomial distribution? Select TRUE or FALSE for each statement below.",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "TRUE",
+        "key": "blank1",
+        "label": "The Binomial model describes the result of a fixed number of random events, each having a binary outcome.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "FALSE",
+        "key": "blank2",
+        "label": "The outcome of each random event depends on the outcomes of preceding random events in a Binomial situation.",
+        "options": [
+          "FALSE"
+        ],
+        "selected": "FALSE"
+      },
+      {
+        "correct": "FALSE",
+        "key": "blank3",
+        "label": "Binomial random variables are characterized by two parameters: the mean and standard deviation.",
+        "options": [
+          "FALSE"
+        ],
+        "selected": "FALSE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank4",
+        "label": "Binomial random variables are discrete random variables.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      },
+      {
+        "correct": "TRUE",
+        "key": "blank5",
+        "label": "Binomial random variables are characterized by two parameters: the number of random events and the probability of a 'success' outcome for each event.",
+        "options": [
+          "TRUE"
+        ],
+        "selected": "TRUE"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [],
+    "imagesAttached": 0
+  },
+  {
+    "_idx": 141,
+    "name": "matching: Consider the \"Import Dataset\" window in RStudio, shown below.…",
+    "questionType": "matching_question",
+    "mode": "concept",
+    "verified": true,
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "questionText": "Consider the \"Import Dataset\" window in RStudio, shown below. We've highlighted four parts of this window with numbered boxes. To what does each of these boxes refer?",
+    "choices": [],
+    "blanks": [
+      {
+        "correct": "Box 1",
+        "key": "blank1",
+        "label": "The raw .csv file. It’s what you’d see if you opened the file in a plain text editor.",
+        "options": [
+          "Box 1"
+        ],
+        "selected": "Box 1"
+      },
+      {
+        "correct": "Box 2",
+        "key": "blank2",
+        "label": "The name of the object in R that will be created; how you’ll refer to the data set.",
+        "options": [
+          "Box 2"
+        ],
+        "selected": "Box 2"
+      },
+      {
+        "correct": "Box 3",
+        "key": "blank3",
+        "label": "This tells R whether the first row contains the names of the variables.",
+        "options": [
+          "Box 3"
+        ],
+        "selected": "Box 3"
+      },
+      {
+        "correct": "Box 4",
+        "key": "blank4",
+        "label": "How the imported data set will appear to R, with any header row shown in bold.",
+        "options": [
+          "Box 4"
+        ],
+        "selected": "Box 4"
+      }
+    ],
+    "selectedChoices": [],
+    "correctChoices": [],
+    "datasetRefs": [],
+    "imageUrls": [
+      "https://bookdown.org/jgscott/DSGI/images/import_dataset.png"
+    ],
+    "imagesAttached": 1
+  }
+]

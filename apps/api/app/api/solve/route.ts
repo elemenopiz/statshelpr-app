@@ -18,8 +18,8 @@ import {
   deriveSelectedChoices,
   MAX_TOKENS_FIRST,
   MAX_TOKENS_SECOND,
-  MODEL,
   repairRCode,
+  resolveModel,
   solveNonStreaming,
   type DataFile,
   type SolveBody,
@@ -115,6 +115,7 @@ async function solveStreaming({
   try {
     const hasImage = (body.images?.length ?? 0) > 0;
     const hasBlanks = (body.blanks?.length ?? 0) >= 2;
+    const model = resolveModel(body); // image → 3.6 Flash, else Flash-Lite
     const system = buildSystemPrompt({ dataContext, imageMode: hasImage, hasBlanks });
     const questionPrompt = buildQuestionPrompt(body);
     const userContent = buildUserContent(questionPrompt, body.images);
@@ -126,7 +127,7 @@ async function solveStreaming({
     let userVisibleSent = "";
 
     for await (const delta of chatStream(apiKey, {
-      model: MODEL,
+      model,
       system,
       messages: [{ role: "user", content: userContent }],
       maxTokens: MAX_TOKENS_FIRST,
@@ -224,7 +225,7 @@ async function solveStreaming({
     let fbuf = "";
     let fSent = "";
     for await (const delta of chatStream(apiKey, {
-      model: MODEL,
+      model,
       system,
       messages: [
         { role: "user", content: userContent },
@@ -250,6 +251,7 @@ async function solveStreaming({
     }
 
     const finalParsed = parseResponse(fbuf);
+    const finalBlanks = deriveBlankAnswers(finalParsed.body, body.blanks);
     await write({
       type: "result",
       result: {
@@ -260,6 +262,7 @@ async function solveStreaming({
         rDurationMs: runResult.durationMs,
         answer: finalParsed.body,
         selectedChoices: deriveSelectedChoices(finalParsed.body, body.choices),
+        ...(finalBlanks.length ? { blanks: finalBlanks } : {}),
         confidence: finalParsed.confidence,
         lowConfidence: finalParsed.lowConfidence,
       },

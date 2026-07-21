@@ -1,0 +1,62 @@
+{
+  "name": "multiple_choice: As discussed in class and in Lesson 14.4, which…",
+  "request": {
+    "questionText": "As discussed in class and in Lesson 14.4, which of the following is among the methods that we use to diagnose interactions and decide whether to include an interaction term in our model? (1) Considering subject-matter knowledge about the data science context. (2) Creating a plot to visually diagnose the presence (or lack thereof) of an interaction between variables. (3) Fitting a model with an interaction, then examining a conﬁdence interval for the interaction term.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "1 only",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "1 and 3 only",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [
+      "E"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106917?headless=1",
+    "capturedAt": 1784656822098,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32408272"
+  }
+}

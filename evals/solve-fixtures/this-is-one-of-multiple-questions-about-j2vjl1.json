@@ -1,0 +1,112 @@
+{
+  "name": "multiple_dropdowns: This is one of multiple questions about the same…",
+  "request": {
+    "questionText": "This is one of multiple questions about the same scenario. NCAA coaches may be compensated with salary as well as with an annual bonus. The amount of that bonus may be contingent on team performance as well as meeting off-field thresholds with respect to players' grades and conduct. The distribution of salary and bonus is something that coaches negotiate with the Athletic Director at a NCAA school. A college football coach-who-will-not-be-named is evaluating the job market and wants to predict what sort of bonus compensation he might expect to earn at various NCAA schools. Using NCAA Salaries data, he fits a model with the following variables: Bonus: maximum annual bonus (in millions of dollars) Salary: annual salary (in millions of dollars) SEC: whether the school is in the Southeastern Conference (SEC = 1) or not (SEC = 0) The model equation is: Bonus=0.45+0.15∗Salary+0.84∗SEC−0.11∗(Salary∗SEC) Use this model equation to fill in the blanks below with the best option: At SEC schools, maximum bonuses are [ Select ] [\"lower\", \"higher\"] by about [ Select ] [\"$840,000\", \"$730,000\", \"$990,000\", \"$450,000\", \"$150,000\"] relative to non-SEC schools, [ Select ] [\"regardless of the coach salary\", \"assuming the same coach salary\"] . At non-SEC schools, bonuses [ Select ] [\"decrease\", \"increase\"] at a rate of [ Select ] [\"$600,000\", \"$490,000\", \"$40,000\", \"$150,000\", \"$1,330,000\"] for a $1 million-increase in salary. The model intercept estimate suggests that if a non-SEC coach somehow earned a $0 salary, we'd expect their max bonus to equal [ Select ] [\"$1,290,000\", \"$1,330,000\", \"$450,000\", \"$150,000\", \"$340,000\"] .",
+    "blanks": [
+      {
+        "key": "higher",
+        "label": "higher",
+        "options": [
+          "lower",
+          "higher"
+        ]
+      },
+      {
+        "key": "840000",
+        "label": "840000",
+        "options": [
+          "$840,000",
+          "$730,000",
+          "$990,000",
+          "$450,000",
+          "$150,000"
+        ]
+      },
+      {
+        "key": "assumingSalary",
+        "label": "assumingSalary",
+        "options": [
+          "regardless of the coach salary",
+          "assuming the same coach salary"
+        ]
+      },
+      {
+        "key": "increase",
+        "label": "increase",
+        "options": [
+          "decrease",
+          "increase"
+        ]
+      },
+      {
+        "key": "150000",
+        "label": "150000",
+        "options": [
+          "$600,000",
+          "$490,000",
+          "$40,000",
+          "$150,000",
+          "$1,330,000"
+        ]
+      },
+      {
+        "key": "450000",
+        "label": "The model intercept estimate suggests that if a non-SEC coach somehow earned a $0 salary, we'd expect their max bonus to equal .",
+        "options": [
+          "$1,290,000",
+          "$1,330,000",
+          "$450,000",
+          "$150,000",
+          "$340,000"
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [],
+    "blanks": [
+      {
+        "key": "higher",
+        "label": "higher",
+        "correct": "higher"
+      },
+      {
+        "key": "840000",
+        "label": "840000",
+        "correct": "$840,000"
+      },
+      {
+        "key": "assumingSalary",
+        "label": "assumingSalary",
+        "correct": "assuming the same coach salary"
+      },
+      {
+        "key": "increase",
+        "label": "increase",
+        "correct": "increase"
+      },
+      {
+        "key": "150000",
+        "label": "150000",
+        "correct": "$150,000"
+      },
+      {
+        "key": "450000",
+        "label": "The model intercept estimate suggests that if a non-SEC coach somehow earned a $0 salary, we'd expect their max bonus to equal .",
+        "correct": "$450,000"
+      }
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106933",
+    "capturedAt": 1784656842098,
+    "questionType": "multiple_dropdowns_question",
+    "canvasQuestionId": "32444462",
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/Bonus%253D0.45%252B0.15%255Cast%2520Salary%252B0.84%255Cast%2520SEC-0.11%255Cast%255Cleft(Salary%255Cast%2520SEC%255Cright)?scale=1"
+    ]
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "name": "multiple_choice: Choose the best answer. Holding other factors constant, increasing…",
+  "request": {
+    "questionText": "Choose the best answer. Holding other factors constant, increasing the size of a sample used to calculate a confidence interval for a mean will:",
+    "choices": [
+      {
+        "label": "A",
+        "text": "increase the margin of error.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "widen the confidence interval.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "decrease the standard error.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "eliminate our uncertainty related to sampling variability.",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "result in more systematic sampling bias.",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "C"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106931",
+    "capturedAt": 1784653091879,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32385383"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "name": "multiple_answers: Which of the following represent(s) the concept of \"sampling…",
+  "request": {
+    "questionText": "Which of the following represent(s) the concept of \"sampling WITH replacement\"? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "McCombs randomly selects 10 different BBA students to participate in an academic decathlon with other UT Austin colleges.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "Amazon randomly samples customer transactions to track order fulfillment speed. Once a customer's transaction is selected by the sampling process, that transaction is recorded as part of the sample, but cannot be selected again during the sampling process.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "Professor Snape selects a sample of students to \"cold call\" during each of his NEWT-level Potions classes. For each question, he uses a Resampulus charm, wherein his wand randomly points to a student irrespective of who was called previously. There is no limit on the number of times that an individual student might be selected during any given class session.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "We randomly choose two playing cards from a standard 52-card deck as follows: we draw the first card from the deck and set it aside. Then from the 51 cards that remain in the deck, we draw a second card.",
+        "type": "checkbox"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [
+      "C"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106915?headless=1",
+    "capturedAt": 1784653074190,
+    "questionType": "multiple_answers_question",
+    "canvasQuestionId": "32384100"
+  }
+}

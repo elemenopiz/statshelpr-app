@@ -1,0 +1,31 @@
+{
+  "name": "numerical: The owner of Borgin and Burkes, an antiquities and…",
+  "request": {
+    "questionText": "The owner of Borgin and Burkes, an antiquities and consignment shop, fits a linear model predicting daily sales revenue ($) from the number of customers who visit the store each day. The model equation is: If 70 customers visit the shop tomorrow, what is the daily sales revenue predicted by this model? Round your answer to the nearest dollar.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "(fill in your answer)",
+        "type": "text"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [],
+    "answerContains": [
+      "377"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106929?headless=1",
+    "capturedAt": 1784653070642,
+    "questionType": "numerical_question",
+    "canvasQuestionId": "32223436",
+    "imageUrls": [
+      "https://utexas.instructure.com/equation_images/Sales_i%253D10.56%252B5.23%255Ccdot%2520Customers_i%252Be_i"
+    ]
+  }
+}

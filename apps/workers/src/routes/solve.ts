@@ -19,7 +19,7 @@ import {
   deriveBlankAnswers,
   deriveSelectedChoices,
   MAX_TOKENS_FIRST,
-  MODEL,
+  resolveModel,
   type DataFile,
   type SolveBody,
 } from "@/lib/solver";
@@ -105,7 +105,7 @@ solve.post("/", async (c) => {
       let userVisibleSent = "";
 
       for await (const delta of chatStream(apiKey, {
-        model: MODEL,
+        model: resolveModel(body),
         system,
         messages: [{ role: "user", content: userContent }],
         maxTokens: MAX_TOKENS_FIRST,

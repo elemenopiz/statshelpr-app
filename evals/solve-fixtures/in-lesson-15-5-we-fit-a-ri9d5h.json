@@ -1,0 +1,62 @@
+{
+  "name": "multiple_choice: In Lesson 15.5, we fit a multiple regression model…",
+  "request": {
+    "questionText": "In Lesson 15.5, we fit a multiple regression model to predict the listing price of a house in Saratoga County, New York. We concluded that the variable age (age of the house in years) should be included in a model attempting to isolate the partial relationship between fireplaces and price. Which of the following is among the reasons that we decided to include age in the model? (1) The confidence interval for the age coefficient did not contain zero. (2) The inclusion of the age variable affected the magnitude of the coefficient of interest: fireplaces. (3) Age was correlated with both the response variable (price) and the predictor variable of interest (fireplaces).",
+    "choices": [
+      {
+        "label": "A",
+        "text": "1 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "2 only",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "3 only",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "2 and 3 only",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "None of the above",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "All of the above (1, 2, and 3)",
+        "type": "radio"
+      },
+      {
+        "label": "G",
+        "text": "1 and 2 only",
+        "type": "radio"
+      },
+      {
+        "label": "H",
+        "text": "1 only",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "F"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106928",
+    "capturedAt": 1784656838790,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32444524"
+  }
+}

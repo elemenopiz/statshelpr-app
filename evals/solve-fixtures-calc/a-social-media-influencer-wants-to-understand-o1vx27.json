@@ -1,0 +1,48 @@
+{
+  "name": "multiple_answers: A social media influencer wants to understand the relationship…",
+  "request": {
+    "questionText": "A social media influencer wants to understand the relationship between the length of each video they post and the number of viewers who watch the video in its entirety. They decide to build a model to predict Viewers (total numbers of viewers who watch each entire video) from Length of video (in seconds). Viewers = 12.2 + (7.4 * Length) + error The R-squared for this model is 0.23. Which statements below are true of the interpretation of R-squared for this model? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "R-squared is unit-less, i.e., does not depend on the measurement units by which the response and predictor variables are expressed.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "Twenty-three percent (23%) of variability in the number of viewers is explained by factors other than the length of the video.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "Twenty-three percent (23%) of the variability in the number of viewers is explained by the length of the video.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "R-squared always ranges between -1 and 1.",
+        "type": "checkbox"
+      },
+      {
+        "label": "E",
+        "text": "The \"typical error\" associated with predictions using this model is plus or minus 0.23 viewers.",
+        "type": "checkbox"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "A",
+      "C"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106929",
+    "capturedAt": 1784653102033,
+    "questionType": "multiple_answers_question",
+    "canvasQuestionId": "32223443"
+  }
+}

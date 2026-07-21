@@ -1,0 +1,82 @@
+{
+  "name": "matching: The Amazon e-commerce data science team fits a model…",
+  "request": {
+    "questionText": "The Amazon e-commerce data science team fits a model to gain understanding of the extent to which having an Amazon Prime membership leads customers to buy more from the platform than customers without a Prime membership. The data set includes two variables: total Sales revenue for a customer account and a dummy variable representing whether the customer had a Prime membership (0 = no, 1 = yes). The fitted model equation is: Sales=764+1323∗Prime+e Match each equation component with its appropriate label below.",
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "764",
+        "options": [
+          "baseline"
+        ]
+      },
+      {
+        "key": "blank2",
+        "label": "1323",
+        "options": [
+          "offset"
+        ]
+      },
+      {
+        "key": "blank3",
+        "label": "Sales",
+        "options": [
+          "response Y variable"
+        ]
+      },
+      {
+        "key": "blank4",
+        "label": "Prime",
+        "options": [
+          "predictor X variable"
+        ]
+      },
+      {
+        "key": "blank5",
+        "label": "e",
+        "options": [
+          "residual"
+        ]
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [],
+    "blanks": [
+      {
+        "key": "blank1",
+        "label": "764",
+        "correct": "baseline"
+      },
+      {
+        "key": "blank2",
+        "label": "1323",
+        "correct": "offset"
+      },
+      {
+        "key": "blank3",
+        "label": "Sales",
+        "correct": "response Y variable"
+      },
+      {
+        "key": "blank4",
+        "label": "Prime",
+        "correct": "predictor X variable"
+      },
+      {
+        "key": "blank5",
+        "label": "e",
+        "correct": "residual"
+      }
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106923?headless=1",
+    "capturedAt": 1784656827079,
+    "questionType": "matching_question",
+    "canvasQuestionId": "32408198"
+  }
+}

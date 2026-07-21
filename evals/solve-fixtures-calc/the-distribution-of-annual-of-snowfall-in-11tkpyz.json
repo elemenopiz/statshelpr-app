@@ -1,0 +1,47 @@
+{
+  "name": "multiple_choice: The distribution of annual of snowfall in Lubbock, Texas…",
+  "request": {
+    "questionText": "The distribution of annual of snowfall in Lubbock, Texas has a symmetric bell-shape, with an average of 8.6 inches and standard deviation 2.5 inches. Using this distribution, what is the probability of an annual snowfall of between 7 and 11 inches in a given year in Lubbock?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "83%",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "50%",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "26%",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "57%",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "43%",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "D"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106925?headless=1",
+    "capturedAt": 1784653057113,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32223345"
+  }
+}

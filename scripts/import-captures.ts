@@ -125,6 +125,31 @@ async function loadDatasets(dir: string): Promise<Record<string, string>> {
   return map;
 }
 
+/**
+ * Recover a missing dataset reference by matching the question's named columns
+ * against each dataset's header row. Returns the dataset filename only on a
+ * confident match (≥3 header names appear as whole words in the question AND it
+ * clearly beats the runner-up) — otherwise null. Never guesses: questions that
+ * only mention "data"/"model" generically, or whose dataset wasn't captured,
+ * stay unattached. */
+function recoverDatasetRef(question: string, datasets: Record<string, string>): string | null {
+  const q = " " + (question || "").toLowerCase().replace(/[^a-z0-9_]+/g, " ") + " ";
+  const scores = Object.entries(datasets)
+    .map(([file, content]) => {
+      const header = content.split("\n")[0] ?? "";
+      const cols = header
+        .split(",")
+        .map((c) => c.replace(/^"|"$/g, "").trim().toLowerCase())
+        .filter((c) => c.length >= 2);
+      let hits = 0;
+      for (const c of cols) if (q.includes(" " + c + " ")) hits += 1;
+      return { file, hits };
+    })
+    .sort((a, b) => b.hits - a.hits);
+  const [top, second] = scores;
+  return top && top.hits >= 3 && top.hits >= (second?.hits ?? 0) + 1 ? top.file : null;
+}
+
 /** Case-insensitive filename → canonical dataset key. */
 function matchDataset(ref: string, datasets: Record<string, string>): string | null {
   if (datasets[ref] !== undefined) return ref;
@@ -151,7 +176,13 @@ function toFixture(r: CaptureRecord, datasets: Record<string, string>, missing: 
   const request: Record<string, unknown> = { questionText: r.questionText, choices: r.choices ?? [] };
   if (r.images?.length) request.images = r.images;
   const dataFiles: Array<{ filename: string; content: string }> = [];
-  for (const ref of r.datasetRefs ?? []) {
+  // Some captures don't record datasetRefs even though the dataframe is
+  // described in the question — recover the reference by matching the
+  // question's named columns against each dataset's header row.
+  const refs = r.datasetRefs?.length
+    ? r.datasetRefs
+    : [recoverDatasetRef(r.questionText, datasets)].filter((x): x is string => !!x);
+  for (const ref of refs) {
     const key = matchDataset(ref, datasets);
     if (key) dataFiles.push({ filename: key, content: datasets[key]! });
     else missing.add(ref);
@@ -162,22 +193,20 @@ function toFixture(r: CaptureRecord, datasets: Record<string, string>, missing: 
     selectedChoices: r.correctChoices ?? [],
   };
   if (r.answerText) expected.answerContains = [r.answerText];
-  // Matching / multiple-dropdowns: expose the option pool as choices and check
-  // the correct value of every blank appears in the model's answer. The full
-  // per-blank mapping is preserved under expected.blanks for reference.
-  if (r.blanks?.length) {
-    const pool = [...new Set(r.blanks.flatMap((b) => b.options))];
-    if (pool.length) request.choices = pool.map((text, i) => ({ label: String.fromCharCode(65 + i), text, type: "dropdown" }));
-    // The row prompts (labels) are part of the question — without them
-    // "blank1: TRUE" is unanswerable. Append them to the prompt text.
-    if (r.blanks.some((b) => b.label)) {
-      request.questionText = `${r.questionText}\n\nItems to answer:\n${r.blanks
-        .map((b, i) => `${i + 1}. ${b.label || b.key}`)
-        .join("\n")}`;
-    }
+  // Matching / multiple-dropdowns (2+ blanks): send the API's native `blanks`
+  // shape so /api/solve prompts each blank with its own options and returns one
+  // answer per blank (buildBlanksPrompt + deriveBlankAnswers). `blanks` and
+  // `choices` are mutually exclusive answer shapes, so drop the choice pool.
+  // expected.blanks drives per-blank scoring in run-evals.
+  if ((r.blanks?.length ?? 0) >= 2) {
+    delete request.choices;
+    request.blanks = r.blanks!.map((b) => ({ key: b.key, label: b.label || b.key, options: b.options }));
+    expected.blanks = r.blanks!.map((b) => ({ key: b.key, ...(b.label ? { label: b.label } : {}), correct: b.correct }));
+  } else if (r.blanks?.length) {
+    // Single blank (fill-in / numerical): no option list to pick from — just
+    // check the known answer appears in the model's response.
     const corrects = r.blanks.map((b) => b.correct).filter(Boolean);
     if (corrects.length) expected.answerContains = corrects;
-    expected.blanks = r.blanks.map((b) => ({ key: b.key, ...(b.label ? { label: b.label } : {}), correct: b.correct }));
   }
   return {
     name: r.name,

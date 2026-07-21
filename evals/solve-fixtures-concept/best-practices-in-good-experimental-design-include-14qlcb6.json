@@ -1,0 +1,43 @@
+{
+  "name": "multiple_answers: Best practices in good experimental design include which of…",
+  "request": {
+    "questionText": "Best practices in good experimental design include which of the following? Select all correct answers.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "When there is a potential confounding variable for which it is impractical or impossible to use blocking, the researcher should use their best judgment to decide which study participants will go in the treatment group and which will go into the control group.",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "Use a control group.",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "When an experimental design uses blocking, randomization is not required for a rigorous study.",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "Use blocking when you can.",
+        "type": "checkbox"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [
+      "B",
+      "D"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106922?headless=1",
+    "capturedAt": 1784656811329,
+    "questionType": "multiple_answers_question",
+    "canvasQuestionId": "32406786"
+  }
+}

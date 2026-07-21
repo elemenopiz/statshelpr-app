@@ -1,0 +1,47 @@
+{
+  "name": "multiple_choice: Choose the best answer. A conditional ('if/then') statement about…",
+  "request": {
+    "questionText": "Choose the best answer. A conditional ('if/then') statement about some event that may not have actually occurred is known as:",
+    "choices": [
+      {
+        "label": "A",
+        "text": "a placebo effect.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "a counterfactual.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "a balanced comparison.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "a confounder.",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "a control group.",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [
+      "B"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106922?headless=1",
+    "capturedAt": 1784656812064,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32406783"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "name": "multiple_answers: Which of the following is/are among the RStudio functions…",
+  "request": {
+    "questionText": "Which of the following is/are among the RStudio functions that we will use for every* bootstrap analysis in STA 301? * Note that there are many methods to implement bootstrapping with R and in other programs. In this course, our bootstrapping will apply the same \"recipe\" that incorporates a consistent set of functions.",
+    "choices": [
+      {
+        "label": "A",
+        "text": "prop()",
+        "type": "checkbox"
+      },
+      {
+        "label": "B",
+        "text": "resample()",
+        "type": "checkbox"
+      },
+      {
+        "label": "C",
+        "text": "mean()",
+        "type": "checkbox"
+      },
+      {
+        "label": "D",
+        "text": "do()",
+        "type": "checkbox"
+      },
+      {
+        "label": "E",
+        "text": "group_by()",
+        "type": "checkbox"
+      },
+      {
+        "label": "F",
+        "text": "mutate()",
+        "type": "checkbox"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [
+      "B",
+      "D"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106915?headless=1",
+    "capturedAt": 1784653073877,
+    "questionType": "multiple_answers_question",
+    "canvasQuestionId": "32384101"
+  }
+}

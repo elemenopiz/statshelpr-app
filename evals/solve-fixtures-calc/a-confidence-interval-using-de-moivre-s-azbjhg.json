@@ -1,0 +1,42 @@
+{
+  "name": "multiple_choice: A confidence interval using de Moivre's equation is valid…",
+  "request": {
+    "questionText": "A confidence interval using de Moivre's equation is valid if which of the following conditions is true?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "We are calculating a confidence interval for a population proportion based on a sample proportion.",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "We are calculating a confidence interval for a coefficient in a regression model based on a sample model estimate.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "We are calculating a confidence interval for a population mean based on a sample mean.",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "We are calculating a confidence interval for the population difference in group proportions based on the difference in proportions from a sample.",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "calc",
+    "selectedChoices": [
+      "C"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106931",
+    "capturedAt": 1784653092752,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32385386"
+  }
+}

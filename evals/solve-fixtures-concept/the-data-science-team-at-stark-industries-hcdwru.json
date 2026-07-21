@@ -1,0 +1,52 @@
+{
+  "name": "multiple_choice: The data science team at Stark Industries is conducting…",
+  "request": {
+    "questionText": "The data science team at Stark Industries is conducting an experiment to investigate the potential impact of a new engine model for the helicarrier used by the secretive government agency, S.H.I.E.L.D. Analyses of the data suggest that there might be an intrinsic difference in the performance of the engine in cold and hot weather. Of primary interest to the team is the improvement in performance by adopting this new helicarrier engine. An ideal experimental design would account for variations in the performance of this engine under hot and cold weather conditions. Which of the following best describes, in this context, an experiment with a blocking design?",
+    "choices": [
+      {
+        "label": "A",
+        "text": "The team randomly assigned to each helicarrier model to be tested with a new engine design (treatment) or a conventional design with the previous engine design (control).",
+        "type": "radio"
+      },
+      {
+        "label": "B",
+        "text": "The team conducts a focus group with the pilots who are particularly knowledgeable about the helicarrier to solicit their feedback on the new engine.",
+        "type": "radio"
+      },
+      {
+        "label": "C",
+        "text": "The team identifies three weather conditions: hot, above 90F; medium, from 90F to 50F; and cold, below 50F. Within each of these conditions, the new engines are randomly assigned to test different helicarriers (treatment group) or to test the traditional hellicarriers (control group).",
+        "type": "radio"
+      },
+      {
+        "label": "D",
+        "text": "The team fits a machine learning model to predict the performance of helicarrier engines based on a large scope of features, including weather characteristics at the time of testing.",
+        "type": "radio"
+      },
+      {
+        "label": "E",
+        "text": "The team collect historical data on observed campaigns with different helicarriers with both new engines (treatment group) and the previous engine model (control group). They conduct an analysis of group differences using bootstrap confidence intervals.",
+        "type": "radio"
+      },
+      {
+        "label": "F",
+        "text": "The team identifies two weather conditions: hot and cold. The new helicarrier engine is only used in cold weather and the conventional engine design in hotter weather.",
+        "type": "radio"
+      }
+    ]
+  },
+  "expected": {
+    "mode": "concept",
+    "selectedChoices": [
+      "C"
+    ]
+  },
+  "meta": {
+    "answerSource": "self-correct",
+    "outcome": "correct",
+    "url": "https://utexas.instructure.com/courses/1445339/quizzes/2106922?headless=1",
+    "capturedAt": 1784656811511,
+    "questionType": "multiple_choice_question",
+    "canvasQuestionId": "32406790"
+  }
+}
