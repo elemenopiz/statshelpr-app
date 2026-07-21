@@ -5,7 +5,7 @@ import {
 } from "@/lib/core";
 import { chat } from "@/lib/core/providers";
 import { runR } from "@/lib/sandbox";
-import { deriveSelectedChoices } from "./choices";
+import { deriveBlankAnswers, deriveSelectedChoices } from "./choices";
 import { buildFollowupContent, buildQuestionPrompt, buildUserContent } from "./prompts";
 import { repairRCode } from "./r-repair";
 import { MAX_TOKENS_FIRST, MAX_TOKENS_SECOND, MODEL } from "./settings";
@@ -21,7 +21,8 @@ interface NonStreamArgs {
 export async function solveNonStreaming(args: NonStreamArgs) {
   const { apiKey, body, dataContext, dataFiles } = args;
   const hasImage = (body.images?.length ?? 0) > 0;
-  const system = buildSystemPrompt({ dataContext, imageMode: hasImage });
+  const hasBlanks = (body.blanks?.length ?? 0) >= 2;
+  const system = buildSystemPrompt({ dataContext, imageMode: hasImage, hasBlanks });
   const questionPrompt = buildQuestionPrompt(body);
   const userContent = buildUserContent(questionPrompt, body.images);
 
@@ -30,10 +31,12 @@ export async function solveNonStreaming(args: NonStreamArgs) {
 
   if (parsed.mode === "concept") {
     const selectedChoices = deriveSelectedChoices(parsed.body, body.choices);
+    const blanks = deriveBlankAnswers(parsed.body, body.blanks);
     return {
       mode: "concept",
       answer: parsed.body,
       selectedChoices,
+      ...(blanks.length ? { blanks } : {}),
       confidence: parsed.confidence,
       lowConfidence: parsed.lowConfidence,
       usage: first.usage,

@@ -16,6 +16,7 @@ import { makeSseStream, sseHeaders } from "@/lib/sse";
 import {
   buildQuestionPrompt,
   buildUserContent,
+  deriveBlankAnswers,
   deriveSelectedChoices,
   MAX_TOKENS_FIRST,
   MODEL,
@@ -92,7 +93,8 @@ solve.post("/", async (c) => {
   const stream = makeSseStream(async (write) => {
     try {
       const hasImage = (body.images?.length ?? 0) > 0;
-      const system = buildSystemPrompt({ dataContext, imageMode: hasImage });
+      const hasBlanks = (body.blanks?.length ?? 0) >= 2;
+      const system = buildSystemPrompt({ dataContext, imageMode: hasImage, hasBlanks });
       const questionPrompt = buildQuestionPrompt(body);
       const userContent = buildUserContent(questionPrompt, body.images);
 
@@ -142,12 +144,14 @@ solve.post("/", async (c) => {
       const parsed = parseResponse(buf);
 
       if (parsed.mode === "concept") {
+        const blanks = deriveBlankAnswers(parsed.body, body.blanks);
         await write({
           type: "result",
           result: {
             mode: "concept",
             answer: parsed.body,
             selectedChoices: deriveSelectedChoices(parsed.body, body.choices),
+            ...(blanks.length ? { blanks } : {}),
             confidence: parsed.confidence,
             lowConfidence: parsed.lowConfidence,
           },

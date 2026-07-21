@@ -1,8 +1,8 @@
-export { deriveSelectedChoices } from "./choices";
+export { deriveSelectedChoices, deriveBlankAnswers } from "./choices";
 export {
   buildFollowupContent,
   buildQuestionPrompt,
   buildUserContent,
 } from "./prompts";
 export { MAX_TOKENS_FIRST, MAX_TOKENS_SECOND, MODEL } from "./settings";
-export type { DataFile, SolveBody } from "./types";
+export type { BlankAnswer, DataFile, SolveBlank, SolveBody } from "./types";

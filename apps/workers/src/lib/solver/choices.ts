@@ -1,4 +1,4 @@
-import type { AnswerChoice } from "./types";
+import type { AnswerChoice, BlankAnswer, SolveBlank } from "./types";
 
 export function normalizeChoices(
   choices: AnswerChoice[] | undefined,
@@ -51,4 +51,60 @@ export function deriveSelectedChoices(
 
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Map the model's answer text to one chosen option per blank, in blank order.
+ * The prompt asks for `Blank <n>: <option>` lines; we read those first, then
+ * fall back to matching by the blank's label, then to any single option the
+ * answer mentions. Each blank's `answer` is "" when nothing matched (the
+ * client just leaves that dropdown untouched).
+ */
+export function deriveBlankAnswers(
+  answer: string,
+  blanks: SolveBlank[] | undefined,
+): BlankAnswer[] {
+  if (!blanks?.length) return [];
+  const lines = answer.split("\n");
+  return blanks.map((blank, i) => {
+    // 1) "Blank 3: <option>" / "Answer 3 - <option>" / "3. <option>"
+    const byIndex = answer.match(
+      new RegExp(`^\\s*(?:blank|answer|item|#)?\\s*${i + 1}\\s*[:.)\\-]\\s*(.+?)\\s*$`, "im"),
+    );
+    let picked = byIndex?.[1] ? matchOption(byIndex[1], blank.options) : "";
+    // 2) a line that echoes this blank's label, then names an option
+    if (!picked && blank.label) {
+      const key = blank.label.toLowerCase().slice(0, 24);
+      const labelLine = lines.find((ln) => ln.toLowerCase().includes(key));
+      if (labelLine) picked = matchOption(labelLine, blank.options);
+    }
+    // 3) last resort: the single option the answer text mentions
+    if (!picked) picked = soleMentionedOption(answer, blank.options);
+    return { key: blank.key, answer: picked };
+  });
+}
+
+/** Best option for a chunk of answer text: exact (case-insensitive) wins, then
+ * the longest option that appears as a substring either way. */
+function matchOption(text: string, options: string[]): string {
+  const t = text.replace(/\s+/g, " ").trim();
+  if (!t) return "";
+  const tl = t.toLowerCase();
+  for (const o of options) if (o.toLowerCase() === tl) return o;
+  let best = "";
+  for (const o of options) {
+    const ol = o.toLowerCase();
+    if (!ol) continue;
+    const hit = tl.includes(ol) || (ol.length >= 3 && ol.includes(tl));
+    if (hit && o.length > best.length) best = o;
+  }
+  return best;
+}
+
+/** If exactly one option is named anywhere in the answer, use it; ambiguous or
+ * none → "". Guards short options (T/F, numbers) that would false-match. */
+function soleMentionedOption(answer: string, options: string[]): string {
+  const al = answer.toLowerCase();
+  const hits = options.filter((o) => o.length >= 4 && al.includes(o.toLowerCase()));
+  return hits.length === 1 ? hits[0]! : "";
 }

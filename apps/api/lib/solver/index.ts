@@ -1,5 +1,5 @@
 export { solveNonStreaming } from "./non-streaming";
-export { deriveSelectedChoices, normalizeChoices } from "./choices";
+export { deriveSelectedChoices, deriveBlankAnswers, normalizeChoices } from "./choices";
 export {
   buildFollowupContent,
   buildQuestionPrompt,
@@ -7,4 +7,4 @@ export {
 } from "./prompts";
 export { repairRCode } from "./r-repair";
 export { MAX_TOKENS_FIRST, MAX_TOKENS_SECOND, MODEL } from "./settings";
-export type { AnswerChoice, DataFile, SolveBody } from "./types";
+export type { AnswerChoice, BlankAnswer, DataFile, SolveBlank, SolveBody } from "./types";

@@ -48,11 +48,17 @@ const QUICK_REFERENCE = [
 export interface SystemPromptOptions {
   dataContext?: string;
   imageMode?: boolean;
+  /** The question is a matching / multiple-dropdowns question whose blanks are
+   * all provided as text (see buildQuestionPrompt). Suppresses the image-mode
+   * "answer only the open dropdown" guidance, which would otherwise tell the
+   * model to leave the other blanks blank. */
+  hasBlanks?: boolean;
 }
 
 export function buildSystemPrompt({
   dataContext = "",
   imageMode = false,
+  hasBlanks = false,
 }: SystemPromptOptions = {}): string {
   const roleLines: string[] = [
     "You are a statistics quiz assistant.",
@@ -65,12 +71,16 @@ export function buildSystemPrompt({
     "Pay close attention to qualifier words like 'every', 'all', 'always', 'only', 'never', 'none' in TRUE/FALSE and yes/no questions — these change which options are correct. For 'select all that apply' questions, do not be overly conservative; include all options that are generally or approximately true.",
   ];
 
-  const imageOnlyLines: string[] = imageMode
-    ? [
-        "If the question text says 'Select TRUE or FALSE' or 'Select Yes or No' for each option, you MUST answer every blank in the question — do not answer only the open dropdown. List your answer for each statement in order.",
-        "If the image shows a dropdown currently open with visible options but the question does NOT use TRUE/FALSE or Yes/No for all blanks, focus ONLY on the open dropdown and answer that one blank. Do not attempt to answer closed '[Select]' or '[Choose]' dropdowns.",
-      ]
-    : [];
+  // When every blank is supplied as text (hasBlanks), the model must answer all
+  // of them — so we drop the image-only "focus on the open dropdown" rule.
+  const imageOnlyLines: string[] = hasBlanks
+    ? ["This question has multiple dropdown blanks, each listed with its own options. Answer EVERY blank — give one option per blank in order."]
+    : imageMode
+      ? [
+          "If the question text says 'Select TRUE or FALSE' or 'Select Yes or No' for each option, you MUST answer every blank in the question — do not answer only the open dropdown. List your answer for each statement in order.",
+          "If the image shows a dropdown currently open with visible options but the question does NOT use TRUE/FALSE or Yes/No for all blanks, focus ONLY on the open dropdown and answer that one blank. Do not attempt to answer closed '[Select]' or '[Choose]' dropdowns.",
+        ]
+      : [];
 
   const parts: string[] = [
     ...roleLines,

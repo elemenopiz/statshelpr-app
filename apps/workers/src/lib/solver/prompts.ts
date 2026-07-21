@@ -1,7 +1,7 @@
 import { imagePart, type LlmContentPart } from "@/lib/core/providers";
 import type { SolveImage } from "@/lib/core/types";
 import { normalizeChoices } from "./choices";
-import type { SolveBody } from "./types";
+import type { SolveBlank, SolveBody } from "./types";
 
 export function buildUserContent(
   text: string | undefined,
@@ -21,6 +21,13 @@ export function buildUserContent(
 
 export function buildQuestionPrompt(body: SolveBody): string {
   const base = body.questionText?.trim() || "(see image)";
+
+  // Matching / multiple-dropdowns: every blank is answered independently from
+  // its own option list. Takes precedence over `choices` (they don't co-occur).
+  if (body.blanks && body.blanks.length >= 2) {
+    return buildBlanksPrompt(base, body.blanks);
+  }
+
   const choices = normalizeChoices(body.choices);
   if (choices.length === 0) return base;
 
@@ -51,6 +58,25 @@ export function buildQuestionPrompt(body: SolveBody): string {
       ? "Return the correct choice letter(s) in the final Answer line, for example: Answer: A, C."
       : "Return the correct choice letter in the final Answer line, for example: Answer: B.",
   ].join("\n");
+}
+
+/** Prompt for a matching / multiple-dropdowns question: list each blank with
+ * its own options and require one `Blank N: <option>` line per blank. */
+function buildBlanksPrompt(base: string, blanks: SolveBlank[]): string {
+  const lines: string[] = [
+    base,
+    "",
+    `This question has ${blanks.length} dropdown blanks. Answer EVERY blank — do not skip any.`,
+    "",
+  ];
+  blanks.forEach((b, i) => {
+    lines.push(`Blank ${i + 1}${b.label ? ` — ${b.label}` : ""}`);
+    lines.push(`  options: ${b.options.join(" | ")}`);
+  });
+  lines.push("");
+  lines.push("On the final lines, give exactly one option per blank, copied verbatim, as:");
+  blanks.forEach((_, i) => lines.push(`Blank ${i + 1}: <chosen option>`));
+  return lines.join("\n");
 }
 
 export function buildFollowupContent(
