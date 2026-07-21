@@ -223,7 +223,7 @@ export function collectChoices(question: HTMLElement): AnswerChoice[] {
     const row = getChoiceRow(input);
     if (row && seenRows.has(row)) return;
     if (row) seenRows.add(row);
-    const text = normalizeText(getChoiceText(input));
+    const text = dedupeDoubled(getChoiceText(input));
     if (!text) return;
     choices.push({
       input,
@@ -243,7 +243,7 @@ export function collectChoices(question: HTMLElement): AnswerChoice[] {
     const sel = selects[0]!;
     let idx = 0;
     for (const opt of [...sel.querySelectorAll("option")]) {
-      const text = normalizeText(opt.textContent ?? "");
+      const text = dedupeDoubled(opt.textContent ?? "");
       if (!text || /^\[?\s*(select|choose)\s*\]?\s*\.{0,3}$/i.test(text)) continue;
       choices.push({
         input: sel,
@@ -678,7 +678,7 @@ function collectAnswerGroupBlanks(question: HTMLElement): RawBlank[] {
 
   return groups.map((group, i) => {
     const rows = [...group.querySelectorAll<HTMLElement>(".answer")];
-    const optionOf = (row: HTMLElement) => cleanText(row.querySelector<HTMLElement>(".answer_text") ?? row);
+    const optionOf = (row: HTMLElement) => dedupeDoubled(cleanText(row.querySelector<HTMLElement>(".answer_text") ?? row));
     const options = [...new Set(rows.map(optionOf).filter((t) => t && !isPlaceholderOption(t)))];
     const selRow = group.querySelector<HTMLElement>(".answer.selected_answer");
     let selected = selRow ? optionOf(selRow) : "";
@@ -833,6 +833,31 @@ async function urlToImageBlock(url: string): Promise<ImageBlock | null> {
 
 export function normalizeText(text: string): string {
   return text.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Collapse an answer that Canvas rendered twice. Equation-bearing answers carry
+ * both a visual-math rendering AND the raw LaTeX source, so a choice's
+ * textContent can come out as the same sentence twice ("… β 1 … \beta_1"), and
+ * enhanced-content answers can double verbatim ("X X"). If the text splits into
+ * two halves that are the same sentence — exactly, or equal after stripping
+ * LaTeX/punctuation — keep the first (rendered) half. Otherwise return it as-is,
+ * so a legitimately repeated phrase is never truncated.
+ */
+export function dedupeDoubled(text: string): string {
+  const t = normalizeText(text);
+  if (t.length < 24) return t;
+  const norm = (s: string) => s.replace(/\\[a-zA-Z]+/g, "").replace(/[^a-z0-9]/gi, "").toLowerCase();
+  const head = t.slice(0, 12);
+  for (let from = 8; from < t.length; ) {
+    const idx = t.indexOf(head, from);
+    if (idx < 0) break;
+    const a = t.slice(0, idx).trim();
+    const b = t.slice(idx).trim();
+    if (a && b && (a === b || (norm(a).length > 4 && norm(a) === norm(b)))) return a;
+    from = idx + 1;
+  }
+  return t;
 }
 
 function choiceLabel(index: number): string {
