@@ -26,6 +26,9 @@ export type CaptureMode = "concept" | "calc";
 /** One dropdown of a multiple-dropdowns / matching question. */
 export interface BlankAnswer {
   key: string; // blank id, e.g. "box1"
+  /** Left-hand prompt of the row (the term/statement being matched), from
+   * Canvas's .answer_match_left. Without it "blank1: TRUE" is meaningless. */
+  label?: string;
   selected: string; // the student's chosen value
   correct: string; // the correct value (= selected when verified; "" if unknown)
   options: string[]; // all option values for this blank
@@ -52,8 +55,18 @@ export interface Capture {
   templateId: string;
   name: string;
   questionText: string;
+  /** Authored question HTML (Canvas's hidden question_text textarea) — clean
+   * links/code blocks, no screen-reader noise. Classic Quizzes only. */
+  questionHtml?: string;
+  /** Canvas's own question type, e.g. "matching_question". */
+  questionType?: string;
+  /** Canvas's numeric question id — stable across attempts. */
+  canvasQuestionId?: string;
   choices: ApiChoice[];
   images: ImageBlock[];
+  /** Every image URL seen on the question, kept even when the byte-fetch
+   * failed — imageUrls.length > images.length means an image is missing. */
+  imageUrls?: string[];
   /** What the student selected, e.g. ["B"]. */
   selectedChoices: string[];
   /** The trusted correct answer; empty when unknown (unverified). */
@@ -85,8 +98,17 @@ export interface Capture {
 export interface CaptureRecord {
   name: string;
   questionText: string;
+  /** Authored question HTML (clean source: real hrefs, code blocks, img tags). */
+  questionHtml?: string;
+  /** Canvas's own question type, e.g. "matching_question". */
+  questionType?: string;
+  /** Canvas's numeric question id — stable across attempts. */
+  canvasQuestionId?: string;
   choices: ApiChoice[];
   images?: ImageBlock[];
+  /** Image URLs seen on the question; more entries than `images` means one
+   * failed to fetch and the record is missing an asset. */
+  imageUrls?: string[];
   /** Dataset filenames the question references (content not inlined here). */
   datasetRefs?: string[];
   /** What the student picked (letters for choices; empty for fill-in). */

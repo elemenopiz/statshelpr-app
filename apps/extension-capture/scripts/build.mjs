@@ -28,6 +28,7 @@ await cp(path.resolve(root, "public"), out, { recursive: true });
 const buildOpts = {
   entryPoints: {
     "capture-content": path.resolve(root, "src/capture-content.ts"),
+    "capture-background": path.resolve(root, "src/capture-background.ts"),
     popup: path.resolve(root, "src/popup.ts"),
   },
   bundle: true,

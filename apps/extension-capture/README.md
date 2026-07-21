@@ -25,12 +25,20 @@ auto-captures every question. Each record is flagged:
 Everything exports to **one file** (`Export all`); `scripts/import-captures.ts`
 splits it by `verified` into `evals/solve-fixtures/` (answer known) and
 `evals/unsolved/` (the AI-test set) when you run evals. Each record carries:
-question text, choices, images, referenced dataset, the student's selection,
-`outcome` (right/wrong), the correct answer when known, an inferred concept/calc
-mode, and course/quiz/url/time. Every question type is covered — radio, checkbox,
-dropdown, fill-in/numerical, and matching / multiple-dropdowns (captured as a
-`blanks` array, one answer per box) — plus images (fetched from `instructure.com` and
-`canvas-user-content.com`).
+question text (plus the authored `questionHtml` and Canvas's own
+`questionType`/`canvasQuestionId`), choices, images, referenced dataset, the
+student's selection, `outcome` (right/wrong), the correct answer when known, an
+inferred concept/calc mode, and course/quiz/url/time. Every question type is
+covered — radio, checkbox, dropdown, fill-in/numerical, and matching /
+multiple-dropdowns (captured as a `blanks` array — one answer per box, each with
+the row's left-hand `label`).
+
+**Images** are fetched by the background service worker (host permissions apply
+there, so any host works — Canvas, `canvas-user-content.com`, external hosts
+like `bookdown.org` — and non-png/jpeg/webp types are transcoded to png). Every
+image URL is also recorded in `imageUrls`; if `imageUrls` has more entries than
+`images`, a fetch failed and the panel/popup show an `⚠ img-missing` flag —
+re-capture the question to retry.
 
 On a **live/ungraded quiz** there's no answer on the page, so each question gets
 a manual pill — select the correct choice(s), click, your selection is the label.
@@ -120,6 +128,10 @@ and writes the rest untouched.
   one label the DOM can't state outright, so it's a best guess — fix the rare
   miss per-item in the popup.
 - **Images & datasets** are always scanned/attached automatically — no settings.
+- **After upgrading the extension build**, hit **Clear all** and re-capture:
+  captures are keyed by (cleaned) question text, so records saved by an older
+  build won't be updated in place and verified-but-wrong old records block
+  auto-recapture.
 - **Selector drift.** Question/choice/answer-key selectors mirror
   `apps/extension/src/content.ts`. If Canvas changes its markup, update
   `src/scrape.ts` here and `content.ts` together. If auto-detection misses a

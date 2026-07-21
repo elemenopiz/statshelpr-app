@@ -8,6 +8,19 @@
  * (quiz results / submission history) Canvas renders the answer key inline, so
  * we can read the correct choice(s) straight off the DOM instead of
  * hand-labeling. That's the whole point of this tool.
+ *
+ * Classic Quizzes markup facts this file relies on (verified against a real
+ * graded submission):
+ *   - Every .question_holder embeds a hidden `.original_question_text` block
+ *     whose `textarea[name=question_text]` holds the AUTHORED question HTML —
+ *     never an answer. Each answer row also carries a hidden
+ *     `input[name=answer_text]` with the row's text. Both must be excluded
+ *     from fill-in answer detection.
+ *   - `<span class="question_type">` states the question type outright
+ *     (multiple_choice_question, matching_question, numerical_question, …).
+ *   - Graded matching questions render ENABLED selects containing only the
+ *     chosen option; graded numerical inputs are `readonly`, not `disabled`.
+ *   - A matching row's left-hand prompt lives in `.answer_match_left`.
  */
 
 import type { AnswerSource, ApiChoice, BlankAnswer, CaptureOutcome, ImageBlock } from "./types";
@@ -35,12 +48,6 @@ const SELECTORS_STEM = [
 
 const QUESTION_SELECTOR = SELECTORS_QUESTION.join(",");
 const CHOICE_INPUT_SELECTOR = 'input[type="radio"], input[type="checkbox"]';
-const TEXT_INPUT_SELECTOR = [
-  'input[type="text"]',
-  'input[type="number"]',
-  ".numerical_question_input",
-  ".question_input",
-].join(",");
 
 // ---- public types ----------------------------------------------------------
 
@@ -58,8 +65,18 @@ export interface AnswerChoice {
 
 export interface ScrapedQuestion {
   text: string;
+  /** The authored question HTML from Canvas's hidden question_text textarea
+   * (clean links/code blocks/img tags; no screen-reader noise). Classic only. */
+  questionHtml: string | null;
+  /** Canvas's own question type, e.g. "matching_question". Classic only. */
+  questionType: string | null;
+  /** Canvas's numeric question id (stable across attempts). */
+  canvasQuestionId: string | null;
   choices: ApiChoice[];
   images: ImageBlock[];
+  /** Every candidate image URL found on the question — recorded even when the
+   * byte-fetch fails, so missing images are visible instead of silent. */
+  imageUrls: string[];
   /** Rich choices (with element refs) for labeling/detection. */
   raw: AnswerChoice[];
   /** Blanks for a multiple-dropdowns / matching question (empty otherwise). */
@@ -105,6 +122,61 @@ function hasQuestionAncestor(question: HTMLElement): boolean {
   return Boolean(ancestor && findStem(ancestor));
 }
 
+// ---- question metadata (Classic Quizzes) ------------------------------------
+
+/** Canvas's own question type ("matching_question", "numerical_question", …)
+ * from the .question_type span, falling back to the *_question class token. */
+export function questionTypeOf(question: HTMLElement): string | null {
+  const span = question.querySelector(".question_type");
+  const fromSpan = normalizeText(span?.textContent ?? "");
+  if (/^[a-z_]+_question$/.test(fromSpan)) return fromSpan;
+  const el = question.classList.contains("question")
+    ? question
+    : question.querySelector(".question, .display_question");
+  for (const cls of el?.classList ?? []) {
+    if (/^[a-z_]+_question$/.test(cls) && cls !== "display_question") return cls;
+  }
+  return null;
+}
+
+/** Canvas's numeric question id (e.g. "32223284"), stable across attempts. */
+export function canvasQuestionIdOf(question: HTMLElement): string | null {
+  const ids = [question.id, ...[...question.querySelectorAll<HTMLElement>("[id^='question_']")].map((e) => e.id)];
+  for (const id of ids) {
+    const m = (id ?? "").match(/^question_(\d+)$/);
+    if (m) return m[1]!;
+  }
+  const href = question.querySelector<HTMLAnchorElement>("a.update_question_url")?.getAttribute("href") ?? "";
+  return href.match(/\/questions\/(\d+)/)?.[1] ?? null;
+}
+
+/** The authored question HTML from the hidden original_question_text textarea. */
+export function questionHtmlOf(question: HTMLElement): string | null {
+  const ta = question.querySelector<HTMLTextAreaElement>(
+    ".original_question_text textarea[name='question_text'], textarea.textarea_question_text",
+  );
+  const v = ta?.value?.trim();
+  return v || null;
+}
+
+// ---- text extraction --------------------------------------------------------
+
+/** Element text with Canvas's screen-reader helper spans ("Links to an
+ * external site.") and scripts/styles removed. Works on a detached clone so
+ * the page is never mutated. */
+export function cleanText(el: HTMLElement): string {
+  const clone = el.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll("script, style, .screenreader-only").forEach((n) => n.remove());
+  return normalizeText(clone.textContent ?? "");
+}
+
+/** The question's stem text (cleaned) — the canonical capture id source, used
+ * by both scraping and the content script's dedupe hashing. */
+export function scrapeStemText(question: HTMLElement): string {
+  const stem = findStem(question);
+  return stem ? cleanText(stem) : "";
+}
+
 // ---- scraping ---------------------------------------------------------------
 
 export async function scrapeQuestion(
@@ -113,7 +185,7 @@ export async function scrapeQuestion(
 ): Promise<ScrapedQuestion> {
   const stem = findStem(question);
   if (!stem) throw new Error("Could not find question text.");
-  const text = normalizeText(stem.innerText ?? stem.textContent ?? "");
+  const text = cleanText(stem);
   if (!text) throw new Error("Question text is empty.");
 
   const raw = collectChoices(question);
@@ -122,8 +194,20 @@ export async function scrapeQuestion(
     text: c.text,
     type: choiceTypeForApi(c),
   }));
-  const images = opts.includeImages ? await collectImages(question) : [];
-  return { text, choices, images, raw, blanks: collectBlanks(question) };
+  const { images, imageUrls } = opts.includeImages
+    ? await collectImages(question)
+    : { images: [], imageUrls: [] };
+  return {
+    text,
+    questionHtml: questionHtmlOf(question),
+    questionType: questionTypeOf(question),
+    canvasQuestionId: canvasQuestionIdOf(question),
+    choices,
+    images,
+    imageUrls,
+    raw,
+    blanks: collectBlanks(question),
+  };
 }
 
 /** Synchronous choice collection (radio/checkbox → dropdown → text-fill), with
@@ -175,17 +259,23 @@ export function collectChoices(question: HTMLElement): AnswerChoice[] {
     if (choices.length > 0) return choices;
   }
 
-  // Priority 3: a fill-in / numerical input. Match any text-like input (incl.
-  // type-less and disabled/readonly ones — on a graded review the answer box is
-  // disabled but still holds the value). When several exist, prefer the one that
-  // actually carries an answer value.
+  // Priority 3: a fill-in / numerical input. Only *visible, answer-bearing*
+  // fields qualify: Canvas hides the authored question HTML in a
+  // `textarea[name=question_text]` and each answer row's text in an
+  // `input[name=answer_text]` — sweeping those in is how a capture ends up
+  // with the question HTML as its "answer". Prefer Canvas's canonical answer
+  // box (.question_input / .numerical_question_input) over other inputs.
   const textInputs = [
     ...question.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("input, textarea"),
-  ].filter(isTextLike);
+  ]
+    .filter(isTextLike)
+    .filter((el) => !isNonAnswerField(el));
   if (textInputs.length >= 1) {
     const t =
+      textInputs.find(
+        (i) => i.classList.contains("question_input") || i.classList.contains("numerical_question_input"),
+      ) ??
       textInputs.find((i) => (i.value ?? "").trim()) ??
-      textInputs.find((i) => i.classList.contains("question_input") || i.classList.contains("numerical_question_input")) ??
       textInputs[0]!;
     choices.push({
       input: t as HTMLInputElement,
@@ -204,6 +294,21 @@ function isTextLike(el: HTMLInputElement | HTMLTextAreaElement): boolean {
   if (el.tagName === "TEXTAREA") return true;
   const t = (el.getAttribute("type") || "text").toLowerCase();
   return !["radio", "checkbox", "hidden", "submit", "button", "file", "image", "reset"].includes(t);
+}
+
+/** Canvas metadata fields that look like text inputs but never hold the
+ * student's answer (hidden authored-HTML/row-text stores), plus anything not
+ * actually visible on the page. */
+function isNonAnswerField(el: HTMLInputElement | HTMLTextAreaElement): boolean {
+  if (el.closest(".original_question_text")) return true;
+  const name = el.getAttribute("name") ?? "";
+  if (["answer_text", "question_text", "text_after_answers", "answer_selection_type"].includes(name)) return true;
+  return !isVisible(el);
+}
+
+function isVisible(el: HTMLElement): boolean {
+  if (typeof el.checkVisibility === "function") return el.checkVisibility();
+  return el.offsetParent !== null || el.getClientRects().length > 0;
 }
 
 function choiceTypeForApi(c: AnswerChoice): ApiChoice["type"] {
@@ -312,10 +417,17 @@ export function submissionFullMarks(): boolean {
   return m ? parseFloat(m[2]!) > 0 && parseFloat(m[1]!) >= parseFloat(m[2]!) : false;
 }
 
-/** True when the choices are read-only (a graded submission review), false on a
- * live quiz where the inputs are still editable. */
+/** True when the choices are read-only (a graded submission review), false on
+ * a live quiz where the inputs are still editable. Canvas marks graded
+ * numerical inputs `readonly` (not `disabled`), so honor both. */
 export function isReadOnly(raw: AnswerChoice[]): boolean {
-  return raw.length > 0 && raw.every((c) => (c.input as HTMLInputElement | HTMLSelectElement).disabled);
+  return (
+    raw.length > 0 &&
+    raw.every((c) => {
+      const el = c.input as HTMLInputElement | HTMLSelectElement;
+      return el.disabled || ("readOnly" in el && (el as HTMLInputElement).readOnly);
+    })
+  );
 }
 
 /** Right/wrong for a graded question: Canvas Classic tags the question
@@ -361,9 +473,14 @@ export interface AnswerReadout {
  * full-marks review every selected value is correct (self-correct); a live
  * quiz treats the user's selections as asserted-correct. Wrong/hidden → the
  * blanks keep the student's picks but `correct` stays empty (unverified).
+ *
+ * NOTE: graded review pages render these selects ENABLED (with only the
+ * chosen option in them), so "some select is editable" does NOT mean live —
+ * the page-level graded signals win.
  */
 export function readMultiDropdown(question: HTMLElement, raws: RawBlank[]): AnswerReadout {
-  const live = raws.some((b) => !b.disabled);
+  const graded = looksGraded(question);
+  const live = !graded && raws.some((b) => !b.disabled);
   const allAnswered = raws.length > 0 && raws.every((b) => b.selected);
   const correctness = live
     ? "correct"
@@ -371,6 +488,7 @@ export function readMultiDropdown(question: HTMLElement, raws: RawBlank[]): Answ
   const verified = allAnswered && correctness === "correct";
   const blanks: BlankAnswer[] = raws.map((b) => ({
     key: b.key,
+    ...(b.label ? { label: b.label } : {}),
     selected: b.selected,
     correct: verified ? b.selected : "",
     options: b.options,
@@ -488,6 +606,7 @@ function collectAnswerSelects(question: HTMLElement): HTMLSelectElement[] {
 /** One dropdown "blank" of a multiple-dropdowns / matching question. */
 export interface RawBlank {
   key: string; // blank id (from the select's name) or "blank N"
+  label: string; // left-hand prompt of the row (.answer_match_left); "" if none
   selected: string; // the student's chosen option text ("" if none)
   options: string[]; // all non-placeholder option texts
   disabled: boolean; // read-only (graded review) vs editable (live)
@@ -505,7 +624,14 @@ export function collectBlanks(question: HTMLElement): RawBlank[] {
     const selOpt = sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex] : null;
     let selected = selOpt ? normalizeText(selOpt.textContent ?? "") : "";
     if (isPlaceholderOption(selected)) selected = "";
-    return { key: blankKey(sel, i), selected, options, disabled: sel.disabled };
+    const left = sel.closest(".answer")?.querySelector<HTMLElement>(".answer_match_left");
+    return {
+      key: blankKey(sel, i),
+      label: left ? cleanText(left) : "",
+      selected,
+      options,
+      disabled: sel.disabled,
+    };
   });
 }
 
@@ -519,10 +645,16 @@ function blankKey(sel: HTMLSelectElement, i: number): string {
   return (m?.[1] ?? `blank${i + 1}`).trim();
 }
 
-// ---- images (mirror content.ts) --------------------------------------------
+// ---- images (mirror content.ts; bytes via the background relay) -------------
 
-async function collectImages(root: HTMLElement): Promise<ImageBlock[]> {
-  const out: ImageBlock[] = [];
+export interface CollectedImages {
+  images: ImageBlock[];
+  imageUrls: string[];
+}
+
+async function collectImages(root: HTMLElement): Promise<CollectedImages> {
+  const images: ImageBlock[] = [];
+  const imageUrls: string[] = [];
   const seen = new Set<string>();
   for (const img of [...root.querySelectorAll<HTMLImageElement>("img")]) {
     // currentSrc/src for loaded images; data-src/data-original for lazy-loaded
@@ -538,12 +670,9 @@ async function collectImages(root: HTMLElement): Promise<ImageBlock[]> {
     if (/avatar|spinner|loading|icon-/.test(src)) continue;
     if (seen.has(src)) continue;
     seen.add(src);
-    try {
-      const block = await urlToImageBlock(src);
-      if (block) out.push(block);
-    } catch {
-      /* skip */
-    }
+    if (!src.startsWith("data:")) imageUrls.push(src);
+    const block = await fetchImageBlock(src).catch(() => null);
+    if (block) images.push(block);
   }
   for (const c of [...root.querySelectorAll<HTMLCanvasElement>("canvas")]) {
     try {
@@ -553,12 +682,36 @@ async function collectImages(root: HTMLElement): Promise<ImageBlock[]> {
       const key = `canvas:${data.length}`;
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push({ data, mediaType: "image/png" });
+      images.push({ data, mediaType: "image/png" });
     } catch {
       /* tainted canvas — skip */
     }
   }
-  return out;
+  return { images, imageUrls };
+}
+
+/** Fetch image bytes: first via the background service worker (host
+ * permissions apply there, so cross-origin hosts like bookdown.org work),
+ * then falling back to a direct page-context fetch (same-origin/data: URLs
+ * or an old build without the worker). */
+async function fetchImageBlock(url: string): Promise<ImageBlock | null> {
+  const viaBackground = await fetchImageViaBackground(url);
+  if (viaBackground) return viaBackground;
+  return urlToImageBlock(url);
+}
+
+async function fetchImageViaBackground(url: string): Promise<ImageBlock | null> {
+  try {
+    if (typeof chrome === "undefined" || !chrome.runtime?.id) return null;
+    const res = (await chrome.runtime.sendMessage({ type: "shcap:fetch-image", url })) as
+      | { ok: true; data: string; mediaType: ImageBlock["mediaType"] }
+      | { ok: false; error?: string }
+      | undefined;
+    if (res && res.ok === true && res.data) return { data: res.data, mediaType: res.mediaType };
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 async function urlToImageBlock(url: string): Promise<ImageBlock | null> {

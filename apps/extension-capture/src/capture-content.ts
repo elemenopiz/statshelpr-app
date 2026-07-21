@@ -25,8 +25,7 @@ import {
   isReadOnly,
   selectedChoiceLabels,
   looksGraded,
-  normalizeText,
-  findStem,
+  scrapeStemText,
   type AnswerReadout,
 } from "./scrape";
 import {
@@ -106,7 +105,7 @@ async function maybeAutoCapture() {
     let verified = 0;
     for (const q of findQuestions()) {
       if (!isGradedQuestion(q)) continue;
-      const id = hashId(scrapeText(q));
+      const id = hashId(scrapeStemText(q));
       if (!id || autoAttempted.has(id)) continue;
       autoAttempted.add(id);
       const existing = await getCapture(id);
@@ -152,7 +151,7 @@ function injectPill(question: HTMLElement) {
 
 async function setPillState(question: HTMLElement, pill: HTMLButtonElement) {
   const raw = collectChoices(question);
-  const id = hashId(scrapeText(question));
+  const id = hashId(scrapeStemText(question));
   const saved = id ? await hasCapture(id) : false;
   question.classList.toggle("shcap-captured", saved);
   pill.classList.remove("shcap-has-key", "shcap-saved", "shcap-warn");
@@ -211,8 +210,11 @@ async function captureOne(question: HTMLElement, pill: HTMLButtonElement): Promi
         return null;
       }
       readout = readMultiDropdown(question, scraped.blanks);
-    } else if (isReadOnly(scraped.raw)) {
-      readout = readGradedAnswer(question, scraped.raw); // graded review
+    } else if (isReadOnly(scraped.raw) || looksGraded(question)) {
+      // Graded review. The isReadOnly check alone isn't enough: Canvas leaves
+      // graded numerical inputs merely `readonly` and matching selects fully
+      // enabled, so page-level graded signals count too.
+      readout = readGradedAnswer(question, scraped.raw);
     } else {
       // live quiz — the user asserts the answer by selecting / entering it
       const fill = scraped.raw.find((c) => c.kind === "text-fill");
@@ -234,14 +236,18 @@ async function captureOne(question: HTMLElement, pill: HTMLButtonElement): Promi
     }
 
     const scrapedText = scraped.text;
-    const kind = scraped.choices[0]?.type ?? "radio";
+    const kind = scraped.questionType?.replace(/_question$/, "") ?? scraped.choices[0]?.type ?? "radio";
     const capture: Capture = {
       id: hashId(scrapedText),
       templateId: templateId(scrapedText),
       name: fixtureName(scrapedText, kind),
       questionText: scrapedText,
+      ...(scraped.questionHtml ? { questionHtml: scraped.questionHtml } : {}),
+      ...(scraped.questionType ? { questionType: scraped.questionType } : {}),
+      ...(scraped.canvasQuestionId ? { canvasQuestionId: scraped.canvasQuestionId } : {}),
       choices: scraped.choices,
       images: scraped.images,
+      ...(scraped.imageUrls.length ? { imageUrls: scraped.imageUrls } : {}),
       selectedChoices: readout.selectedChoices,
       correctChoices: readout.correctChoices,
       ...(readout.answerText ? { answerText: readout.answerText } : {}),
@@ -250,17 +256,18 @@ async function captureOne(question: HTMLElement, pill: HTMLButtonElement): Promi
       answerSource: readout.answerSource,
       verified: readout.verified,
       datasetRefs: detectDatasetRefs(scrapedText),
-      mode: inferMode(scrapedText, scraped.choices),
+      mode: inferMode(scrapedText, scraped.choices, scraped.questionType),
       url: location.href,
       ...idsFromUrl(),
       capturedAt: Date.now(),
     };
     await mergeCapture(capture);
     await setPillState(question, pill);
+    const imgMissed = scraped.imageUrls.length > scraped.images.length;
     flashPill(
       pill,
-      readout.verified ? `✓ ${answerDisplay(readout) || "saved"}` : "✓ pool",
-      readout.verified ? "shcap-saved" : "shcap-warn",
+      (readout.verified ? `✓ ${answerDisplay(readout) || "saved"}` : "✓ pool") + (imgMissed ? " · ⚠img" : ""),
+      readout.verified && !imgMissed ? "shcap-saved" : "shcap-warn",
     );
     return readout;
   } catch (e) {
@@ -350,8 +357,9 @@ async function refreshPanel() {
   const verified = captures.filter((c) => c.verified).length;
   const unsolved = captures.length - verified;
   const templates = new Set(captures.map((c) => c.templateId)).size;
+  const imgMissing = captures.filter((c) => (c.imageUrls?.length ?? 0) > c.images.length).length;
   breakdown.textContent = captures.length
-    ? `· ${verified} verified · ${unsolved} unsolved · ${templates} unique`
+    ? `· ${verified} verified · ${unsolved} unsolved · ${templates} unique${imgMissing ? ` · ⚠ ${imgMissing} img-missing` : ""}`
     : "";
 
   const onPage = findQuestions();
@@ -384,11 +392,6 @@ async function clearAll() {
 // =============================================================================
 // helpers
 // =============================================================================
-
-function scrapeText(question: HTMLElement): string {
-  const stem = findStem(question);
-  return normalizeText(stem?.innerText ?? stem?.textContent ?? "");
-}
 
 function idsFromUrl(): { courseId?: string; quizId?: string } {
   const course = location.pathname.match(/\/courses\/(\d+)/)?.[1];

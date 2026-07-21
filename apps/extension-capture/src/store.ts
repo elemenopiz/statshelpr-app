@@ -102,7 +102,9 @@ export async function hasCapture(id: string): Promise<boolean> {
  * mark an otherwise-correct fixture as failed. The popup lets you fix the rare
  * miss per-item — it's the one label the DOM can't state outright.
  */
-export function inferMode(text: string, choices: ApiChoice[]): CaptureMode {
+export function inferMode(text: string, choices: ApiChoice[], questionType?: string | null): CaptureMode {
+  // Canvas's own type is definitive for the numeric kinds.
+  if (questionType === "numerical_question" || questionType === "calculated_question") return "calc";
   // A lone fill-in (numeric answer) is essentially always a calculation.
   if (choices.length === 1 && choices[0]?.type === "text") return "calc";
   const t = ` ${text.toLowerCase()} `;
@@ -141,6 +143,10 @@ export function toRecord(c: Capture): CaptureRecord {
   if (c.courseId) rec.courseId = c.courseId;
   if (c.quizId) rec.quizId = c.quizId;
   if (c.images.length > 0) rec.images = c.images;
+  if (c.imageUrls?.length) rec.imageUrls = c.imageUrls;
+  if (c.questionHtml) rec.questionHtml = c.questionHtml;
+  if (c.questionType) rec.questionType = c.questionType;
+  if (c.canvasQuestionId) rec.canvasQuestionId = c.canvasQuestionId;
   return rec;
 }
 

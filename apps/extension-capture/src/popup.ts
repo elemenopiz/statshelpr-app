@@ -25,8 +25,9 @@ async function render() {
   const unsolved = captures.length - verified;
   const templates = new Set(captures.map((c) => c.templateId)).size;
   const variants = captures.length - templates;
+  const imgMissing = captures.filter((c) => (c.imageUrls?.length ?? 0) > c.images.length).length;
   $("breakdown").textContent = captures.length
-    ? `${verified} verified · ${unsolved} unsolved · ${templates} unique`
+    ? `${verified} verified · ${unsolved} unsolved · ${templates} unique${imgMissing ? ` · ⚠ ${imgMissing} img-missing` : ""}`
     : "nothing captured yet";
 
   ($("export") as HTMLButtonElement).disabled = captures.length === 0;
@@ -76,6 +77,21 @@ function renderList(captures: Capture[]) {
         text: ansText,
       }),
     );
+    if (c.questionType) {
+      meta.appendChild(el("span", { className: "tag", text: c.questionType.replace(/_question$/, "") }));
+    }
+    if (c.images.length > 0) {
+      meta.appendChild(el("span", { className: "tag data", text: `${c.images.length} img` }));
+    }
+    if ((c.imageUrls?.length ?? 0) > c.images.length) {
+      meta.appendChild(
+        el("span", {
+          className: "tag manual",
+          title: `image fetch failed:\n${(c.imageUrls ?? []).join("\n")}`,
+          text: "⚠ img missing",
+        }),
+      );
+    }
     for (const ds of c.datasetRefs) meta.appendChild(el("span", { className: "tag data", text: ds }));
     if ((counts.get(c.templateId) ?? 0) > 1) {
       meta.appendChild(el("span", { className: "tag var", title: "Shares a template with another capture", text: "variant" }));

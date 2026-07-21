@@ -29,7 +29,11 @@ interface CaptureRecord {
   selectedChoices?: string[];
   correctChoices?: string[];
   answerText?: string;
-  blanks?: Array<{ key: string; selected: string; correct: string; options: string[] }>;
+  blanks?: Array<{ key: string; label?: string; selected: string; correct: string; options: string[] }>;
+  imageUrls?: string[];
+  questionType?: string;
+  questionHtml?: string;
+  canvasQuestionId?: string;
   outcome?: string;
   answerSource?: string;
   verified?: boolean;
@@ -68,6 +72,7 @@ async function main() {
   await mkdir(unsolvedDir, { recursive: true });
   const usedSlugs = new Set<string>();
   const missingDatasets = new Set<string>();
+  const missingImages: string[] = [];
   let fixtures = 0;
   let unsolved = 0;
   let skipped = 0;
@@ -81,6 +86,7 @@ async function main() {
     let slug = fixtureSlug(q);
     while (usedSlugs.has(slug)) slug = `${slug}-x`;
     usedSlugs.add(slug);
+    if ((rec.imageUrls?.length ?? 0) > (rec.images?.length ?? 0)) missingImages.push(slug);
 
     if (isVerified(rec)) {
       const fixture = toFixture(rec, datasets, missingDatasets);
@@ -94,6 +100,12 @@ async function main() {
   }
 
   console.log(`Wrote ${fixtures} → ${rel(fixturesDir)} · ${unsolved} → ${rel(unsolvedDir)}${skipped ? ` · ${skipped} skipped` : ""}`);
+  if (missingImages.length > 0) {
+    console.warn(
+      `⚠ ${missingImages.length} record(s) reference an image whose bytes failed to fetch (URL kept in meta.imageUrls): ${missingImages.join(", ")}`,
+    );
+    console.warn(`  re-capture those questions with the current extension build to pick up the image bytes.`);
+  }
   if (missingDatasets.size > 0) {
     console.warn(`⚠ dataset(s) not found in ${rel(datasetsDir)} (fixture written without them): ${[...missingDatasets].join(", ")}`);
     console.warn(`  regenerate with: pnpm --filter @statshelpr/extension-capture datasets <file.RData>`);
@@ -156,15 +168,30 @@ function toFixture(r: CaptureRecord, datasets: Record<string, string>, missing: 
   if (r.blanks?.length) {
     const pool = [...new Set(r.blanks.flatMap((b) => b.options))];
     if (pool.length) request.choices = pool.map((text, i) => ({ label: String.fromCharCode(65 + i), text, type: "dropdown" }));
+    // The row prompts (labels) are part of the question — without them
+    // "blank1: TRUE" is unanswerable. Append them to the prompt text.
+    if (r.blanks.some((b) => b.label)) {
+      request.questionText = `${r.questionText}\n\nItems to answer:\n${r.blanks
+        .map((b, i) => `${i + 1}. ${b.label || b.key}`)
+        .join("\n")}`;
+    }
     const corrects = r.blanks.map((b) => b.correct).filter(Boolean);
     if (corrects.length) expected.answerContains = corrects;
-    expected.blanks = r.blanks.map((b) => ({ key: b.key, correct: b.correct }));
+    expected.blanks = r.blanks.map((b) => ({ key: b.key, ...(b.label ? { label: b.label } : {}), correct: b.correct }));
   }
   return {
     name: r.name,
     request,
     expected,
-    meta: { answerSource: r.answerSource, outcome: r.outcome, url: r.url, capturedAt: r.capturedAt },
+    meta: {
+      answerSource: r.answerSource,
+      outcome: r.outcome,
+      url: r.url,
+      capturedAt: r.capturedAt,
+      ...(r.questionType ? { questionType: r.questionType } : {}),
+      ...(r.canvasQuestionId ? { canvasQuestionId: r.canvasQuestionId } : {}),
+      ...(r.imageUrls?.length ? { imageUrls: r.imageUrls } : {}),
+    },
   };
 }
 
