@@ -266,13 +266,30 @@ export function selectedChoiceLabels(raw: AnswerChoice[]): string[] {
   const out: string[] = [];
   for (const c of raw) {
     if (c.kind === "radio" || c.kind === "checkbox") {
-      if ((c.input as HTMLInputElement).checked) out.push(c.label);
+      // input.checked on a live/graded input, or Canvas's `.selected_answer`
+      // marker on the row (some submission views only set the class).
+      if ((c.input as HTMLInputElement).checked || c.row?.classList.contains("selected_answer")) {
+        out.push(c.label);
+      }
     } else if (c.kind === "dropdown-option") {
       const sel = c.input as HTMLSelectElement;
       if (c.optionValue !== undefined && sel.value === c.optionValue) out.push(c.label);
     }
   }
   return out;
+}
+
+/** Whole-submission full marks, read from the page ("Score for this attempt:
+ * X out of Y" or "Grade: X / Y"). When true, every answered question on an
+ * answers-hidden submission is correct — the student aced it. Uses textContent
+ * (no layout cost) so it's cheap to call per question. */
+export function submissionFullMarks(): boolean {
+  const text = document.body?.textContent || document.documentElement?.textContent || "";
+  const m =
+    text.match(/Score for this attempt:\s*([\d.]+)\s*(?:out of|\/)\s*([\d.]+)/i) ||
+    text.match(/\bGrade:\s*([\d.]+)\s*\/\s*([\d.]+)/i) ||
+    text.match(/\bScore:\s*([\d.]+)\s*(?:out of|\/)\s*([\d.]+)/i);
+  return m ? parseFloat(m[2]!) > 0 && parseFloat(m[1]!) >= parseFloat(m[2]!) : false;
 }
 
 /** True when the choices are read-only (a graded submission review), false on a
@@ -340,6 +357,12 @@ export function readGradedAnswer(question: HTMLElement, raw: AnswerChoice[]): An
   }
   if (correctness === "incorrect") {
     return { selectedChoices, correctChoices: [], outcome: "incorrect", answerSource: "none", verified: false };
+  }
+  // No per-question signal (e.g. the compact "Submission Details" view shows no
+  // per-question points), but the whole submission is full marks → every pick
+  // is correct.
+  if (correctness === null && selectedChoices.length > 0 && submissionFullMarks()) {
+    return { selectedChoices, correctChoices: selectedChoices, outcome: "correct", answerSource: "self-correct", verified: true };
   }
   return { selectedChoices, correctChoices: [], outcome: "unknown", answerSource: "none", verified: false };
 }
