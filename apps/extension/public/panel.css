@@ -78,6 +78,18 @@
   font-weight: 700;
 }
 
+/* Answer came back but nothing in the page could be auto-selected/filled —
+   amber, distinct from the red error state. The answer itself is in the
+   hover title so the student still gets it. */
+.statshelpr-btn-tutor.nowrite {
+  opacity: 1;
+  background: #b06000;
+  color: white;
+  border-color: #b06000;
+  font-size: 10px;
+  font-weight: 700;
+}
+
 .statshelpr-btn-tutor:disabled { cursor: progress; }
 
 .statshelpr-tutor-wrap {

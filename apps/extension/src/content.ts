@@ -8,7 +8,9 @@
  *      hand-off that's run locally via WebR and interpreted by /api/interpret
  *      (SSE) — see onSolve() for the full branch.
  *   4. Parse the answer letter, find the matching radio/checkbox, click it
- *   5. Set button to ✓ briefly, then back to "solve" (re-clickable)
+ *   5. Set button to ✓ briefly, then back to "solve" (re-clickable) — or, if
+ *      nothing in the page could actually be written to, a "?" instead, with
+ *      the answer itself in the hover title.
  *
  * No answer card, no explanation, no R code display — status during the
  * (rare, R-only) multi-step path surfaces only as the button's hover title.
@@ -20,10 +22,24 @@
  * (R compiled to WebAssembly, see ./webr-runner) runs the code right here in
  * the content script, then the stdout is POSTed to /api/interpret for the
  * LLM to turn into a final answer — see the RCODE branch in onSolve().
+ *
+ * DOM scraping and write-back (reading the question, clicking/filling the
+ * answer into the page) live in ./canvas-dom, which is chrome-free — this
+ * file is boot, button injection/state, the solve flow + SSE plumbing, and
+ * storage.
  */
 
 import { getInstallId } from "./install-id";
 import { initWebR, runR } from "./webr-runner";
+import {
+  type BlankAnswer,
+  type ScrapedQuestion,
+  choiceTypeForApi,
+  findStem,
+  scrapeQuestion,
+  selectAnswerChoice,
+  writeBlanks,
+} from "./canvas-dom";
 
 interface DataFile {
   filename: string;
@@ -32,23 +48,12 @@ interface DataFile {
   addedAt: number;
 }
 
-interface ImageBlock {
-  data: string;
-  mediaType: "image/png" | "image/jpeg" | "image/webp";
-}
-
 // =============================================================================
 // /api/solve + /api/interpret — both stream Server-Sent Events. "phase" and
 // "delta" events exist for a richer streaming UI; the inline button UX here
 // doesn't render them (no panel to update) so they're consumed and ignored —
 // only the terminal "result"/"error" event matters to onSolve.
 // =============================================================================
-
-/** One answered blank of a matching / multiple-dropdowns question. */
-interface BlankAnswer {
-  key: string;
-  answer: string;
-}
 
 interface ConceptResult {
   mode: "concept";
@@ -104,15 +109,6 @@ const SELECTORS_QUESTION = [
   ".item-body",
 ];
 
-const SELECTORS_STEM = [
-  ".question_text",
-  ".user_content",
-  "[data-testid='question-text']",
-  "[data-testid='question-stem']",
-  ".question-text-container",
-  ".stem",
-];
-
 // Where to place the tiny button relative to the question. We try these in
 // order — first match wins. Fall back to prepending into the question container.
 const SELECTORS_HEADER = [
@@ -124,13 +120,6 @@ const SELECTORS_HEADER = [
 ];
 
 const QUESTION_SELECTOR = SELECTORS_QUESTION.join(",");
-const CHOICE_INPUT_SELECTOR = 'input[type="radio"], input[type="checkbox"]';
-const TEXT_INPUT_SELECTOR = [
-  'input[type="text"]',
-  'input[type="number"]',
-  ".numerical_question_input",
-  ".question_input",
-].join(",");
 
 const STORAGE_KEY_FILES = "statshelpr.files";
 const FILE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -249,6 +238,11 @@ function findHeader(question: HTMLElement): HTMLElement | null {
     if (el) return el;
   }
   return null;
+}
+
+function hasQuestionAncestor(question: HTMLElement): boolean {
+  const ancestor = question.parentElement?.closest<HTMLElement>(QUESTION_SELECTOR);
+  return Boolean(ancestor && findStem(ancestor));
 }
 
 // =============================================================================
@@ -403,14 +397,25 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
     return;
   }
 
+  const cleaned = stripTags(final.answer);
+
   // Matching / multiple-dropdowns: write each blank into its own <select>.
-  if (final.blanks && final.blanks.length > 0 && scraped.blanks.length > 0) {
-    writeBlanks(question, final.blanks);
+  // Otherwise select/fill from the flat choice list. Both report back how
+  // many elements they actually touched, so a total miss (writeCount === 0)
+  // can be surfaced distinctly from a real success below.
+  const writeCount =
+    final.blanks && final.blanks.length > 0 && scraped.blanks.length > 0
+      ? writeBlanks(question, final.blanks)
+      : selectAnswerChoice(question, cleaned, final.selectedChoices ?? []);
+
+  if (writeCount === 0) {
+    // Nothing in the page could be auto-selected/filled (e.g. no scrapable
+    // inputs, or every matcher missed) — don't claim success. Surface the
+    // answer itself via the tooltip so the student can still apply it by hand.
+    setBtnState(btn, "nowrite", `Couldn't auto-select — answer: ${cleaned.slice(0, 200)}`);
   } else {
-    const cleaned = stripTags(final.answer);
-    selectAnswerChoice(question, cleaned, final.selectedChoices ?? []);
+    setBtnState(btn, "success");
   }
-  setBtnState(btn, "success");
 }
 
 async function readErrorBody(res: Response): Promise<string> {
@@ -427,6 +432,10 @@ function extractErrorMsg(body: string): string {
     /* not JSON — use raw body */
   }
   return msg;
+}
+
+function stripTags(s: string): string {
+  return s.replace(/^\s*\[(CONCEPT|RCODE|CALC)\]\s*\n?/i, "").trim();
 }
 
 /** Mirror one counted solve into chrome.storage.local for the popup meter.
@@ -527,10 +536,10 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-type BtnState = "default" | "loading" | "success" | "error";
+type BtnState = "default" | "loading" | "success" | "error" | "nowrite";
 
-function setBtnState(btn: HTMLButtonElement, state: BtnState, errorMsg?: string) {
-  btn.classList.remove("loading", "success", "error");
+function setBtnState(btn: HTMLButtonElement, state: BtnState, msg?: string) {
+  btn.classList.remove("loading", "success", "error", "nowrite");
   btn.removeAttribute("title");
 
   switch (state) {
@@ -553,477 +562,22 @@ function setBtnState(btn: HTMLButtonElement, state: BtnState, errorMsg?: string)
       btn.classList.add("error");
       btn.disabled = false;
       btn.textContent = "!";
-      btn.setAttribute("title", errorMsg ?? "");
+      btn.setAttribute("title", msg ?? "");
+      return;
+    case "nowrite":
+      // Answer came back but nothing in the page could be auto-written —
+      // stays put (no auto-revert) so the student has time to read the
+      // answer off the tooltip instead of it vanishing like "success" does.
+      btn.classList.add("nowrite");
+      btn.disabled = false;
+      btn.textContent = "?";
+      btn.setAttribute("title", msg ?? "");
       return;
     default:
       btn.disabled = false;
       btn.textContent = "·";
       btn.setAttribute("title", "");
   }
-}
-
-// =============================================================================
-// scraping
-// =============================================================================
-
-interface ScrapedQuestion {
-  text: string;
-  choices: AnswerChoice[];
-  /** Matching / multiple-dropdowns blanks (2+). Mutually exclusive with
-   * `choices` — a blanks question yields no flat choices. */
-  blanks: ScrapedBlank[];
-  images: ImageBlock[];
-}
-
-async function scrapeQuestion(question: HTMLElement): Promise<ScrapedQuestion> {
-  const stem = findStem(question);
-  if (!stem) throw new Error("Could not find question text.");
-
-  // cleanText drops Canvas's "Links to an external site." screen-reader spans
-  // (and script/style) that innerText would otherwise splice into the prompt.
-  const stemText = cleanText(stem);
-  if (!stemText) throw new Error("Question text is empty.");
-
-  // Scrape images from the WHOLE question container — answer choices sometimes
-  // have images too (e.g. "Which graph shows ___?"). Dedupe by image URL.
-  const images = await collectImages(question);
-  const choices = collectAnswerChoices(question);
-  const blanks = collectBlanks(question);
-
-  return { text: stemText, choices, blanks, images };
-}
-
-// =============================================================================
-// answer-choice selection (the click)
-// =============================================================================
-
-function selectAnswerChoice(question: HTMLElement, answer: string, selectedLabels: string[] = []) {
-  const choices = collectAnswerChoices(question);
-  if (choices.length === 0) return;
-
-  // Special-case text-fill: there's just one slot, write the answer in.
-  if (choices.length === 1 && choices[0]?.kind === "text-fill") {
-    fillTextInput(choices[0].input as HTMLInputElement, answer);
-    return;
-  }
-
-  const selectedByBackend = selectedLabels
-    .map((label) => choices.find((c) => c.label.toUpperCase() === label.toUpperCase()))
-    .filter((c): c is AnswerChoice => Boolean(c));
-  if (selectedByBackend.length > 0) {
-    for (const c of selectedByBackend) applyChoice(c);
-    return;
-  }
-
-  // Multi-select via checkboxes
-  const checkboxes = choices.filter((c) => c.kind === "checkbox");
-  if (checkboxes.length > 0) {
-    const selected = findSelectedChoices(answer, choices, true);
-    for (const c of selected) applyChoice(c);
-    return;
-  }
-
-  // Dropdown: single-select, options scraped from the <select>
-  const dropdown = choices.filter((c) => c.kind === "dropdown-option");
-  if (dropdown.length > 0) {
-    const c = pickByLetterOrText(answer, dropdown);
-    if (c) applyChoice(c);
-    return;
-  }
-
-  // Radio: single-select
-  const radios = choices.filter((c) => c.kind === "radio");
-  if (radios.length === 0) return;
-  const c = pickByLetterOrText(answer, radios);
-  if (c) applyChoice(c);
-}
-
-function pickByLetterOrText(answer: string, pool: AnswerChoice[]): AnswerChoice | null {
-  const letterMatch = answer.match(/^\s*(?:Answer\s*:?\s*)?\(?([A-Za-z]|\d{1,2})\)?[\s.,)]?/);
-  if (letterMatch && letterMatch[1]) {
-    const tok = letterMatch[1].toUpperCase();
-    let idx = -1;
-    if (/^[A-Z]$/.test(tok)) idx = tok.charCodeAt(0) - 65;
-    else if (/^\d+$/.test(tok)) idx = parseInt(tok, 10) - 1;
-    if (idx >= 0 && idx < pool.length) return pool[idx] ?? null;
-  }
-  const answerLower = answer.toLowerCase();
-  let best: AnswerChoice | null = null;
-  let bestScore = 0;
-  for (const c of pool) {
-    const choiceLower = c.text.toLowerCase().trim();
-    if (!choiceLower) continue;
-    let score = 0;
-    if (answerLower.includes(choiceLower) && choiceLower.length >= 3) score = choiceLower.length;
-    else if (choiceLower.includes(answerLower.slice(0, 40))) score = answerLower.length / 2;
-    if (score > bestScore) {
-      bestScore = score;
-      best = c;
-    }
-  }
-  return best;
-}
-
-function applyChoice(choice: AnswerChoice) {
-  if (choice.kind === "dropdown-option") {
-    selectDropdownOption(choice);
-    return;
-  }
-  if (choice.kind === "text-fill") {
-    // shouldn't reach here in normal flow (text-fill is handled upstream)
-    return;
-  }
-  selectChoice(choice.input as HTMLInputElement);
-}
-
-function selectDropdownOption(choice: AnswerChoice) {
-  setSelectValue(choice.input as HTMLSelectElement, choice.optionValue, choice.optionIndex);
-}
-
-/** Set a <select> to an option (by value, falling back to index) using the
- * React-aware native setter so New Quizzes / Canvas reacts to the change, and
- * mark it suggested. On a disabled/read-only select we only mark it. */
-function setSelectValue(sel: HTMLSelectElement, value?: string, index?: number) {
-  if (sel.disabled) {
-    sel.classList.add("statshelpr-suggested");
-    return;
-  }
-  const proto = Object.getPrototypeOf(sel);
-  const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
-  if (setter && value !== undefined) setter.call(sel, value);
-  else if (index !== undefined) sel.selectedIndex = index;
-  sel.dispatchEvent(new Event("input", { bubbles: true }));
-  sel.dispatchEvent(new Event("change", { bubbles: true }));
-  sel.classList.add("statshelpr-suggested");
-}
-
-function fillTextInput(input: HTMLInputElement, answer: string) {
-  if (input.disabled || input.readOnly) {
-    input.classList.add("statshelpr-suggested");
-    return;
-  }
-  // Try to extract just the value from "Answer: 12.34" or "Final answer: 12.34"
-  const m = answer.match(/(?:Answer|Final answer)\s*:?\s*(.+?)(?:\n|$)/i);
-  let value = (m?.[1] ?? answer).trim();
-  // Drop trailing punctuation
-  value = value.replace(/[.,;]\s*$/, "").trim();
-  // Strip wrapping quotes
-  value = value.replace(/^["'`]|["'`]$/g, "");
-
-  const proto = Object.getPrototypeOf(input);
-  const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
-  if (setter) setter.call(input, value);
-  else input.value = value;
-  input.dispatchEvent(new Event("input", { bubbles: true }));
-  input.dispatchEvent(new Event("change", { bubbles: true }));
-  input.classList.add("statshelpr-suggested");
-}
-
-interface AnswerChoice {
-  // For radio/checkbox: the input itself. For dropdown-option: the parent <select>.
-  // For text-fill: the <input type=text|number>.
-  input: HTMLInputElement | HTMLSelectElement;
-  label: string;
-  text: string;
-  kind: "radio" | "checkbox" | "dropdown-option" | "text-fill";
-  /** dropdown-option: the option value to set on the select */
-  optionValue?: string;
-  /** dropdown-option: the option index inside the select */
-  optionIndex?: number;
-}
-
-function collectAnswerChoices(question: HTMLElement): AnswerChoice[] {
-  // Priority 1: radio / checkbox inputs (the dominant Canvas question type).
-  const inputs = [...question.querySelectorAll<HTMLInputElement>(CHOICE_INPUT_SELECTOR)];
-  const choices: AnswerChoice[] = [];
-  const seenRows = new Set<Element>();
-
-  inputs.forEach((input, index) => {
-    const row = getChoiceRow(input);
-    if (row && seenRows.has(row)) return;
-    if (row) seenRows.add(row);
-
-    const text = normalizeText(getChoiceText(input));
-    if (!text) return;
-    choices.push({
-      input,
-      label: choiceLabel(index),
-      text,
-      kind: input.type === "checkbox" ? "checkbox" : "radio",
-    });
-  });
-
-  if (choices.length > 0) return choices;
-
-  // Priority 2: dropdown <select> answer fields. Canvas Classic uses
-  // `<select name="answer_for_*">` for dropdown / TRUE-FALSE-style questions.
-  // TWO OR MORE answer selects = a matching / multiple-dropdowns question,
-  // handled independently per blank via collectBlanks()/writeBlanks() — bail
-  // here so the single-select path doesn't answer only the first blank.
-  const selects = answerSelects(question);
-  if (selects.length >= 2) return [];
-  if (selects.length === 1) {
-    const sel = selects[0]!;
-    let idx = 0;
-    for (const opt of [...sel.querySelectorAll("option")]) {
-      const text = normalizeText(opt.textContent ?? "");
-      // Skip placeholder "[Select]" / "Choose..." entries
-      if (!text || /^\[?\s*(select|choose)\s*\]?\s*\.{0,3}$/i.test(text)) continue;
-      choices.push({
-        input: sel,
-        label: choiceLabel(idx),
-        text,
-        kind: "dropdown-option",
-        optionValue: opt.value,
-        optionIndex: [...sel.options].indexOf(opt),
-      });
-      idx += 1;
-    }
-    if (choices.length > 0) return choices;
-  }
-
-  // Priority 3: a single fill-in text/numerical input. We register a synthetic
-  // "A" choice whose text is the input field itself, so downstream logic can
-  // write the model's answer into the .value.
-  const textInputs = [...question.querySelectorAll<HTMLInputElement>(TEXT_INPUT_SELECTOR)].filter(
-    (i) => !i.disabled && !i.readOnly,
-  );
-  if (textInputs.length === 1) {
-    const t = textInputs[0]!;
-    choices.push({
-      input: t,
-      label: "A",
-      text: t.placeholder || "(fill in your answer)",
-      kind: "text-fill",
-    });
-  }
-
-  return choices;
-}
-
-function choiceTypeForApi(c: AnswerChoice): "radio" | "checkbox" | "dropdown" | "text" {
-  switch (c.kind) {
-    case "checkbox": return "checkbox";
-    case "dropdown-option": return "dropdown";
-    case "text-fill": return "text";
-    default: return "radio";
-  }
-}
-
-function isAnswerSelect(sel: HTMLSelectElement): boolean {
-  // Filter out unrelated selects (e.g., the CSV widget never has any).
-  // Canvas answer-dropdowns have names matching answer_for_* or are inside .answers.
-  const name = sel.name || "";
-  if (/^answer_for_/i.test(name)) return true;
-  if (sel.closest(".answers, .answer, .question_text, [data-testid*='question']")) return true;
-  if (sel.classList.contains("question_input")) return true;
-  return false;
-}
-
-function answerSelects(question: HTMLElement): HTMLSelectElement[] {
-  return [...question.querySelectorAll<HTMLSelectElement>("select")].filter(isAnswerSelect);
-}
-
-// =============================================================================
-// matching / multiple-dropdowns (2+ blanks)
-// =============================================================================
-//
-// A matching or multiple-dropdowns question has one <select> per blank. Each is
-// answered independently from its own options (unlike a single dropdown or a
-// radio/checkbox group). We scrape every blank with a human-readable label so
-// the model can tell them apart, then write each returned answer into its own
-// <select>.
-
-interface BlankOption {
-  value: string;
-  text: string;
-  index: number;
-}
-
-interface ScrapedBlank {
-  key: string;
-  label: string;
-  options: BlankOption[];
-  select: HTMLSelectElement;
-}
-
-function collectBlanks(question: HTMLElement): ScrapedBlank[] {
-  const selects = answerSelects(question);
-  if (selects.length < 2) return [];
-  return selects.map((sel, i) => {
-    const options: BlankOption[] = [...sel.options]
-      .map((o, index) => ({ value: o.value, text: normalizeText(o.textContent ?? ""), index }))
-      .filter((o) => o.text && !isPlaceholderOption(o.text));
-    return { key: `blank${i + 1}`, label: blankLabel(sel, question), options, select: sel };
-  });
-}
-
-/** Human-readable prompt for one blank so the model can map answers to blanks:
- *   - matching question: the <label for=selectId> or `.answer_match_left` cell
- *     (the term / statement being matched);
- *   - inline multiple-dropdowns: the surrounding sentence (nearest block), with
- *     the dropdowns themselves stripped out. */
-function blankLabel(sel: HTMLSelectElement, question: HTMLElement): string {
-  if (sel.id) {
-    const lab = question.querySelector<HTMLElement>(`label[for="${cssEscape(sel.id)}"]`);
-    const t = lab ? cleanText(lab) : "";
-    if (t) return t;
-  }
-  const left = sel.closest(".answer")?.querySelector<HTMLElement>(".answer_match_left");
-  if (left) {
-    const t = cleanText(left);
-    if (t) return t;
-  }
-  const block = sel.closest("li, p, td, .answer") as HTMLElement | null;
-  if (block) {
-    const clone = block.cloneNode(true) as HTMLElement;
-    clone.querySelectorAll("select, script, style, .screenreader-only").forEach((n) => n.remove());
-    const t = normalizeText(clone.textContent ?? "");
-    if (t) return t.slice(0, 200);
-  }
-  const aria = normalizeText(sel.getAttribute("aria-label") ?? "");
-  return /multiple dropdowns/i.test(aria) ? "" : aria;
-}
-
-function isPlaceholderOption(text: string): boolean {
-  return !text || /^\[?\s*(select|choose)\s*\]?\s*\.{0,3}$/i.test(text);
-}
-
-/** Write each model-answered blank into its own <select>, matching the answer
- * text to an option. Blanks are matched by key first, then positionally. */
-function writeBlanks(question: HTMLElement, answers: BlankAnswer[]) {
-  const blanks = collectBlanks(question);
-  answers.forEach((a, i) => {
-    const blank = blanks.find((b) => b.key === a.key) ?? blanks[i];
-    if (!blank || !a.answer) return;
-    const opt = matchBlankOption(a.answer, blank.options);
-    if (opt) setSelectValue(blank.select, opt.value, opt.index);
-    else blank.select.classList.add("statshelpr-suggested");
-  });
-}
-
-/** Best option for a model answer: exact (case-insensitive) first, then the
- * longest option that appears as a substring either way. */
-function matchBlankOption(answer: string, options: BlankOption[]): BlankOption | null {
-  const a = normalizeText(answer).toLowerCase();
-  if (!a) return null;
-  for (const o of options) if (o.text.toLowerCase() === a) return o;
-  let best: BlankOption | null = null;
-  for (const o of options) {
-    const ol = o.text.toLowerCase();
-    if (!ol) continue;
-    const hit = a.includes(ol) || (ol.length >= 3 && ol.includes(a));
-    if (hit && (!best || o.text.length > best.text.length)) best = o;
-  }
-  return best;
-}
-
-function findSelectedChoices(
-  answer: string,
-  choices: AnswerChoice[],
-  allowMultiple: boolean,
-): AnswerChoice[] {
-  const byLabel = new Map(choices.map((c) => [c.label.toUpperCase(), c]));
-  const selected = new Map<HTMLInputElement | HTMLSelectElement, AnswerChoice>();
-
-  const answerLine =
-    answer.match(/^\s*Answer\s*:?\s*(.+)$/im)?.[1] ??
-    answer.match(/correct(?:\s+interpretation)?(?:\(s\))?\s*:?\s*(.+)$/im)?.[1] ??
-    answer;
-
-  for (const m of answerLine.matchAll(/\b([A-Z])\b/g)) {
-    const letter = m[1];
-    if (!letter) continue;
-    const c = byLabel.get(letter.toUpperCase());
-    if (c) {
-      selected.set(c.input, c);
-      if (!allowMultiple) return [c];
-    }
-  }
-
-  const answerLower = answer.toLowerCase();
-  for (const c of choices) {
-    const choiceLower = c.text.toLowerCase();
-    if (choiceLower.length >= 12 && answerLower.includes(choiceLower)) {
-      selected.set(c.input, c);
-    }
-  }
-
-  return [...selected.values()];
-}
-
-function getChoiceText(input: HTMLInputElement): string {
-  if (input.id) {
-    const label = document.querySelector(`label[for="${cssEscape(input.id)}"]`);
-    if (label) return label.textContent ?? "";
-  }
-  const row = getChoiceRow(input);
-  if (row) {
-    const at = row.querySelector(".answer_text, .answer_html");
-    if (at?.textContent) return at.textContent;
-    return row.textContent ?? "";
-  }
-  return "";
-}
-
-function getChoiceRow(input: HTMLInputElement): HTMLElement | null {
-  return (
-    (input.closest(".answer") as HTMLElement | null) ??
-    (input.closest(".answer_row") as HTMLElement | null) ??
-    (input.closest("label") as HTMLElement | null) ??
-    (input.parentElement as HTMLElement | null)
-  );
-}
-
-function selectChoice(input: HTMLInputElement) {
-  const row = getChoiceRow(input);
-  if (input.disabled) {
-    row?.classList.add("statshelpr-suggested");
-    return;
-  }
-
-  if (!input.checked) input.click();
-  if (!input.checked) {
-    // Some React-based UIs (New Quizzes) don't react to .click() — set the
-    // checked property via the native descriptor + dispatch input/change.
-    const proto = Object.getPrototypeOf(input);
-    const setter = Object.getOwnPropertyDescriptor(proto, "checked")?.set;
-    setter?.call(input, true);
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    input.dispatchEvent(new Event("change", { bubbles: true }));
-  }
-  row?.classList.add("statshelpr-suggested");
-}
-
-function hasQuestionAncestor(question: HTMLElement): boolean {
-  const ancestor = question.parentElement?.closest<HTMLElement>(QUESTION_SELECTOR);
-  return Boolean(ancestor && findStem(ancestor));
-}
-
-function choiceLabel(index: number): string {
-  return String.fromCharCode(65 + index);
-}
-
-function normalizeText(text: string): string {
-  return text.replace(/\s+/g, " ").trim();
-}
-
-/** Element text with Canvas's screen-reader helper spans ("Links to an
- * external site.") and script/style removed, so they don't leak into the
- * prompt. Operates on a detached clone — never mutates the page. */
-function cleanText(el: HTMLElement): string {
-  const clone = el.cloneNode(true) as HTMLElement;
-  clone.querySelectorAll("script, style, .screenreader-only").forEach((n) => n.remove());
-  return normalizeText(clone.textContent ?? "");
-}
-
-function cssEscape(s: string): string {
-  if (typeof CSS !== "undefined" && CSS.escape) return CSS.escape(s);
-  return s.replace(/[^a-zA-Z0-9_-]/g, (c) => `\\${c}`);
-}
-
-function stripTags(s: string): string {
-  return s.replace(/^\s*\[(CONCEPT|RCODE|CALC)\]\s*\n?/i, "").trim();
 }
 
 // =============================================================================
@@ -1063,89 +617,8 @@ async function getConfig(): Promise<{ apiUrl?: string; licenseKey?: string }> {
 }
 
 // =============================================================================
-// image scraping
-// =============================================================================
-
-async function collectImages(root: HTMLElement): Promise<ImageBlock[]> {
-  const out: ImageBlock[] = [];
-  const seen = new Set<string>(); // dedupe by URL/data-hash
-
-  for (const img of [...root.querySelectorAll<HTMLImageElement>("img")]) {
-    // currentSrc/src for loaded images; data-src/data-original for lazy-loaded
-    // ones not yet scrolled into view when Solve is clicked.
-    const src =
-      img.currentSrc ||
-      img.src ||
-      img.getAttribute("data-src") ||
-      img.getAttribute("data-original") ||
-      "";
-    if (!src) continue;
-    // Skip data: URIs that are tiny placeholders (1x1 spacers)
-    if (src.startsWith("data:") && src.length < 200) continue;
-    // Skip Canvas UI sprites (icons, avatars)
-    if (/avatar|spinner|loading|icon-/.test(src)) continue;
-    if (seen.has(src)) continue;
-    seen.add(src);
-    try {
-      const block = await urlToImageBlock(src);
-      if (block) out.push(block);
-    } catch {
-      /* skip */
-    }
-  }
-  for (const c of [...root.querySelectorAll<HTMLCanvasElement>("canvas")]) {
-    try {
-      const dataUrl = c.toDataURL("image/png");
-      const data = dataUrl.split(",")[1];
-      if (!data) continue;
-      // Use a hash-ish key based on length (cheap, OK for dedup within one question)
-      const key = `canvas:${data.length}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push({ data, mediaType: "image/png" });
-    } catch {
-      /* tainted canvas — skip */
-    }
-  }
-  return out;
-}
-
-async function urlToImageBlock(url: string): Promise<ImageBlock | null> {
-  const res = await fetch(url, { credentials: "include" });
-  if (!res.ok) return null;
-  const blob = await res.blob();
-  const t = blob.type.toLowerCase();
-  let mediaType: ImageBlock["mediaType"] | null = null;
-  if (t === "image/png") mediaType = "image/png";
-  else if (t === "image/jpeg" || t === "image/jpg") mediaType = "image/jpeg";
-  else if (t === "image/webp") mediaType = "image/webp";
-  if (!mediaType) return null;
-
-  const data = await new Promise<string>((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => {
-      const result = r.result;
-      if (typeof result !== "string") return reject(new Error("read failed"));
-      const idx = result.indexOf(",");
-      resolve(idx >= 0 ? result.slice(idx + 1) : result);
-    };
-    r.onerror = () => reject(r.error);
-    r.readAsDataURL(blob);
-  });
-  return { data, mediaType };
-}
-
-// =============================================================================
 // helpers
 // =============================================================================
-
-function findStem(question: HTMLElement): HTMLElement | null {
-  for (const sel of SELECTORS_STEM) {
-    const el = question.querySelector<HTMLElement>(sel);
-    if (el && (el.innerText || el.textContent)?.trim()) return el;
-  }
-  return null;
-}
 
 interface ElOptions {
   className?: string;
