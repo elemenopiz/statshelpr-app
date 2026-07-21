@@ -4,8 +4,9 @@ import {
   buildSystemPrompt,
   extractRCode,
   parseResponse,
-} from "@/lib/core";
-import { chatStream, resolveApiKey } from "@/lib/core/providers";
+} from "@statshelpr/solver-core/core";
+import { chatStream } from "@statshelpr/solver-core/core/providers";
+import { resolveApiKey } from "@/lib/resolve-api-key";
 import { summarizeCsv } from "@/lib/data-summary";
 import { runR } from "@/lib/sandbox";
 import { validateLicense } from "@/lib/license";
@@ -18,12 +19,12 @@ import {
   deriveSelectedChoices,
   MAX_TOKENS_FIRST,
   MAX_TOKENS_SECOND,
-  repairRCode,
   resolveModel,
-  solveNonStreaming,
   type DataFile,
   type SolveBody,
-} from "@/lib/solver";
+} from "@statshelpr/solver-core/solver";
+import { repairRCode } from "@/lib/solver/r-repair";
+import { solveNonStreaming } from "@/lib/solver/non-streaming";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;

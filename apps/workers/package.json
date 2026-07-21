@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@statshelpr/solver-core": "workspace:*",
     "hono": "^4.6.0",
     "papaparse": "^5.4.1"
   },

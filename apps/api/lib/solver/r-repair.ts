@@ -1,7 +1,7 @@
-import { extractRCode, parseResponse } from "@/lib/core";
-import { chat } from "@/lib/core/providers";
+import { extractRCode, parseResponse } from "@statshelpr/solver-core/core";
+import { chat } from "@statshelpr/solver-core/core/providers";
 import type { RunRResult } from "@/lib/sandbox";
-import { MAX_TOKENS_FIRST, MODEL } from "./settings";
+import { MAX_TOKENS_FIRST, MODEL } from "@statshelpr/solver-core/solver";
 
 export async function repairRCode(
   apiKey: string,

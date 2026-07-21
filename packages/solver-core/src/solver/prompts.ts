@@ -1,5 +1,5 @@
-import { imagePart, type LlmContentPart } from "@/lib/core/providers";
-import type { SolveImage } from "@/lib/core/types";
+import { imagePart, type LlmContentPart } from "../core/providers";
+import type { SolveImage } from "../core/types";
 import { normalizeChoices } from "./choices";
 import type { SolveBlank, SolveBody } from "./types";
 

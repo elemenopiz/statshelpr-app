@@ -2,14 +2,22 @@ import {
   buildSystemPrompt,
   extractRCode,
   parseResponse,
-} from "@/lib/core";
-import { chat } from "@/lib/core/providers";
+} from "@statshelpr/solver-core/core";
+import { chat } from "@statshelpr/solver-core/core/providers";
 import { runR } from "@/lib/sandbox";
-import { deriveBlankAnswers, deriveSelectedChoices } from "./choices";
-import { buildFollowupContent, buildQuestionPrompt, buildUserContent } from "./prompts";
+import {
+  deriveBlankAnswers,
+  deriveSelectedChoices,
+  buildFollowupContent,
+  buildQuestionPrompt,
+  buildUserContent,
+  MAX_TOKENS_FIRST,
+  MAX_TOKENS_SECOND,
+  resolveModel,
+  type DataFile,
+  type SolveBody,
+} from "@statshelpr/solver-core/solver";
 import { repairRCode } from "./r-repair";
-import { MAX_TOKENS_FIRST, MAX_TOKENS_SECOND, resolveModel } from "./settings";
-import type { DataFile, SolveBody } from "./types";
 
 interface NonStreamArgs {
   apiKey: string;
