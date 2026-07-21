@@ -11,16 +11,21 @@ no hand-labeling. Output matches `evals/solve-fixtures/*.json`, so it feeds
 
 ## How it captures answers
 
-- **Answer key (automated).** On a quiz **results / submission history** page,
-  Canvas marks the correct choice inline (`.correct_answer` and friends). The
-  on-page pill turns green and shows the detected letters; **Capture keyed** on
-  the floating panel harvests every keyed question on the page at once. This is
-  the fast path — take/submit a quiz, open results, capture the whole page.
-- **Manual.** On a live/ungraded quiz with no key, select the correct choice(s)
-  yourself, then click the question's pill. Your selection becomes the label.
+Capture is **automatic — no toggles, no clicks.**
+
+- **Graded page (fully automatic).** On a quiz **results / submission history**
+  page, Canvas marks the correct choice inline (`.correct_answer` and friends).
+  Just opening the page auto-captures every keyed question — text, choices,
+  images, referenced dataset, correct answer, and an inferred concept/calc mode.
+  The panel shows `⚡ auto-captured N`. (A **Re-capture keyed** button is there for
+  after a Clear.) Take/submit a quiz, open results, done.
+- **Live/ungraded page (manual — unavoidable).** The correct answer isn't on the
+  page anywhere, so nothing can label it automatically. Each question gets a pill:
+  select the correct choice(s), click it, your selection becomes the label.
 
 Every question type is captured: single-answer (radio), select-all (checkbox),
-dropdown, fill-in (text), and any images embedded in the question or answers.
+dropdown, fill-in (text), and any images embedded in the question or answers —
+all detected automatically.
 
 ## Dedup across attempts
 
@@ -51,8 +56,7 @@ pnpm build:capture      # bakes datasets/*.csv → dist/datasets.json
 ```
 
 `convert-rdata.mjs` writes one `datasets/<name>.csv` per data frame (requires R
-on PATH). Re-run it whenever the course data changes. Toggle **datasets** in the
-popup off to export filename-only refs (lean) instead of inlined content.
+on PATH). Re-run it whenever the course data changes.
 
 Everything is local — no network, no API calls, no solve-quota usage.
 
@@ -99,11 +103,11 @@ Loading this alongside the production extension is fine — all injected UI is
 
 ## Notes
 
-- **`mode` (concept/calc)** defaults to `concept`. The DOM can't tell you whether
-  a question needs R, so flip individual captures to `calc` in the popup (or set
-  the panel default before capturing a batch of calc questions).
-- **Images** are embedded by default (needed for graph/figure questions). Toggle
-  off for text-only sets to keep bundles small.
+- **`mode` (concept/calc)** is inferred from the question (numeric fill-in or
+  "compute the mean/regression/probability…" → `calc`, else `concept`). It's the
+  one label the DOM can't state outright, so it's a best guess — fix the rare
+  miss per-item in the popup.
+- **Images & datasets** are always scanned/attached automatically — no settings.
 - **Selector drift.** Question/choice/answer-key selectors mirror
   `apps/extension/src/content.ts`. If Canvas changes its markup, update
   `src/scrape.ts` here and `content.ts` together. If auto-detection misses a

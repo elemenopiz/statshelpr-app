@@ -1,21 +1,19 @@
 /**
- * Canvas content script — training-data capture.
+ * Canvas content script — training-data capture (fully automatic).
  *
- * Injects a small "capture" pill onto every quiz question and a floating panel
- * (bottom-right) that manages the captured set. Two capture paths:
+ * On a GRADED results/history page, Canvas renders the answer key inline. This
+ * script detects it and **auto-captures every keyed question on the page with
+ * zero clicks** — question text, choices, images, the referenced dataset, the
+ * correct answer, and an inferred concept/calc mode, all without any toggles.
+ * A floating panel (bottom-right) shows the running count and handles export.
  *
- *   1. Answer-key (automated) — on a graded results/history page Canvas shows
- *      the correct answer inline; the pill lights green and one click (or the
- *      panel's "Capture keyed" button) harvests the labeled fixture. This is
- *      the bulk path: submit a quiz, open results, capture every question at
- *      once.
- *   2. Manual — on a live/ungraded quiz with no key, select the correct
- *      choice(s) yourself, then click the pill; your selection becomes the
- *      label.
+ * On a LIVE / ungraded quiz there is no answer key anywhere on the page, so
+ * nothing can be auto-labeled; each question gets a manual pill instead —
+ * select the correct choice(s), click it, and your selection is the label.
  *
- * Everything is local: no network, no API, no cost. Captured questions persist
- * in chrome.storage.local and are exported (from here or the popup) as fixtures
- * matching evals/solve-fixtures/*.json.
+ * Everything is local: no network (beyond fetching the question's own images /
+ * packaged datasets), no API, no cost. Captures persist in chrome.storage.local
+ * and export as fixtures matching evals/solve-fixtures/*.json.
  */
 
 import {
@@ -29,8 +27,6 @@ import {
   findStem,
 } from "./scrape";
 import {
-  getSettings,
-  saveSettings,
   upsertCapture,
   hasCapture,
   getAllCaptures,
@@ -40,21 +36,20 @@ import {
   downloadText,
   hashId,
   templateId,
+  inferMode,
   fixtureName,
 } from "./store";
 import { loadDatasets, detectDatasetRefs } from "./datasets";
-import type { Capture, CaptureSettings } from "./types";
+import type { Capture } from "./types";
 
 const ATTR = "shcapAttached";
-let settings: CaptureSettings;
 const pills = new Map<HTMLElement, HTMLButtonElement>();
 
 // =============================================================================
 // boot
 // =============================================================================
 
-async function boot() {
-  settings = await getSettings();
+function boot() {
   ensurePanel();
   scanAndInject();
 
@@ -66,28 +61,21 @@ async function boot() {
   observer.observe(document.body, { childList: true, subtree: true });
 
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== "local") return;
-    if (changes["statshelpr.captures"]) {
+    if (area === "local" && changes["statshelpr.captures"]) {
       void refreshAllPillStates();
       void refreshPanel();
-    }
-    if (changes["statshelpr.captureSettings"]) {
-      void getSettings().then((s) => {
-        settings = s;
-        syncPanelControls();
-      });
     }
   });
 }
 
 if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", () => void boot());
+  document.addEventListener("DOMContentLoaded", boot);
 } else {
-  void boot();
+  boot();
 }
 
 // =============================================================================
-// per-question pill
+// scan → inject pills → auto-capture keyed questions
 // =============================================================================
 
 let pendingScan = false;
@@ -98,7 +86,37 @@ function scanAndInject() {
     pendingScan = false;
     for (const q of findQuestions()) injectPill(q);
     void refreshPanel();
+    void maybeAutoCapture();
   }, 120);
+}
+
+/** Auto-capture every answer-keyed question that hasn't been captured yet — the
+ * whole point of the tool. Idempotent: each question is attempted once per page
+ * (autoAttempted) and skipped if already stored (dedup). No-ops on ungraded
+ * pages, where no question has a key. */
+let autoCapturing = false;
+const autoAttempted = new Set<string>();
+async function maybeAutoCapture() {
+  if (autoCapturing) return;
+  autoCapturing = true;
+  try {
+    let n = 0;
+    for (const q of findQuestions()) {
+      if (!detectCorrectChoices(q, collectChoices(q)).hasKey) continue;
+      const id = hashId(scrapeText(q));
+      if (!id || autoAttempted.has(id)) continue;
+      autoAttempted.add(id);
+      if (await hasCapture(id)) continue;
+      const pill = pills.get(q);
+      if (pill && (await captureOne(q, pill))) n += 1;
+    }
+    if (n > 0) {
+      setAutoStatus(`⚡ auto-captured ${n} — verify the answers`);
+      await refreshPanel();
+    }
+  } finally {
+    autoCapturing = false;
+  }
 }
 
 function injectPill(question: HTMLElement) {
@@ -119,11 +137,10 @@ function injectPill(question: HTMLElement) {
   void setPillState(question, pill);
 }
 
-/** Reflect the question's current status on its pill: already-saved, has an
- * answer key (green), or needs a manual selection (gray). */
+/** Reflect the question's status on its pill: saved (green), keyed & about to
+ * auto-capture, or awaiting a manual selection on an ungraded page. */
 async function setPillState(question: HTMLElement, pill: HTMLButtonElement) {
-  const raw = collectChoices(question);
-  const { hasKey, labels } = detectCorrectChoices(question, raw);
+  const { hasKey, labels } = detectCorrectChoices(question, collectChoices(question));
   const id = hashId(scrapeText(question));
   const saved = id ? await hasCapture(id) : false;
 
@@ -135,13 +152,13 @@ async function setPillState(question: HTMLElement, pill: HTMLButtonElement) {
     pill.textContent = "✓ saved";
     pill.title = "Captured — click to re-capture / update the label";
   } else if (hasKey) {
-    pill.textContent = `⬇ capture (${labels.join("")})`;
-    pill.title = "Answer key detected — click to capture this labeled question";
+    pill.textContent = `⬇ ${labels.join("")}`;
+    pill.title = "Answer key detected — capturing automatically (click to force)";
   } else {
     pill.textContent = "⬇ capture";
     pill.title = looksGraded(question)
       ? "No key auto-detected — select the correct choice(s), then click"
-      : "Select the correct choice(s) first, then click to capture your label";
+      : "Live quiz: select the correct choice(s), then click to capture";
   }
 }
 
@@ -153,13 +170,13 @@ async function refreshAllPillStates() {
 }
 
 // =============================================================================
-// capture
+// capture — everything auto-detected (answer, images, dataset, mode)
 // =============================================================================
 
 async function captureOne(question: HTMLElement, pill: HTMLButtonElement): Promise<boolean> {
   pill.classList.add("shcap-busy");
   try {
-    const scraped = await scrapeQuestion(question, { includeImages: settings.includeImages });
+    const scraped = await scrapeQuestion(question, { includeImages: true });
     const detected = detectCorrectChoices(question, scraped.raw);
 
     let correctChoices: string[];
@@ -188,7 +205,7 @@ async function captureOne(question: HTMLElement, pill: HTMLButtonElement): Promi
       images: scraped.images,
       correctChoices,
       datasetRefs,
-      mode: settings.defaultMode,
+      mode: inferMode(scraped.text, scraped.choices),
       source,
       url: location.href,
       ...idsFromUrl(),
@@ -196,7 +213,7 @@ async function captureOne(question: HTMLElement, pill: HTMLButtonElement): Promi
     };
     await upsertCapture(capture);
     await setPillState(question, pill);
-    flashPill(pill, datasetRefs.length ? `✓ saved +${datasetRefs[0]}` : "✓ saved", "shcap-saved");
+    flashPill(pill, datasetRefs.length ? `✓ +${datasetRefs[0]}` : "✓ saved", "shcap-saved");
     return true;
   } catch (e) {
     flashPill(pill, "! " + truncate((e as Error).message, 24), "shcap-err");
@@ -206,7 +223,9 @@ async function captureOne(question: HTMLElement, pill: HTMLButtonElement): Promi
   }
 }
 
-/** Bulk-capture every question on the page that has a detected answer key. */
+/** Manual re-trigger for the keyed questions on the page (auto-capture already
+ * runs on load; this is here for after a Clear, or if the observer missed a
+ * late-rendered question). */
 async function captureAllKeyed(btn: HTMLButtonElement) {
   const questions = findQuestions().filter((q) => detectCorrectChoices(q, collectChoices(q)).hasKey);
   if (questions.length === 0) return;
@@ -214,10 +233,7 @@ async function captureAllKeyed(btn: HTMLButtonElement) {
   let done = 0;
   for (const q of questions) {
     const pill = pills.get(q);
-    if (pill) {
-      const ok = await captureOne(q, pill);
-      if (ok) done += 1;
-    }
+    if (pill && (await captureOne(q, pill))) done += 1;
     btn.textContent = `Capturing ${done}/${questions.length}…`;
   }
   btn.disabled = false;
@@ -241,6 +257,8 @@ function ensurePanel() {
   const breakdown = el("span", { className: "shcap-sub", id: "shcap-breakdown" });
   const stat = el("div", { className: "shcap-stat" }, [total, document.createTextNode(" captured "), breakdown]);
   const page = el("div", { className: "shcap-page", id: "shcap-page", text: "–" });
+  const auto = el("div", { className: "shcap-auto", id: "shcap-auto" });
+  auto.style.display = "none";
 
   const captureKeyed = el("button", {
     className: "shcap-btn shcap-primary",
@@ -249,28 +267,12 @@ function ensurePanel() {
     text: "Capture keyed",
   });
 
-  const modeSel = el("select", { id: "shcap-mode" }, [
-    el("option", { value: "concept", text: "concept" }),
-    el("option", { value: "calc", text: "calc" }),
-  ]);
-  const modeLabel = el("label", { className: "shcap-seg", title: "Mode stamped on new captures" }, [
-    document.createTextNode("mode "),
-    modeSel,
-  ]);
-  const imagesCheck = el("input", { id: "shcap-images", type: "checkbox" });
-  const imagesLabel = el(
-    "label",
-    { className: "shcap-check", title: "Embed images in captures (needed for graph questions)" },
-    [imagesCheck, document.createTextNode(" images")],
-  );
-  const controls = el("div", { className: "shcap-controls" }, [modeLabel, imagesLabel]);
-
   const exportJsonBtn = el("button", { className: "shcap-btn", id: "shcap-export-json", type: "button", text: "Export .json" });
   const exportJsonlBtn = el("button", { className: "shcap-btn", id: "shcap-export-jsonl", type: "button", text: ".jsonl" });
   const exportRow = el("div", { className: "shcap-row" }, [exportJsonBtn, exportJsonlBtn]);
   const clearBtn = el("button", { className: "shcap-btn shcap-quiet", id: "shcap-clear", type: "button", text: "Clear all" });
 
-  const body = el("div", { className: "shcap-body" }, [stat, page, captureKeyed, controls, exportRow, clearBtn]);
+  const body = el("div", { className: "shcap-body" }, [stat, page, auto, captureKeyed, exportRow, clearBtn]);
   const panel = el("div", { id: "shcap-panel" }, [head, body]);
   document.body.appendChild(panel);
 
@@ -280,24 +282,16 @@ function ensurePanel() {
     if (panel.classList.contains("shcap-collapsed")) panel.classList.remove("shcap-collapsed");
   });
   captureKeyed.addEventListener("click", (e) => void captureAllKeyed(e.currentTarget as HTMLButtonElement));
-  modeSel.addEventListener("change", async () => {
-    settings = await saveSettings({ defaultMode: modeSel.value as CaptureSettings["defaultMode"] });
-  });
-  imagesCheck.addEventListener("change", async () => {
-    settings = await saveSettings({ includeImages: imagesCheck.checked });
-  });
   exportJsonBtn.addEventListener("click", () => void exportBundle("json"));
   exportJsonlBtn.addEventListener("click", () => void exportBundle("jsonl"));
   clearBtn.addEventListener("click", () => void clearAll());
-
-  syncPanelControls();
 }
 
-function syncPanelControls() {
-  const mode = document.querySelector<HTMLSelectElement>("#shcap-mode");
-  const images = document.querySelector<HTMLInputElement>("#shcap-images");
-  if (mode) mode.value = settings.defaultMode;
-  if (images) images.checked = settings.includeImages;
+function setAutoStatus(msg: string) {
+  const el = document.getElementById("shcap-auto");
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = msg ? "block" : "none";
 }
 
 async function refreshPanel() {
@@ -318,8 +312,10 @@ async function refreshPanel() {
 
   const onPage = findQuestions();
   const withKey = onPage.filter((q) => detectCorrectChoices(q, collectChoices(q)).hasKey).length;
-  page.textContent = `This page: ${onPage.length} question${onPage.length === 1 ? "" : "s"}, ${withKey} with answer key`;
-  keyedBtn.textContent = withKey ? `Capture keyed (${withKey})` : "No answer key on page";
+  page.textContent = withKey
+    ? `This page: ${onPage.length} question${onPage.length === 1 ? "" : "s"}, ${withKey} auto-captured`
+    : `This page: ${onPage.length} question${onPage.length === 1 ? "" : "s"}, no answer key (manual)`;
+  keyedBtn.textContent = withKey ? `Re-capture keyed (${withKey})` : "No answer key on page";
   keyedBtn.disabled = withKey === 0;
 }
 
@@ -327,11 +323,10 @@ async function exportBundle(kind: "json" | "jsonl") {
   const captures = await getAllCaptures();
   if (captures.length === 0) return;
   const datasets = await loadDatasets();
-  const inline = settings.inlineDatasets;
   if (kind === "json") {
-    downloadText(`statshelpr-fixtures-${stamp()}.json`, toFixtureBundle(captures, datasets, inline));
+    downloadText(`statshelpr-fixtures-${stamp()}.json`, toFixtureBundle(captures, datasets, true));
   } else {
-    downloadText(`statshelpr-fixtures-${stamp()}.jsonl`, toJsonl(captures, datasets, inline));
+    downloadText(`statshelpr-fixtures-${stamp()}.jsonl`, toJsonl(captures, datasets, true));
   }
 }
 
@@ -342,6 +337,8 @@ async function clearAll() {
     return;
   }
   await clearCaptures();
+  autoAttempted.clear();
+  setAutoStatus("");
   await refreshAllPillStates();
   await refreshPanel();
 }

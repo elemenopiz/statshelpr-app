@@ -8,16 +8,10 @@
  * than creating a duplicate — fixing a mislabel is just capturing again.
  */
 
-import {
-  DEFAULT_SETTINGS,
-  type Capture,
-  type CaptureSettings,
-  type Fixture,
-} from "./types";
+import { type ApiChoice, type Capture, type CaptureMode, type Fixture } from "./types";
 import { expandDataFiles } from "./datasets";
 
 const KEY_CAPTURES = "statshelpr.captures";
-const KEY_SETTINGS = "statshelpr.captureSettings";
 
 // ---- captures ---------------------------------------------------------------
 
@@ -72,17 +66,26 @@ export async function hasCapture(id: string): Promise<boolean> {
   return Boolean(map[id]);
 }
 
-// ---- settings ---------------------------------------------------------------
+// ---- mode inference ---------------------------------------------------------
 
-export async function getSettings(): Promise<CaptureSettings> {
-  const r = await chrome.storage.local.get(KEY_SETTINGS);
-  return { ...DEFAULT_SETTINGS, ...(r[KEY_SETTINGS] as Partial<CaptureSettings> | undefined) };
-}
-
-export async function saveSettings(patch: Partial<CaptureSettings>): Promise<CaptureSettings> {
-  const next = { ...(await getSettings()), ...patch };
-  await chrome.storage.local.set({ [KEY_SETTINGS]: next });
-  return next;
+/**
+ * Best-guess concept vs calc from the question, so nothing has to be toggled.
+ * `calc` = the answer requires computing a statistic from data; `concept` =
+ * reasoning/definition. Deliberately precision-biased toward calc only on a
+ * clear computational cue (a numeric fill-in, or explicit "compute the mean /
+ * regression / probability …" language), because a wrong mode makes run-evals
+ * mark an otherwise-correct fixture as failed. The popup lets you fix the rare
+ * miss per-item — it's the one label the DOM can't state outright.
+ */
+export function inferMode(text: string, choices: ApiChoice[]): CaptureMode {
+  // A lone fill-in (numeric answer) is essentially always a calculation.
+  if (choices.length === 1 && choices[0]?.type === "text") return "calc";
+  const t = ` ${text.toLowerCase()} `;
+  const calc =
+    /(calculat|comput(e|ing|ation)|\bfind the\b|estimate the|what is the (value|probability|mean|median|average|proportion|percent|standard deviation)|how many|standard deviation|\bvariance\b|regression|slope|intercept|\bpredict|correlation|z-?score|confidence interval|margin of error|test statistic|p-?value|expected value|interquartile|\biqr\b|quartile|\bodds\b|\bproportion\b)/.test(
+      t,
+    );
+  return calc ? "calc" : "concept";
 }
 
 // ---- fixture conversion + export -------------------------------------------

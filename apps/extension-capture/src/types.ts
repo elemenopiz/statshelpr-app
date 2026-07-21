@@ -70,20 +70,3 @@ export interface Fixture {
     capturedAt: number;
   };
 }
-
-export interface CaptureSettings {
-  /** Default mode stamped onto new captures. */
-  defaultMode: CaptureMode;
-  /** Whether to embed scraped images in captures (larger, but needed for
-   * graph/figure questions). */
-  includeImages: boolean;
-  /** Whether to inline referenced dataset CSV content into exported fixtures
-   * (runnable, but large). Off = filename-only refs (lean). */
-  inlineDatasets: boolean;
-}
-
-export const DEFAULT_SETTINGS: CaptureSettings = {
-  defaultMode: "concept",
-  includeImages: true,
-  inlineDatasets: true,
-};

@@ -1,7 +1,7 @@
 /**
- * Popup dashboard — manage the captured set: review, re-label (concept/calc),
- * delete, export, and set capture defaults. The on-page panel handles quick
- * capture; this is the management surface.
+ * Popup dashboard — review the captured set, fix the occasional inferred mode,
+ * dedupe variants, export, and clear. Capture itself is automatic (the on-page
+ * script), so there are no capture settings here.
  */
 
 import {
@@ -10,8 +10,6 @@ import {
   clearCaptures,
   upsertCapture,
   dedupeTemplates,
-  getSettings,
-  saveSettings,
   toFixtureBundle,
   toJsonl,
   downloadText,
@@ -23,7 +21,6 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 
 async function render() {
   const captures = await getAllCaptures();
-  const settings = await getSettings();
 
   $("count").textContent = String(captures.length);
   const keyed = captures.filter((c) => c.source === "answer-key").length;
@@ -33,10 +30,6 @@ async function render() {
   $("breakdown").textContent = captures.length
     ? `${templates} unique · ${variants} variant${variants === 1 ? "" : "s"} · ${keyed} keyed · ${calc} calc`
     : "nothing captured yet";
-
-  ($("mode") as HTMLSelectElement).value = settings.defaultMode;
-  ($("images") as HTMLInputElement).checked = settings.includeImages;
-  ($("inline-datasets") as HTMLInputElement).checked = settings.inlineDatasets;
 
   ($("export-json") as HTMLButtonElement).disabled = captures.length === 0;
   ($("export-jsonl") as HTMLButtonElement).disabled = captures.length === 0;
@@ -102,13 +95,12 @@ function renderList(captures: Capture[]) {
 async function exportBundle(kind: "json" | "jsonl") {
   const captures = await getAllCaptures();
   if (captures.length === 0) return;
-  const settings = await getSettings();
   const datasets = await loadDatasets();
   const s = stamp();
   if (kind === "json") {
-    downloadText(`statshelpr-fixtures-${s}.json`, toFixtureBundle(captures, datasets, settings.inlineDatasets));
+    downloadText(`statshelpr-fixtures-${s}.json`, toFixtureBundle(captures, datasets, true));
   } else {
-    downloadText(`statshelpr-fixtures-${s}.jsonl`, toJsonl(captures, datasets, settings.inlineDatasets));
+    downloadText(`statshelpr-fixtures-${s}.jsonl`, toJsonl(captures, datasets, true));
   }
   toast(`Exported ${captures.length} fixtures`);
 }
@@ -116,15 +108,6 @@ async function exportBundle(kind: "json" | "jsonl") {
 function wire() {
   $("export-json").addEventListener("click", () => void exportBundle("json"));
   $("export-jsonl").addEventListener("click", () => void exportBundle("jsonl"));
-  ($("mode") as HTMLSelectElement).addEventListener("change", async (e) => {
-    await saveSettings({ defaultMode: (e.target as HTMLSelectElement).value as CaptureMode });
-  });
-  ($("images") as HTMLInputElement).addEventListener("change", async (e) => {
-    await saveSettings({ includeImages: (e.target as HTMLInputElement).checked });
-  });
-  ($("inline-datasets") as HTMLInputElement).addEventListener("change", async (e) => {
-    await saveSettings({ inlineDatasets: (e.target as HTMLInputElement).checked });
-  });
   $("dedupe").addEventListener("click", async () => {
     const removed = await dedupeTemplates();
     await render();

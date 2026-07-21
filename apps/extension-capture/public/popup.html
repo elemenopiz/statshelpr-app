@@ -67,6 +67,7 @@
       .btn.primary { background: var(--blue); color: var(--btn-text); border-color: transparent; }
       .btn.primary:hover:not(:disabled) { background: var(--blue-deep); color: var(--btn-text); }
       .btn.danger:hover:not(:disabled) { border-color: var(--err); color: var(--err); background: var(--err-tint); }
+      .hint-line { margin: 8px 1px 2px; font-size: 10.5px; line-height: 1.4; color: var(--ink-3); font-family: var(--font-mono); }
       .controls { display: flex; align-items: center; gap: 14px; margin: 4px 1px 2px; font-size: 12px; color: var(--ink-2); }
       .controls label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
       select, input[type="checkbox"] { accent-color: var(--blue); font-family: inherit; }
@@ -125,15 +126,7 @@
       <button class="btn primary" id="export-json" type="button">Export .json</button>
       <button class="btn" id="export-jsonl" type="button">Export .jsonl</button>
     </div>
-
-    <div class="section-label">defaults &amp; export</div>
-    <div class="controls">
-      <label>mode
-        <select id="mode"><option value="concept">concept</option><option value="calc">calc</option></select>
-      </label>
-      <label><input type="checkbox" id="images" /> images</label>
-      <label title="Inline referenced dataset CSVs into exported fixtures (runnable, larger)"><input type="checkbox" id="inline-datasets" /> datasets</label>
-    </div>
+    <div class="hint-line">Capture is automatic — mode, images and datasets are detected. Fix a wrong mode below if needed.</div>
 
     <div class="section-label" id="list-label">captured questions</div>
     <div class="list" id="list"></div>
