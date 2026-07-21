@@ -17,7 +17,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { deriveBlankAnswers } from "@statshelpr/solver-core/solver";
-import { collectBlanks, writeBlanks } from "../src/canvas-dom";
+import { collectBlanks, writeBlanks, type SelectScrapedBlank } from "../src/canvas-dom";
 import { buildMatchingQuestion } from "./fixtures/canvas-classic";
 import { captureById } from "./fixtures/captures";
 import { toApiBlanks } from "./helpers";
@@ -36,7 +36,10 @@ function buildFixture() {
 describe("matching_question", () => {
   it("scrape: 6 blanks keyed blank1..blank6 positionally, .answer_match_left labels preserved, every row offers the FULL shared pool, placeholder skipped", () => {
     const { question } = buildFixture();
-    const scraped = collectBlanks(question);
+    // This fixture only ever builds <select>-backed blanks — narrow the
+    // ScrapedBlank union (select-backed vs input-backed fill-in-multiple-blanks,
+    // see canvas-dom.ts) so `.select` below type-checks without per-access guards.
+    const scraped = collectBlanks(question) as SelectScrapedBlank[];
 
     expect(scraped).toHaveLength(6);
     expect(scraped.map((b) => b.key)).toEqual(["blank1", "blank2", "blank3", "blank4", "blank5", "blank6"]);
@@ -51,7 +54,10 @@ describe("matching_question", () => {
 
   it("round trip: contract-format answer ('Blank N: <term>' per line) matches every row to its correct term, fires events, marks suggested", () => {
     const { question } = buildFixture();
-    const scraped = collectBlanks(question);
+    // This fixture only ever builds <select>-backed blanks — narrow the
+    // ScrapedBlank union (select-backed vs input-backed fill-in-multiple-blanks,
+    // see canvas-dom.ts) so `.select` below type-checks without per-access guards.
+    const scraped = collectBlanks(question) as SelectScrapedBlank[];
     const apiBlanks = toApiBlanks(scraped);
 
     const answer = REC.blanks.map((b, i) => `Blank ${i + 1}: ${b.correct}`).join("\n");
@@ -95,7 +101,10 @@ describe("matching_question", () => {
       rows,
       sharedOptionPool: SHARED_POOL,
     });
-    const scraped = collectBlanks(question);
+    // This fixture only ever builds <select>-backed blanks — narrow the
+    // ScrapedBlank union (select-backed vs input-backed fill-in-multiple-blanks,
+    // see canvas-dom.ts) so `.select` below type-checks without per-access guards.
+    const scraped = collectBlanks(question) as SelectScrapedBlank[];
     const apiBlanks = toApiBlanks(scraped);
 
     const answer = [
@@ -116,7 +125,10 @@ describe("matching_question", () => {
 
   it("negative: an unmatchable blank answer leaves its select's value untouched (but highlighted+counted); sibling rows are unaffected", () => {
     const { question } = buildFixture();
-    const scraped = collectBlanks(question);
+    // This fixture only ever builds <select>-backed blanks — narrow the
+    // ScrapedBlank union (select-backed vs input-backed fill-in-multiple-blanks,
+    // see canvas-dom.ts) so `.select` below type-checks without per-access guards.
+    const scraped = collectBlanks(question) as SelectScrapedBlank[];
 
     const blankAnswers = REC.blanks.map((b, i) =>
       i === 3 ? { key: `blank${i + 1}`, answer: "not a real term at all" } : { key: `blank${i + 1}`, answer: b.correct },
@@ -135,7 +147,10 @@ describe("matching_question", () => {
   it("negative: a disabled row <select> is highlight-only but still counted; sibling row still writes normally", () => {
     const rows = REC.blanks.slice(0, 2).map((b) => ({ key: b.key, label: b.label, correctOption: b.correct }));
     const { question } = buildMatchingQuestion({ stemText: REC.questionText, rows, sharedOptionPool: SHARED_POOL });
-    const scraped = collectBlanks(question);
+    // This fixture only ever builds <select>-backed blanks — narrow the
+    // ScrapedBlank union (select-backed vs input-backed fill-in-multiple-blanks,
+    // see canvas-dom.ts) so `.select` below type-checks without per-access guards.
+    const scraped = collectBlanks(question) as SelectScrapedBlank[];
     scraped[0]!.select.disabled = true;
 
     const blankAnswers = rows.map((r, i) => ({ key: `blank${i + 1}`, answer: r.correctOption }));

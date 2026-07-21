@@ -182,10 +182,6 @@ function setSelectValue(sel: HTMLSelectElement, value?: string, index?: number):
 }
 
 function fillTextInput(input: HTMLInputElement, answer: string): number {
-  if (input.disabled || input.readOnly) {
-    input.classList.add("statshelpr-suggested");
-    return 1;
-  }
   // Try to extract just the value from "Answer: 12.34" or "Final answer: 12.34"
   const m = answer.match(/(?:Answer|Final answer)\s*:?\s*(.+?)(?:\n|$)/i);
   let value = (m?.[1] ?? answer).trim();
@@ -193,7 +189,22 @@ function fillTextInput(input: HTMLInputElement, answer: string): number {
   value = value.replace(/[.,;]\s*$/, "").trim();
   // Strip wrapping quotes
   value = value.replace(/^["'`]|["'`]$/g, "");
+  return setTextInputValue(input, value);
+}
 
+/** Set a text/number input's value via the React-aware native setter (so New
+ * Quizzes / Canvas reacts to the change), fire input+change, and mark
+ * suggested — mirrors setSelectValue()'s contract exactly. On a
+ * disabled/read-only input we only mark it. Always returns 1 — an input is
+ * either set or marked, never a no-op. Shared by fillTextInput (single
+ * text-fill, which does its own "Answer: X"-prefix extraction/cleanup above)
+ * and writeBlanks's input-backed blank path (whose value arrives already
+ * cleaned from solver-core's deriveBlankAnswers, so no re-extraction needed). */
+function setTextInputValue(input: HTMLInputElement, value: string): number {
+  if (input.disabled || input.readOnly) {
+    input.classList.add("statshelpr-suggested");
+    return 1;
+  }
   const proto = Object.getPrototypeOf(input);
   const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
   if (setter) setter.call(input, value);
@@ -310,14 +321,26 @@ function answerSelects(question: HTMLElement): HTMLSelectElement[] {
 }
 
 // =============================================================================
-// matching / multiple-dropdowns (2+ blanks)
+// matching / multiple-dropdowns / fill-in-multiple-blanks (2+ blanks)
 // =============================================================================
 //
-// A matching or multiple-dropdowns question has one <select> per blank. Each is
-// answered independently from its own options (unlike a single dropdown or a
-// radio/checkbox group). We scrape every blank with a human-readable label so
-// the model can tell them apart, then write each returned answer into its own
-// <select>.
+// A matching or multiple-dropdowns question has one <select> per blank, each
+// answered independently from its own options. A Classic
+// fill_in_multiple_blanks_question instead has 2+ inline <input type=text>
+// blanks with NO discrete option pool — the model supplies the value
+// directly (see buildBlanksPrompt / deriveBlankAnswers in solver-core). Both
+// shapes scrape to the same ScrapedBlank union (select-backed vs
+// input-backed) so the rest of the pipeline — buildQuestionPrompt,
+// deriveBlankAnswers, writeBlanks, and the API payload mapping in
+// content.ts — shares one code path. `options` stays on both variants
+// (always [] for input-backed, never omitted) so content.ts's
+// `b.options.map((o) => o.text)` needs no per-kind branching.
+//
+// Mixed select+text questions (some blanks backed by a <select>, others by an
+// <input>, in the same question) are out of scope: collectBlanks picks
+// whichever kind dominates — 2+ answer-selects wins outright regardless of
+// any text inputs also present; otherwise, 2+ enabled text inputs — and
+// ignores the other kind entirely.
 
 export interface BlankOption {
   value: string;
@@ -325,48 +348,113 @@ export interface BlankOption {
   index: number;
 }
 
-export interface ScrapedBlank {
+/** exported (alongside InputScrapedBlank) so callers that need to narrow a
+ * ScrapedBlank union — e.g. a test fixture that knows its question is
+ * select-backed — can name the specific member type rather than casting to
+ * `any`. */
+export interface SelectScrapedBlank {
+  kind: "select";
   key: string;
   label: string;
   options: BlankOption[];
   select: HTMLSelectElement;
 }
 
+/** A Classic fill_in_multiple_blanks_question blank: free text, no option
+ * pool. `options` is always [] (see the section comment above for why it's
+ * kept rather than omitted). */
+export interface InputScrapedBlank {
+  kind: "input";
+  key: string;
+  label: string;
+  options: BlankOption[];
+  input: HTMLInputElement;
+}
+
+export type ScrapedBlank = SelectScrapedBlank | InputScrapedBlank;
+
 export function collectBlanks(question: HTMLElement): ScrapedBlank[] {
   const selects = answerSelects(question);
-  if (selects.length < 2) return [];
-  return selects.map((sel, i) => {
-    const options: BlankOption[] = [...sel.options]
-      .map((o, index) => ({ value: o.value, text: normalizeText(o.textContent ?? ""), index }))
-      .filter((o) => o.text && !isPlaceholderOption(o.text));
-    return { key: `blank${i + 1}`, label: blankLabel(sel, question), options, select: sel };
-  });
+  if (selects.length >= 2) {
+    return selects.map((sel, i) => {
+      const options: BlankOption[] = [...sel.options]
+        .map((o, index) => ({ value: o.value, text: normalizeText(o.textContent ?? ""), index }))
+        .filter((o) => o.text && !isPlaceholderOption(o.text));
+      return { kind: "select", key: `blank${i + 1}`, label: blankLabel(sel, question), options, select: sel };
+    });
+  }
+  return collectTextBlanks(question);
+}
+
+/** Classic fill_in_multiple_blanks_question: 2+ inline text inputs, no
+ * radio/checkbox choices, fewer than 2 answer-selects (the latter already
+ * guaranteed by collectBlanks — the only caller — falling through to here).
+ * Gated on 2+ ENABLED inputs so a single stray text field elsewhere in the
+ * question doesn't misfire this path; collectAnswerChoices's own
+ * single-text-fill priority already owns that one-input case. Once gated in,
+ * EVERY matching input (enabled or disabled) is collected, mirroring
+ * answerSelects()'s own disabled-agnostic collection for <select> blanks. */
+function collectTextBlanks(question: HTMLElement): ScrapedBlank[] {
+  if (question.querySelector(CHOICE_INPUT_SELECTOR)) return [];
+  const inputs = [...question.querySelectorAll<HTMLInputElement>(TEXT_INPUT_SELECTOR)];
+  const enabledCount = inputs.filter((i) => !i.disabled && !i.readOnly).length;
+  if (enabledCount < 2) return [];
+
+  const used = new Set<string>();
+  return inputs.map((input, i) => ({
+    kind: "input" as const,
+    key: inputBlankKey(input, i, used),
+    label: blankLabel(input, question),
+    options: [],
+    input,
+  }));
+}
+
+/** Stable key for an input-backed blank: the trailing `_<hash>` segment of
+ * its name (Canvas's `question_<qid>_<blankhash>` convention — mirrors
+ * extension-capture/src/scrape.ts's blankKey()), falling back to its id, then
+ * to a positional `blank<n>` when neither yields a usable — non-empty, not
+ * already claimed by an earlier blank in this question — key. */
+function inputBlankKey(input: HTMLInputElement, index: number, used: Set<string>): string {
+  for (const raw of [input.name, input.id]) {
+    if (!raw) continue;
+    const m = raw.match(/_([A-Za-z0-9]+)$/);
+    const key = (m?.[1] ?? raw).trim();
+    if (key && !used.has(key)) {
+      used.add(key);
+      return key;
+    }
+  }
+  const fallback = `blank${index + 1}`;
+  used.add(fallback);
+  return fallback;
 }
 
 /** Human-readable prompt for one blank so the model can map answers to blanks:
  *   - matching question: the <label for=selectId> or `.answer_match_left` cell
  *     (the term / statement being matched);
- *   - inline multiple-dropdowns: the surrounding sentence (nearest block), with
- *     the dropdowns themselves stripped out. */
-function blankLabel(sel: HTMLSelectElement, question: HTMLElement): string {
-  if (sel.id) {
-    const lab = question.querySelector<HTMLElement>(`label[for="${cssEscape(sel.id)}"]`);
+ *   - inline multiple-dropdowns / fill-in-multiple-blanks: the surrounding
+ *     sentence (nearest block), with every blank element inside it — <select>
+ *     or <input> alike, not just this one — stripped out. */
+function blankLabel(el: HTMLSelectElement | HTMLInputElement, question: HTMLElement): string {
+  if (el.id) {
+    const lab = question.querySelector<HTMLElement>(`label[for="${cssEscape(el.id)}"]`);
     const t = lab ? cleanText(lab) : "";
     if (t) return t;
   }
-  const left = sel.closest(".answer")?.querySelector<HTMLElement>(".answer_match_left");
+  const left = el.closest(".answer")?.querySelector<HTMLElement>(".answer_match_left");
   if (left) {
     const t = cleanText(left);
     if (t) return t;
   }
-  const block = sel.closest("li, p, td, .answer") as HTMLElement | null;
+  const block = el.closest("li, p, td, .answer") as HTMLElement | null;
   if (block) {
     const clone = block.cloneNode(true) as HTMLElement;
-    clone.querySelectorAll("select, script, style, .screenreader-only").forEach((n) => n.remove());
+    clone.querySelectorAll("select, input, script, style, .screenreader-only").forEach((n) => n.remove());
     const t = normalizeText(clone.textContent ?? "");
     if (t) return t.slice(0, 200);
   }
-  const aria = normalizeText(sel.getAttribute("aria-label") ?? "");
+  const aria = normalizeText(el.getAttribute("aria-label") ?? "");
   return /multiple dropdowns/i.test(aria) ? "" : aria;
 }
 
@@ -374,16 +462,23 @@ function isPlaceholderOption(text: string): boolean {
   return !text || /^\[?\s*(select|choose)\s*\]?\s*\.{0,3}$/i.test(text);
 }
 
-/** Write each model-answered blank into its own <select>, matching the answer
- * text to an option. Blanks are matched by key first, then positionally.
- * Returns the count of blanks acted on (set, or highlight-only marked when no
- * option matched) — 0 means nothing could be written. */
+/** Write each model-answered blank into its backing element — a <select> via
+ * matchBlankOption + setSelectValue, or an <input> directly via
+ * setTextInputValue (deriveBlankAnswers already cleaned free-text values
+ * server-side, so no re-extraction happens here — see solver-core's
+ * choices.ts). Blanks are matched by key first, then positionally. Returns
+ * the count of blanks acted on (set, or highlight-only marked when
+ * disabled/no option matched) — 0 means nothing could be written. */
 export function writeBlanks(question: HTMLElement, answers: BlankAnswer[]): number {
   const blanks = collectBlanks(question);
   let count = 0;
   answers.forEach((a, i) => {
     const blank = blanks.find((b) => b.key === a.key) ?? blanks[i];
     if (!blank || !a.answer) return;
+    if (blank.kind === "input") {
+      count += setTextInputValue(blank.input, a.answer);
+      return;
+    }
     const opt = matchBlankOption(a.answer, blank.options);
     if (opt) {
       count += setSelectValue(blank.select, opt.value, opt.index);

@@ -6,7 +6,13 @@
  */
 import { describe, expect, it } from "vitest";
 import { deriveBlankAnswers, deriveSelectedChoices } from "@statshelpr/solver-core/solver";
-import { collectAnswerChoices, collectBlanks, selectAnswerChoice, writeBlanks } from "../src/canvas-dom";
+import {
+  collectAnswerChoices,
+  collectBlanks,
+  selectAnswerChoice,
+  writeBlanks,
+  type SelectScrapedBlank,
+} from "../src/canvas-dom";
 import { buildChoiceQuestion, buildMultipleDropdowns, buildTextFillQuestion } from "./fixtures/canvas-classic";
 import { captureById } from "./fixtures/captures";
 import { toApiBlanks, toApiChoices } from "./helpers";
@@ -85,7 +91,10 @@ describe("regression: duplicate option lists across different blanks don't cross
         { key: "spread", label: "the residual spread tends to", options: ["increase", "decrease"], correctOption: "decrease" },
       ],
     });
-    const scraped = collectBlanks(question);
+    // This fixture only ever builds <select>-backed blanks — narrow the
+    // ScrapedBlank union (select-backed vs input-backed fill-in-multiple-blanks,
+    // see canvas-dom.ts) so `.select` below type-checks without per-access guards.
+    const scraped = collectBlanks(question) as SelectScrapedBlank[];
     const apiBlanks = toApiBlanks(scraped);
 
     const answer = "Blank 1: increase\nBlank 2: decrease";

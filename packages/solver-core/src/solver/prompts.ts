@@ -60,22 +60,38 @@ export function buildQuestionPrompt(body: SolveBody): string {
   ].join("\n");
 }
 
-/** Prompt for a matching / multiple-dropdowns question: list each blank with
- * its own options and require one `Blank N: <option>` line per blank. */
+/** Prompt for a matching / multiple-dropdowns / fill-in-multiple-blanks
+ * question: list each blank — with its own options line when the blank has a
+ * discrete option pool (dropdown/matching), or without one when it's a free
+ * text blank (Classic `fill_in_multiple_blanks_question`) — and require one
+ * `Blank N: <value>` line per blank. The three cases (all-options,
+ * all-free-text, mixed) each get footer wording matched to what's actually
+ * being asked, since a blank with no listed options can't be "copied
+ * verbatim" from anything. */
 function buildBlanksPrompt(base: string, blanks: SolveBlank[]): string {
   const lines: string[] = [
     base,
     "",
-    `This question has ${blanks.length} dropdown blanks. Answer EVERY blank — do not skip any.`,
+    `This question has ${blanks.length} blanks. Answer EVERY blank — do not skip any.`,
     "",
   ];
   blanks.forEach((b, i) => {
     lines.push(`Blank ${i + 1}${b.label ? ` — ${b.label}` : ""}`);
-    lines.push(`  options: ${b.options.join(" | ")}`);
+    if (b.options.length > 0) lines.push(`  options: ${b.options.join(" | ")}`);
   });
   lines.push("");
-  lines.push("On the final lines, give exactly one option per blank, copied verbatim, as:");
-  blanks.forEach((_, i) => lines.push(`Blank ${i + 1}: <chosen option>`));
+  const hasOptionBlanks = blanks.some((b) => b.options.length > 0);
+  const hasFreeBlanks = blanks.some((b) => b.options.length === 0);
+  if (hasFreeBlanks) {
+    lines.push(
+      hasOptionBlanks
+        ? "On the final lines, give one answer per blank: for a blank with an options line, copy the chosen option verbatim; for a blank with no options line, give the value directly (for numeric answers, the number only — no units or currency symbols). Format:"
+        : "On the final lines, give the value for each blank directly (for numeric answers, the number only — no units or currency symbols). Format:",
+    );
+  } else {
+    lines.push("On the final lines, give exactly one option per blank, copied verbatim, as:");
+  }
+  blanks.forEach((_, i) => lines.push(`Blank ${i + 1}: <value>`));
   return lines.join("\n");
 }
 

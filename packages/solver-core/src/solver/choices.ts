@@ -59,6 +59,15 @@ function escapeRegExp(s: string): string {
  * fall back to matching by the blank's label, then to any single option the
  * answer mentions. Each blank's `answer` is "" when nothing matched (the
  * client just leaves that dropdown untouched).
+ *
+ * A blank with an empty `options` list (Classic `fill_in_multiple_blanks_question`
+ * free-text blanks — see buildBlanksPrompt) has no option pool to snap to, so
+ * its parsed chunk is accepted verbatim (cleaned) instead of run through
+ * matchOption. The label-echo and sole-mentioned-option fallback stages (2, 3)
+ * are option-pool-specific — they either search for an *option* by substring
+ * or count how many *options* a line mentions, neither of which is meaningful
+ * with no options — so they're skipped for option-less blanks; only the
+ * `Blank N:` / bare `N.` forms (stages 1, 1b) can resolve a free-text blank.
  */
 export function deriveBlankAnswers(
   answer: string,
@@ -67,6 +76,10 @@ export function deriveBlankAnswers(
   if (!blanks?.length) return [];
   const lines = answer.split("\n");
   return blanks.map((blank, i) => {
+    const hasOptions = blank.options.length > 0;
+    const resolve = (chunk: string): string =>
+      hasOptions ? matchOption(chunk, blank.options) : cleanFreeformValue(chunk);
+
     // 1) "Blank <n>: <option>" anywhere on a line — the exact format
     //    buildBlanksPrompt asks for. Tolerant of a leading "Answer:" prefix
     //    (e.g. "Answer: Blank 1: $8.60") and of several blanks packed on one
@@ -76,25 +89,39 @@ export function deriveBlankAnswers(
     const byBlank = answer.match(
       new RegExp(`blank\\s*${i + 1}\\s*[:.)\\-]\\s*(.+?)(?=\\s+blank\\s*\\d\\b|$)`, "im"),
     );
-    let picked = byBlank?.[1] ? matchOption(byBlank[1], blank.options) : "";
+    let picked = byBlank?.[1] ? resolve(byBlank[1]) : "";
     // 1b) bare "<n>. <option>" / "Answer <n> - <option>" / "#<n>: <option>" at
     //     the start of a line (formats without the word "Blank")
     if (!picked) {
       const byIndex = answer.match(
         new RegExp(`^\\s*(?:answer|item|#)?\\s*${i + 1}\\s*[:.)\\-]\\s*(.+?)\\s*$`, "im"),
       );
-      if (byIndex?.[1]) picked = matchOption(byIndex[1], blank.options);
+      if (byIndex?.[1]) picked = resolve(byIndex[1]);
     }
     // 2) a line that echoes this blank's label, then names an option
-    if (!picked && blank.label) {
+    //    (option-pool blanks only — see doc comment above)
+    if (!picked && hasOptions && blank.label) {
       const key = blank.label.toLowerCase().slice(0, 24);
       const labelLine = lines.find((ln) => ln.toLowerCase().includes(key));
       if (labelLine) picked = matchOption(labelLine, blank.options);
     }
     // 3) last resort: the single option the answer text mentions
-    if (!picked) picked = soleMentionedOption(answer, blank.options);
+    //    (option-pool blanks only — see doc comment above)
+    if (!picked && hasOptions) picked = soleMentionedOption(answer, blank.options);
     return { key: blank.key, answer: picked };
   });
+}
+
+/** Clean a free-text blank's parsed chunk into a bare value: trim, drop one
+ * layer of trailing sentence punctuation, strip wrapping quotes. Mirrors
+ * canvas-dom.ts's fillTextInput() cleanup exactly, so a single-text-fill
+ * answer and a fill-in-multiple-blanks answer end up formatted the same way. */
+function cleanFreeformValue(text: string): string {
+  let value = text.trim();
+  if (!value) return "";
+  value = value.replace(/[.,;]\s*$/, "").trim();
+  value = value.replace(/^["'`]|["'`]$/g, "");
+  return value;
 }
 
 /** Best option for a chunk of answer text: exact (case-insensitive) wins, then

@@ -18,7 +18,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { deriveBlankAnswers } from "@statshelpr/solver-core/solver";
-import { collectBlanks, writeBlanks } from "../src/canvas-dom";
+import { collectBlanks, writeBlanks, type SelectScrapedBlank } from "../src/canvas-dom";
 import { buildMultipleDropdowns, type BlankSpec } from "./fixtures/canvas-classic";
 import { captureById } from "./fixtures/captures";
 import { toApiBlanks } from "./helpers";
@@ -37,7 +37,10 @@ function allBlankSpecs(): BlankSpec[] {
 describe("multiple_dropdowns_question", () => {
   it("scrape: 7 blanks keyed blank1..blank7 positionally, real labels (both bare-key and full-sentence) and option pools preserved, placeholder skipped", () => {
     const { question } = buildMultipleDropdowns({ stemText: REC.questionText, blanks: allBlankSpecs() });
-    const scraped = collectBlanks(question);
+    // This fixture only ever builds <select>-backed blanks — narrow the
+    // ScrapedBlank union (select-backed vs input-backed fill-in-multiple-blanks,
+    // see canvas-dom.ts) so `.select` below type-checks without per-access guards.
+    const scraped = collectBlanks(question) as SelectScrapedBlank[];
 
     expect(scraped).toHaveLength(7);
     // canvas-dom.ts's collectBlanks keys blanks POSITIONALLY (blank1..blankN)
@@ -55,7 +58,10 @@ describe("multiple_dropdowns_question", () => {
   it("round trip: contract-format answer ('Blank N: <option>' per line) fills every select correctly, fires events, marks suggested", () => {
     const specs = allBlankSpecs();
     const { question } = buildMultipleDropdowns({ stemText: REC.questionText, blanks: specs });
-    const scraped = collectBlanks(question);
+    // This fixture only ever builds <select>-backed blanks — narrow the
+    // ScrapedBlank union (select-backed vs input-backed fill-in-multiple-blanks,
+    // see canvas-dom.ts) so `.select` below type-checks without per-access guards.
+    const scraped = collectBlanks(question) as SelectScrapedBlank[];
     const apiBlanks = toApiBlanks(scraped);
 
     const answer = specs.map((b, i) => `Blank ${i + 1}: ${b.correctOption}`).join("\n");
@@ -91,7 +97,10 @@ describe("multiple_dropdowns_question", () => {
       { key: slopeBlank.key, label: slopeBlank.label, options: slopeBlank.options, correctOption: slopeBlank.correct },
     ];
     const { question } = buildMultipleDropdowns({ stemText: REC.questionText, blanks: specs });
-    const scraped = collectBlanks(question);
+    // This fixture only ever builds <select>-backed blanks — narrow the
+    // ScrapedBlank union (select-backed vs input-backed fill-in-multiple-blanks,
+    // see canvas-dom.ts) so `.select` below type-checks without per-access guards.
+    const scraped = collectBlanks(question) as SelectScrapedBlank[];
     const apiBlanks = toApiBlanks(scraped);
 
     const answer =
@@ -112,7 +121,10 @@ describe("multiple_dropdowns_question", () => {
   it("negative: an unmatchable blank answer leaves its select's value untouched (but highlighted+counted); other blanks are unaffected", () => {
     const specs = allBlankSpecs();
     const { question } = buildMultipleDropdowns({ stemText: REC.questionText, blanks: specs });
-    const scraped = collectBlanks(question);
+    // This fixture only ever builds <select>-backed blanks — narrow the
+    // ScrapedBlank union (select-backed vs input-backed fill-in-multiple-blanks,
+    // see canvas-dom.ts) so `.select` below type-checks without per-access guards.
+    const scraped = collectBlanks(question) as SelectScrapedBlank[];
 
     const blankAnswers = specs.map((b, i) =>
       i === 2 ? { key: `blank${i + 1}`, answer: "zzz_no_such_option_exists" } : { key: `blank${i + 1}`, answer: b.correctOption },
@@ -134,7 +146,10 @@ describe("multiple_dropdowns_question", () => {
   it("negative: a disabled blank <select> is highlight-only but still counted; its sibling blank still writes normally", () => {
     const specs = allBlankSpecs().slice(0, 2);
     const { question } = buildMultipleDropdowns({ stemText: REC.questionText, blanks: specs });
-    const scraped = collectBlanks(question);
+    // This fixture only ever builds <select>-backed blanks — narrow the
+    // ScrapedBlank union (select-backed vs input-backed fill-in-multiple-blanks,
+    // see canvas-dom.ts) so `.select` below type-checks without per-access guards.
+    const scraped = collectBlanks(question) as SelectScrapedBlank[];
     scraped[0]!.select.disabled = true;
 
     const blankAnswers = specs.map((b, i) => ({ key: `blank${i + 1}`, answer: b.correctOption }));

@@ -73,8 +73,12 @@ export function buildSystemPrompt({
 
   // When every blank is supplied as text (hasBlanks), the model must answer all
   // of them — so we drop the image-only "focus on the open dropdown" rule.
+  // Wording stays generic across dropdown blanks (matching / multiple-dropdowns,
+  // each listed with its own options line) and free-text blanks (Classic
+  // fill_in_multiple_blanks_question, no options line) — buildQuestionPrompt's
+  // buildBlanksPrompt spells out the per-blank format either way.
   const imageOnlyLines: string[] = hasBlanks
-    ? ["This question has multiple dropdown blanks, each listed with its own options. Answer EVERY blank — give one option per blank in order."]
+    ? ["This question has multiple blanks. Answer EVERY blank — give one answer per blank in order, using its listed options if any are given."]
     : imageMode
       ? [
           "If the question text says 'Select TRUE or FALSE' or 'Select Yes or No' for each option, you MUST answer every blank in the question — do not answer only the open dropdown. List your answer for each statement in order.",

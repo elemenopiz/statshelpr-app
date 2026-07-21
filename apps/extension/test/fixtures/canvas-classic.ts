@@ -283,6 +283,72 @@ export function buildMultipleDropdowns(params: {
 }
 
 // =============================================================================
+// fill-in-multiple-blanks (2+ inline <input type=text>, no discrete option pool)
+// =============================================================================
+
+export interface TextBlankSpec {
+  /** Expected round-trip key. Becomes the trailing segment of the <input>'s
+   * `name` (`question_<qid>_<key>`) — canvas-dom.ts's inputBlankKey() extracts
+   * it back out via the same trailing-hash regex extension-capture/src/scrape.ts's
+   * blankKey() uses for <select>-backed blanks, so it must be alnum-only (no
+   * underscores), matching Canvas's real opaque blank-hash format. Pass ""
+   * to render the input with NO name/id at all, exercising inputBlankKey()'s
+   * positional `blank<n>` fallback instead. Two blanks sharing the same
+   * non-empty key exercise the dedup fallback (second one collides, so it
+   * also falls back to positional). */
+  key: string;
+  /** Surrounding sentence context (with the input itself stripped) —
+   * mirrors BlankSpec.label's role for multiple-dropdowns. */
+  label: string;
+  /** The value this blank's "correct" answer is. */
+  correctValue: string;
+}
+
+export interface TextBlanksFixture {
+  question: HTMLElement;
+  blanks: TextBlankSpec[];
+  /** The <input> elements in the same order as `blanks`. */
+  inputs: HTMLInputElement[];
+}
+
+/** A Classic fill_in_multiple_blanks_question: N inline <input type=text>
+ * blanks embedded in flowing sentence prose inside .question_text, each
+ * carrying a stable Canvas-style name (`question_<qid>_<blankhash>`, class
+ * `question_input`) — same shape multiple_dropdowns_question uses for its
+ * <select>s, just with a text input instead. One <p> per blank (like
+ * buildMultipleDropdowns) so blankLabel()'s nearest-block-with-blanks-stripped
+ * heuristic recovers exactly `blank.label` — an exact, checkable round trip. */
+export function buildFillInMultipleBlanks(params: {
+  id?: string;
+  stemText: string;
+  blanks: TextBlankSpec[];
+  /** Indices (into params.blanks) whose <input> should render disabled. */
+  disabledIndices?: number[];
+}): TextBlanksFixture {
+  const id = params.id ?? nextId("q");
+  const inputs: HTMLInputElement[] = [];
+  const paragraphs = params.blanks.map((blank, i) => {
+    const input = h("input", {
+      type: "text",
+      class: "question_input",
+      name: blank.key ? `question_${id}_${blank.key}` : undefined,
+      autocomplete: "off",
+      disabled: params.disabledIndices?.includes(i) ?? false,
+    }) as HTMLInputElement;
+    inputs.push(input);
+    // Input appended AFTER the label text so canvas-dom.ts's blankLabel()
+    // (which clones the block, strips select/input, and reads what's left)
+    // recovers exactly `blank.label` — an exact, checkable round trip.
+    return h("p", {}, [blank.label ? `${blank.label} ` : null, input]);
+  });
+  const question = mountQuestion(id, "fill_in_multiple_blanks_question", [
+    h("div", { class: "question_text user_content" }, [params.stemText, ...paragraphs]),
+    originalQuestionTextDecoy(`<p>${params.stemText}</p>`),
+  ]);
+  return { question, blanks: params.blanks, inputs };
+}
+
+// =============================================================================
 // no-inputs question (negative case)
 // =============================================================================
 
