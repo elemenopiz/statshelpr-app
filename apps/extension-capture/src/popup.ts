@@ -65,7 +65,10 @@ function renderList(captures: Capture[]) {
     // verified → the correct answer; unsolved → the student's (wrong/unknown) pick.
     // Fill-in questions have no letter, so fall back to the entered value.
     const ansText =
-      (c.verified ? c.correctChoices : c.selectedChoices).join("") || c.answerText || "—";
+      (c.verified ? c.correctChoices : c.selectedChoices).join("") ||
+      c.answerText ||
+      (c.blanks?.length ? `${c.blanks.length} blanks` : "") ||
+      "—";
     meta.appendChild(
       el("span", {
         className: "tag ans",

@@ -20,6 +20,8 @@ import {
   collectChoices,
   scrapeQuestion,
   readGradedAnswer,
+  readMultiDropdown,
+  collectBlanks,
   isReadOnly,
   selectedChoiceLabels,
   looksGraded,
@@ -128,7 +130,7 @@ async function maybeAutoCapture() {
 
 /** A graded, read-only question we can auto-harvest (vs a live editable quiz). */
 function isGradedQuestion(q: HTMLElement): boolean {
-  return looksGraded(q) || isReadOnly(collectChoices(q));
+  return looksGraded(q) || isReadOnly(collectChoices(q)) || collectBlanks(q).some((b) => b.disabled);
 }
 
 function injectPill(question: HTMLElement) {
@@ -162,7 +164,15 @@ async function setPillState(question: HTMLElement, pill: HTMLButtonElement) {
     pill.title = c?.verified ? "Captured (verified)" : "Captured to pool (answer unverified)";
     return;
   }
-  if (isReadOnly(raw)) {
+  const blanks = collectBlanks(question);
+  if (blanks.length >= 2) {
+    const a = readMultiDropdown(question, blanks);
+    pill.classList.toggle("shcap-has-key", a.verified);
+    pill.textContent = a.verified ? `⬇ ${blanks.length} blanks` : "⬇ pool";
+    pill.title = a.verified
+      ? "Matching — will capture every blank's answer"
+      : "Matching — captured to the pool (answers unverified)";
+  } else if (isReadOnly(raw)) {
     const a = readGradedAnswer(question, raw);
     pill.classList.toggle("shcap-has-key", a.verified);
     pill.textContent = a.verified ? `⬇ ${answerDisplay(a) || "saved"}` : "⬇ pool";
@@ -192,7 +202,16 @@ async function captureOne(question: HTMLElement, pill: HTMLButtonElement): Promi
     const scraped = await scrapeQuestion(question, { includeImages: true });
 
     let readout: AnswerReadout;
-    if (isReadOnly(scraped.raw)) {
+    if (scraped.blanks.length >= 2) {
+      // matching / multiple-dropdowns. On a live quiz, require at least one
+      // answered before capturing (don't store an empty record).
+      const live = scraped.blanks.some((b) => !b.disabled);
+      if (live && !scraped.blanks.some((b) => b.selected)) {
+        flashPill(pill, "answer first", "shcap-warn");
+        return null;
+      }
+      readout = readMultiDropdown(question, scraped.blanks);
+    } else if (isReadOnly(scraped.raw)) {
       readout = readGradedAnswer(question, scraped.raw); // graded review
     } else {
       // live quiz — the user asserts the answer by selecting / entering it
@@ -226,6 +245,7 @@ async function captureOne(question: HTMLElement, pill: HTMLButtonElement): Promi
       selectedChoices: readout.selectedChoices,
       correctChoices: readout.correctChoices,
       ...(readout.answerText ? { answerText: readout.answerText } : {}),
+      ...(readout.blanks ? { blanks: readout.blanks } : {}),
       outcome: readout.outcome,
       answerSource: readout.answerSource,
       verified: readout.verified,
@@ -393,9 +413,12 @@ function truncate(s: string, n: number): string {
   return s.length > n ? s.slice(0, n - 1) + "…" : s;
 }
 
-/** Short answer label for a pill: choice letters, or a fill-in value. */
-function answerDisplay(a: { correctChoices: string[]; answerText?: string }): string {
-  return a.correctChoices.join("") || (a.answerText ? truncate(a.answerText, 10) : "");
+/** Short answer label for a pill: choice letters, a fill-in value, or blank count. */
+function answerDisplay(a: { correctChoices: string[]; answerText?: string; blanks?: unknown[] }): string {
+  if (a.correctChoices.length) return a.correctChoices.join("");
+  if (a.answerText) return truncate(a.answerText, 10);
+  if (a.blanks?.length) return `${a.blanks.length} blanks`;
+  return "";
 }
 
 function stamp(): string {

@@ -22,6 +22,15 @@ export interface ApiChoice {
 }
 
 export type CaptureMode = "concept" | "calc";
+
+/** One dropdown of a multiple-dropdowns / matching question. */
+export interface BlankAnswer {
+  key: string; // blank id, e.g. "box1"
+  selected: string; // the student's chosen value
+  correct: string; // the correct value (= selected when verified; "" if unknown)
+  options: string[]; // all option values for this blank
+}
+
 /** Whether the student got the question right, read off the graded page. */
 export type CaptureOutcome = "correct" | "incorrect" | "unknown";
 /** How the correct answer (if any) was established.
@@ -52,6 +61,8 @@ export interface Capture {
   /** Fill-in / numerical answer value (e.g. "0.073"). When verified, the
    * correct answer; otherwise the student's entry. Absent for choice questions. */
   answerText?: string;
+  /** Multiple-dropdowns / matching answers, one per blank. */
+  blanks?: BlankAnswer[];
   outcome: CaptureOutcome;
   answerSource: AnswerSource;
   /** True when `correctChoices` is trusted (goes in the eval fixtures). */
@@ -84,6 +95,8 @@ export interface CaptureRecord {
   correctChoices: string[];
   /** Fill-in / numerical value (student's, or correct when verified). */
   answerText?: string;
+  /** Multiple-dropdowns / matching answers, one per blank. */
+  blanks?: BlankAnswer[];
   outcome: CaptureOutcome;
   answerSource: AnswerSource;
   verified: boolean;

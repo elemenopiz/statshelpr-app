@@ -28,7 +28,8 @@ splits it by `verified` into `evals/solve-fixtures/` (answer known) and
 question text, choices, images, referenced dataset, the student's selection,
 `outcome` (right/wrong), the correct answer when known, an inferred concept/calc
 mode, and course/quiz/url/time. Every question type is covered — radio, checkbox,
-dropdown, fill-in/numerical — plus images (fetched from `instructure.com` and
+dropdown, fill-in/numerical, and matching / multiple-dropdowns (captured as a
+`blanks` array, one answer per box) — plus images (fetched from `instructure.com` and
 `canvas-user-content.com`).
 
 On a **live/ungraded quiz** there's no answer on the page, so each question gets

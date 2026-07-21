@@ -10,7 +10,7 @@
  * hand-labeling. That's the whole point of this tool.
  */
 
-import type { AnswerSource, ApiChoice, CaptureOutcome, ImageBlock } from "./types";
+import type { AnswerSource, ApiChoice, BlankAnswer, CaptureOutcome, ImageBlock } from "./types";
 
 // ---- selectors (mirror content.ts) -----------------------------------------
 
@@ -62,6 +62,8 @@ export interface ScrapedQuestion {
   images: ImageBlock[];
   /** Rich choices (with element refs) for labeling/detection. */
   raw: AnswerChoice[];
+  /** Blanks for a multiple-dropdowns / matching question (empty otherwise). */
+  blanks: RawBlank[];
 }
 
 export interface DetectionResult {
@@ -121,7 +123,7 @@ export async function scrapeQuestion(
     type: choiceTypeForApi(c),
   }));
   const images = opts.includeImages ? await collectImages(question) : [];
-  return { text, choices, images, raw };
+  return { text, choices, images, raw, blanks: collectBlanks(question) };
 }
 
 /** Synchronous choice collection (radio/checkbox → dropdown → text-fill), with
@@ -149,9 +151,11 @@ export function collectChoices(question: HTMLElement): AnswerChoice[] {
   });
   if (choices.length > 0) return choices;
 
-  // Priority 2: dropdown <select> answer fields (Classic dropdown / T-F).
-  const selects = [...question.querySelectorAll<HTMLSelectElement>("select")].filter(isAnswerSelect);
-  if (selects.length > 0) {
+  // Priority 2: a SINGLE dropdown <select> answer field (Classic dropdown /
+  // T-F). Multiple answer selects = a "multiple dropdowns" / matching question,
+  // handled as blanks by collectBlanks() — not flattened into choices here.
+  const selects = collectAnswerSelects(question);
+  if (selects.length === 1) {
     const sel = selects[0]!;
     let idx = 0;
     for (const opt of [...sel.querySelectorAll("option")]) {
@@ -345,9 +349,42 @@ export interface AnswerReadout {
   /** For fill-in/numerical questions: the entered value (e.g. "0.073"). When
    * verified, this is the correct answer; otherwise it's the student's entry. */
   answerText?: string;
+  /** For multiple-dropdowns / matching questions: one entry per blank. */
+  blanks?: BlankAnswer[];
   outcome: CaptureOutcome;
   answerSource: AnswerSource;
   verified: boolean;
+}
+
+/**
+ * Multiple-dropdowns / matching question: one answer per blank. On a graded
+ * full-marks review every selected value is correct (self-correct); a live
+ * quiz treats the user's selections as asserted-correct. Wrong/hidden → the
+ * blanks keep the student's picks but `correct` stays empty (unverified).
+ */
+export function readMultiDropdown(question: HTMLElement, raws: RawBlank[]): AnswerReadout {
+  const live = raws.some((b) => !b.disabled);
+  const allAnswered = raws.length > 0 && raws.every((b) => b.selected);
+  const correctness = live
+    ? "correct"
+    : questionCorrectness(question) ?? (submissionFullMarks() ? "correct" : null);
+  const verified = allAnswered && correctness === "correct";
+  const blanks: BlankAnswer[] = raws.map((b) => ({
+    key: b.key,
+    selected: b.selected,
+    correct: verified ? b.selected : "",
+    options: b.options,
+  }));
+  const outcome: CaptureOutcome =
+    correctness === "correct" ? "correct" : correctness === "incorrect" ? "incorrect" : "unknown";
+  return {
+    selectedChoices: [],
+    correctChoices: [],
+    blanks,
+    outcome,
+    answerSource: verified ? (live ? "manual" : "self-correct") : "none",
+    verified,
+  };
 }
 
 /**
@@ -442,6 +479,44 @@ function isAnswerSelect(sel: HTMLSelectElement): boolean {
   if (sel.closest(".answers, .answer, .question_text, [data-testid*='question']")) return true;
   if (sel.classList.contains("question_input")) return true;
   return false;
+}
+
+function collectAnswerSelects(question: HTMLElement): HTMLSelectElement[] {
+  return [...question.querySelectorAll<HTMLSelectElement>("select")].filter(isAnswerSelect);
+}
+
+/** One dropdown "blank" of a multiple-dropdowns / matching question. */
+export interface RawBlank {
+  key: string; // blank id (from the select's name) or "blank N"
+  selected: string; // the student's chosen option text ("" if none)
+  options: string[]; // all non-placeholder option texts
+  disabled: boolean; // read-only (graded review) vs editable (live)
+}
+
+/** Collect the blanks of a multiple-dropdowns question (2+ answer selects).
+ * Returns [] for single-dropdown / non-dropdown questions. */
+export function collectBlanks(question: HTMLElement): RawBlank[] {
+  const selects = collectAnswerSelects(question);
+  if (selects.length < 2) return [];
+  return selects.map((sel, i) => {
+    const options = [...sel.querySelectorAll("option")]
+      .map((o) => normalizeText(o.textContent ?? ""))
+      .filter((t) => t && !isPlaceholderOption(t));
+    const selOpt = sel.selectedIndex >= 0 ? sel.options[sel.selectedIndex] : null;
+    let selected = selOpt ? normalizeText(selOpt.textContent ?? "") : "";
+    if (isPlaceholderOption(selected)) selected = "";
+    return { key: blankKey(sel, i), selected, options, disabled: sel.disabled };
+  });
+}
+
+function isPlaceholderOption(text: string): boolean {
+  return !text || /^\[?\s*(select|choose)\s*\]?\s*\.{0,3}$/i.test(text);
+}
+
+function blankKey(sel: HTMLSelectElement, i: number): string {
+  const name = sel.name || "";
+  const m = name.match(/answer_for_(.+)$/i) ?? name.match(/_([A-Za-z0-9]+)$/);
+  return (m?.[1] ?? `blank${i + 1}`).trim();
 }
 
 // ---- images (mirror content.ts) --------------------------------------------

@@ -29,6 +29,7 @@ interface CaptureRecord {
   selectedChoices?: string[];
   correctChoices?: string[];
   answerText?: string;
+  blanks?: Array<{ key: string; selected: string; correct: string; options: string[] }>;
   outcome?: string;
   answerSource?: string;
   verified?: boolean;
@@ -123,7 +124,8 @@ function matchDataset(ref: string, datasets: Record<string, string>): string | n
 /** A record we trust the answer for → an eval fixture. */
 function isVerified(r: CaptureRecord): boolean {
   if (r.expected) return true; // legacy fixture-shaped record
-  return r.verified === true && ((r.correctChoices?.length ?? 0) > 0 || !!r.answerText);
+  const hasBlankAnswers = (r.blanks ?? []).some((b) => b.correct);
+  return r.verified === true && ((r.correctChoices?.length ?? 0) > 0 || !!r.answerText || hasBlankAnswers);
 }
 
 function questionOf(r: CaptureRecord): string {
@@ -148,6 +150,16 @@ function toFixture(r: CaptureRecord, datasets: Record<string, string>, missing: 
     selectedChoices: r.correctChoices ?? [],
   };
   if (r.answerText) expected.answerContains = [r.answerText];
+  // Matching / multiple-dropdowns: expose the option pool as choices and check
+  // the correct value of every blank appears in the model's answer. The full
+  // per-blank mapping is preserved under expected.blanks for reference.
+  if (r.blanks?.length) {
+    const pool = [...new Set(r.blanks.flatMap((b) => b.options))];
+    if (pool.length) request.choices = pool.map((text, i) => ({ label: String.fromCharCode(65 + i), text, type: "dropdown" }));
+    const corrects = r.blanks.map((b) => b.correct).filter(Boolean);
+    if (corrects.length) expected.answerContains = corrects;
+    expected.blanks = r.blanks.map((b) => ({ key: b.key, correct: b.correct }));
+  }
   return {
     name: r.name,
     request,

@@ -136,6 +136,7 @@ export function toRecord(c: Capture): CaptureRecord {
     capturedAt: c.capturedAt,
   };
   if (c.answerText) rec.answerText = c.answerText;
+  if (c.blanks?.length) rec.blanks = c.blanks;
   if (c.datasetRefs.length > 0) rec.datasetRefs = c.datasetRefs;
   if (c.courseId) rec.courseId = c.courseId;
   if (c.quizId) rec.quizId = c.quizId;
