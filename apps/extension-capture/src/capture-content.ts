@@ -159,14 +159,14 @@ async function setPillState(question: HTMLElement, pill: HTMLButtonElement) {
   if (saved) {
     const c = id ? await getCapture(id) : undefined;
     pill.classList.add(c?.verified ? "shcap-saved" : "shcap-warn");
-    pill.textContent = c?.verified ? `✓ ${c.correctChoices.join("")}` : "✓ pool";
+    pill.textContent = c?.verified ? `✓ ${answerDisplay(c) || "saved"}` : "✓ pool";
     pill.title = c?.verified ? "Captured (verified)" : "Captured to pool (answer unverified)";
     return;
   }
   if (isReadOnly(raw)) {
     const a = readGradedAnswer(question, raw);
     pill.classList.toggle("shcap-has-key", a.verified);
-    pill.textContent = a.verified ? `⬇ ${a.correctChoices.join("")}` : "⬇ pool";
+    pill.textContent = a.verified ? `⬇ ${answerDisplay(a) || "saved"}` : "⬇ pool";
     pill.title = a.verified
       ? "Full-marks / keyed — will capture the correct answer"
       : `Answers hidden & ${a.outcome} — captured to the pool (answer unknown)`;
@@ -196,18 +196,23 @@ async function captureOne(question: HTMLElement, pill: HTMLButtonElement): Promi
     if (isReadOnly(scraped.raw)) {
       readout = readGradedAnswer(question, scraped.raw); // graded review
     } else {
-      const selected = selectedChoiceLabels(scraped.raw); // live quiz — user asserts
-      if (selected.length === 0) {
-        flashPill(pill, "select answer first", "shcap-warn");
-        return null;
+      // live quiz — the user asserts the answer by selecting / entering it
+      const fill = scraped.raw.find((c) => c.kind === "text-fill");
+      if (fill) {
+        const value = ((fill.input as HTMLInputElement).value ?? "").trim();
+        if (!value) {
+          flashPill(pill, "enter answer first", "shcap-warn");
+          return null;
+        }
+        readout = { selectedChoices: [], correctChoices: [], answerText: value, outcome: "correct", answerSource: "manual", verified: true };
+      } else {
+        const selected = selectedChoiceLabels(scraped.raw);
+        if (selected.length === 0) {
+          flashPill(pill, "select answer first", "shcap-warn");
+          return null;
+        }
+        readout = { selectedChoices: selected, correctChoices: selected, outcome: "correct", answerSource: "manual", verified: true };
       }
-      readout = {
-        selectedChoices: selected,
-        correctChoices: selected,
-        outcome: "correct",
-        answerSource: "manual",
-        verified: true,
-      };
     }
 
     const scrapedText = scraped.text;
@@ -221,6 +226,7 @@ async function captureOne(question: HTMLElement, pill: HTMLButtonElement): Promi
       images: scraped.images,
       selectedChoices: readout.selectedChoices,
       correctChoices: readout.correctChoices,
+      ...(readout.answerText ? { answerText: readout.answerText } : {}),
       outcome: readout.outcome,
       answerSource: readout.answerSource,
       verified: readout.verified,
@@ -234,7 +240,7 @@ async function captureOne(question: HTMLElement, pill: HTMLButtonElement): Promi
     await setPillState(question, pill);
     flashPill(
       pill,
-      readout.verified ? `✓ ${readout.correctChoices.join("") || "saved"}` : "✓ pool",
+      readout.verified ? `✓ ${answerDisplay(readout) || "saved"}` : "✓ pool",
       readout.verified ? "shcap-saved" : "shcap-warn",
     );
     return readout;
@@ -394,6 +400,11 @@ function flashPill(pill: HTMLButtonElement, text: string, cls: string) {
 
 function truncate(s: string, n: number): string {
   return s.length > n ? s.slice(0, n - 1) + "…" : s;
+}
+
+/** Short answer label for a pill: choice letters, or a fill-in value. */
+function answerDisplay(a: { correctChoices: string[]; answerText?: string }): string {
+  return a.correctChoices.join("") || (a.answerText ? truncate(a.answerText, 10) : "");
 }
 
 function stamp(): string {

@@ -65,12 +65,15 @@ function renderList(captures: Capture[]) {
         text: c.verified ? "verified" : "unsolved",
       }),
     );
-    // verified → the correct answer; pool → the student's (wrong/unknown) pick
+    // verified → the correct answer; unsolved → the student's (wrong/unknown) pick.
+    // Fill-in questions have no letter, so fall back to the entered value.
+    const ansText =
+      (c.verified ? c.correctChoices : c.selectedChoices).join("") || c.answerText || "—";
     meta.appendChild(
       el("span", {
         className: "tag ans",
         title: c.verified ? "correct answer" : `your pick (${c.outcome})`,
-        text: (c.verified ? c.correctChoices : c.selectedChoices).join("") || "—",
+        text: ansText,
       }),
     );
     for (const ds of c.datasetRefs) meta.appendChild(el("span", { className: "tag data", text: ds }));

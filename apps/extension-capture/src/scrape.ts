@@ -171,19 +171,35 @@ export function collectChoices(question: HTMLElement): AnswerChoice[] {
     if (choices.length > 0) return choices;
   }
 
-  // Priority 3: a single fill-in text/numerical input.
-  const textInputs = [...question.querySelectorAll<HTMLInputElement>(TEXT_INPUT_SELECTOR)];
-  if (textInputs.length === 1) {
-    const t = textInputs[0]!;
+  // Priority 3: a fill-in / numerical input. Match any text-like input (incl.
+  // type-less and disabled/readonly ones — on a graded review the answer box is
+  // disabled but still holds the value). When several exist, prefer the one that
+  // actually carries an answer value.
+  const textInputs = [
+    ...question.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("input, textarea"),
+  ].filter(isTextLike);
+  if (textInputs.length >= 1) {
+    const t =
+      textInputs.find((i) => (i.value ?? "").trim()) ??
+      textInputs.find((i) => i.classList.contains("question_input") || i.classList.contains("numerical_question_input")) ??
+      textInputs[0]!;
     choices.push({
-      input: t,
-      row: getChoiceRow(t),
+      input: t as HTMLInputElement,
+      row: getChoiceRow(t as HTMLInputElement),
       label: "A",
-      text: t.placeholder || "(fill in your answer)",
+      text: (t as HTMLInputElement).placeholder || "(fill in your answer)",
       kind: "text-fill",
     });
   }
   return choices;
+}
+
+/** A text-entry input (text/number/type-less/textarea), excluding the
+ * structural input types. */
+function isTextLike(el: HTMLInputElement | HTMLTextAreaElement): boolean {
+  if (el.tagName === "TEXTAREA") return true;
+  const t = (el.getAttribute("type") || "text").toLowerCase();
+  return !["radio", "checkbox", "hidden", "submit", "button", "file", "image", "reset"].includes(t);
 }
 
 function choiceTypeForApi(c: AnswerChoice): ApiChoice["type"] {
@@ -326,6 +342,9 @@ export function questionScore(question: HTMLElement): { earned: number; possible
 export interface AnswerReadout {
   selectedChoices: string[];
   correctChoices: string[];
+  /** For fill-in/numerical questions: the entered value (e.g. "0.073"). When
+   * verified, this is the correct answer; otherwise it's the student's entry. */
+  answerText?: string;
   outcome: CaptureOutcome;
   answerSource: AnswerSource;
   verified: boolean;
@@ -340,6 +359,25 @@ export interface AnswerReadout {
  *     student's pick kept for the pool, correct answer unknown).
  */
 export function readGradedAnswer(question: HTMLElement, raw: AnswerChoice[]): AnswerReadout {
+  // Fill-in / numerical: the answer is the input value, not a choice letter.
+  const fill = raw.find((c) => c.kind === "text-fill");
+  if (fill) {
+    const value = ((fill.input as HTMLInputElement).value ?? "").trim();
+    const correctness = questionCorrectness(question);
+    const isCorrect = correctness === "correct" || (correctness === null && submissionFullMarks());
+    if (value && isCorrect) {
+      return { selectedChoices: [], correctChoices: [], answerText: value, outcome: "correct", answerSource: "self-correct", verified: true };
+    }
+    return {
+      selectedChoices: [],
+      correctChoices: [],
+      answerText: value,
+      outcome: correctness === "incorrect" ? "incorrect" : "unknown",
+      answerSource: "none",
+      verified: false,
+    };
+  }
+
   const selectedChoices = selectedChoiceLabels(raw);
   const key = detectCorrectChoices(question, raw);
   if (key.hasKey) {

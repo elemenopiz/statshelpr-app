@@ -49,6 +49,9 @@ export interface Capture {
   selectedChoices: string[];
   /** The trusted correct answer; empty when unknown (unverified). */
   correctChoices: string[];
+  /** Fill-in / numerical answer value (e.g. "0.073"). When verified, the
+   * correct answer; otherwise the student's entry. Absent for choice questions. */
+  answerText?: string;
   outcome: CaptureOutcome;
   answerSource: AnswerSource;
   /** True when `correctChoices` is trusted (goes in the eval fixtures). */
@@ -98,6 +101,7 @@ export interface PoolItem {
   dataFiles?: Array<{ filename: string; content: string }>;
   selectedChoices: string[];
   correctChoices: string[];
+  answerText?: string;
   outcome: CaptureOutcome;
   answerSource: AnswerSource;
   verified: boolean;

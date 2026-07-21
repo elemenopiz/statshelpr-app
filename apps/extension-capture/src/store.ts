@@ -131,26 +131,35 @@ export function toFixture(
   if (c.images.length > 0) request.images = c.images;
   const dataFiles = expandDataFiles(c.datasetRefs, datasets, inline);
   if (dataFiles.length > 0) request.dataFiles = dataFiles;
+  const expected: Fixture["expected"] = {
+    mode: c.mode,
+    selectedChoices: c.correctChoices,
+  };
+  // Fill-in / numerical answer → checked via answerContains (run-evals matches
+  // the model's answer text against it), since there's no choice letter.
+  if (c.answerText) expected.answerContains = [c.answerText];
   return {
     name: c.name,
     request,
-    expected: {
-      mode: c.mode,
-      selectedChoices: c.correctChoices,
-    },
+    expected,
     meta: { answerSource: c.answerSource, outcome: c.outcome, url: c.url, capturedAt: c.capturedAt },
   };
 }
 
-/** Verified captures only (trusted correct answer) — the eval set. */
+/** A capture whose correct answer we trust — a correct choice, or a verified
+ * fill-in value. */
+function isSolved(c: Capture): boolean {
+  return c.verified && (c.correctChoices.length > 0 || !!c.answerText);
+}
+
 export function verifiedOnly(captures: Capture[]): Capture[] {
-  return captures.filter((c) => c.verified && c.correctChoices.length > 0);
+  return captures.filter(isSolved);
 }
 
 /** Captures whose correct answer we never established — the "unsolved" set
  * (missed on every attempt, answers hidden). The AI-test dataset. */
 export function unsolvedOnly(captures: Capture[]): Capture[] {
-  return captures.filter((c) => !(c.verified && c.correctChoices.length > 0));
+  return captures.filter((c) => !isSolved(c));
 }
 
 /** Pretty-printed JSON array of fixtures (verified captures only) — drop through
@@ -196,6 +205,7 @@ export function toPoolBundle(
       url: c.url,
       capturedAt: c.capturedAt,
     };
+    if (c.answerText) item.answerText = c.answerText;
     if (c.courseId) item.courseId = c.courseId;
     if (c.quizId) item.quizId = c.quizId;
     if (c.images.length > 0) item.images = c.images;
