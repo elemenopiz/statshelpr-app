@@ -1,0 +1,15 @@
+{
+  "name": "@statshelpr/extension-capture",
+  "version": "0.1.0",
+  "private": true,
+  "description": "DEV-only sideload extension for capturing labeled Canvas quiz questions as eval/training fixtures.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "watch": "node scripts/build.mjs --watch"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.270",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.0"
+  }
+}

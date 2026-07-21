@@ -7,7 +7,9 @@
     "dev": "pnpm --filter @statshelpr/api dev",
     "build": "pnpm --filter @statshelpr/api build",
     "build:extension": "pnpm --filter @statshelpr/extension build",
+    "build:capture": "pnpm --filter @statshelpr/extension-capture build",
     "eval": "pnpm --filter @statshelpr/api exec tsx ../../scripts/run-evals.ts",
+    "import:captures": "pnpm --filter @statshelpr/api exec tsx ../../scripts/import-captures.ts",
     "snapshot:r": "pnpm --filter @statshelpr/api exec tsx ../../scripts/create-r-snapshot.ts"
   },
   "devDependencies": {

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>statshelpr · capture</title>
+    <style>
+      :root {
+        --paper: #faf9f5; --card: #fff; --ink: #1d1c17; --ink-2: #55534a; --ink-3: #8d8a7e;
+        --line: rgba(29, 28, 23, 0.13); --line-soft: rgba(29, 28, 23, 0.07);
+        --blue: #2742c8; --blue-deep: #1c31a2; --blue-tint: rgba(39, 66, 200, 0.08); --blue-ring: rgba(39, 66, 200, 0.16);
+        --ok: #0b7a4b; --ok-tint: rgba(11, 122, 75, 0.09);
+        --warn: #8a6410; --warn-tint: rgba(176, 128, 26, 0.12);
+        --err: #c24029; --err-tint: rgba(194, 64, 41, 0.09);
+        --btn-text: #fff;
+        --shadow: 0 1px 2px rgba(29, 28, 23, 0.05), 0 6px 20px rgba(29, 28, 23, 0.06);
+        --font-serif: 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+        --font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
+        --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', Consolas, monospace;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --paper: #161614; --card: #1e1e1b; --ink: #eae8df; --ink-2: #a8a599; --ink-3: #7a7769;
+          --line: rgba(234, 232, 223, 0.14); --line-soft: rgba(234, 232, 223, 0.08);
+          --blue: #93a3ff; --blue-deep: #aebaff; --blue-tint: rgba(147, 163, 255, 0.11); --blue-ring: rgba(147, 163, 255, 0.22);
+          --ok: #6cc49a; --ok-tint: rgba(108, 196, 154, 0.1);
+          --warn: #d8b25e; --warn-tint: rgba(216, 178, 94, 0.12);
+          --err: #e58873; --err-tint: rgba(229, 136, 115, 0.1);
+          --btn-text: #12122b;
+          --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.25);
+        }
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body {
+        font-family: var(--font-ui); background: var(--paper); color: var(--ink);
+        width: 380px; font-size: 13px; line-height: 1.5; padding: 14px 16px 12px;
+        -webkit-font-smoothing: antialiased;
+      }
+      .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+      .logo { font-family: var(--font-serif); font-size: 1.3rem; font-weight: 500; letter-spacing: -0.01em; }
+      .logo em { color: var(--blue); font-style: italic; }
+      .badge {
+        font-family: var(--font-mono); font-size: 9.5px; font-weight: 600; letter-spacing: 0.1em;
+        text-transform: uppercase; color: var(--warn); background: var(--warn-tint);
+        padding: 3px 8px; border-radius: 999px;
+      }
+      .stat-card {
+        border: 1px solid var(--line); background: var(--card); border-radius: 12px;
+        box-shadow: var(--shadow); padding: 13px 14px; margin-bottom: 12px;
+      }
+      .stat-num { font-family: var(--font-serif); font-size: 1.9rem; font-weight: 500; line-height: 1; }
+      .stat-num em { color: var(--blue); font-style: normal; }
+      .stat-sub { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3); margin-top: 5px; }
+      .section-label {
+        font-size: 10px; font-weight: 600; font-family: var(--font-mono); letter-spacing: 0.13em;
+        text-transform: uppercase; color: var(--ink-3); margin: 14px 0 7px 1px;
+        display: flex; align-items: center; gap: 8px;
+      }
+      .section-label::after { content: ""; flex: 1; height: 1px; background: var(--line-soft); }
+      .row { display: flex; gap: 7px; }
+      .btn {
+        flex: 1; padding: 8px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;
+        font-family: inherit; cursor: pointer; border: 1px solid var(--line); background: var(--card);
+        color: var(--ink); transition: border-color 0.15s, color 0.15s, background 0.15s;
+      }
+      .btn:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); background: var(--blue-tint); }
+      .btn:disabled { opacity: 0.5; cursor: default; }
+      .btn.primary { background: var(--blue); color: var(--btn-text); border-color: transparent; }
+      .btn.primary:hover:not(:disabled) { background: var(--blue-deep); color: var(--btn-text); }
+      .btn.danger:hover:not(:disabled) { border-color: var(--err); color: var(--err); background: var(--err-tint); }
+      .controls { display: flex; align-items: center; gap: 14px; margin: 4px 1px 2px; font-size: 12px; color: var(--ink-2); }
+      .controls label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+      select, input[type="checkbox"] { accent-color: var(--blue); font-family: inherit; }
+      select {
+        background: var(--card); color: var(--ink); border: 1px solid var(--line);
+        border-radius: 6px; padding: 2px 6px; font-size: 11.5px;
+      }
+      .list { margin-top: 4px; max-height: 260px; overflow-y: auto; }
+      .item {
+        display: flex; align-items: flex-start; gap: 8px; padding: 8px 2px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .item:last-child { border-bottom: none; }
+      .item .q { flex: 1; min-width: 0; }
+      .item .q-text {
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+        font-size: 11.5px; color: var(--ink); line-height: 1.35;
+      }
+      .item .q-meta { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+      .tag {
+        font-family: var(--font-mono); font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 999px;
+        border: 1px solid var(--line-soft); color: var(--ink-3);
+      }
+      .tag.key { color: var(--ok); background: var(--ok-tint); border-color: transparent; }
+      .tag.manual { color: var(--warn); background: var(--warn-tint); border-color: transparent; }
+      .tag.ans { color: var(--blue); background: var(--blue-tint); border-color: transparent; }
+      .item select { font-size: 10px; padding: 1px 4px; }
+      .item .del {
+        background: none; border: none; color: var(--ink-3); font-size: 15px; line-height: 1;
+        padding: 2px 5px; border-radius: 5px; cursor: pointer;
+      }
+      .item .del:hover { color: var(--err); background: var(--err-tint); }
+      .empty { text-align: center; font-style: italic; color: var(--ink-3); font-size: 11.5px; padding: 18px 0; }
+      .note {
+        margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line-soft);
+        font-size: 10px; line-height: 1.55; color: var(--ink-3); font-family: var(--font-mono);
+      }
+      .note code { color: var(--ink-2); }
+      .toast { margin-top: 8px; min-height: 15px; font-size: 11px; font-family: var(--font-mono); color: var(--ok); }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <div class="logo">stats<em>helpr</em> · capture</div>
+      <span class="badge">dev</span>
+    </div>
+
+    <div class="stat-card">
+      <div class="stat-num"><em id="count">0</em> captured</div>
+      <div class="stat-sub" id="breakdown">nothing captured yet</div>
+    </div>
+
+    <div class="row">
+      <button class="btn primary" id="export-json" type="button">Export .json</button>
+      <button class="btn" id="export-jsonl" type="button">Export .jsonl</button>
+    </div>
+
+    <div class="section-label">defaults for new captures</div>
+    <div class="controls">
+      <label>mode
+        <select id="mode"><option value="concept">concept</option><option value="calc">calc</option></select>
+      </label>
+      <label><input type="checkbox" id="images" /> include images</label>
+    </div>
+
+    <div class="section-label" id="list-label">captured questions</div>
+    <div class="list" id="list"></div>
+    <div class="empty" id="empty" style="display: none">
+      No captures yet. Open a Canvas quiz or a graded results page and use the on-page panel.
+    </div>
+
+    <div class="toast" id="toast"></div>
+    <button class="btn danger" id="clear" type="button" style="margin-top: 10px; width: 100%">Clear all</button>
+
+    <div class="note">
+      Export writes fixtures in the <code>evals/solve-fixtures</code> shape. Split the bundle into
+      individual files with <code>tsx scripts/import-captures.ts &lt;bundle.json&gt;</code>, then run
+      <code>tsx scripts/run-evals.ts</code>.
+    </div>
+    <script src="popup.js"></script>
+  </body>
+</html>

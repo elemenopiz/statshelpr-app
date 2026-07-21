@@ -1,0 +1,139 @@
+/* =========================================================================
+ * Injected capture UI. Prefixed `shcap-` so it never collides with the
+ * production tutor extension (`statshelpr-*`) if both are loaded side by side.
+ * This is a dev tool, so the pills are visible by default (no discreet mode).
+ * ========================================================================= */
+
+.shcap-qbar {
+  display: block;
+  margin: 0 0 6px;
+}
+
+.shcap-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.6;
+  color: #55534a;
+  background: #fff;
+  border: 1px solid rgba(29, 28, 23, 0.2);
+  border-radius: 999px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
+}
+.shcap-pill:hover { border-color: #2742c8; color: #2742c8; }
+.shcap-pill:active { transform: scale(0.97); }
+
+/* answer key detected on the page → green, inviting one-click capture */
+.shcap-pill.shcap-has-key {
+  color: #0b7a4b;
+  border-color: rgba(11, 122, 75, 0.4);
+  background: rgba(11, 122, 75, 0.08);
+}
+.shcap-pill.shcap-has-key:hover { border-color: #0b7a4b; }
+
+/* already captured */
+.shcap-pill.shcap-saved {
+  color: #fff;
+  background: #0b7a4b;
+  border-color: #0b7a4b;
+}
+.shcap-pill.shcap-warn { color: #8a6410; border-color: #8a6410; background: rgba(176, 128, 26, 0.12); }
+.shcap-pill.shcap-err { color: #fff; background: #c24029; border-color: #c24029; }
+.shcap-pill.shcap-busy { opacity: 0.6; cursor: progress; }
+
+/* subtle marker on the question container once captured */
+.shcap-captured { box-shadow: inset 3px 0 0 rgba(11, 122, 75, 0.55); }
+
+/* ------------------------------------------------------------------ panel */
+
+#shcap-panel {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483000;
+  width: 234px;
+  background: #faf9f5;
+  color: #1d1c17;
+  border: 1px solid rgba(29, 28, 23, 0.15);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(29, 28, 23, 0.06), 0 10px 30px rgba(29, 28, 23, 0.14);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 12px;
+  overflow: hidden;
+}
+
+.shcap-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(29, 28, 23, 0.08);
+}
+.shcap-title { font-family: Georgia, "Times New Roman", serif; font-size: 13px; }
+.shcap-title b { color: #2742c8; font-style: italic; font-weight: 500; }
+.shcap-collapse {
+  border: none; background: none; color: #8d8a7e; font-size: 16px; line-height: 1;
+  cursor: pointer; padding: 0 4px; border-radius: 5px;
+}
+.shcap-collapse:hover { color: #2742c8; background: rgba(39, 66, 200, 0.08); }
+
+.shcap-body { padding: 11px 12px 12px; display: flex; flex-direction: column; gap: 9px; }
+#shcap-panel.shcap-collapsed .shcap-body { display: none; }
+
+.shcap-stat { font-size: 12px; color: #55534a; }
+.shcap-stat b { font-size: 17px; color: #1d1c17; font-family: Georgia, serif; }
+.shcap-sub { display: block; margin-top: 2px; font-size: 10px; color: #8d8a7e; font-family: ui-monospace, monospace; }
+.shcap-page { font-size: 10.5px; color: #8d8a7e; font-family: ui-monospace, monospace; line-height: 1.4; }
+
+.shcap-btn {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(29, 28, 23, 0.15);
+  background: #fff;
+  color: #1d1c17;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.shcap-btn:hover:not(:disabled) { border-color: #2742c8; color: #2742c8; background: rgba(39, 66, 200, 0.08); }
+.shcap-btn:disabled { opacity: 0.5; cursor: default; }
+.shcap-btn.shcap-primary { background: #2742c8; color: #fff; border-color: transparent; }
+.shcap-btn.shcap-primary:hover:not(:disabled) { background: #1c31a2; color: #fff; }
+.shcap-btn.shcap-quiet { font-weight: 500; color: #8d8a7e; }
+.shcap-btn.shcap-quiet:hover:not(:disabled) { color: #c24029; border-color: #c24029; background: rgba(194, 64, 41, 0.09); }
+
+.shcap-row { display: flex; gap: 7px; }
+.shcap-row .shcap-btn { flex: 1; }
+
+.shcap-controls { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11.5px; color: #55534a; }
+.shcap-seg, .shcap-check { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+.shcap-controls select {
+  font-family: inherit; font-size: 11px; padding: 2px 5px; border-radius: 6px;
+  border: 1px solid rgba(29, 28, 23, 0.15); background: #fff; color: #1d1c17;
+}
+.shcap-controls input[type="checkbox"] { accent-color: #2742c8; }
+
+@media (prefers-color-scheme: dark) {
+  .shcap-pill { color: #a8a599; background: #1e1e1b; border-color: rgba(234, 232, 223, 0.2); }
+  .shcap-pill:hover { color: #93a3ff; border-color: #93a3ff; }
+  .shcap-pill.shcap-has-key { color: #6cc49a; background: rgba(108, 196, 154, 0.12); border-color: rgba(108, 196, 154, 0.4); }
+  .shcap-pill.shcap-saved { color: #12122b; background: #6cc49a; border-color: #6cc49a; }
+  #shcap-panel { background: #161614; color: #eae8df; border-color: rgba(234, 232, 223, 0.15); }
+  .shcap-head { border-color: rgba(234, 232, 223, 0.1); }
+  .shcap-title b { color: #93a3ff; }
+  .shcap-stat b { color: #eae8df; }
+  .shcap-btn { background: #1e1e1b; color: #eae8df; border-color: rgba(234, 232, 223, 0.15); }
+  .shcap-btn:hover:not(:disabled) { color: #93a3ff; border-color: #93a3ff; background: rgba(147, 163, 255, 0.11); }
+  .shcap-btn.shcap-primary { background: #2742c8; color: #fff; }
+  .shcap-controls select { background: #1e1e1b; color: #eae8df; border-color: rgba(234, 232, 223, 0.15); }
+}
