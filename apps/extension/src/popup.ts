@@ -9,6 +9,11 @@ interface StoredConfig {
 const DEFAULT_OPACITY = 0.2;
 const API_URL = "https://api.statshelpr.com";
 
+/** Manual light/dark override — unset means "follow the OS", same as the
+ * CSS's default @media (prefers-color-scheme: dark) behavior. */
+const STORAGE_KEY_THEME = "statshelpr.theme";
+type Theme = "light" | "dark";
+
 interface HealthResponse {
   ok?: boolean;
   version?: string;
@@ -79,10 +84,55 @@ const solvesMeterEl = document.getElementById("solves-meter") as HTMLDivElement;
 const upgradeCtaEl = document.getElementById("upgrade-cta") as HTMLAnchorElement;
 const planNoteEl = document.getElementById("plan-note") as HTMLDivElement;
 const versionEl = document.getElementById("ext-version") as HTMLSpanElement;
+const themeToggleEl = document.getElementById("theme-toggle") as HTMLButtonElement | null;
+const deviceLimitNoteEl = document.getElementById("device-limit-note") as HTMLDivElement;
+const resetDeviceBtn = document.getElementById("reset-device-btn") as HTMLButtonElement;
+const resetStatusEl = document.getElementById("reset-status") as HTMLDivElement;
 
 let dataFiles: DataFile[] = [];
 let libraries: string[] = [];
 let packageErrors: PackageError[] = [];
+
+// =============================================================================
+// theme (light/dark toggle, next to the status dot)
+// =============================================================================
+
+function systemTheme(): Theme {
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function applyTheme(theme: Theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  if (themeToggleEl) {
+    const next: Theme = theme === "dark" ? "light" : "dark";
+    themeToggleEl.textContent = theme === "dark" ? "☾" : "☀"; // ☾ dark / ☀ light
+    themeToggleEl.setAttribute("aria-label", `Switch to ${next} theme`);
+    themeToggleEl.title = "Switch theme";
+  }
+}
+
+(async () => {
+  let theme = systemTheme();
+  try {
+    const r = await chrome.storage.local.get(STORAGE_KEY_THEME);
+    const stored = r[STORAGE_KEY_THEME] as Theme | undefined;
+    if (stored === "light" || stored === "dark") theme = stored;
+  } catch {
+    /* file:// preview — fall back to the system theme computed above */
+  }
+  applyTheme(theme);
+})();
+
+themeToggleEl?.addEventListener("click", () => {
+  const current: Theme = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+  const next: Theme = current === "dark" ? "light" : "dark";
+  applyTheme(next);
+  try {
+    void chrome.storage.local.set({ [STORAGE_KEY_THEME]: next });
+  } catch {
+    /* file:// preview — theme choice just won't persist */
+  }
+});
 
 // =============================================================================
 // settings + health + plan
@@ -346,6 +396,87 @@ async function renderSolvesLeft() {
 }
 
 // =============================================================================
+// single-device activation + reset
+// =============================================================================
+//
+// Paid licenses are good on one device at a time. activate.ts sets
+// chrome.storage.local.activationBlocked when POST /api/activate-license
+// comes back { ok:false, atLimit:true }; content.ts sets the same flag when
+// a solve gets a 403 with atLimit:true. Either way, this popup is the one
+// place that surfaces it and offers a way out: POST /api/reset/request frees
+// the license so it can be activated on a (new) device again. activate.ts
+// clears the flag itself once a fresh activation is confirmed.
+
+const STORAGE_KEY_ACTIVATION_BLOCKED = "activationBlocked";
+
+void refreshDeviceLimitState();
+
+async function refreshDeviceLimitState() {
+  try {
+    const r = await chrome.storage.local.get(STORAGE_KEY_ACTIVATION_BLOCKED);
+    setDeviceLimitBlocked(Boolean(r[STORAGE_KEY_ACTIVATION_BLOCKED]));
+  } catch {
+    /* file:// preview — leave hidden */
+  }
+}
+
+function setDeviceLimitBlocked(blocked: boolean) {
+  deviceLimitNoteEl.style.display = blocked ? "block" : "none";
+  if (!blocked) setResetStatus("", "");
+}
+
+function setResetStatus(msg: string, kind: "ok" | "err" | "") {
+  resetStatusEl.textContent = msg;
+  resetStatusEl.className = `status${kind ? ` ${kind}` : ""}`;
+  resetStatusEl.style.display = msg ? "block" : "none";
+}
+
+resetDeviceBtn.addEventListener("click", () => {
+  void requestReset();
+});
+
+async function requestReset() {
+  resetDeviceBtn.disabled = true;
+  setResetStatus("Requesting reset…", "");
+  try {
+    const cfg = await chrome.storage.sync.get("licenseKey");
+    const licenseKey = (cfg["licenseKey"] as string | undefined) ?? "";
+    if (!licenseKey) {
+      setResetStatus("No license key found — activate first.", "err");
+      return;
+    }
+
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 6000);
+    const res = await fetch(`${API_URL.replace(/\/$/, "")}/api/reset/request`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ licenseKey }),
+      signal: ctrl.signal,
+    });
+    clearTimeout(timer);
+    if (!res.ok) {
+      setResetStatus("Couldn't request a reset — try again shortly.", "err");
+      return;
+    }
+
+    const data = (await res.json()) as { ok?: boolean; method?: "portal" | "email"; url?: string };
+    if (data.ok && data.method === "portal" && data.url) {
+      void chrome.tabs.create({ url: data.url });
+      setResetStatus("Opened the reset page in a new tab.", "ok");
+    } else if (data.ok && data.method === "email") {
+      setResetStatus("Check your email for a reset link.", "ok");
+    } else {
+      setResetStatus("Couldn't request a reset — try again shortly.", "err");
+    }
+  } catch {
+    setResetStatus("Network error — check your connection and try again.", "err");
+  } finally {
+    resetDeviceBtn.disabled = false;
+  }
+}
+
+// =============================================================================
 // data files (drag-drop / click to upload)
 // =============================================================================
 
@@ -595,6 +726,11 @@ try {
     }
     if (area === "local" && changes[STORAGE_KEY_FILES]) {
       void loadFiles().then(() => renderFilesList());
+    }
+    // activate.ts / content.ts flip this when the single-device limit is hit
+    // (or cleared) — reflect it live without requiring a popup reopen.
+    if (area === "local" && changes[STORAGE_KEY_ACTIVATION_BLOCKED]) {
+      setDeviceLimitBlocked(Boolean(changes[STORAGE_KEY_ACTIVATION_BLOCKED]?.newValue));
     }
     // activate.ts writes a fresh licenseKey after checkout completes on
     // statshelpr.com — pick it up live without requiring a popup reopen.

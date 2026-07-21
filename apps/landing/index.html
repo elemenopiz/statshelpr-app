@@ -15,8 +15,8 @@
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="statshelpr — Stats tutor for students" />
   <meta name="twitter:description" content="Chrome extension for stats students. See worked solutions with runnable R code, right on the question." />
-  <link rel="icon" type="image/png" href="/favicon.png?v=3" />
-  <link rel="shortcut icon" href="/favicon.ico?v=3" />
+  <link rel="icon" type="image/png" href="/favicon.png?v=4" />
+  <link rel="shortcut icon" href="/favicon.ico?v=4" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Public+Sans:ital,wght@0,400..700;1,400..700&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
@@ -767,7 +767,7 @@
       {"@type": "Question", "name": "How does statshelpr work?", "acceptedAnswer": {"@type": "Answer", "text": "Install the Chrome extension. Open any stats quiz — a small button appears next to each question. Click it, and statshelpr's AI works through the reasoning and gives you a worked answer. When a question needs computation, it writes R code and runs it right in your browser — nothing lingers on our servers afterward."}},
       {"@type": "Question", "name": "Does it work with my CSV data files?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Upload course CSVs once via the extension popup and they persist across all your quizzes. When you solve a question, the file goes with the request and R code can read.csv() it just like normal."}},
       {"@type": "Question", "name": "How is my data handled?", "acceptedAnswer": {"@type": "Answer", "text": "Question text, images, and CSVs are transmitted to our API on Cloudflare and to Google Gemini for processing. We do not store quiz content long-term. Your license key lives in chrome.storage.sync. Full details on our privacy page."}},
-      {"@type": "Question", "name": "Can I cancel?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Cancel anytime from the Lemon Squeezy customer portal — one click, no phone call. We also offer a 7-day money-back guarantee if it doesn't work for you."}},
+      {"@type": "Question", "name": "Can I cancel?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Cancel anytime from the Lemon Squeezy customer portal — one click, no phone call."}},
       {"@type": "Question", "name": "Which browsers work?", "acceptedAnswer": {"@type": "Answer", "text": "Chrome, and Chromium-based browsers (Edge, Arc, Brave). We do not currently support Safari or Firefox. Desktop only."}}
     ]
   }
@@ -821,7 +821,7 @@
           <div class="demo-card play" id="demo-card" aria-label="Product demo: a worked solution appearing under a quiz question">
             <div class="demo-chrome" aria-hidden="true">
               <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-              <span class="addr">canvas &middot; STA 301: Quiz 4</span>
+              <span class="addr">canvas &middot; Quiz 4</span>
             </div>
             <div class="demo-body">
               <div class="demo-qhead">
@@ -1037,7 +1037,7 @@
             <ul class="price-list">
               <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Everything in Free</li>
               <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Unlimited solves &mdash; no daily cap</li>
-              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Cancel anytime &middot; 7-day money-back</li>
+              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Cancel anytime</li>
             </ul>
             <a class="btn btn-primary btn-lg" href="/checkout.html">Upgrade to Unlimited <span class="arrow">&rarr;</span></a>
           </div>
@@ -1073,7 +1073,7 @@
             <div class="faq-item">
               <button class="faq-q" aria-expanded="false">Is statshelpr free?<span class="x" aria-hidden="true"></span></button>
               <div class="faq-a"><div>
-                <p>Free tier: 5 solves per day, no card required. Paid: $15/month for unlimited solves, cancel anytime, 7-day money-back guarantee.</p>
+                <p>Free tier: 5 solves per day, no card required. Paid: $15/month for unlimited solves, cancel anytime.</p>
               </div></div>
             </div>
             <div class="faq-item">

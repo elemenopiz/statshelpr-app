@@ -9,6 +9,8 @@ export interface Env {
   LEMONSQUEEZY_WEBHOOK_SECRET?: string;
   LEMONSQUEEZY_STORE_ID?: string;
   LEMONSQUEEZY_VARIANT_ID?: string;
+  /** Required only for POST /api/reset/request (Resend email-token reset flow). */
+  RESEND_API_KEY?: string;
 
   // Vars (from wrangler.toml [vars])
   LLM_PROVIDER: string;

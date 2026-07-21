@@ -312,11 +312,25 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
           /* body wasn't JSON — keep our own resetAt */
         }
         void recordSolveLimitHit(resetAt);
+      } else if (solveRes.status === 403) {
+        // Single-device license limit — same flag activate.ts sets on a
+        // blocked activation, so the popup's reset flow shows up either way.
+        let atLimit = false;
+        try {
+          atLimit = (JSON.parse(bodyText) as { atLimit?: boolean }).atLimit === true;
+        } catch {
+          /* body wasn't JSON */
+        }
+        if (atLimit) void recordActivationBlocked();
       }
       throw new Error(extractErrorMsg(bodyText));
     }
     // Passed the rate limiter — the server counted this solve, mirror it.
     void recordSolveUse();
+    // A solve went through, so this device holds the activation — clear any
+    // stale device-limit flag so the popup stops showing the reset prompt once
+    // the user has reset onto this device.
+    void clearActivationBlocked();
     const solveResult = await consumeSseResult(solveRes);
 
     if (solveResult.mode === "concept") {
@@ -418,6 +432,30 @@ async function recordSolveLimitHit(resetAt?: number): Promise<void> {
       resetAt: resetAt ?? Date.now() + SOLVE_WINDOW_MS,
     };
     await chrome.storage.local.set({ [STORAGE_KEY_SOLVE_STATS]: next });
+  } catch {
+    /* tracking only */
+  }
+}
+
+/** The server said this license is active on another device (403 atLimit) —
+ * mirror activate.ts's flag so popup.ts's reset flow shows up here too. */
+async function recordActivationBlocked(): Promise<void> {
+  try {
+    await chrome.storage.local.set({ activationBlocked: true });
+  } catch {
+    /* tracking only */
+  }
+}
+
+/** A solve succeeded, so this device is the activated one — remove any stale
+ * activationBlocked flag (set after a device-limit 403) so popup.ts stops
+ * showing the reset prompt once the user has reset onto this device. Only
+ * writes when the flag is actually set, so it doesn't churn storage (and fire
+ * the popup's onChanged listener) on every ordinary solve. */
+async function clearActivationBlocked(): Promise<void> {
+  try {
+    const r = await chrome.storage.local.get("activationBlocked");
+    if (r["activationBlocked"]) await chrome.storage.local.remove("activationBlocked");
   } catch {
     /* tracking only */
   }

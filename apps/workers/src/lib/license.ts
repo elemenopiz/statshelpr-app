@@ -19,6 +19,12 @@ export interface LicenseCheck {
    * "free" is subject to it. Absent on ok:false results. */
   tier?: "free" | "paid";
   reason?: string;
+  /** Purchase email, when known — used by routes/reset.ts to send the
+   * device-reset link. Populated from the LS `meta.customer_email` on a live
+   * check, or already present when the cache entry came from the webhook
+   * (lemonsqueezy-webhook.ts writes `email` on the same `license:{key}` KV
+   * key). Absent if neither source has fired yet for this key. */
+  email?: string;
 }
 
 const CACHE_TTL_SEC = 10 * 60; // 10 min
@@ -74,7 +80,7 @@ export async function validateLicense(
       valid: boolean;
       error?: string;
       license_key?: { status: string };
-      meta?: { store_id?: number; variant_id?: number };
+      meta?: { store_id?: number; variant_id?: number; customer_email?: string };
     };
 
     let result: LicenseCheck;
@@ -97,6 +103,7 @@ export async function validateLicense(
       result = { ok: false, reason: "License for wrong product" };
     } else {
       result = { ok: true, tier: "paid" };
+      if (json.meta?.customer_email) result.email = json.meta.customer_email;
     }
 
     await putCache(env, cacheKey, result);

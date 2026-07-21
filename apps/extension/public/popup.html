@@ -57,6 +57,51 @@
           --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.25);
         }
       }
+      /* Explicit overrides for the header theme toggle — win over the OS
+         media query above in both directions since they're declared after
+         it (see popup.ts's applyTheme(), which stamps data-theme on <html>). */
+      :root[data-theme="light"] {
+        --paper: #FAF9F5;
+        --card: #FFFFFF;
+        --ink: #1D1C17;
+        --ink-2: #55534A;
+        --ink-3: #8D8A7E;
+        --line: rgba(29, 28, 23, 0.13);
+        --line-soft: rgba(29, 28, 23, 0.07);
+        --blue: #2742C8;
+        --blue-deep: #1C31A2;
+        --blue-tint: rgba(39, 66, 200, 0.08);
+        --blue-ring: rgba(39, 66, 200, 0.16);
+        --ok: #0B7A4B;
+        --ok-tint: rgba(11, 122, 75, 0.09);
+        --warn: #8A6410;
+        --warn-tint: rgba(176, 128, 26, 0.12);
+        --err: #C24029;
+        --err-tint: rgba(194, 64, 41, 0.09);
+        --btn-text: #FFFFFF;
+        --shadow: 0 1px 2px rgba(29, 28, 23, 0.05), 0 6px 20px rgba(29, 28, 23, 0.06);
+      }
+      :root[data-theme="dark"] {
+        --paper: #161614;
+        --card: #1E1E1B;
+        --ink: #EAE8DF;
+        --ink-2: #A8A599;
+        --ink-3: #7A7769;
+        --line: rgba(234, 232, 223, 0.14);
+        --line-soft: rgba(234, 232, 223, 0.08);
+        --blue: #93A3FF;
+        --blue-deep: #AEBAFF;
+        --blue-tint: rgba(147, 163, 255, 0.11);
+        --blue-ring: rgba(147, 163, 255, 0.22);
+        --ok: #6CC49A;
+        --ok-tint: rgba(108, 196, 154, 0.1);
+        --warn: #D8B25E;
+        --warn-tint: rgba(216, 178, 94, 0.12);
+        --err: #E58873;
+        --err-tint: rgba(229, 136, 115, 0.1);
+        --btn-text: #12122B;
+        --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.25);
+      }
       * { box-sizing: border-box; margin: 0; padding: 0; }
       body {
         font-family: var(--font-ui);
@@ -100,6 +145,19 @@
       .dot.warn::before { background: var(--warn); }
       .dot.err { color: var(--err); border-color: transparent; background: var(--err-tint); }
       .dot.err::before { background: var(--err); }
+      .header-right { display: flex; align-items: center; gap: 6px; }
+      .theme-toggle {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 22px; height: 22px; flex: none;
+        border-radius: 999px;
+        border: 1px solid var(--line-soft);
+        background: var(--card);
+        color: var(--ink-3);
+        font-size: 11px; line-height: 1;
+        padding: 0;
+        transition: color 0.15s, border-color 0.15s;
+      }
+      .theme-toggle:hover { color: var(--blue); border-color: var(--blue-ring); }
 
       /* ---------------------------------------------------- plan card */
       .plan-card {
@@ -464,7 +522,11 @@
   <body>
     <div class="header">
       <div class="logo">stats<em>helpr</em></div>
-      <span id="status-dot" class="dot">checking…</span>
+      <div class="header-right">
+        <button id="theme-toggle" class="theme-toggle" type="button"
+                aria-label="Switch to dark theme" title="Switch theme">&#9788;</button>
+        <span id="status-dot" class="dot">checking…</span>
+      </div>
     </div>
 
     <!-- plan / conversion card — popup.ts switches data-plan: free | paid -->
@@ -481,12 +543,21 @@
            href="https://statshelpr.com/checkout.html" target="_blank" rel="noopener">
           Go Unlimited &mdash; $15/mo <span class="arr">&rarr;</span>
         </a>
-        <div class="plan-sub">Every solve, all semester &middot; cancel anytime &middot; 7-day refund</div>
+        <div class="plan-sub">Every solve, all semester &middot; cancel anytime</div>
       </div>
       <div class="plan-paid" id="plan-paid">
         <span class="plan-paid-word">Unlimited</span>
       </div>
       <div class="plan-note" id="plan-note"></div>
+      <!-- single-device limit: popup.ts toggles this on when
+           chrome.storage.local.activationBlocked is true (set by activate.ts
+           or content.ts after the worker reports the license is already
+           active elsewhere). -->
+      <div class="plan-note" id="device-limit-note" style="display: none">
+        <div>This license is active on another device. Switching devices? Reset it here.</div>
+        <button id="reset-device-btn" class="btn-solid" type="button" style="margin-top: 8px">Reset license</button>
+        <div id="reset-status" class="status" style="display: none"></div>
+      </div>
     </div>
 
     <div class="section-label">Discreet mode</div>

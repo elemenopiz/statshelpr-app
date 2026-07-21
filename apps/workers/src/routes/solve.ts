@@ -10,6 +10,7 @@ import {
 import { chatStream } from "@/lib/core/providers";
 import { summarizeCsv } from "@/lib/data-summary";
 import { validateLicense } from "@/lib/license";
+import { activateForInstall } from "@/lib/license-activation";
 import { checkAndIncrement } from "@/lib/rate-limit";
 import { makeSseStream, sseHeaders } from "@/lib/sse";
 import {
@@ -43,9 +44,21 @@ solve.post("/", async (c) => {
   const lic = await validateLicense(c.env, licenseKey);
   if (!lic.ok) return c.json({ error: lic.reason ?? "Unauthorized" }, 401);
 
-  // Paid licenses are unlimited; only the free tier hits the daily counter,
-  // bucketed per install so the free cap is per-user, not global.
-  if (lic.tier !== "paid") {
+  // Paid licenses are unlimited, but only once activated for *this* install —
+  // activation_limit=1 on the LS side means a paid key is bound to a single
+  // device (see lib/license-activation.ts). Free tier just hits the daily
+  // counter, bucketed per install so the free cap is per-user, not global.
+  if (lic.tier === "paid") {
+    const activation = await activateForInstall(c.env, licenseKey, installId || "anon");
+    if (!activation.ok) {
+      return c.json(
+        activation.atLimit
+          ? { error: "This license is active on another device.", atLimit: true }
+          : { error: activation.reason ?? "License activation failed." },
+        403,
+      );
+    }
+  } else {
     const rl = await checkAndIncrement(c.env, installId || "anon");
     if (!rl.allowed) {
       return c.json(

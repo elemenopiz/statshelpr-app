@@ -7,14 +7,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Public+Sans:ital,wght@0,400..700;1,400..700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="welcome.css" />
   </head>
   <body>
-    <div class="noise"></div>
-
     <header>
       <div class="logo">stats<em>helpr</em></div>
       <button class="skip-btn" id="skip-btn" type="button">Skip tour</button>
@@ -23,7 +21,7 @@
     <main>
       <section class="step" data-step="1">
         <div class="step-pill">step 1 of 5</div>
-        <h1 class="serif"><em>Welcome</em> to statshelpr.</h1>
+        <h1><em>Welcome</em> to statshelpr.</h1>
         <p class="lede">
           A tiny tutor that lives inside Canvas. Click one button per question and
           we'll work out the answer — concept questions or R-code calculations
@@ -37,7 +35,7 @@
         </p>
         <p class="muted">
           Built on the same R toolkit your course uses: tidyverse, mosaic,
-          moderndive, infer.
+          moderndive, ggplot.
         </p>
         <p class="muted">
           Upgrading to <em>Unlimited</em> later? Checkout on statshelpr.com
@@ -52,7 +50,7 @@
 
       <section class="step hidden" data-step="2">
         <div class="step-pill">step 2 of 5</div>
-        <h2 class="serif">Open a <em>Canvas quiz</em>.</h2>
+        <h2>Open a <em>Canvas quiz</em>.</h2>
         <p class="lede">
           On UT Canvas, navigate to any quiz page. Wait for the questions to
           load — you should see a small
@@ -88,7 +86,7 @@
 
       <section class="step hidden" data-step="3">
         <div class="step-pill">step 3 of 5</div>
-        <h2 class="serif"><em>Discreet mode</em> on real quiz pages.</h2>
+        <h2><em>Discreet mode</em> on real quiz pages.</h2>
         <p class="lede">
           The solve button can fade — handy if you'd rather it not stand out
           on screen. Drag the slider below to see it work on this mock
@@ -125,7 +123,7 @@
 
       <section class="step hidden" data-step="4">
         <div class="step-pill">step 4 of 5</div>
-        <h2 class="serif">For questions that need <em>data files</em>.</h2>
+        <h2>For questions that need <em>data files</em>.</h2>
         <p class="lede">
           Some questions reference a CSV (e.g., "Using the houses dataset,
           compute…"). Drop your data files into the small panel in the
@@ -155,7 +153,7 @@
 
       <section class="step hidden" data-step="5">
         <div class="step-pill">step 5 of 5</div>
-        <h2 class="serif">You're <em>set</em>.</h2>
+        <h2>You're <em>set</em>.</h2>
         <p class="lede">A quick reference for as you go:</p>
         <ul class="tips">
           <li>
@@ -164,15 +162,11 @@
           </li>
           <li>
             <span class="tip-tag spin"></span> spinner — ai tutor is thinking
-            (concept ≈ 2-3 sec, calc ≈ 6-12 sec)
+            (5-10 seconds depending on difficulty)
           </li>
           <li>
             <span class="tip-tag ok">✓</span> green — answered (the correct
             choice is selected for you)
-          </li>
-          <li>
-            <span class="tip-tag err">!</span> red — something failed (hover
-            for the message)
           </li>
         </ul>
         <p class="muted">

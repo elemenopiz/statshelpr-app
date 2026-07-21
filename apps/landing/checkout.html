@@ -13,8 +13,8 @@
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="statshelpr — Upgrade to Unlimited" />
   <meta name="twitter:description" content="Unlimited solves for your stats coursework. $15/month, cancel anytime." />
-  <link rel="icon" type="image/png" href="/favicon.png?v=3" />
-  <link rel="shortcut icon" href="/favicon.ico?v=3" />
+  <link rel="icon" type="image/png" href="/favicon.png?v=4" />
+  <link rel="shortcut icon" href="/favicon.ico?v=4" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Public+Sans:ital,wght@0,400..700;1,400..700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -201,7 +201,28 @@
       *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
       .logo, .wrap { opacity: 1 !important; transform: none !important; }
     }
+    /* ---- overlay checkout result / activation states (additive, reuses the
+       .notice / .status / .upgrade-warning tokens above for each variant) ---- */
+    .ls-result { margin-top: 16px; }
+    .ls-result p { margin-bottom: 10px; }
+    .key-box {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 10px 9px 14px;
+      background: var(--paper); border: 1px solid var(--line); border-radius: 9px;
+    }
+    .key-box code {
+      flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap;
+      font-family: var(--font-mono); font-size: 0.83rem; color: var(--ink);
+    }
+    .copy-btn {
+      flex: none; font-family: var(--font-body); font-size: 0.8rem; font-weight: 600;
+      padding: 7px 14px; border-radius: 7px; border: 1px solid var(--line);
+      background: var(--card); color: var(--ink); cursor: pointer;
+      transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+    }
+    .copy-btn:hover { border-color: var(--blue); color: var(--blue-deep); background: var(--blue-tint); }
   </style>
+  <script src="https://app.lemonsqueezy.com/js/lemon.js" defer></script>
 </head>
 <body>
   <a class="back-link" href="/">
@@ -213,14 +234,15 @@
 
   <div class="wrap">
     <h1>Upgrade to <em>Unlimited</em></h1>
-    <p class="muted">Monthly subscription &mdash; <strong>$15.00 / month</strong> &middot; cancel anytime &middot; 7-day money-back</p>
+    <p class="muted">Monthly subscription &mdash; <strong>$15.00 / month</strong> &middot; cancel anytime</p>
 
     <div class='notice'><strong>Ready:</strong> Secure checkout is handled by Lemon Squeezy.</div>
     <div class='status'>You will be redirected to Lemon Squeezy to complete payment. Card details never touch this server.</div>
     <div class='checkbox-row'><input id='agree' type='checkbox' /><label for='agree'>I have read and understood the <a href='/legal.html#terms' target='_blank' rel='noopener'>Terms</a>, <a href='/legal.html#privacy' target='_blank' rel='noopener'>Privacy</a>, and <a href='/legal.html#refunds' target='_blank' rel='noopener'>Refund Policy</a>.</label></div>
     <div class='checkout-form'>
-      <a id='buy-btn' class='buy-btn' href='https://statshelpr.lemonsqueezy.com/checkout/buy/8ded2ea7-979f-4027-afb2-f03036e12015' target='_blank' rel='noopener'>Continue to secure checkout &rarr;</a>
+      <a id='buy-btn' class='buy-btn' href='https://statshelpr.lemonsqueezy.com/checkout/buy/8ded2ea7-979f-4027-afb2-f03036e12015' rel='noopener'>Continue to secure checkout &rarr;</a>
     </div>
+    <div id="ls-result" class="ls-result" hidden aria-live="polite"></div>
 
     <div class="legal-links">
       <a href="/legal.html#terms" target="_blank" rel="noopener">Terms</a> &middot;
@@ -245,6 +267,276 @@
           btn.style.pointerEvents = "none";
         }
       });
+    })();
+  </script>
+  <script>
+    /**
+     * Lemon Squeezy overlay checkout + auto-activation handoff to the extension.
+     *
+     * lemon.js contract (verified against the shipped script at
+     * https://app.lemonsqueezy.com/js/lemon.js — docs.lemonsqueezy.com 403s
+     * automated fetches, so this was read directly from the source and
+     * cross-checked against third-party write-ups of the same API):
+     *   - The script defines window.createLemonSqueezy() (an idempotent
+     *     factory: first call creates window.LemonSqueezy and wires it up,
+     *     later calls just re-scan ".lemonsqueezy-button" elements) and
+     *     auto-invokes it once on the window "load" event.
+     *   - window.LemonSqueezy.Url.Open(url) opens `url` as a fixed,
+     *     full-viewport overlay <iframe> (highest z-index) — it forces
+     *     ?embed=1 onto the URL itself, so we don't need to add it ourselves.
+     *   - window.LemonSqueezy.Setup({ eventHandler }) registers a callback
+     *     that receives EVERY postMessage the overlay iframe sends, each
+     *     shaped { event: "<Name>", data: <payload> }. A successful purchase
+     *     fires { event: "Checkout.Success", data: <Order JSON:API resource> }
+     *     — the order id is at data.id.
+     *   - We deliberately do NOT use the library's automatic
+     *     ".lemonsqueezy-button" class-click detection. That detection gets
+     *     re-bound on every createLemonSqueezy()/Refresh() call, and the
+     *     library itself calls createLemonSqueezy() again on window "load" —
+     *     so a manual early call (which we'd need, to register Setup()
+     *     well before checkout can complete) plus that automatic later call
+     *     would double-bind the button and open two overlay iframes per
+     *     click. Owning the click handler ourselves (below) avoids that,
+     *     and also removes any "click lands before lemon.js is ready" race,
+     *     since createLemonSqueezy() is called lazily inside the click
+     *     handler rather than deferred to window "load".
+     *
+     * Worker contract: POST {API_BASE}/api/license-from-order { orderId }
+     *   -> { ok: true, licenseKey } | { ok: false, error } (200 either way).
+     *   The license key is issued asynchronously (Lemon Squeezy webhook), so
+     *   ok:false right after Checkout.Success just means "not issued yet" —
+     *   apps/workers/src/routes/license-from-order.ts's own comment says the
+     *   caller should poll again shortly, so we retry a few times before
+     *   falling back to the "check your email" message.
+     *
+     * Extension handoff contract (apps/extension/src/activate.ts):
+     *   window.postMessage({ source: "statshelpr-web", type: "activate-license",
+     *     licenseKey }, window.location.origin)
+     *   -> ack window.postMessage({ source: "statshelpr-ext",
+     *     type: "license-activated" }, window.location.origin)
+     *   -> or, if this license is already bound to another install: ack
+     *     window.postMessage({ source: "statshelpr-ext",
+     *     type: "activation-blocked", reason: "device-limit" }, ...)
+     *   activate.ts stores the key locally first, then POSTs
+     *   /api/activate-license (its own 6s AbortController) before it acks
+     *   either way, so we wait a little past that before assuming the
+     *   extension isn't installed — see ACK_TIMEOUT_MS below. If nothing
+     *   acks in time, reveal the key with a copy button instead of stranding
+     *   the buyer. (Lemon Squeezy's activation_limit=1 on the license makes a
+     *   copied/reused key safe — it can only bind to one device.)
+     *
+     * All result UI below is built with plain DOM methods (textContent /
+     * createElement), not innerHTML — every string here is a static literal,
+     * but the license key itself is server-issued, so it goes through
+     * textContent unconditionally rather than ever touching an HTML string.
+     */
+    (function () {
+      var API_BASE = "https://api.statshelpr.com";
+      var MAX_ATTEMPTS = 6;
+      var RETRY_DELAY_MS = 1500;
+      // apps/extension/src/activate.ts doesn't ack instantly: it stores the
+      // key, then POSTs /api/activate-license (its own AbortController times
+      // that out at 6000ms) before replying license-activated/activation-
+      // blocked. Waiting only ~2s here would misreport a slow-but-installed
+      // extension as "not installed", so this stays a little above that 6s
+      // ceiling rather than the task's original ~2s estimate (written before
+      // that round trip existed).
+      var ACK_TIMEOUT_MS = 6500;
+
+      var buyBtn = document.getElementById("buy-btn");
+      var resultEl = document.getElementById("ls-result");
+      if (!buyBtn || !resultEl) return;
+
+      var CHECKOUT_URL = buyBtn.getAttribute("href");
+      var handledOrderId = null;
+      var ackTimer = null;
+
+      function strongText(str) {
+        var s = document.createElement("strong");
+        s.textContent = str;
+        return s;
+      }
+
+      function setResult(nodes, variant) {
+        resultEl.textContent = "";
+        nodes.forEach(function (node) {
+          resultEl.appendChild(node);
+        });
+        resultEl.className = "ls-result " + variant;
+        resultEl.hidden = false;
+      }
+
+      function copyToClipboard(value, done) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(value).then(done, function () {
+            legacyCopy(value, done);
+          });
+        } else {
+          legacyCopy(value, done);
+        }
+      }
+
+      function legacyCopy(value, done) {
+        var ta = document.createElement("textarea");
+        ta.value = value;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand("copy");
+          done();
+        } catch (e) {
+          /* clipboard unavailable — the key is still on screen to copy by hand */
+        }
+        document.body.removeChild(ta);
+      }
+
+      function showKeyFallback(licenseKey) {
+        var p = document.createElement("p");
+        p.appendChild(strongText("Extension not detected."));
+        p.appendChild(
+          document.createTextNode(
+            " Copy your license key and paste it into the statshelpr extension popup:",
+          ),
+        );
+
+        var box = document.createElement("div");
+        box.className = "key-box";
+        var code = document.createElement("code");
+        code.textContent = licenseKey;
+        var copyBtn = document.createElement("button");
+        copyBtn.type = "button";
+        copyBtn.className = "copy-btn";
+        copyBtn.textContent = "Copy";
+        copyBtn.addEventListener("click", function () {
+          copyToClipboard(licenseKey, function () {
+            copyBtn.textContent = "Copied";
+            setTimeout(function () {
+              copyBtn.textContent = "Copy";
+            }, 1500);
+          });
+        });
+        box.appendChild(code);
+        box.appendChild(copyBtn);
+
+        setResult([p, box], "status");
+      }
+
+      function activateExtension(licenseKey) {
+        setResult(
+          [strongText("Payment received."), document.createTextNode(" Activating the extension…")],
+          "status",
+        );
+        if (ackTimer) clearTimeout(ackTimer);
+        ackTimer = setTimeout(function () {
+          ackTimer = null;
+          showKeyFallback(licenseKey);
+        }, ACK_TIMEOUT_MS);
+        window.postMessage(
+          { source: "statshelpr-web", type: "activate-license", licenseKey: licenseKey },
+          window.location.origin,
+        );
+      }
+
+      function retryOrGiveUp(orderId, attempt) {
+        if (attempt < MAX_ATTEMPTS) {
+          setTimeout(function () {
+            resolveLicense(orderId, attempt + 1);
+          }, RETRY_DELAY_MS);
+        } else {
+          setResult(
+            [
+              strongText("Payment received."),
+              document.createTextNode(
+                " Your license key is on its way — check your inbox (and spam folder) for an email from Lemon Squeezy / statshelpr, then paste it into the extension popup.",
+              ),
+            ],
+            "status",
+          );
+        }
+      }
+
+      function resolveLicense(orderId, attempt) {
+        setResult(
+          [strongText("Payment received."), document.createTextNode(" Finalizing your license…")],
+          "status",
+        );
+        fetch(API_BASE + "/api/license-from-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderId: orderId }),
+        })
+          .then(function (res) {
+            return res.json();
+          })
+          .then(function (json) {
+            if (json && json.ok && json.licenseKey) {
+              activateExtension(json.licenseKey);
+            } else {
+              retryOrGiveUp(orderId, attempt);
+            }
+          })
+          .catch(function () {
+            retryOrGiveUp(orderId, attempt);
+          });
+      }
+
+      function onLemonSqueezyEvent(payload) {
+        if (!payload || typeof payload !== "object") return;
+        if (payload.event !== "Checkout.Success") return;
+        var orderId = payload.data && payload.data.id;
+        if (!orderId || orderId === handledOrderId) return;
+        handledOrderId = orderId;
+        resolveLicense(orderId, 0);
+      }
+
+      // Extension replies land here (see apps/extension/src/activate.ts).
+      // Anything that doesn't match the contract exactly is ignored.
+      window.addEventListener("message", function (event) {
+        if (event.source !== window) return;
+        var data = event.data;
+        if (!data || typeof data !== "object" || data.source !== "statshelpr-ext") {
+          return;
+        }
+        if (ackTimer) {
+          clearTimeout(ackTimer);
+          ackTimer = null;
+        }
+        if (data.type === "license-activated") {
+          setResult(
+            [strongText("Extension activated"), document.createTextNode(" — you're unlimited.")],
+            "notice",
+          );
+        } else if (data.type === "activation-blocked" && data.reason === "device-limit") {
+          setResult(
+            [
+              document.createTextNode(
+                "This license is already active on another device — open the extension to reset it onto this one.",
+              ),
+            ],
+            "upgrade-warning",
+          );
+        }
+      });
+
+      function openCheckout(e) {
+        e.preventDefault();
+        if (typeof window.createLemonSqueezy === "function") {
+          window.createLemonSqueezy();
+          window.LemonSqueezy.Setup({ eventHandler: onLemonSqueezyEvent });
+          // Matches the class-based auto-detect's own bookkeeping (a hook for
+          // "don't scroll the page behind the overlay"); lemon.js's message
+          // listener already removes this class again on its "close" event.
+          document.body.classList.add("lemonsqueezy-open");
+          window.LemonSqueezy.Url.Open(CHECKOUT_URL);
+        } else {
+          // lemon.js failed to load (offline/blocked) — don't strand the
+          // buyer, fall back to a plain full-page redirect to LS checkout.
+          window.location.href = CHECKOUT_URL;
+        }
+      }
+      buyBtn.addEventListener("click", openCheckout);
     })();
   </script>
 </body>

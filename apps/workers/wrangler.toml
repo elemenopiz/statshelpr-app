@@ -23,6 +23,11 @@ id = "23d6ef6041854bec96fd277cb013e7e6"
 #   wrangler secret put LEMONSQUEEZY_WEBHOOK_SECRET
 #   wrangler secret put LEMONSQUEEZY_STORE_ID       (optional; enforces store match)
 #   wrangler secret put LEMONSQUEEZY_VARIANT_ID     (optional; enforces variant match)
+#   wrangler secret put RESEND_API_KEY              (required for POST /api/reset/request —
+#                                                     LS has no buyer self-reset portal, so
+#                                                     device-reset emails go via Resend; also
+#                                                     verify the "statshelpr.com" sending domain
+#                                                     in the Resend dashboard or sends 403)
 
 # Custom domain — statshelpr.com is already in this Cloudflare account so
 # `custom_domain = true` auto-creates the AAAA record + provisions SSL.

@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>statshelpr — Reset device</title>
+  <meta name="robots" content="noindex" />
+  <link rel="icon" type="image/png" href="/favicon.png?v=4" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..700&family=Public+Sans:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --paper: #FAF9F5;
+      --card: #FFFFFF;
+      --ink: #1D1C17;
+      --ink-2: #55534A;
+      --ink-3: #8D8A7E;
+      --line: rgba(29, 28, 23, 0.12);
+      --grid: rgba(29, 28, 23, 0.055);
+      --blue: #2742C8;
+      --green: #0B7A4B;
+      --red: #B0341D;
+      --font-display: 'Newsreader', 'Iowan Old Style', Georgia, serif;
+      --font-body: 'Public Sans', system-ui, -apple-system, sans-serif;
+      --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-body);
+      background-color: var(--paper);
+      background-image:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+      background-size: 28px 28px;
+      color: var(--ink);
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 24px; text-align: center; line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    .icon {
+      width: 60px; height: 60px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.7rem; margin-bottom: 22px;
+      background: rgba(39,66,200,0.08); color: var(--blue);
+    }
+    .icon.ok { background: rgba(11,122,75,0.1); color: var(--green); animation: pop 0.55s var(--ease-out) both; }
+    .icon.err { background: rgba(176,52,29,0.1); color: var(--red); animation: pop 0.55s var(--ease-out) both; }
+    .spinner {
+      width: 26px; height: 26px; border-radius: 50%;
+      border: 3px solid rgba(39,66,200,0.2); border-top-color: var(--blue);
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pop { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: scale(1); } }
+    h1 {
+      font-family: var(--font-display); font-weight: 500;
+      font-size: 2.2rem; margin-bottom: 12px; letter-spacing: -0.02em;
+    }
+    p { color: var(--ink-2); font-size: 1rem; max-width: 440px; line-height: 1.65; margin-bottom: 12px; }
+    .foot { margin-top: 26px; font-size: 0.85rem; color: var(--ink-3); }
+    a { color: var(--blue); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="icon" id="icon"><div class="spinner"></div></div>
+  <h1 id="title">Resetting your device…</h1>
+  <p id="msg">One moment while we free up your license.</p>
+  <p class="foot" id="foot"></p>
+  <script>
+    (function () {
+      var API_BASE = "https://api.statshelpr.com";
+      var icon = document.getElementById("icon");
+      var title = document.getElementById("title");
+      var msg = document.getElementById("msg");
+      var foot = document.getElementById("foot");
+
+      function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); }
+      function mailLink(label) {
+        var a = document.createElement("a");
+        a.href = "mailto:helpr451@gmail.com";
+        a.textContent = label;
+        return a;
+      }
+      function show(kind, iconChar, titleText, msgText, footNodes) {
+        icon.className = "icon " + kind;
+        clear(icon);
+        icon.textContent = iconChar;
+        title.textContent = titleText;
+        msg.textContent = msgText;
+        clear(foot);
+        (footNodes || []).forEach(function (n) { foot.appendChild(n); });
+      }
+
+      var token = new URLSearchParams(window.location.search).get("token");
+      if (!token) {
+        show("err", "✗", "Invalid reset link",
+          "This link is missing its reset token. Request a new one from the extension popup.",
+          [document.createTextNode("Questions? "), mailLink("helpr451@gmail.com")]);
+        return;
+      }
+
+      fetch(API_BASE + "/api/reset/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: token })
+      })
+        .then(function (res) {
+          return res.json().catch(function () { return {}; })
+            .then(function (data) { return { ok: res.ok, data: data }; });
+        })
+        .then(function (r) {
+          if (r.ok && r.data && r.data.ok) {
+            show("ok", "✓", "Device reset",
+              "Your license is freed. Open statshelpr on the device you want to use — it activates automatically on your next solve. Nothing to copy.",
+              [document.createTextNode("All set — you can close this tab.")]);
+          } else {
+            var reason = (r.data && typeof r.data.reason === "string")
+              ? r.data.reason
+              : "This reset link is invalid or has expired.";
+            show("err", "✗", "Reset didn’t go through", reason,
+              [document.createTextNode("Request a fresh link from the extension popup, or email "), mailLink("helpr451@gmail.com")]);
+          }
+        })
+        .catch(function () {
+          show("err", "✗", "Something went wrong",
+            "We couldn’t reach the server. Check your connection and open the reset link again.",
+            [document.createTextNode("Still stuck? "), mailLink("helpr451@gmail.com")]);
+        });
+    })();
+  </script>
+</body>
+</html>
