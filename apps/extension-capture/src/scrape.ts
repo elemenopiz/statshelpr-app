@@ -450,7 +450,14 @@ async function collectImages(root: HTMLElement): Promise<ImageBlock[]> {
   const out: ImageBlock[] = [];
   const seen = new Set<string>();
   for (const img of [...root.querySelectorAll<HTMLImageElement>("img")]) {
-    const src = img.currentSrc || img.src;
+    // currentSrc/src for loaded images; data-src/data-original for lazy-loaded
+    // ones that haven't scrolled into view yet.
+    const src =
+      img.currentSrc ||
+      img.src ||
+      img.getAttribute("data-src") ||
+      img.getAttribute("data-original") ||
+      "";
     if (!src) continue;
     if (src.startsWith("data:") && src.length < 200) continue;
     if (/avatar|spinner|loading|icon-/.test(src)) continue;

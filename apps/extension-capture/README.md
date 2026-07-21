@@ -55,20 +55,20 @@ numbers. The tool handles all three cases:
 ## Datasets
 
 Many questions reference a data frame (e.g. *"the data frame in scooby.csv…"*).
-The tool detects `*.csv` references and, on export, inlines the matching dataset
-into the fixture's `dataFiles` (the runnable shape `run-evals.ts` expects).
+The tool detects `*.csv` references and records just the **name** on each capture
+(`datasetRefs`) — the export stays small, no CSV bloat. When `import-captures`
+builds the eval fixtures, it pulls the actual CSV from `datasets/` and inlines it
+(the runnable shape `run-evals.ts` expects).
 
-The datasets are packaged from the course's R data:
+Generate the CSVs from the course's R data (requires R on PATH):
 
 ```bash
 pnpm --filter @statshelpr/extension-capture datasets ~/Downloads/KCdata_1-22.RData
-pnpm build:capture      # bakes datasets/*.csv → dist/datasets.json
+# → apps/extension-capture/datasets/<name>.csv (read by import-captures)
 ```
 
-`convert-rdata.mjs` writes one `datasets/<name>.csv` per data frame (requires R
-on PATH). Re-run it whenever the course data changes.
-
-Everything is local — no network, no API calls, no solve-quota usage.
+Re-run it whenever the course data changes. Everything is local — no network,
+no API calls, no solve-quota usage.
 
 ## Build
 

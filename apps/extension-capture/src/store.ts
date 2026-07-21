@@ -9,7 +9,6 @@
  */
 
 import { type ApiChoice, type Capture, type CaptureMode, type CaptureRecord } from "./types";
-import { expandDataFiles } from "./datasets";
 
 const KEY_CAPTURES = "statshelpr.captures";
 
@@ -116,10 +115,12 @@ export function inferMode(text: string, choices: ApiChoice[]): CaptureMode {
 
 // ---- export ----------------------------------------------------------------
 
-/** One capture → a complete record: the question with images + dataset inlined,
- * what the student picked, the correct answer when we know it, whether it was
- * right/wrong (`outcome`), and whether the answer is trusted (`verified`). */
-export function toRecord(c: Capture, datasets: Record<string, string> = {}): CaptureRecord {
+/** One capture → a complete record: the question + images, what the student
+ * picked, the correct answer when we know it, whether it was right/wrong
+ * (`outcome`), and whether the answer is trusted (`verified`). Datasets are
+ * referenced by filename only (`datasetRefs`) — the CSV content is pulled in by
+ * import-captures from datasets/ when building the runnable fixtures. */
+export function toRecord(c: Capture): CaptureRecord {
   const rec: CaptureRecord = {
     name: c.name,
     questionText: c.questionText,
@@ -135,19 +136,18 @@ export function toRecord(c: Capture, datasets: Record<string, string> = {}): Cap
     capturedAt: c.capturedAt,
   };
   if (c.answerText) rec.answerText = c.answerText;
+  if (c.datasetRefs.length > 0) rec.datasetRefs = c.datasetRefs;
   if (c.courseId) rec.courseId = c.courseId;
   if (c.quizId) rec.quizId = c.quizId;
   if (c.images.length > 0) rec.images = c.images;
-  const dataFiles = expandDataFiles(c.datasetRefs, datasets, true);
-  if (dataFiles.length > 0) rec.dataFiles = dataFiles;
   return rec;
 }
 
 /** The whole dataset in one file — every captured question, each flagged
  * `verified` (answer known → training/eval) or not (→ the AI-test set).
  * `scripts/import-captures.ts` splits it by that flag when you run evals. */
-export function toDatasetBundle(captures: Capture[], datasets: Record<string, string> = {}): string {
-  return JSON.stringify(captures.map((c) => toRecord(c, datasets)), null, 2);
+export function toDatasetBundle(captures: Capture[]): string {
+  return JSON.stringify(captures.map((c) => toRecord(c)), null, 2);
 }
 
 /** Trigger a browser download of `text`. Works from both the popup (extension

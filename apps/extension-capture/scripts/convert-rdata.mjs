@@ -1,7 +1,8 @@
 /**
  * Convert an R `.RData` file into datasets/<name>.csv — one CSV per data frame.
- * The build (build.mjs → bakeDatasets) then packages these into datasets.json,
- * which the extension inlines into exported fixtures.
+ * The extension only records dataset *names* in its export;
+ * scripts/import-captures.ts reads these CSVs to inline the content when it
+ * builds the runnable eval fixtures.
  *
  * Usage:
  *   node scripts/convert-rdata.mjs <path/to/file.RData>
@@ -57,4 +58,4 @@ cat(sprintf("wrote %d dataset(s) to %s\\n", n, out))
 `;
 
 execFileSync("Rscript", ["-e", rScript], { stdio: "inherit" });
-console.log("done — now run `pnpm build` to package datasets.json");
+console.log("done — these CSVs are read by scripts/import-captures.ts when building fixtures");

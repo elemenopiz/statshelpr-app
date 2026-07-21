@@ -40,7 +40,7 @@ import {
   inferMode,
   fixtureName,
 } from "./store";
-import { loadDatasets, detectDatasetRefs } from "./datasets";
+import { detectDatasetRefs } from "./datasets";
 import type { Capture } from "./types";
 
 const ATTR = "shcapAttached";
@@ -345,8 +345,7 @@ async function refreshPanel() {
 async function exportAll() {
   const captures = await getAllCaptures();
   if (captures.length === 0) return;
-  const datasets = await loadDatasets();
-  downloadText(`statshelpr-captures-${stamp()}.json`, toDatasetBundle(captures, datasets));
+  downloadText(`statshelpr-captures-${stamp()}.json`, toDatasetBundle(captures));
 }
 
 async function clearAll() {

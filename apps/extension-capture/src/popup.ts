@@ -13,7 +13,6 @@ import {
   toDatasetBundle,
   downloadText,
 } from "./store";
-import { loadDatasets } from "./datasets";
 import type { Capture, CaptureMode } from "./types";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -104,8 +103,7 @@ function renderList(captures: Capture[]) {
 async function exportAll() {
   const captures = await getAllCaptures();
   if (captures.length === 0) return;
-  const datasets = await loadDatasets();
-  downloadText(`statshelpr-captures-${stamp()}.json`, toDatasetBundle(captures, datasets));
+  downloadText(`statshelpr-captures-${stamp()}.json`, toDatasetBundle(captures));
   const verified = captures.filter((c) => c.verified).length;
   toast(`Exported ${captures.length} (${verified} verified, ${captures.length - verified} unsolved)`);
 }

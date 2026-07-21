@@ -56,9 +56,9 @@ export interface Capture {
   answerSource: AnswerSource;
   /** True when `correctChoices` is trusted (goes in the eval fixtures). */
   verified: boolean;
-  /** Filenames of datasets the question references, e.g. ["scooby.csv"]. The
-   * CSV content is packaged separately (datasets.json) and inlined at export;
-   * storing only refs keeps chrome.storage lean across many captures. */
+  /** Filenames of datasets the question references, e.g. ["scooby.csv"]. Only
+   * the names are stored/exported; the CSV content lives in datasets/ and is
+   * pulled in by import-captures when building fixtures. */
   datasetRefs: string[];
   mode: CaptureMode;
   url: string;
@@ -76,7 +76,8 @@ export interface CaptureRecord {
   questionText: string;
   choices: ApiChoice[];
   images?: ImageBlock[];
-  dataFiles?: Array<{ filename: string; content: string }>;
+  /** Dataset filenames the question references (content not inlined here). */
+  datasetRefs?: string[];
   /** What the student picked (letters for choices; empty for fill-in). */
   selectedChoices: string[];
   /** The correct answer's letters, when known. */
