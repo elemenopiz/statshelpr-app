@@ -99,11 +99,20 @@ export function deriveBlankAnswers(
       if (byIndex?.[1]) picked = resolve(byIndex[1]);
     }
     // 2) a line that echoes this blank's label, then names an option
-    //    (option-pool blanks only — see doc comment above)
+    //    (option-pool blanks only — see doc comment above). The answer is
+    //    whatever FOLLOWS the echoed label, not the label itself — a
+    //    matching/multiple-dropdowns option pool is shared across every
+    //    blank, and a row's own label can legitimately name a DIFFERENT pool
+    //    term (e.g. "Sample"'s captured label is "A specific selection of
+    //    cases from the population.", which contains "population" — a
+    //    different, longer option). Feeding the whole line (label text
+    //    included) into matchOption lets that other term win on raw
+    //    longest-substring. Stripping the echoed label out first removes the
+    //    false signal at its source.
     if (!picked && hasOptions && blank.label) {
       const key = blank.label.toLowerCase().slice(0, 24);
       const labelLine = lines.find((ln) => ln.toLowerCase().includes(key));
-      if (labelLine) picked = matchOption(labelLine, blank.options);
+      if (labelLine) picked = matchOption(stripLabelEcho(labelLine, blank.label), blank.options);
     }
     // 3) last resort: the single option the answer text mentions
     //    (option-pool blanks only — see doc comment above)
@@ -124,21 +133,74 @@ function cleanFreeformValue(text: string): string {
   return value;
 }
 
-/** Best option for a chunk of answer text: exact (case-insensitive) wins, then
- * the longest option that appears as a substring either way. */
+/** Remove an echoed label from the FRONT of a matched line, keeping only what
+ * follows it — the label-echo stage (2, above) only cares about the answer
+ * that comes AFTER the label, never the label's own wording. Tries the full
+ * label text first (an exact, case-insensitive match — the common case, since
+ * the model usually restates the label verbatim before naming the answer);
+ * falls back to stripping just the short key used to locate the line (its
+ * first 24 chars) when the model paraphrased the label, so at minimum the
+ * label's own opening words can't feed the scorer either. Never returns an
+ * empty result when stripping would leave nothing usable — the caller's
+ * matchOption still needs *something* to search. */
+function stripLabelEcho(line: string, label: string): string {
+  const lineLower = line.toLowerCase();
+  const labelLower = label.toLowerCase();
+  const idx = lineLower.indexOf(labelLower);
+  if (idx >= 0) {
+    const remainder = line.slice(idx + label.length).trim();
+    if (remainder) return remainder;
+  }
+  const key = labelLower.slice(0, 24);
+  const keyIdx = lineLower.indexOf(key);
+  if (keyIdx >= 0) {
+    const remainder = line.slice(keyIdx + key.length).trim();
+    if (remainder) return remainder;
+  }
+  return line;
+}
+
+/** Best option for a chunk of answer text: exact (case-insensitive) wins.
+ * Otherwise, the option with the strongest containment evidence — a
+ * word-boundary substring match (the option appears as a whole token, not
+ * embedded mid-word) beats a raw substring match — and only among matches of
+ * EQUAL strength does the longest option win. This keeps a short option (e.g.
+ * "Sample") from losing to an unrelated, longer option (e.g. "Population")
+ * that happens to also appear as a same-strength substring elsewhere in the
+ * text — length alone no longer overrides match quality. (Two options where
+ * one is a raw substring of the other, e.g. a hypothetical "Sample"/"Sample
+ * size", are covered by the same rule: the shorter one still needs a
+ * word-boundary hit to beat a longer merely-contained rival, and a longer
+ * option that only matches mid-word never beats a shorter boundary match.) */
 function matchOption(text: string, options: string[]): string {
   const t = text.replace(/\s+/g, " ").trim();
   if (!t) return "";
   const tl = t.toLowerCase();
   for (const o of options) if (o.toLowerCase() === tl) return o;
+
   let best = "";
+  let bestTier = -1;
   for (const o of options) {
     const ol = o.toLowerCase();
     if (!ol) continue;
-    const hit = tl.includes(ol) || (ol.length >= 3 && ol.includes(tl));
-    if (hit && o.length > best.length) best = o;
+    let tier = -1;
+    if (tl.includes(ol)) tier = isWordBoundaryMatch(tl, ol) ? 1 : 0;
+    else if (ol.length >= 3 && ol.includes(tl)) tier = isWordBoundaryMatch(ol, tl) ? 1 : 0;
+    if (tier < 0) continue;
+    if (tier > bestTier || (tier === bestTier && o.length > best.length)) {
+      best = o;
+      bestTier = tier;
+    }
   }
   return best;
+}
+
+/** Whether `needle` appears in `haystack` (both already lowercased) bounded by
+ * non-alphanumeric characters (or the string edges) on both sides — i.e. as a
+ * whole token/phrase rather than embedded inside a longer word. */
+function isWordBoundaryMatch(haystack: string, needle: string): boolean {
+  if (!needle) return false;
+  return new RegExp(`(?:^|[^a-z0-9])${escapeRegExp(needle)}(?:$|[^a-z0-9])`).test(haystack);
 }
 
 /** If exactly one option is named anywhere in the answer, use it; ambiguous or

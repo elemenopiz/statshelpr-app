@@ -8,6 +8,9 @@
     "watch": "node scripts/build.mjs --watch",
     "datasets": "node scripts/convert-rdata.mjs"
   },
+  "dependencies": {
+    "@statshelpr/solver-core": "workspace:*"
+  },
   "devDependencies": {
     "@types/chrome": "^0.0.270",
     "esbuild": "^0.24.0",

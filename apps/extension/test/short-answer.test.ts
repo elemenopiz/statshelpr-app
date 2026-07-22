@@ -55,13 +55,16 @@ describe("short_answer_question (synthesized)", () => {
 
   it("negative: a read-only short-answer input is highlight-only but still counted", () => {
     const { question, input } = buildTextFillQuestion({ stemText: STEM, readOnly: true });
-    // Same documented gap as numerical's disabled case: a readOnly text-fill
-    // input never becomes a "choice" in the first place, so it's silently
-    // skipped rather than highlight-only-marked like every other input kind.
-    // See regression.test.ts FIXME(disabled text-fill inconsistency).
-    expect(collectAnswerChoices(question)).toEqual([]);
+    // Same fix as numerical's disabled case: a readOnly text-fill input is
+    // still collected as a "text-fill" choice and gets the same
+    // highlight-only treatment as every other input kind (see
+    // regression.test.ts's "fixed: disabled text-fill inconsistency").
+    const scraped = collectAnswerChoices(question);
+    expect(scraped).toHaveLength(1);
+    expect(scraped[0]!.kind).toBe("text-fill");
     const count = selectAnswerChoice(question, "Answer: lm", []);
-    expect(count).toBe(0);
-    expect(input.classList.contains("statshelpr-suggested")).toBe(false);
+    expect(count).toBe(1);
+    expect(input.classList.contains("statshelpr-suggested")).toBe(true);
+    expect(input.value).toBe(""); // read-only — never set
   });
 });

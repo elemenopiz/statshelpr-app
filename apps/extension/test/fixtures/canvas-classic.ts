@@ -100,6 +100,14 @@ export function buildChoiceQuestion(params: {
   choiceTexts: string[];
   /** Indices (into choiceTexts) whose <input> should render disabled. */
   disabledIndices?: number[];
+  /** Indices (into choiceTexts) that should render an `equation_image` <img>
+   * (Canvas's real markup for a rendered-LaTeX choice, e.g. a fraction or
+   * Greek-letter formula) INSIDE the answer_text span, in addition to
+   * whatever plain text choiceTexts[i] supplies (pass "" there for an
+   * image-only choice). The record value is the img's `alt` text (where
+   * Canvas bakes the LaTeX source); `undefined` renders the <img> with NO
+   * alt attribute at all — the "alt-less image" case. */
+  choiceImageAlts?: Record<number, string | undefined>;
 }): ChoiceFixture {
   const id = params.id ?? nextId("q");
   const groupName = `question_${id}`;
@@ -112,7 +120,15 @@ export function buildChoiceQuestion(params: {
       value: String(1000 + i),
       disabled: params.disabledIndices?.includes(i) ?? false,
     });
-    const label = h("label", { for: inputId }, [h("span", { class: "answer_text" }, [text])]);
+    const img =
+      params.choiceImageAlts && i in params.choiceImageAlts
+        ? h("img", {
+            class: "equation_image",
+            src: "https://canvas.example/equation_images/eq.png",
+            alt: params.choiceImageAlts[i],
+          })
+        : null;
+    const label = h("label", { for: inputId }, [h("span", { class: "answer_text" }, [text, img])]);
     return h("div", { class: `answer answer_${i}` }, [input, label, answerTextDecoy(text)]);
   });
   const answers = h("div", { class: "answers" }, rows);

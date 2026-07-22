@@ -73,26 +73,49 @@ describe("numerical_question", () => {
 
   it("negative: a disabled numerical input is highlight-only but still counted, value stays empty", () => {
     const { question, input } = buildTextFillQuestion({ stemText: REC.questionText, numerical: true, disabled: true });
-    // A disabled/readOnly text-fill input is filtered out of
-    // collectAnswerChoices entirely (see FIXME in regression.test.ts) — this
-    // negative documents the CURRENT (buggy) behavior for numerical
-    // specifically: nothing is collected, so selectAnswerChoice can't even
-    // reach fillTextInput's own (dead, for this path) disabled branch.
-    expect(collectAnswerChoices(question)).toEqual([]);
+    // A disabled/readOnly text-fill input is still collected as a "text-fill"
+    // choice (see the "fixed: disabled text-fill inconsistency" describe in
+    // regression.test.ts) and gets the same highlight-only treatment as every
+    // other disabled input kind: counted, marked, but never written to.
+    const scraped = collectAnswerChoices(question);
+    expect(scraped).toHaveLength(1);
+    expect(scraped[0]!.kind).toBe("text-fill");
     const count = selectAnswerChoice(question, "Answer: 42", []);
-    expect(count).toBe(0);
-    expect(input.classList.contains("statshelpr-suggested")).toBe(false);
+    expect(count).toBe(1);
+    expect(input.classList.contains("statshelpr-suggested")).toBe(true);
+    expect(input.value).toBe(""); // disabled — never set
   });
 
-  it.fails(
-    "FIXME(numeric $/comma sanitize): a dollar-prefixed answer should be written as a clean numeric value, not left with a literal '$'",
-    () => {
-      const { question, input } = buildTextFillQuestion({ stemText: REC.questionText, numerical: true });
-      selectAnswerChoice(question, "Answer: $2,087.", []);
-      // Desired behavior once the known "numeric $/comma sanitize" fix (named
-      // in this task's own briefing as a separately-owned upcoming change)
-      // lands: the '$' should not be written into a numerical input's value.
-      expect(input.value).not.toContain("$");
-    },
-  );
+  it("fixed: a dollar-prefixed answer is written as a clean numeric value, not left with a literal '$'", () => {
+    const { question, input } = buildTextFillQuestion({ stemText: REC.questionText, numerical: true });
+    selectAnswerChoice(question, "Answer: $2,087.", []);
+    // fillTextInput's numeric sanitize strips $ (always, for a numerical
+    // target) and its accompanying thousands-commas (cleaned up alongside
+    // the currency marker) — minus/decimal/exponent notation would be left
+    // alone, but there's none here.
+    expect(input.value).not.toContain("$");
+    expect(input.value).toBe("2087");
+  });
+
+  it("a bare comma-grouped answer with no currency/percent marker is left exactly as typed (Canvas's numerical fields accept that format verbatim)", () => {
+    const { question, input } = buildTextFillQuestion({ stemText: REC.questionText, numerical: true });
+    selectAnswerChoice(question, "Answer: 2,087.", []);
+    expect(input.value).toBe("2,087");
+  });
+
+  it("a percent-suffixed answer has its % (and accompanying comma) stripped the same way a dollar-prefixed one does", () => {
+    const { question, input } = buildTextFillQuestion({ stemText: "What fraction, as a percent?", numerical: true });
+    selectAnswerChoice(question, "Answer: 12,000%", []);
+    expect(input.value).toBe("12000");
+  });
+
+  it("minus signs, decimal points, and scientific notation survive numeric sanitize untouched", () => {
+    const { question, input } = buildTextFillQuestion({ stemText: "What is the residual?", numerical: true });
+    selectAnswerChoice(question, "Answer: -$1,234.56", []);
+    expect(input.value).toBe("-1234.56");
+
+    const { question: q2, input: i2 } = buildTextFillQuestion({ stemText: "What is the p-value?", numerical: true });
+    selectAnswerChoice(q2, "Answer: 3.2e-5", []);
+    expect(i2.value).toBe("3.2e-5");
+  });
 });

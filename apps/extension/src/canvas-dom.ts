@@ -10,6 +10,8 @@
  * consumer of this module today.
  */
 
+import { dedupeDoubled } from "@statshelpr/solver-core/core/text";
+
 export interface ImageBlock {
   data: string;
   mediaType: "image/png" | "image/jpeg" | "image/webp";
@@ -75,11 +77,22 @@ export async function scrapeQuestion(question: HTMLElement): Promise<ScrapedQues
 
 /** Select/fill the model's answer into the page. Returns the count of
  * elements actually acted on (clicked / selected / filled, or highlight-only
- * marked when disabled) — 0 means nothing in the page could be written to. */
+ * marked when disabled) — 0 means nothing in the page could be written to.
+ *
+ * `originalChoices` is optional: the choices as scraped and SENT to the
+ * server (content.ts has `scraped.choices` in scope at its call site), from
+ * BEFORE the async solve round-trip. Backend `selectedLabels` are mapped back
+ * to elements by re-scraping the page now and matching on label/letter — if
+ * the DOM shifted in between (a choice row inserted/reordered/removed), a
+ * label like "B" can silently resolve to a DIFFERENT physical choice than the
+ * one the server actually saw and answered. When `originalChoices` is
+ * supplied, each backend label is verified against it first — see
+ * isLabelStillTrustworthy() — before being acted on. */
 export function selectAnswerChoice(
   question: HTMLElement,
   answer: string,
   selectedLabels: string[] = [],
+  originalChoices?: Array<{ label: string; text: string }>,
 ): number {
   const choices = collectAnswerChoices(question);
   if (choices.length === 0) return 0;
@@ -91,7 +104,8 @@ export function selectAnswerChoice(
 
   const selectedByBackend = selectedLabels
     .map((label) => choices.find((c) => c.label.toUpperCase() === label.toUpperCase()))
-    .filter((c): c is AnswerChoice => Boolean(c));
+    .filter((c): c is AnswerChoice => Boolean(c))
+    .filter((c) => isLabelStillTrustworthy(c, originalChoices));
   if (selectedByBackend.length > 0) {
     let count = 0;
     for (const c of selectedByBackend) count += applyChoice(c);
@@ -119,6 +133,26 @@ export function selectAnswerChoice(
   if (radios.length === 0) return 0;
   const c = pickByLetterOrText(answer, radios);
   return c ? applyChoice(c) : 0;
+}
+
+/** Whether it's still safe to act on `current` (a choice the RE-scrape just
+ * resolved a backend label to) as what the backend actually meant. With no
+ * baseline supplied, every label is trusted (today's default behavior,
+ * unchanged). With a baseline, we look up the SAME label in it and compare
+ * normalized text: if the original scrape never had that label at all, this
+ * check has nothing to say about it — trust it. If it did, the label is only
+ * still trustworthy when the two texts match; a mismatch means the DOM
+ * shifted between scrape and write (a row inserted/reordered) and this label
+ * now points at a different physical choice than the one the server saw —
+ * the caller should fall through to the text-matching fallback instead. */
+function isLabelStillTrustworthy(
+  current: AnswerChoice,
+  originalChoices?: Array<{ label: string; text: string }>,
+): boolean {
+  if (!originalChoices) return true;
+  const original = originalChoices.find((o) => o.label.toUpperCase() === current.label.toUpperCase());
+  if (!original) return true;
+  return normalizeText(original.text) === normalizeText(current.text);
 }
 
 function pickByLetterOrText(answer: string, pool: AnswerChoice[]): AnswerChoice | null {
@@ -189,7 +223,40 @@ function fillTextInput(input: HTMLInputElement, answer: string): number {
   value = value.replace(/[.,;]\s*$/, "").trim();
   // Strip wrapping quotes
   value = value.replace(/^["'`]|["'`]$/g, "");
+  if (isNumericalTarget(input, value)) value = sanitizeNumericValue(value) || value;
   return setTextInputValue(input, value);
+}
+
+/** True when `input` is (or, absent an explicit marker, `rawValue` alone
+ * looks like) a numerical answer field: an explicit `type="number"`, Canvas's
+ * own `.numerical_question_input` class, or — for a plain text field with
+ * neither marker (e.g. a short_answer_question the model happened to answer
+ * with a bare number) — a value that already parses as a finite number once
+ * currency/percent/thousands formatting is stripped. */
+function isNumericalTarget(input: HTMLInputElement, rawValue: string): boolean {
+  if (input.type === "number") return true;
+  if (input.classList.contains("numerical_question_input")) return true;
+  const stripped = sanitizeNumericValue(rawValue, { forceStripCommas: true });
+  return stripped !== "" && Number.isFinite(Number(stripped));
+}
+
+/** Clean formatting noise out of a numeric-looking answer before it's written
+ * into a numerical field: `$` and `%` are unambiguous non-numeric noise and
+ * are always stripped, along with surrounding/internal whitespace. Minus
+ * signs, decimal points, and scientific-notation `e`/`E` exponents are left
+ * untouched so a genuinely negative/decimal/exponential value round-trips
+ * exactly. Thousands-commas are stripped only alongside a `$`/`%` marker (or
+ * when `forceStripCommas` is set, for the plain numeric-parse check above) —
+ * a bare comma-grouped value with neither ("2,087") is left exactly as typed,
+ * since Canvas's numerical fields already accept that format verbatim; a
+ * dollar/percent-marked value ("$2,087", "12,000%") is unambiguously dirty
+ * and gets its commas cleaned up in the same pass as the currency/percent
+ * symbol itself. Returns "" if nothing is left to write. */
+function sanitizeNumericValue(value: string, opts: { forceStripCommas?: boolean } = {}): string {
+  const hasCurrencyOrPercent = /[$%]/.test(value);
+  let cleaned = value.replace(/[$%]/g, "").replace(/\s+/g, "");
+  if (hasCurrencyOrPercent || opts.forceStripCommas) cleaned = cleaned.replace(/,/g, "");
+  return cleaned;
 }
 
 /** Set a text/number input's value via the React-aware native setter (so New
@@ -239,8 +306,18 @@ export function collectAnswerChoices(question: HTMLElement): AnswerChoice[] {
     if (row && seenRows.has(row)) return;
     if (row) seenRows.add(row);
 
-    const text = normalizeText(getChoiceText(input));
-    if (!text) return;
+    let text = normalizeText(getChoiceText(input));
+    if (!text) {
+      // A choice that's ONLY an equation image with no alt text (getChoiceText
+      // already substitutes alt text where present — see textWithImageAlts)
+      // would otherwise vanish from the letter list entirely, taking its
+      // letter with it and leaving the model unable to ever pick it. Keep it
+      // as a real, clickable choice with a placeholder instead — but only for
+      // a genuinely image-bearing row; a truly empty non-image row still
+      // drops, unchanged from before.
+      if (!choiceHasImage(input)) return;
+      text = `(image ${index + 1})`;
+    }
     choices.push({
       input,
       label: choiceLabel(index),
@@ -262,7 +339,7 @@ export function collectAnswerChoices(question: HTMLElement): AnswerChoice[] {
     const sel = selects[0]!;
     let idx = 0;
     for (const opt of [...sel.querySelectorAll("option")]) {
-      const text = normalizeText(opt.textContent ?? "");
+      const text = dedupeDoubled(opt.textContent ?? "");
       // Skip placeholder "[Select]" / "Choose..." entries
       if (!text || /^\[?\s*(select|choose)\s*\]?\s*\.{0,3}$/i.test(text)) continue;
       choices.push({
@@ -280,16 +357,34 @@ export function collectAnswerChoices(question: HTMLElement): AnswerChoice[] {
 
   // Priority 3: a single fill-in text/numerical input. We register a synthetic
   // "A" choice whose text is the input field itself, so downstream logic can
-  // write the model's answer into the .value.
-  const textInputs = [...question.querySelectorAll<HTMLInputElement>(TEXT_INPUT_SELECTOR)].filter(
-    (i) => !i.disabled && !i.readOnly,
-  );
-  if (textInputs.length === 1) {
-    const t = textInputs[0]!;
+  // write the model's answer into the .value. Prefer the sole ENABLED input
+  // when there is one — mirrors every other input kind (radio/checkbox/
+  // select), which are always collected regardless of disabled state and
+  // rely on the write-back step (selectChoice / setSelectValue /
+  // fillTextInput) to downgrade to highlight-only. Only when NO input is
+  // enabled do we fall back to a sole remaining disabled/readonly input, so
+  // it still gets collected (and later highlight-only marked) instead of
+  // silently vanishing — previously `choices.length === 1 && kind ===
+  // "text-fill"` could never be true for a disabled/readonly-only question,
+  // so selectAnswerChoice's `choices.length === 0` short-circuit fired first
+  // with no highlight at all. Gating the disabled fallback on "zero enabled"
+  // (rather than "total === 1") also means a 1-enabled-plus-N-disabled
+  // question keeps picking the enabled one, unchanged from before — and 2+
+  // enabled inputs still fall through to collectTextBlanks' own "2+ ENABLED"
+  // fill-in-multiple-blanks path untouched.
+  const allTextInputs = [...question.querySelectorAll<HTMLInputElement>(TEXT_INPUT_SELECTOR)];
+  const enabledTextInputs = allTextInputs.filter((i) => !i.disabled && !i.readOnly);
+  const soleTextInput =
+    enabledTextInputs.length === 1
+      ? enabledTextInputs[0]
+      : enabledTextInputs.length === 0 && allTextInputs.length === 1
+        ? allTextInputs[0]
+        : undefined;
+  if (soleTextInput) {
     choices.push({
-      input: t,
+      input: soleTextInput,
       label: "A",
-      text: t.placeholder || "(fill in your answer)",
+      text: soleTextInput.placeholder || "(fill in your answer)",
       kind: "text-fill",
     });
   }
@@ -378,7 +473,7 @@ export function collectBlanks(question: HTMLElement): ScrapedBlank[] {
   if (selects.length >= 2) {
     return selects.map((sel, i) => {
       const options: BlankOption[] = [...sel.options]
-        .map((o, index) => ({ value: o.value, text: normalizeText(o.textContent ?? ""), index }))
+        .map((o, index) => ({ value: o.value, text: dedupeDoubled(o.textContent ?? ""), index }))
         .filter((o) => o.text && !isPlaceholderOption(o.text));
       return { kind: "select", key: `blank${i + 1}`, label: blankLabel(sel, question), options, select: sel };
     });
@@ -490,20 +585,49 @@ export function writeBlanks(question: HTMLElement, answers: BlankAnswer[]): numb
   return count;
 }
 
-/** Best option for a model answer: exact (case-insensitive) first, then the
- * longest option that appears as a substring either way. */
+/** Best option for a model answer: exact (case-insensitive) first. Otherwise,
+ * mirrors solver-core's choices.ts matchOption() — the option with the
+ * strongest containment evidence wins (a word-boundary substring match beats
+ * a raw mid-word one), and only among matches of equal strength does the
+ * longest option win, so a short option can't lose to an unrelated longer one
+ * that merely happens to also appear in the text. `answer` here normally
+ * arrives already resolved to a bare option value by solver-core's
+ * deriveBlankAnswers, so the exact-match branch is the common case — this
+ * fallback exists for formatting drift between what the server sent and what
+ * the client re-scrapes (e.g. whitespace). */
 function matchBlankOption(answer: string, options: BlankOption[]): BlankOption | null {
   const a = normalizeText(answer).toLowerCase();
   if (!a) return null;
   for (const o of options) if (o.text.toLowerCase() === a) return o;
+
   let best: BlankOption | null = null;
+  let bestTier = -1;
   for (const o of options) {
     const ol = o.text.toLowerCase();
     if (!ol) continue;
-    const hit = a.includes(ol) || (ol.length >= 3 && ol.includes(a));
-    if (hit && (!best || o.text.length > best.text.length)) best = o;
+    let tier = -1;
+    if (a.includes(ol)) tier = isWordBoundaryMatch(a, ol) ? 1 : 0;
+    else if (ol.length >= 3 && ol.includes(a)) tier = isWordBoundaryMatch(ol, a) ? 1 : 0;
+    if (tier < 0) continue;
+    if (tier > bestTier || (tier === bestTier && o.text.length > (best?.text.length ?? 0))) {
+      best = o;
+      bestTier = tier;
+    }
   }
   return best;
+}
+
+/** Whether `needle` appears in `haystack` (both already lowercased) bounded by
+ * non-alphanumeric characters (or the string edges) — i.e. as a whole
+ * token/phrase rather than embedded inside a longer word. Mirrors
+ * solver-core's choices.ts isWordBoundaryMatch() exactly. */
+function isWordBoundaryMatch(haystack: string, needle: string): boolean {
+  if (!needle) return false;
+  return new RegExp(`(?:^|[^a-z0-9])${escapeRegExp(needle)}(?:$|[^a-z0-9])`).test(haystack);
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function findSelectedChoices(
@@ -543,15 +667,28 @@ function findSelectedChoices(
 function getChoiceText(input: HTMLInputElement): string {
   if (input.id) {
     const label = document.querySelector(`label[for="${cssEscape(input.id)}"]`);
-    if (label) return label.textContent ?? "";
+    if (label) return dedupeDoubled(textWithImageAlts(label as HTMLElement));
   }
   const row = getChoiceRow(input);
   if (row) {
     const at = row.querySelector(".answer_text, .answer_html");
-    if (at?.textContent) return at.textContent;
-    return row.textContent ?? "";
+    const atText = at ? textWithImageAlts(at as HTMLElement) : "";
+    if (atText.trim()) return dedupeDoubled(atText);
+    return dedupeDoubled(textWithImageAlts(row));
   }
   return "";
+}
+
+/** Whether `input`'s choice row (or its `label[for]`) contains an `<img>` at
+ * all — used to tell an equation-image-only choice (worth a placeholder
+ * instead of being dropped) apart from a genuinely empty non-image row. */
+function choiceHasImage(input: HTMLInputElement): boolean {
+  if (input.id) {
+    const label = document.querySelector(`label[for="${cssEscape(input.id)}"]`);
+    if (label?.querySelector("img")) return true;
+  }
+  const row = getChoiceRow(input);
+  return Boolean(row?.querySelector("img"));
 }
 
 function getChoiceRow(input: HTMLInputElement): HTMLElement | null {
@@ -594,11 +731,35 @@ function normalizeText(text: string): string {
 
 /** Element text with Canvas's screen-reader helper spans ("Links to an
  * external site.") and script/style removed, so they don't leak into the
- * prompt. Operates on a detached clone — never mutates the page. */
+ * prompt. Operates on a detached clone — never mutates the page. Every
+ * `<img>` is replaced by its `alt` text first (see textWithImageAlts) so an
+ * equation-image-only stem/choice/label still yields visible text. */
 function cleanText(el: HTMLElement): string {
   const clone = el.cloneNode(true) as HTMLElement;
   clone.querySelectorAll("script, style, .screenreader-only").forEach((n) => n.remove());
+  replaceImagesWithAltText(clone);
   return normalizeText(clone.textContent ?? "");
+}
+
+/** `el`'s text with every `<img>` replaced by a text node of its `alt`
+ * attribute (space-padded, empty alt contributes nothing) — Canvas puts an
+ * equation choice's LaTeX source in `img.alt` (class `equation_image`), and
+ * plain `.textContent` skips images entirely, so a choice that's ONLY an
+ * equation image would otherwise scrape as empty text and get dropped from
+ * the letter list. Operates on a detached clone — never mutates the page. */
+function textWithImageAlts(el: HTMLElement): string {
+  const clone = el.cloneNode(true) as HTMLElement;
+  replaceImagesWithAltText(clone);
+  return clone.textContent ?? "";
+}
+
+/** Mutates `root` (expected to already be a detached clone) in place,
+ * replacing each descendant `<img>` with a text node of its `alt`. */
+function replaceImagesWithAltText(root: HTMLElement): void {
+  root.querySelectorAll("img").forEach((img) => {
+    const alt = img.getAttribute("alt") ?? "";
+    img.replaceWith(document.createTextNode(alt ? ` ${alt} ` : ""));
+  });
 }
 
 function cssEscape(s: string): string {

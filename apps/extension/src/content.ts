@@ -406,7 +406,7 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
   const writeCount =
     final.blanks && final.blanks.length > 0 && scraped.blanks.length > 0
       ? writeBlanks(question, final.blanks)
-      : selectAnswerChoice(question, cleaned, final.selectedChoices ?? []);
+      : selectAnswerChoice(question, cleaned, final.selectedChoices ?? [], scraped.choices);
 
   if (writeCount === 0) {
     // Nothing in the page could be auto-selected/filled (e.g. no scrapable

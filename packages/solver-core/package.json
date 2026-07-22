@@ -10,6 +10,7 @@
     "./core": "./src/core/index.ts",
     "./core/providers": "./src/core/providers/index.ts",
     "./core/types": "./src/core/types.ts",
+    "./core/text": "./src/core/text.ts",
     "./solver": "./src/solver/index.ts"
   },
   "devDependencies": {
