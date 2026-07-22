@@ -1,41 +1,59 @@
 /* =========================================================================
- * Inline tutor button. Idle opacity is user-controlled via a slider in the
- * extension popup (0.05 = very subtle, 1.0 = fully visible). Default 0.2.
- * The value is applied via the --sh-idle-opacity CSS custom property, set
- * on document.documentElement in content.ts on inject and whenever storage
- * changes.
+ * Inline tutor button — a small "solve" badge next to each question heading.
+ * White fill, blue outline, blue label — a rounded rectangle, not a pill.
+ * One discreet-mode slider in the extension popup (0 = fully invisible, 1 =
+ * fully visible; default 1) drives two independent CSS custom properties,
+ * derived in content.ts's applyButtonOpacity() and set on
+ * document.documentElement on inject and whenever storage changes:
+ *
+ *   --sh-text-opacity     [0.2, 1.0] of the dial fades the "solve" label
+ *                         in/out while the outline (border + white fill)
+ *                         stays fully visible.
+ *   --sh-outline-opacity  [0, 0.2) of the dial — label is already gone —
+ *                         fades the border and fill down to nothing.
+ *
+ * The two are split across different CSS mechanisms on purpose: the outline
+ * uses an alpha color (border-color/background), the label uses element
+ * opacity on its own child span — that way fading one never drags the other
+ * down with it (a real `opacity` on the button would fade both at once).
  * ========================================================================= */
 
 :root {
-  --sh-idle-opacity: 0.2;
+  --sh-outline-opacity: 1;
+  --sh-text-opacity: 1;
 }
 
 .statshelpr-btn-tutor {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 14px;
-  height: 14px;
-  padding: 0;
-  margin-left: 4px;
-  background: transparent;
-  color: #888;
-  border: 1px solid rgba(0, 0, 0, 0.15);
-  border-radius: 50%;
+  height: 18px;
+  padding: 0 8px;
+  margin-left: 6px;
+  background: rgba(255, 255, 255, var(--sh-outline-opacity, 1));
+  border: 1.75px solid rgba(39, 66, 200, var(--sh-outline-opacity, 1));
+  border-radius: 5px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   line-height: 1;
   cursor: pointer;
   vertical-align: middle;
   user-select: none;
-  opacity: var(--sh-idle-opacity, 0.2);
-  transition: opacity 0.18s ease, background 0.18s ease, color 0.18s ease,
-    border-color 0.18s ease;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.statshelpr-btn-text {
+  color: #2742c8;
+  opacity: var(--sh-text-opacity, 1);
+  transition: opacity 0.18s ease, color 0.18s ease;
 }
 
 /* Hover reveal — scales with the user's idle preference: half-way between
-   idle and full when the parent question is hovered. */
+   idle and full when the parent question is hovered. (Written as calc()'d
+   alpha/opacity on NORMAL properties — a custom property redefined in terms
+   of itself is an invalid cycle and would silently no-op.) */
 .question_holder:hover .statshelpr-btn-tutor,
 .display_question:hover .statshelpr-btn-tutor,
 .question-container:hover .statshelpr-btn-tutor,
@@ -43,37 +61,40 @@
 .item-body:hover .statshelpr-btn-tutor,
 [data-testid="question-container"]:hover .statshelpr-btn-tutor,
 [data-testid="quiz-question"]:hover .statshelpr-btn-tutor {
-  opacity: calc((var(--sh-idle-opacity, 0.2) + 1) / 2);
+  background: rgba(255, 255, 255, calc((var(--sh-outline-opacity, 1) + 1) / 2));
+  border-color: rgba(39, 66, 200, calc((var(--sh-outline-opacity, 1) + 1) / 2));
+}
+
+.question_holder:hover .statshelpr-btn-tutor .statshelpr-btn-text,
+.display_question:hover .statshelpr-btn-tutor .statshelpr-btn-text,
+.question-container:hover .statshelpr-btn-tutor .statshelpr-btn-text,
+.QuestionItem:hover .statshelpr-btn-tutor .statshelpr-btn-text,
+.item-body:hover .statshelpr-btn-tutor .statshelpr-btn-text,
+[data-testid="question-container"]:hover .statshelpr-btn-tutor .statshelpr-btn-text,
+[data-testid="quiz-question"]:hover .statshelpr-btn-tutor .statshelpr-btn-text {
+  opacity: calc((var(--sh-text-opacity, 1) + 1) / 2);
 }
 
 .statshelpr-btn-tutor:hover:not(:disabled) {
+  background: #fff;
+  border-color: #2742c8;
+}
+
+.statshelpr-btn-tutor:hover:not(:disabled) .statshelpr-btn-text {
   opacity: 1;
-  background: rgba(0, 0, 0, 0.06);
-  color: #333;
-  border-color: rgba(0, 0, 0, 0.3);
+  color: #1c31a2;
 }
 
 .statshelpr-btn-tutor.loading {
-  opacity: 1;
   cursor: progress;
   background: transparent;
   border-color: transparent;
 }
 
-.statshelpr-btn-tutor.success {
-  opacity: 1;
-  background: #137333;
-  color: white;
-  border-color: #137333;
-  font-size: 9px;
-  font-weight: 700;
-}
-
 .statshelpr-btn-tutor.error {
-  opacity: 1;
   background: #c5221f;
-  color: white;
   border-color: #c5221f;
+  color: white;
   font-size: 10px;
   font-weight: 700;
 }
@@ -82,10 +103,9 @@
    amber, distinct from the red error state. The answer itself is in the
    hover title so the student still gets it. */
 .statshelpr-btn-tutor.nowrite {
-  opacity: 1;
   background: #b06000;
-  color: white;
   border-color: #b06000;
+  color: white;
   font-size: 10px;
   font-weight: 700;
 }

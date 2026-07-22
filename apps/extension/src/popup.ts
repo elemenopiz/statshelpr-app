@@ -4,7 +4,9 @@ interface StoredConfig {
   buttonOpacity?: number;
 }
 
-const DEFAULT_OPACITY = 0.2;
+// Fully visible by default — a first-install user has to be able to FIND the
+// button before discreet mode means anything to them (fading is opt-in).
+const DEFAULT_OPACITY = 1;
 const API_URL = "https://api.statshelpr.com";
 
 /** Manual light/dark override — unset means "follow the OS", same as the
@@ -87,11 +89,66 @@ function systemTheme(): Theme {
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+function svgEl<K extends keyof SVGElementTagNameMap>(
+  tag: K,
+  attrs: Record<string, string>,
+): SVGElementTagNameMap[K] {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+  return node;
+}
+
+// Hand-drawn (not a system emoji font) so it renders identically and crisply
+// across platforms, and inherits --ink-3 / hover --blue via currentColor.
+// The crescent is a circle with a second, offset circle masked out of it —
+// no fragile arc-path math.
+function buildMoonIcon(): SVGSVGElement {
+  const svg = svgEl("svg", { width: "13", height: "13", viewBox: "0 0 24 24", "aria-hidden": "true" });
+  const mask = svgEl("mask", { id: "sh-moon-mask" });
+  mask.appendChild(svgEl("rect", { width: "24", height: "24", fill: "#fff" }));
+  mask.appendChild(svgEl("circle", { cx: "15", cy: "9", r: "7", fill: "#000" }));
+  svg.appendChild(mask);
+  svg.appendChild(
+    svgEl("circle", { cx: "12", cy: "12", r: "9", fill: "currentColor", mask: "url(#sh-moon-mask)" }),
+  );
+  return svg;
+}
+
+function buildSunIcon(): SVGSVGElement {
+  const svg = svgEl("svg", {
+    width: "13",
+    height: "13",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    "stroke-width": "2",
+    "stroke-linecap": "round",
+    "aria-hidden": "true",
+  });
+  svg.appendChild(svgEl("circle", { cx: "12", cy: "12", r: "5", fill: "currentColor", stroke: "none" }));
+  const rays: [string, string, string, string][] = [
+    ["12", "2", "12", "5"],
+    ["12", "19", "12", "22"],
+    ["2", "12", "5", "12"],
+    ["19", "12", "22", "12"],
+    ["4.9", "4.9", "7", "7"],
+    ["17", "17", "19.1", "19.1"],
+    ["4.9", "19.1", "7", "17"],
+    ["17", "7", "19.1", "4.9"],
+  ];
+  for (const [x1, y1, x2, y2] of rays) {
+    svg.appendChild(svgEl("line", { x1, y1, x2, y2 }));
+  }
+  return svg;
+}
+
 function applyTheme(theme: Theme) {
   document.documentElement.setAttribute("data-theme", theme);
   if (themeToggleEl) {
     const next: Theme = theme === "dark" ? "light" : "dark";
-    themeToggleEl.textContent = theme === "dark" ? "☾" : "☀"; // ☾ dark / ☀ light
+    themeToggleEl.replaceChildren(theme === "dark" ? buildMoonIcon() : buildSunIcon());
     themeToggleEl.setAttribute("aria-label", `Switch to ${next} theme`);
     themeToggleEl.title = "Switch theme";
   }

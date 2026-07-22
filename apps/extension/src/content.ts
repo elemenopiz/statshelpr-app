@@ -9,9 +9,10 @@
  *      service, then an LLM interpret pass) and streams back one terminal
  *      "concept" or "calc" result — see onSolve() for the full parse.
  *   4. Parse the answer letter, find the matching radio/checkbox, click it
- *   5. Set button to ✓ briefly, then back to "solve" (re-clickable) — or, if
- *      nothing in the page could actually be written to, a "?" instead, with
- *      the answer itself in the hover title.
+ *   5. Button goes straight back to "solve" (re-clickable) — the selected
+ *      choice is the only success feedback; the button itself doesn't flash.
+ *      If nothing in the page could actually be written to, a "?" instead,
+ *      with the answer itself in the hover title.
  *
  * No answer card, no explanation, no R code display, and no code execution
  * of any kind in this content script — calc questions now run their R
@@ -141,10 +142,10 @@ let dataFiles: DataFile[] = [];
 function boot() {
   void loadFiles().then(() => scanAndInject());
 
-  // Load user's button-opacity preference and apply it as a CSS variable
-  // (--sh-idle-opacity) that panel.css reads. The variable is set on the
-  // document root so it applies to every injected button, and re-applied
-  // whenever the user drags the popup slider.
+  // Load the user's single discreet-mode dial and derive the two CSS
+  // variables (--sh-text-opacity, --sh-outline-opacity) that panel.css
+  // reads. Set on the document root so they apply to every injected
+  // button, and re-applied whenever the user drags the popup slider.
   void applyButtonOpacityFromStorage();
 
   // Re-load CSVs (and re-apply opacity) whenever the popup updates them so
@@ -193,9 +194,9 @@ function injectButtonFor(question: HTMLElement) {
   const btn = mkEl("button", {
     className: "statshelpr-btn-tutor",
     type: "button",
-    text: "·",
     title: "",
   });
+  btn.appendChild(mkEl("span", { className: "statshelpr-btn-text", text: "solve" }));
   btn.addEventListener("click", (e) => {
     e.stopPropagation();
     e.preventDefault();
@@ -451,7 +452,8 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
     // answer itself via the tooltip so the student can still apply it by hand.
     setBtnState(btn, "nowrite", `Couldn't auto-select — answer: ${cleaned.slice(0, 200)}`);
   } else {
-    setBtnState(btn, "success");
+    // No success flash — the selected answer choice is feedback enough.
+    setBtnState(btn, "default");
   }
   fireTelemetryBeacon({ ...telemetryBase, writeCount, threw: false });
 }
@@ -613,10 +615,10 @@ async function consumeSseResult(res: Response, poke: () => void): Promise<SolveR
   return result;
 }
 
-type BtnState = "default" | "loading" | "success" | "error" | "nowrite";
+type BtnState = "default" | "loading" | "error" | "nowrite";
 
 function setBtnState(btn: HTMLButtonElement, state: BtnState, msg?: string) {
-  btn.classList.remove("loading", "success", "error", "nowrite");
+  btn.classList.remove("loading", "error", "nowrite");
   btn.removeAttribute("title");
 
   switch (state) {
@@ -625,15 +627,6 @@ function setBtnState(btn: HTMLButtonElement, state: BtnState, msg?: string) {
       btn.disabled = true;
       clear(btn);
       btn.appendChild(mkEl("span", { className: "statshelpr-spinner" }));
-      return;
-    case "success":
-      btn.classList.add("success");
-      btn.disabled = false;
-      btn.textContent = "✓";
-      // Revert to default state after a moment so it's re-clickable
-      setTimeout(() => {
-        if (btn.classList.contains("success")) setBtnState(btn, "default");
-      }, 1800);
       return;
     case "error":
       btn.classList.add("error");
@@ -652,7 +645,8 @@ function setBtnState(btn: HTMLButtonElement, state: BtnState, msg?: string) {
       return;
     default:
       btn.disabled = false;
-      btn.textContent = "·";
+      clear(btn);
+      btn.appendChild(mkEl("span", { className: "statshelpr-btn-text", text: "solve" }));
       btn.setAttribute("title", "");
   }
 }
@@ -677,15 +671,32 @@ async function applyButtonOpacityFromStorage(): Promise<void> {
   const r = (await chrome.storage.sync.get(["buttonOpacity"])) as {
     buttonOpacity?: number;
   };
-  applyButtonOpacity(typeof r.buttonOpacity === "number" ? r.buttonOpacity : 0.2);
+  // Default 1 (fully visible): a first-install user has to be able to FIND
+  // the button before discreet mode means anything to them.
+  applyButtonOpacity(typeof r.buttonOpacity === "number" ? r.buttonOpacity : 1);
 }
 
-function applyButtonOpacity(value: number): void {
+// One dial, two phases — see the derivation below and panel.css's header.
+const OUTLINE_FADE_START = 0.2;
+
+function applyButtonOpacity(dial: number): void {
   // Clamp to a sane range so a bad stored value can't blow past 1.0 or go
   // negative. Paid users can drag the popup slider to 0 (fully invisible) —
   // gating who's allowed to write a low value is the popup's job, not ours.
-  const clamped = Math.min(1, Math.max(0, value));
-  document.documentElement.style.setProperty("--sh-idle-opacity", String(clamped));
+  const clamped = Math.min(1, Math.max(0, dial));
+
+  // [0.2, 1.0] → fades the "solve" label in/out, outline stays fully visible.
+  // [0, 0.2)   → label is already gone, so this stretch fades the outline
+  //              itself, ending fully invisible at 0.
+  const textOpacity =
+    clamped >= OUTLINE_FADE_START
+      ? (clamped - OUTLINE_FADE_START) / (1 - OUTLINE_FADE_START)
+      : 0;
+  const outlineOpacity =
+    clamped >= OUTLINE_FADE_START ? 1 : clamped / OUTLINE_FADE_START;
+
+  document.documentElement.style.setProperty("--sh-text-opacity", String(textOpacity));
+  document.documentElement.style.setProperty("--sh-outline-opacity", String(outlineOpacity));
 }
 
 async function getConfig(): Promise<{ apiUrl?: string; licenseKey?: string; telemetryDisabled?: boolean }> {

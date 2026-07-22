@@ -20,27 +20,17 @@
 
     <main>
       <section class="step" data-step="1">
-        <div class="step-pill">step 1 of 5</div>
+        <div class="step-pill">step 1 of 4</div>
         <h1><em>Welcome</em> to statshelpr.</h1>
         <p class="lede">
-          A tiny tutor that lives inside Canvas. Click one button per question and
-          we'll work out the answer — concept questions or R-code calculations
-          alike — and select it for you.
+          A tiny tutor inside Canvas. Click one button per question and we
+          work out the answer for you.
         </p>
         <p class="muted">
-          Nothing to configure — click the
-          <span class="inline-btn">statshelpr</span> icon in your Chrome
-          toolbar (pin it from the puzzle-piece menu if you don't see it) and
-          you're ready to go on any Canvas quiz page.
-        </p>
-        <p class="muted">
-          Built on the same R toolkit your course uses: tidyverse, mosaic,
-          moderndive, ggplot.
-        </p>
-        <p class="muted">
-          Upgrading to <em>Unlimited</em> later? Checkout on statshelpr.com
-          auto-activates your license the moment payment goes through —
-          nothing to paste back into the extension.
+          Nothing to configure — click
+          <img src="icons/icon-32.png" alt="statshelpr" class="inline-icon" />
+          in your Chrome toolbar (pin it from the puzzle-piece menu if you
+          don't see it).
         </p>
         <div class="nav-row">
           <span></span>
@@ -49,13 +39,12 @@
       </section>
 
       <section class="step hidden" data-step="2">
-        <div class="step-pill">step 2 of 5</div>
-        <h2>Open a <em>Canvas quiz</em>.</h2>
+        <div class="step-pill">step 2 of 4</div>
+        <h2>Click <em>solve</em>. Get the answer.</h2>
         <p class="lede">
-          On UT Canvas, navigate to any quiz page. Wait for the questions to
-          load — you should see a small
-          <span class="inline-btn">solve</span> button appear next to each
-          question heading.
+          Open any Canvas quiz. A small
+          <span class="inline-btn">solve</span> button appears next to each
+          question.
         </p>
         <div class="demo-card">
           <div class="demo-q-header">
@@ -75,8 +64,7 @@
           </div>
         </div>
         <p class="muted">
-          Click <span class="inline-btn">solve</span> → spinner → the correct
-          choice is selected automatically.
+          Click it → spinner → the correct choice is selected automatically.
         </p>
         <div class="nav-row">
           <button class="back-btn" data-go="1" type="button">← Back</button>
@@ -85,17 +73,17 @@
       </section>
 
       <section class="step hidden" data-step="3">
-        <div class="step-pill">step 3 of 5</div>
-        <h2><em>Discreet mode</em> on real quiz pages.</h2>
+        <div class="step-pill">step 3 of 4</div>
+        <h2><em>Discreet mode</em>.</h2>
         <p class="lede">
-          The solve button can fade — handy if you'd rather it not stand out
-          on screen. Drag the slider below to see it work on this mock
-          question:
+          The button can fade — drag the slider and watch it happen:
         </p>
         <div class="demo-card">
           <div class="demo-q-header">
             Question 1
-            <span class="demo-btn" id="discreet-demo-btn">solve</span>
+            <span class="discreet-btn" id="discreet-demo-btn"
+              ><span class="discreet-btn-text" id="discreet-demo-text">solve</span></span
+            >
           </div>
           <div class="discreet-slider-row">
             <span class="muted">Solve-button visibility</span>
@@ -111,9 +99,7 @@
           </div>
         </div>
         <p class="muted">
-          Try it — <em>Unlimited</em> lets you fade this all the way out on
-          real quiz pages. On the free plan it stays fully visible and locked;
-          this slider is just a preview so you know the option is there.
+          On real quiz pages, this is set from the extension popup.
         </p>
         <div class="nav-row">
           <button class="back-btn" data-go="2" type="button">← Back</button>
@@ -122,58 +108,18 @@
       </section>
 
       <section class="step hidden" data-step="4">
-        <div class="step-pill">step 4 of 5</div>
-        <h2>For questions that need <em>data files</em>.</h2>
-        <p class="lede">
-          Some questions reference a CSV (e.g., "Using the houses dataset,
-          compute…"). Drop your data files into the small panel in the
-          bottom-right of the Canvas page — once per course, not once per
-          question.
-        </p>
-        <div class="demo-widget">
-          <div class="demo-widget-header">
-            Data files <span class="demo-pill">2</span>
-          </div>
-          <div class="demo-widget-row">
-            <span>houses.csv</span><span class="dim">12.3 KB</span>
-          </div>
-          <div class="demo-widget-row">
-            <span>sat_data.csv</span><span class="dim">5.8 KB</span>
-          </div>
-        </div>
-        <p class="muted">
-          Files persist for 7 days in your browser. They never leave your
-          machine except attached to a single solve request.
-        </p>
-        <div class="nav-row">
-          <button class="back-btn" data-go="3" type="button">← Back</button>
-          <button class="next-btn" data-go="5" type="button">Continue →</button>
-        </div>
-      </section>
-
-      <section class="step hidden" data-step="5">
-        <div class="step-pill">step 5 of 5</div>
+        <div class="step-pill">step 4 of 4</div>
         <h2>You're <em>set</em>.</h2>
-        <p class="lede">A quick reference for as you go:</p>
         <ul class="tips">
-          <li>
-            <span class="tip-tag">solve</span> the button next to each question
-            — click to auto-answer
-          </li>
-          <li>
-            <span class="tip-tag spin"></span> spinner — ai tutor is thinking
-            (5-10 seconds depending on difficulty)
-          </li>
-          <li>
-            <span class="tip-tag ok">✓</span> green — answered (the correct
-            choice is selected for you)
-          </li>
+          <li><span class="tip-tag spin"></span> thinking (5–10s)</li>
+          <li><span class="tip-tag ok">✓</span> answered for you</li>
+          <li><b>CSV needed?</b> Drop it in the popup, once per course.</li>
         </ul>
         <p class="muted">
           Re-open this guide anytime from the extension popup.
         </p>
         <div class="nav-row">
-          <button class="back-btn" data-go="4" type="button">← Back</button>
+          <button class="back-btn" data-go="3" type="button">← Back</button>
           <button class="next-btn done" id="finish-btn" type="button">
             Open Canvas →
           </button>
