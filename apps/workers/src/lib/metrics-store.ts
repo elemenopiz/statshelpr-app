@@ -26,7 +26,12 @@ import type { Env } from "../types";
 import { addToHistogram, emptyHistogram, LATENCY_BUCKET_BOUNDARIES_MS } from "./histogram";
 
 const KV_PREFIX = "metrics:";
-const BUCKET_TTL_SEC = 40 * 86_400; // 30-day read window + margin
+// Sized for the 2×window lookback metrics-load.ts now reads (a 30-day window
+// PLUS its immediately-preceding 30-day comparison/cohort window = 60 days),
+// with a ~10-day margin. Was 40 days when only a single 30-day window was
+// read; bumped so window-over-window deltas (dashboard-v2 item 10) actually
+// have a populated prior window instead of expired-to-empty buckets.
+const BUCKET_TTL_SEC = 70 * 86_400;
 const INSTALL_HASH_CAP = 5000; // per-day cap; see addInstallHash
 
 export interface RouteCounters {

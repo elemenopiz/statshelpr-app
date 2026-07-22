@@ -22,6 +22,8 @@ import {
 } from "../src/lib/histogram";
 import { aggregateMetrics } from "../src/lib/metrics-aggregate";
 import { emptyBucket, type DailyMetricsBucket } from "../src/lib/metrics-store";
+import { classifyError } from "../src/lib/classify-error";
+import { computeCohorts, type CohortDay } from "../src/lib/cohort";
 
 let pass = 0;
 let fail = 0;
@@ -145,7 +147,10 @@ console.log("histogram.ts");
 // ---------------------------------------------------------------------------
 console.log("metrics-aggregate.ts (30-day aggregation over mock buckets)");
 
-function mockBucket(date: string, overrides: { server?: object; client?: object; installHashes?: string[] }): DailyMetricsBucket {
+function mockBucket(
+  date: string,
+  overrides: { server?: object; client?: object; installHashes?: string[]; paywallHits?: number; revenue?: object },
+): DailyMetricsBucket {
   const b = emptyBucket(date);
   return {
     ...b,
@@ -328,6 +333,192 @@ function mockBucket(date: string, overrides: { server?: object; client?: object;
   );
   check("empty range: dau/wau are 0", result.volume.dau === 0 && result.volume.wau === 0);
 }
+
+// ---------------------------------------------------------------------------
+console.log("metrics-aggregate.ts (dashboard-v2 enriched fields)");
+
+{
+  // One rich day exercising every dashboard-v2 aggregate: error classes,
+  // calc-path confidence, per-type write-back rates, token/cache economics,
+  // image share, and the real-revenue/funnel blocks (activeSubscribers = 4).
+  const day = mockBucket("2026-07-22", {
+    server: {
+      ...emptyBucket("x").server,
+      routes: { solve: { attempts: 10, successes: 8, errors: 2 }, interpret: { attempts: 5, successes: 4, errors: 1 } },
+      modeSplit: { concept: 6, calc: 4 },
+      confidence: { High: 4, Med: 2, Low: 0, "": 0 },
+      confidenceCalc: { High: 3, Med: 1, Low: 1, "": 0 },
+      byErrorType: { quota: 2, upstream: 1 },
+      tokens: { promptTokens: 1_000_000, completionTokens: 200_000, cachedTokens: 400_000 },
+      costUsd: 0.5,
+      costUsdByMode: { concept: 0.25, calc: 0.25 },
+      byModel: {
+        [PRIMARY_TEXT_MODEL]: { calls: 12, costUsd: 0.3 },
+        [IMAGE_VISION_MODEL]: { calls: 3, costUsd: 0.2 },
+      },
+    },
+    client: {
+      ...emptyBucket("x").client,
+      byQuestionType: { multiple_choice_question: 10, essay_question: 2 },
+      writeBackByOutcome: { written: 8, nowrite: 1, error: 3 },
+      writeBackByQuestionType: {
+        multiple_choice_question: { written: 8, nowrite: 1, error: 1 },
+        essay_question: { written: 0, nowrite: 0, error: 2 },
+      },
+    },
+    installHashes: ["h1", "h2", "h3"],
+    paywallHits: 5,
+    revenue: { created: 3, cancelled: 1, paymentFailed: 1 },
+  });
+
+  const result = aggregateMetrics({
+    now: 1_753_142_400_000,
+    days: 1,
+    dates: ["2026-07-22"],
+    buckets: [day],
+    priceMonthlyUsd: 15,
+    assumedSolvesPerUserPerMonth: 110,
+    activeSubscribers: 4,
+  });
+
+  // item 2: error classification
+  check("errorsTotal sums solve+interpret errors", result.quality.errorsTotal === 3, `got ${result.quality.errorsTotal}`);
+  check(
+    "byErrorType passes through per-class counts",
+    result.quality.byErrorType["quota"] === 2 && result.quality.byErrorType["upstream"] === 1,
+    JSON.stringify(result.quality.byErrorType),
+  );
+
+  // item 16: calc-path confidence, kept separate from concept confidence
+  check(
+    "confidenceCalc tracked separately",
+    result.quality.confidenceCalc.High === 3 && result.quality.confidenceCalc.Med === 1 && result.quality.confidenceCalc.Low === 1,
+    JSON.stringify(result.quality.confidenceCalc),
+  );
+  check(
+    "concept confidence unaffected by calc confidence",
+    result.quality.confidence.High === 4 && result.quality.confidence.Med === 2,
+    JSON.stringify(result.quality.confidence),
+  );
+
+  // item 4: per-question-type write-back rate
+  check(
+    "writeBackByQuestionType rate = written/(written+nowrite+error)",
+    approxEqual(result.quality.writeBackByQuestionType["multiple_choice_question"]?.writeBackRate ?? -1, 0.8, 1e-9) &&
+      (result.quality.writeBackByQuestionType["essay_question"]?.writeBackRate ?? -1) === 0,
+    JSON.stringify(result.quality.writeBackByQuestionType),
+  );
+
+  // item 1: token/cache economics
+  check("cacheHitRate = cachedTokens/promptTokens", approxEqual(result.economics.cacheHitRate, 0.4, 1e-9), `got ${result.economics.cacheHitRate}`);
+  check("tokensPerQuestion = (prompt+completion)/questions", result.economics.tokensPerQuestion === 120000, `got ${result.economics.tokensPerQuestion}`);
+  check("inputOutputRatio = prompt/completion", approxEqual(result.economics.inputOutputRatio, 5, 1e-9), `got ${result.economics.inputOutputRatio}`);
+
+  // item 3: image/vision share
+  check("imageCalls = vision-model calls", result.economics.imageCalls === 3, `got ${result.economics.imageCalls}`);
+  check("imageCallSharePct = imageCalls/apiCalls*100", approxEqual(result.economics.imageCallSharePct, 20, 1e-9), `got ${result.economics.imageCallSharePct}`);
+  check("imageCostSharePct = imageCost/totalCost*100", approxEqual(result.economics.imageCostSharePct, 40, 1e-9), `got ${result.economics.imageCostSharePct}`);
+
+  // items 6 & 9: real revenue given activeSubscribers
+  check("revenue.mrrUsd = activeSubscribers*price", approxEqual(result.revenue.mrrUsd, 60, 1e-9), `got ${result.revenue.mrrUsd}`);
+  check("revenue.arpuUsd = mrr/activeSubscribers", approxEqual(result.revenue.arpuUsd, 15, 1e-9), `got ${result.revenue.arpuUsd}`);
+  check("revenue.netNewSubs30d = created-cancelled", result.revenue.netNewSubs30d === 2, `got ${result.revenue.netNewSubs30d}`);
+  check("revenue.churnRatePct = cancelled/active*100", approxEqual(result.revenue.churnRatePct ?? -1, 25, 1e-9), `got ${result.revenue.churnRatePct}`);
+  check(
+    "revenue.realGrossMarginPct = (mrr-cost)/mrr*100",
+    approxEqual(result.revenue.realGrossMarginPct ?? -1, 99.17, 1e-9),
+    `got ${result.revenue.realGrossMarginPct}`,
+  );
+  check(
+    "revenue.cogsPerActiveUserUsd = totalCost/active",
+    approxEqual(result.revenue.cogsPerActiveUserUsd ?? -1, 0.125, 1e-9),
+    `got ${result.revenue.cogsPerActiveUserUsd}`,
+  );
+
+  // item 7: funnel
+  check("funnel.paywallHits30d sums paywall hits", result.funnel.paywallHits30d === 5, `got ${result.funnel.paywallHits30d}`);
+  check("funnel.upgrades30d = created", result.funnel.upgrades30d === 3, `got ${result.funnel.upgrades30d}`);
+  check(
+    "funnel.paywallToUpgradeRatePct = created/paywallHits*100",
+    approxEqual(result.funnel.paywallToUpgradeRatePct ?? -1, 60, 1e-9),
+    `got ${result.funnel.paywallToUpgradeRatePct}`,
+  );
+}
+
+{
+  // Revenue/funnel must degrade to null (never NaN) with no subs / no paywall.
+  const result = aggregateMetrics({
+    now: Date.now(),
+    days: 1,
+    dates: ["2026-07-22"],
+    buckets: [emptyBucket("2026-07-22")],
+    priceMonthlyUsd: 15,
+    assumedSolvesPerUserPerMonth: 110,
+  });
+  check("no activeSubscribers: mrr/arpu are 0", result.revenue.mrrUsd === 0 && result.revenue.arpuUsd === 0);
+  check("no activeSubscribers: churnRatePct null", result.revenue.churnRatePct === null);
+  check("no activeSubscribers: realGrossMarginPct null", result.revenue.realGrossMarginPct === null);
+  check("no activeSubscribers: cogsPerActiveUserUsd null", result.revenue.cogsPerActiveUserUsd === null);
+  check("no paywall hits: paywallToUpgradeRatePct null", result.funnel.paywallToUpgradeRatePct === null);
+}
+
+// ---------------------------------------------------------------------------
+console.log("cohort.ts (new installs + retention)");
+
+{
+  // A<->E installs across 4 days; current window = the last two days.
+  //   07-01 [A,B]  07-02 [A,C]  07-03 [A,D]  07-04 [C,D,E]
+  const days: CohortDay[] = [
+    { date: "2026-07-01", installHashes: ["A", "B"] },
+    { date: "2026-07-02", installHashes: ["A", "C"] },
+    { date: "2026-07-03", installHashes: ["A", "D"] },
+    { date: "2026-07-04", installHashes: ["C", "D", "E"] },
+  ];
+  const r = computeCohorts(days, new Set(["2026-07-03", "2026-07-04"]));
+
+  check("newInstalls: oldest day counts all as new", r.newInstallsByDate["2026-07-01"] === 2, JSON.stringify(r.newInstallsByDate));
+  check(
+    "newInstalls: already-seen hashes are not new",
+    r.newInstallsByDate["2026-07-02"] === 1 && r.newInstallsByDate["2026-07-03"] === 1 && r.newInstallsByDate["2026-07-04"] === 1,
+    JSON.stringify(r.newInstallsByDate),
+  );
+  const currentNew = (r.newInstallsByDate["2026-07-03"] ?? 0) + (r.newInstallsByDate["2026-07-04"] ?? 0);
+  check("current-window new-install total = 2 (D on 07-03, E on 07-04)", currentNew === 2, `got ${currentNew}`);
+
+  // 07-01{A,B}: A back 07-02 -> .5 ; 07-02{C}: absent 07-03 -> 0 ; 07-03{D}: back 07-04 -> 1 ; avg = .5
+  check("nextDayRetentionPct averages per-cohort next-day fractions", approxEqual(r.nextDayRetentionPct ?? -1, 50, 1e-9), `got ${r.nextDayRetentionPct}`);
+  // 7-day: 07-01{A,B}->.5 ; 07-02{C}->1 (07-04) ; 07-03{D}->1 (07-04) ; avg = .8333
+  check("sevenDayRetentionPct averages per-cohort 7-day fractions", approxEqual(r.sevenDayRetentionPct ?? -1, 83.33, 1e-9), `got ${r.sevenDayRetentionPct}`);
+  // current actives {A,C,D,E} vs prior {A,B,C}: overlap {A,C} = 2/4
+  check("returningSharePct = current actives also seen prior", approxEqual(r.returningSharePct ?? -1, 50, 1e-9), `got ${r.returningSharePct}`);
+}
+
+{
+  const r = computeCohorts([], new Set<string>());
+  check("empty cohorts: no new installs", Object.keys(r.newInstallsByDate).length === 0);
+  check(
+    "empty cohorts: retention all null",
+    r.nextDayRetentionPct === null && r.sevenDayRetentionPct === null && r.returningSharePct === null,
+  );
+}
+
+// ---------------------------------------------------------------------------
+console.log("classify-error.ts");
+
+check("credit-balance message -> quota", classifyError({ message: "Your credit balance is too low" }) === "quota");
+check("resource-exhausted message -> quota", classifyError({ message: "Gemini resource exhausted" }) === "quota");
+check("status 401 -> auth", classifyError({ status: 401 }) === "auth");
+check("status 403 -> auth", classifyError({ status: 403 }) === "auth");
+check("status 429 -> rate_limit", classifyError({ status: 429 }) === "rate_limit");
+check("timeout message -> timeout", classifyError({ message: "socket timeout" }) === "timeout");
+check("aborted message -> timeout", classifyError({ message: "The operation was aborted" }) === "timeout");
+check("AbortError name -> timeout", classifyError({ name: "AbortError", message: "boom" }) === "timeout");
+check("status 400 -> bad_input", classifyError({ status: 400 }) === "bad_input");
+check("other status -> upstream", classifyError({ status: 503 }) === "upstream");
+check("no signal -> unknown", classifyError({ message: "weird failure" }) === "unknown");
+check("null -> unknown", classifyError(null) === "unknown");
+check("Error instance reads its message", classifyError(new Error("quota exceeded")) === "quota");
+check("quota regex wins over a 429 status", classifyError({ status: 429, message: "quota exhausted" }) === "quota");
 
 // ---------------------------------------------------------------------------
 console.log(`\n${pass} passed, ${fail} failed`);

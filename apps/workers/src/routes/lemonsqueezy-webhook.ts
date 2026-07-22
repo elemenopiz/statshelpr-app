@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { Env } from "../types";
+import { recordRevenueEvent } from "@/lib/metrics-store";
 
 /**
  * Lemon Squeezy webhook receiver.
@@ -52,14 +53,29 @@ lsWebhook.post("/", async (c) => {
   try {
     switch (eventName) {
       case "subscription_created":
+        await activateLicense(c.env, payload);
+        await upsertSubRecord(c.env, payload, "active");
+        // First subscription for this id -> a real new-MRR event. Deliberately
+        // NOT recorded on payment_success (recurring renewal) or updated (a
+        // state change), either of which would double-count the same active
+        // subscriber as new revenue (dashboard-v2 item 6).
+        await recordRevenueEvent(c.env, "created");
+        break;
       case "subscription_payment_success":
       case "subscription_updated":
         await activateLicense(c.env, payload);
+        await upsertSubRecord(c.env, payload, "active");
         break;
       case "subscription_cancelled":
       case "subscription_expired":
+        await deactivateLicense(c.env, payload);
+        await upsertSubRecord(c.env, payload, "cancelled");
+        await recordRevenueEvent(c.env, "cancelled");
+        break;
       case "subscription_payment_failed":
         await deactivateLicense(c.env, payload);
+        await upsertSubRecord(c.env, payload, "cancelled");
+        await recordRevenueEvent(c.env, "paymentFailed");
         break;
       // Other events (subscription_plan_changed, etc.) — noop for now
     }
@@ -101,6 +117,53 @@ async function deactivateLicense(env: Env, payload: LSWebhookPayload) {
     JSON.stringify({ ok: false, reason: "Subscription inactive" }),
     { expirationTtl: 30 * 86_400 },
   );
+}
+
+/** Point-in-time subscription state for the live active-subscriber count
+ *  (dashboard-v2 item 6). Written under a CLEAN `sub:{subscriptionId}`
+ *  keyspace — NOT `license:`, which validateLicense pollutes with short-lived
+ *  validation-cache entries (even for invalid keys), so a `license:` scan
+ *  would badly overcount. metrics-load.ts scans `sub:` and counts
+ *  status === "active" to derive MRR. */
+interface SubRecord {
+  status: "active" | "cancelled";
+  email?: string;
+  customerId?: number;
+  /** The subscription's monthly price — fixed at the pinned $15 plan. */
+  priceUsd: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Upsert the `sub:{id}` record, preserving the original createdAt across
+ *  updates. Keyed on the LS subscription id (payload.data.id) so each
+ *  subscriber is exactly one KV entry regardless of how many lifecycle events
+ *  fire. TTL 400 days; every lifecycle event refreshes it. */
+async function upsertSubRecord(
+  env: Env,
+  payload: LSWebhookPayload,
+  status: "active" | "cancelled",
+): Promise<void> {
+  const subscriptionId = payload.data?.id;
+  if (!subscriptionId) return;
+
+  const attrs = payload.data?.attributes;
+  const key = `sub:${subscriptionId}`;
+  const existing = (await env.STATSHELPR_KV.get(key, "json")) as SubRecord | null;
+  const now = Date.now();
+
+  const record: SubRecord = {
+    status,
+    email: attrs?.user_email ?? existing?.email,
+    customerId: attrs?.customer_id ?? existing?.customerId,
+    priceUsd: 15,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+  };
+
+  await env.STATSHELPR_KV.put(key, JSON.stringify(record), {
+    expirationTtl: 400 * 86_400,
+  });
 }
 
 async function verifySignature(

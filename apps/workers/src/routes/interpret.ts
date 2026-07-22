@@ -4,6 +4,7 @@ import type { Env } from "../types";
 
 import { buildDataContext, buildSystemPrompt, parseResponse } from "@statshelpr/solver-core/core";
 import { chatStream, type LlmChatUsage } from "@statshelpr/solver-core/core/providers";
+import { classifyError } from "@/lib/classify-error";
 import { costUsdForUsage } from "@/lib/cost";
 import { summarizeCsv } from "@/lib/data-summary";
 import { validateLicense } from "@/lib/license";
@@ -129,8 +130,10 @@ interpret.post("/", async (c) => {
       // this is the second leg). This is the ONE place modeSplit.calc
       // increments — not at solve.ts's handoff — so a calc question counts
       // once, not twice (see lib/metrics-store.ts's DailyMetricsBucket doc).
-      // No `confidence` here: the pinned contract scopes server-recorded
-      // confidence to "solve concept path" only.
+      // Calc-path confidence (dashboard-v2 item 16): `finalParsed.confidence`
+      // is passed through and routed by the store into `confidenceCalc` (kept
+      // separate from the concept-path `confidence`), so low-confidence views
+      // cover the calc path too instead of being blind to it.
       recordServerEventInBackground(c, {
         route: "interpret",
         success: true,
@@ -146,7 +149,7 @@ interpret.post("/", async (c) => {
         serverLatencyMs: Date.now() - startedAt,
         installHash,
         costMode: "calc",
-        completedQuestion: { mode: "calc" },
+        completedQuestion: { mode: "calc", confidence: finalParsed.confidence },
       });
 
       await write({
@@ -175,6 +178,7 @@ interpret.post("/", async (c) => {
         costUsd: 0,
         serverLatencyMs: Date.now() - startedAt,
         installHash,
+        errorType: classifyError(e),
       });
       const msg = (e as Error).message ?? "Interpret failed";
       await write({ type: "error", message: msg });

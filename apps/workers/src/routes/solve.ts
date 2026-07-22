@@ -8,11 +8,12 @@ import {
   parseResponse,
 } from "@statshelpr/solver-core/core";
 import { chatStream, type LlmChatUsage } from "@statshelpr/solver-core/core/providers";
+import { classifyError } from "@/lib/classify-error";
 import { costUsdForUsage } from "@/lib/cost";
 import { summarizeCsv } from "@/lib/data-summary";
 import { validateLicense } from "@/lib/license";
 import { activateForInstall } from "@/lib/license-activation";
-import { recordServerEventInBackground } from "@/lib/metrics-store";
+import { recordPaywallHitInBackground, recordServerEventInBackground } from "@/lib/metrics-store";
 import { checkAndIncrement, hashBucket } from "@/lib/rate-limit";
 import { makeSseStream, sseHeaders } from "@/lib/sse";
 import {
@@ -47,6 +48,12 @@ solve.post("/", async (c) => {
   const lic = await validateLicense(c.env, licenseKey);
   if (!lic.ok) return c.json({ error: lic.reason ?? "Unauthorized" }, 401);
 
+  // Computed BEFORE the rate-limit check (dashboard-v2 item 7) so a free user
+  // who gets paywalled at the daily cap still counts as an ACTIVE install for
+  // the day — recordPaywallHit adds this hash to the active set. Only depends
+  // on the install id, so it's safe to hoist above body parsing / resolveModel.
+  const installHash = await hashBucket(installId || "anon");
+
   // Paid licenses are unlimited, but only once activated for *this* install —
   // activation_limit=1 on the LS side means a paid key is bound to a single
   // device (see lib/license-activation.ts). Free tier just hits the daily
@@ -64,6 +71,8 @@ solve.post("/", async (c) => {
   } else {
     const rl = await checkAndIncrement(c.env, installId || "anon");
     if (!rl.allowed) {
+      // Paywall hit — the #1 leading indicator of conversion (item 7).
+      recordPaywallHitInBackground(c, installHash);
       return c.json(
         {
           error: `Daily limit reached (${rl.count}/${rl.limit}). Upgrade for unlimited.`,
@@ -94,8 +103,8 @@ solve.post("/", async (c) => {
 
   // Computed once and reused for both the LLM call and metrics recording
   // below, so the event we record always reflects the model actually used.
+  // (installHash is computed earlier, above the rate-limit check — item 7.)
   const model = resolveModel(body);
-  const installHash = await hashBucket(installId || "anon");
 
   const stream = makeSseStream(async (write) => {
     const startedAt = Date.now(); // wall time around the stream, for serverLatencyMs
@@ -226,6 +235,7 @@ solve.post("/", async (c) => {
         costUsd: 0,
         serverLatencyMs: Date.now() - startedAt,
         installHash,
+        errorType: classifyError(e),
       });
       await write({ type: "error", message: humanizeError(e) });
     }
