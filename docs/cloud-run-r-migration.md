@@ -5,7 +5,13 @@
 by running the R on a small Cloud Run service we control. The extension then only ever displays a
 finished answer — it never runs remote code.
 
-**Status:** proposal / not started. Written 2026-07-23 against `main` @ `be6d593`.
+**Status:** IMPLEMENTED 2026-07-23 on `feat/cloud-run-r` (written same day against `main` @ `be6d593`).
+Code is merged; the three deploys (Cloud Run → Worker + extension together, §6) are still pending.
+Two corrections discovered during implementation supersede this doc's drafts: deploy the runner
+`--allow-unauthenticated` (NOT §2.3's `--no-allow-unauthenticated` — the Worker authenticates via
+the shared `X-Runner-Secret` header only, so IAM would 403 it; see `r-runner/README.md`), and the
+Worker must heartbeat a `phase` SSE event every 10s during the R run (the extension aborts after
+30s of stream silence). `r-runner/README.md` is canonical for deploy commands.
 
 ---
 
