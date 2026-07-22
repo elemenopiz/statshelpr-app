@@ -84,6 +84,12 @@ interface CalcResult {
   blanks?: BlankAnswer[];
   confidence: "High" | "Med" | "Low" | "";
   lowConfidence: boolean;
+  /** Set by the server when the calc pipeline answered WITHOUT the dataset the
+   * question referenced (the R read a file the student never uploaded — see
+   * solve.ts's dataMissingBackstop). The answer is reasoned, not computed, so
+   * we surface a transient "dataset not found" toast pointing at the CSV
+   * upload — otherwise the student has no idea the data was missing. */
+  dataMissing?: boolean;
 }
 
 type SolveResult = ConceptResult | CalcResult;
@@ -469,7 +475,54 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
     // No success flash — the selected answer choice is feedback enough.
     setBtnState(btn, "default");
   }
+
+  // The server answered a calc question without the dataset it referenced
+  // (reasoned, not computed). Tell the student so a data-less answer isn't
+  // mistaken for a data-backed one, and point them at the CSV upload.
+  if (final.mode === "calc" && final.dataMissing) {
+    showToast(
+      question,
+      "Dataset not found — answered from reasoning. Upload the CSV in the statshelpr popup for an exact result.",
+    );
+  }
+
   fireTelemetryBeacon({ ...telemetryBase, writeCount, threw: false });
+}
+
+/**
+ * Small transient notice anchored to a question, auto-dismissing after a few
+ * seconds (or on click). Used for the "dataset not found" backstop notice —
+ * a non-blocking heads-up, never an error state on the button itself. Styled
+ * by panel.css (.statshelpr-toast). Positioned fixed near the question's
+ * top-right so it's visible regardless of scroll, and stacked-safe: any prior
+ * toast is removed before a new one shows, so rapid solves don't pile them up.
+ */
+let activeToast: { el: HTMLElement; timer: ReturnType<typeof setTimeout> } | null = null;
+function showToast(anchor: HTMLElement, message: string, ms = 6000): void {
+  if (activeToast) {
+    clearTimeout(activeToast.timer);
+    activeToast.el.remove();
+    activeToast = null;
+  }
+  const toast = mkEl("div", { className: "statshelpr-toast", text: message });
+  const rect = anchor.getBoundingClientRect();
+  // Clamp within the viewport so a question near the edge doesn't push the
+  // toast off-screen. width ~300px (see panel.css); leave an 8px margin.
+  const top = Math.max(8, rect.top + 8);
+  const left = Math.min(Math.max(8, rect.right - 300), window.innerWidth - 308);
+  toast.style.top = `${Math.round(top)}px`;
+  toast.style.left = `${Math.round(left)}px`;
+  const dismiss = () => {
+    if (activeToast?.el !== toast) return;
+    toast.classList.add("leaving");
+    setTimeout(() => toast.remove(), 220); // let the fade-out finish
+    activeToast = null;
+  };
+  toast.addEventListener("click", dismiss);
+  document.body.appendChild(toast);
+  // Trigger the enter transition on the next frame (class added post-attach).
+  requestAnimationFrame(() => toast.classList.add("shown"));
+  activeToast = { el: toast, timer: setTimeout(dismiss, ms) };
 }
 
 /**

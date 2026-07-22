@@ -1,0 +1,83 @@
+{
+  "ranAt": "2026-07-22T19:45:18.748Z",
+  "model": "gemini-3.5-flash-lite",
+  "baseUrl": "http://localhost:3030",
+  "fixturesDir": "/private/tmp/claude-501/-Users-zsha-Documents-statshelpr-app/e982a77b-a6be-48e8-bef0-1f74beeb7db5/scratchpad/robustness",
+  "summary": {
+    "total": 3,
+    "passed": 2,
+    "failed": 1,
+    "tokens": {
+      "prompt": 44749,
+      "completion": 585,
+      "total": 47226,
+      "cached": 0,
+      "output": 2477,
+      "thinking": 1892
+    },
+    "estCostUsd": 0.0196
+  },
+  "failures": [
+    {
+      "name": "numerical: The rentals.csv data frame contains data on 98 short-term…",
+      "expected": {
+        "mode": "calc",
+        "selectedChoices": [],
+        "answerContains": [
+          "42"
+        ]
+      },
+      "checks": [
+        {
+          "label": "answer contains \"42\"",
+          "pass": false,
+          "expected": "42",
+          "actual": "Answer: 38"
+        }
+      ],
+      "question": "The rentals.csv data frame contains data on 98 short-term rentals in Santa Fe, New Mexico, including a variable called Cancellation indicating whether rental policy allows cancellation of reservations without penalty. Calculate a large-sample 95% confidence interval for the population proportion of rental properties allowing cancellation. What is the lower limit of this interval? Enter your answer in percentage units rounded to the nearest whole number.",
+      "response": {
+        "mode": "calc",
+        "selectedChoices": [],
+        "answer": "Answer: 38",
+        "rCode": "# PLAN: prop.test, Cancellation (yes), n=total, correct=FALSE\ntable_canc <- table(rentals$Cancellation)\nn_yes <- table_canc[\"yes\"]\nn_total <- sum(table_canc)\npt <- prop.test(n_yes, n_total, correct=FALSE)\nlower_pct <- round(pt$conf.int[1] * 100)\ncat('Final answer:', lower_pct, '\\n')\n# CONFIDENCE: High",
+        "rOutput": "Final answer: 38 ",
+        "rExitCode": 0,
+        "usage": {
+          "first": {
+            "prompt_tokens": 7929,
+            "completion_tokens": 116,
+            "total_tokens": 8843
+          },
+          "interpret": {
+            "prompt_tokens": 8366,
+            "completion_tokens": 14,
+            "total_tokens": 8380
+          }
+        },
+        "debug": {
+          "route": "calc",
+          "rawFirst": "[RCODE]\n# PLAN: prop.test, Cancellation (yes), n=total, correct=FALSE\ntable_canc <- table(rentals$Cancellation)\nn_yes <- table_canc[\"yes\"]\nn_total <- sum(table_canc)\npt <- prop.test(n_yes, n_total, correct=FALSE)\nlower_pct <- round(pt$conf.int[1] * 100)\ncat('Final answer:', lower_pct, '\\n')\n# CONFIDENCE: High",
+          "rawInterpret": "[CONCEPT]\nAnswer: 38\nCONFIDENCE: High",
+          "selectedChoices": [],
+          "rCode": "# PLAN: prop.test, Cancellation (yes), n=total, correct=FALSE\ntable_canc <- table(rentals$Cancellation)\nn_yes <- table_canc[\"yes\"]\nn_total <- sum(table_canc)\npt <- prop.test(n_yes, n_total, correct=FALSE)\nlower_pct <- round(pt$conf.int[1] * 100)\ncat('Final answer:', lower_pct, '\\n')\n# CONFIDENCE: High",
+          "rStdout": "Final answer: 38 ",
+          "rStderr": "",
+          "rExitCode": 0,
+          "usage": {
+            "first": {
+              "prompt_tokens": 7929,
+              "completion_tokens": 116,
+              "total_tokens": 8843
+            },
+            "interpret": {
+              "prompt_tokens": 8366,
+              "completion_tokens": 14,
+              "total_tokens": 8380
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -346,6 +346,13 @@ solve.post("/", async (c) => {
         }
       };
 
+      // Set by the fast-fail branch below when the calc pipeline bailed
+      // because the R referenced a data file the student never uploaded. The
+      // interpret leg still produces a best-effort answer from the question
+      // text, but we flag it on the final result so the extension can show the
+      // student a "dataset not found — upload the CSV" notice (content.ts).
+      let dataMissingBackstop = false;
+
       // Steps d/e/f (docs/cloud-run-r-migration.md §3.2) collapsed into one
       // closure so the heartbeat's try/finally below has a single `await` to
       // wrap, and `runResult`'s definite-assignment stays trivial
@@ -362,6 +369,7 @@ solve.post("/", async (c) => {
           // routes these to [CONCEPT] up front (core/system-prompt.ts's
           // missing-dataset rule) — this is the server-side backstop. Matches
           // apps/api/lib/solver/non-streaming.ts's isUnrecoverableMissingData.
+          dataMissingBackstop = true;
           return result;
         }
 
@@ -541,6 +549,10 @@ solve.post("/", async (c) => {
           ...(finalBlanks.length ? { blanks: finalBlanks } : {}),
           confidence: finalParsed.confidence,
           lowConfidence: finalParsed.lowConfidence,
+          // Answered without the dataset the question referenced — the extension
+          // surfaces a transient "dataset not found, upload the CSV" notice so a
+          // reasoned-not-computed answer isn't mistaken for a data-backed one.
+          ...(dataMissingBackstop ? { dataMissing: true } : {}),
         },
       });
     } catch (e) {

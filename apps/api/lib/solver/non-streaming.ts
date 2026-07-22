@@ -62,7 +62,7 @@ export async function solveNonStreaming(args: NonStreamArgs) {
     };
   }
 
-  const { rCode, runResult, repairedRCode } = await runCalculationStage({
+  const { rCode, runResult, repairedRCode, dataMissing } = await runCalculationStage({
     apiKey,
     system,
     questionPrompt,
@@ -95,6 +95,7 @@ export async function solveNonStreaming(args: NonStreamArgs) {
     ...(blanks.length ? { blanks } : {}),
     confidence: finalParsed.confidence,
     lowConfidence: finalParsed.lowConfidence,
+    ...(dataMissing ? { dataMissing: true } : {}),
     usage: {
       first: first.usage,
       interpret: interpret.usage,
@@ -155,19 +156,21 @@ async function runCalculationStage({
   let runResult = await runR(rCode, dataFiles.map(toSandboxFile));
   let repairedRCode: string | undefined;
 
-  if (runResult.exitCode !== 0 && !isUnrecoverableMissingData(rCode, dataFiles)) {
+  // Fast-fail — the R read a data file the student never uploaded, so a repair
+  // could only re-emit code reading the same missing file. Skip the repair
+  // Gemini call + second R run and let the interpret stage answer from the
+  // question text; `dataMissing` flows out so the client can flag it.
+  const dataMissing = runResult.exitCode !== 0 && isUnrecoverableMissingData(rCode, dataFiles);
+
+  if (runResult.exitCode !== 0 && !dataMissing) {
     repairedRCode = await repairRCode(apiKey, system, questionPrompt, rCode, runResult);
     if (repairedRCode) {
       rCode = repairedRCode;
       runResult = await runR(rCode, dataFiles.map(toSandboxFile));
     }
   }
-  // else: fast-fail — the R read a data file the student never uploaded, so a
-  // repair could only re-emit code reading the same missing file. Skip the
-  // repair Gemini call + second R run and let the interpret stage answer from
-  // the question text. See isUnrecoverableMissingData.
 
-  return { rCode, runResult, repairedRCode };
+  return { rCode, runResult, repairedRCode, dataMissing };
 }
 
 interface InterpretStageArgs {
