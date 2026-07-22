@@ -18,9 +18,14 @@
  * file's doc comment for the exact residual race window), just with no
  * per-caller scope to hash: everyone shares the one "global" bucket.
  *
- * Checked at the very top of both routes/solve.ts and routes/interpret.ts,
- * before validateLicense (which can make an outbound Lemon Squeezy HTTP call)
- * and before touching Gemini — a tripped switch costs at most one KV read.
+ * Checked in both routes/solve.ts and routes/interpret.ts AFTER the per-caller
+ * auth/license/token/rate-limit gates and immediately BEFORE the Gemini stream,
+ * so only requests that will actually incur Gemini cost count toward the global
+ * ceiling. It deliberately is NOT at the very top of the routes: a top-of-route
+ * check-and-increment let cheap rejected requests (bad/empty auth, over-IP-limit,
+ * malformed body) bump the global counter, so ~GLOBAL_DAILY_CALL_LIMIT junk
+ * requests from a single IP could trip a service-wide 503 for the rest of the UTC
+ * day — a DoS vector. The per-IP + per-install gates absorb that before this point.
  *
  * *** CEILING SIZING — re-check before trusting, same spirit as lib/cost.ts's
  * pricing-source disclaimer ***

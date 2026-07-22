@@ -41,13 +41,6 @@ solve.post("/", async (c) => {
   const apiKey = c.env.GEMINI_API_KEY;
   if (!apiKey) return c.json({ error: "GEMINI_API_KEY not configured" }, 500);
 
-  // Security-audit item D: global (not per-caller) daily volume ceiling,
-  // checked first — before validateLicense's possible outbound LS call and
-  // before anything Gemini-bound — so a tripped switch costs at most one KV
-  // read. Applies to EVERY caller regardless of tier; see lib/kill-switch.ts.
-  const kill = await checkGlobalKillSwitch(c.env);
-  if (!kill.allowed) return c.json({ error: KILL_SWITCH_MESSAGE }, 503);
-
   const auth = c.req.header("authorization") ?? "";
   const licenseKey = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
   // Persistent per-install id from the extension (chrome.storage.sync, see
@@ -135,6 +128,19 @@ solve.post("/", async (c) => {
   // below, so the event we record always reflects the model actually used.
   // (installHash is computed earlier, above the rate-limit check — item 7.)
   const model = resolveModel(body);
+
+  // Security-audit item D: global (not per-caller) daily volume ceiling.
+  // Placed HERE — after every per-caller auth/license/rate-limit gate and
+  // immediately before the Gemini stream — NOT at the top of the route, so
+  // only requests that will actually incur Gemini cost count toward the
+  // global ceiling. (A top-of-route check-and-increment let cheap rejected
+  // requests — bad/empty auth, over-IP-limit, malformed body — bump the
+  // global counter too, so ~GLOBAL_DAILY_CALL_LIMIT junk requests from a
+  // single IP could trip a service-wide 503 for the rest of the UTC day.
+  // The per-IP + per-install gates above now absorb that before we reach
+  // here.) Atomic check-and-increment; a trip 503s without starting the stream.
+  const kill = await checkGlobalKillSwitch(c.env);
+  if (!kill.allowed) return c.json({ error: KILL_SWITCH_MESSAGE }, 503);
 
   const stream = makeSseStream(async (write) => {
     const startedAt = Date.now(); // wall time around the stream, for serverLatencyMs

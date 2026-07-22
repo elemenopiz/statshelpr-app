@@ -70,13 +70,6 @@ interpret.post("/", async (c) => {
   const apiKey = c.env.GEMINI_API_KEY;
   if (!apiKey) return c.json({ error: "GEMINI_API_KEY not configured" }, 500);
 
-  // Security-audit item D: global kill switch, checked first — before
-  // validateLicense's possible outbound LS call and before anything
-  // Gemini-bound — so a tripped switch costs at most one KV read. Applies
-  // to EVERY caller regardless of tier; see lib/kill-switch.ts.
-  const kill = await checkGlobalKillSwitch(c.env);
-  if (!kill.allowed) return c.json({ error: KILL_SWITCH_MESSAGE }, 503);
-
   const auth = c.req.header("authorization") ?? "";
   const licenseKey = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
   const installId = c.req.header("x-install-id") ?? "";
@@ -147,6 +140,14 @@ interpret.post("/", async (c) => {
   // check + rate limits.)
   const model = resolveModel(body);
   const installHash = await hashBucket(installId || "anon");
+
+  // Security-audit item D: global daily volume ceiling — same placement
+  // rationale as routes/solve.ts: after the token + per-caller rate gates and
+  // immediately before the Gemini stream, so only genuinely Gemini-bound
+  // calls count toward the global ceiling and cheap rejected requests can't
+  // trip a service-wide 503. Atomic check-and-increment; a trip 503s here.
+  const kill = await checkGlobalKillSwitch(c.env);
+  if (!kill.allowed) return c.json({ error: KILL_SWITCH_MESSAGE }, 503);
 
   const stream = makeSseStream(async (write) => {
     const startedAt = Date.now(); // wall time around the stream, for serverLatencyMs
