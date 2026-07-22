@@ -10,6 +10,7 @@ import {
   type ConfidenceCounts,
   type DailyMetricsBucket,
   type ModelUsage,
+  type WriteBackOutcomeCounts,
 } from "./metrics-store";
 import {
   emptyHistogram,
@@ -17,32 +18,87 @@ import {
   mergeHistogramInto,
   percentileFromHistogram,
 } from "./histogram";
-import { PRIMARY_TEXT_MODEL, rateForModel } from "./cost";
+import { IMAGE_VISION_MODEL, PRIMARY_TEXT_MODEL, rateForModel } from "./cost";
+
+/** One day of the enriched time series (dashboard-v2 items 10 & 12). Every
+ *  field is a per-DAY value so the renderer can draw trend lines / sparklines
+ *  / stacked-area composition instead of only the 30-day totals. */
+export interface DailyPoint {
+  date: string;
+  questions: number;
+  apiCalls: number;
+  errors: number;
+  /** (solve+interpret successes)/attempts for THIS day, 0..1. */
+  solveSuccessRate: number;
+  costUsd: number;
+  /** cachedTokens/promptTokens for THIS day, 0..1. */
+  cacheHitRate: number;
+  serverLatencyMsP50: number;
+  concept: number;
+  calc: number;
+  imageCalls: number;
+  /** Install hashes first seen on this day within the window (item 8). Filled
+   *  by the cross-day cohort pass; 0 until then. */
+  newInstalls: number;
+  activeInstalls: number;
+  paywallHits: number;
+  revenueCreated: number;
+  revenueCancelled: number;
+}
+
+/** Write-back tally plus its derived rate, per question type (item 4). */
+export type WriteBackTypeStat = WriteBackOutcomeCounts & { writeBackRate: number };
 
 export interface MetricsResponse {
   generatedAt: number;
   range: { days: number };
+  /** Percent change vs the immediately-preceding window of the same length
+   *  (dashboard-v2 item 10). Keyed by metric name; null when the prior window
+   *  had no comparable data. Filled by metrics-load.ts (which aggregates the
+   *  prior window too); aggregateMetrics alone leaves deltaPct empty. */
+  comparison: {
+    prevRangeDays: number;
+    deltaPct: Record<string, number | null>;
+  };
   volume: {
     questionsAnswered: number;
     apiCalls: number;
     byQuestionType: Record<string, number>;
     dau: number;
     wau: number;
-    daily: Array<{ date: string; questions: number; apiCalls: number }>;
+    /** Distinct active installs across the whole window (item 8). */
+    mau: number;
+    /** Installs first seen within the window (item 7/8). */
+    newInstalls: number;
+    daily: DailyPoint[];
   };
   quality: {
     solveSuccessRate: number;
     writeBackSuccessRate: number;
-    writeBackByOutcome: { written: number; nowrite: number; error: number };
+    writeBackByOutcome: WriteBackOutcomeCounts;
+    /** Write-back outcome + rate per question type (item 4). */
+    writeBackByQuestionType: Record<string, WriteBackTypeStat>;
+    /** Concept-solve-path confidence. */
     confidence: ConfidenceCounts;
+    /** Calc/interpret-path confidence (item 16). */
+    confidenceCalc: ConfidenceCounts;
     modeSplit: { concept: number; calc: number };
     webrUsage: number;
+    /** Failed-call counts by error class (item 2). */
+    byErrorType: Record<string, number>;
+    /** Total failed solve+interpret calls in range (item 2). */
+    errorsTotal: number;
   };
   performance: {
     serverLatencyMsP50: number;
     serverLatencyMsP95: number;
     clientLatencyMsP50: number;
     clientLatencyMsP95: number;
+    /** Merged fixed-bucket histograms + their boundaries so the renderer can
+     *  draw the full latency distribution, not just p50/p95 (item 11). */
+    serverLatencyHistogram: number[];
+    clientLatencyHistogram: number[];
+    latencyBoundariesMs: number[];
   };
   economics: {
     model: string;
@@ -63,6 +119,48 @@ export interface MetricsResponse {
      *  just the headline `model` above. Lets you see the text/image cost
      *  split instead of just the blended `totalCostUsd`. */
     modelsUsed: Record<string, ModelUsage>;
+    /** Token totals + derived cache/efficiency ratios (item 1). */
+    tokens: { promptTokens: number; completionTokens: number; cachedTokens: number };
+    /** cachedTokens/promptTokens across the range, 0..1 — the main COGS lever. */
+    cacheHitRate: number;
+    tokensPerQuestion: number;
+    /** promptTokens/completionTokens. */
+    inputOutputRatio: number;
+    /** Image/vision-model share of calls + cost (item 3). */
+    imageCalls: number;
+    imageCallSharePct: number;
+    imageCostSharePct: number;
+  };
+  /** Real revenue (items 6 & 9). Point-in-time `activeSubscribers`/`mrrUsd`
+   *  come from the `sub:` KV keyspace via metrics-load.ts (passed in as
+   *  `activeSubscribers`); the 30d flow counts come from the daily buckets. */
+  revenue: {
+    activeSubscribers: number;
+    mrrUsd: number;
+    arpuUsd: number;
+    created30d: number;
+    cancelled30d: number;
+    paymentFailed30d: number;
+    netNewSubs30d: number;
+    churnRatePct: number | null;
+    /** Item 9: real blended margin = (MRR − 30d COGS)/MRR·100. null if no MRR. */
+    realGrossMarginPct: number | null;
+    cogsPerActiveUserUsd: number | null;
+  };
+  /** Conversion funnel (item 7): installs → active → paywalled → upgraded. */
+  funnel: {
+    newInstalls30d: number;
+    activeInstalls30d: number;
+    paywallHits30d: number;
+    upgrades30d: number;
+    paywallToUpgradeRatePct: number | null;
+  };
+  /** Retention/cohorts (item 8) — filled by the cross-day cohort pass in
+   *  metrics-load.ts; null until then. */
+  retention: {
+    nextDayRetentionPct: number | null;
+    sevenDayRetentionPct: number | null;
+    returningSharePct: number | null;
   };
 }
 
@@ -75,6 +173,10 @@ export interface AggregateMetricsInput {
   buckets: DailyMetricsBucket[];
   priceMonthlyUsd: number;
   assumedSolvesPerUserPerMonth: number;
+  /** Live active-subscriber count from the `sub:` KV scan (metrics-load.ts).
+   *  Drives the real revenue/MRR block (items 6 & 9). Defaults to 0 when the
+   *  caller can't/didn't scan (e.g. pure unit tests). */
+  activeSubscribers?: number;
 }
 
 /** Rounds away float noise for display. `decimals` is chosen per field below
@@ -92,6 +194,7 @@ const roundPct = (n: number): number => round(n, 2);
 
 export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse {
   const { now, days, dates, buckets, priceMonthlyUsd, assumedSolvesPerUserPerMonth } = input;
+  const activeSubscribers = Math.max(0, input.activeSubscribers ?? 0);
 
   let questionsAnswered = 0;
   let apiCalls = 0;
@@ -99,16 +202,24 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
   let solveSuccesses = 0;
   let interpretAttempts = 0;
   let interpretSuccesses = 0;
+  let errorsTotal = 0;
+  let paywallHits30d = 0;
   const byQuestionType: Record<string, number> = {};
   const confidence: ConfidenceCounts = { High: 0, Med: 0, Low: 0, "": 0 };
+  const confidenceCalc: ConfidenceCounts = { High: 0, Med: 0, Low: 0, "": 0 };
+  const byErrorType: Record<string, number> = {};
   const modeSplit = { concept: 0, calc: 0 };
-  const writeBackByOutcome = { written: 0, nowrite: 0, error: 0 };
+  const writeBackByOutcome: WriteBackOutcomeCounts = { written: 0, nowrite: 0, error: 0 };
+  const writeBackByType: Record<string, WriteBackOutcomeCounts> = {};
   const modelsUsed: Record<string, ModelUsage> = {};
+  const tokens = { promptTokens: 0, completionTokens: 0, cachedTokens: 0 };
+  const revenueFlow = { created: 0, cancelled: 0, paymentFailed: 0 };
   let totalCostUsd = 0;
   const costUsdByMode = { concept: 0, calc: 0 };
   const serverHist = emptyHistogram();
   const clientHist = emptyHistogram();
-  const dailyByDate = new Map<string, { date: string; questions: number; apiCalls: number }>();
+  const dailyByDate = new Map<string, DailyPoint>();
+  const mauSet = new Set<string>();
 
   for (let i = 0; i < buckets.length; i++) {
     const b = buckets[i];
@@ -119,27 +230,41 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
     const sSucc = b.server.routes.solve.successes;
     const iAttempts = b.server.routes.interpret.attempts;
     const iSucc = b.server.routes.interpret.successes;
+    const dayErrors = b.server.routes.solve.errors + b.server.routes.interpret.errors;
+    const dayCalls = sAttempts + iAttempts;
+    const daySucc = sSucc + iSucc;
 
     questionsAnswered += sAttempts;
-    apiCalls += sAttempts + iAttempts;
+    apiCalls += dayCalls;
     solveAttempts += sAttempts;
     solveSuccesses += sSucc;
     interpretAttempts += iAttempts;
     interpretSuccesses += iSucc;
-
-    dailyByDate.set(date, { date, questions: sAttempts, apiCalls: sAttempts + iAttempts });
+    errorsTotal += dayErrors;
+    paywallHits30d += b.paywallHits;
 
     for (const [k, v] of Object.entries(b.client.byQuestionType)) {
       byQuestionType[k] = (byQuestionType[k] ?? 0) + v;
     }
     (Object.keys(confidence) as Array<keyof ConfidenceCounts>).forEach((k) => {
       confidence[k] += b.server.confidence[k] ?? 0;
+      confidenceCalc[k] += b.server.confidenceCalc[k] ?? 0;
     });
+    for (const [cls, n] of Object.entries(b.server.byErrorType)) {
+      byErrorType[cls] = (byErrorType[cls] ?? 0) + n;
+    }
     modeSplit.concept += b.server.modeSplit.concept;
     modeSplit.calc += b.server.modeSplit.calc;
     writeBackByOutcome.written += b.client.writeBackByOutcome.written;
     writeBackByOutcome.nowrite += b.client.writeBackByOutcome.nowrite;
     writeBackByOutcome.error += b.client.writeBackByOutcome.error;
+    for (const [type, o] of Object.entries(b.client.writeBackByQuestionType)) {
+      const acc = writeBackByType[type] ?? { written: 0, nowrite: 0, error: 0 };
+      acc.written += o.written;
+      acc.nowrite += o.nowrite;
+      acc.error += o.error;
+      writeBackByType[type] = acc;
+    }
 
     for (const [model, usage] of Object.entries(b.server.byModel)) {
       const acc = modelsUsed[model] ?? { calls: 0, costUsd: 0 };
@@ -148,17 +273,49 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
       modelsUsed[model] = acc;
     }
 
+    tokens.promptTokens += b.server.tokens.promptTokens;
+    tokens.completionTokens += b.server.tokens.completionTokens;
+    tokens.cachedTokens += b.server.tokens.cachedTokens;
     totalCostUsd += b.server.costUsd;
     costUsdByMode.concept += b.server.costUsdByMode.concept;
     costUsdByMode.calc += b.server.costUsdByMode.calc;
+    revenueFlow.created += b.revenue.created;
+    revenueFlow.cancelled += b.revenue.cancelled;
+    revenueFlow.paymentFailed += b.revenue.paymentFailed;
     mergeHistogramInto(serverHist, b.server.latencyHistogram);
     mergeHistogramInto(clientHist, b.client.latencyHistogram);
+
+    for (const h of b.installHashes) mauSet.add(h);
+
+    dailyByDate.set(date, {
+      date,
+      questions: sAttempts,
+      apiCalls: dayCalls,
+      errors: dayErrors,
+      solveSuccessRate: dayCalls > 0 ? roundRate(daySucc / dayCalls) : 0,
+      costUsd: roundMoney(b.server.costUsd),
+      cacheHitRate:
+        b.server.tokens.promptTokens > 0
+          ? roundRate(b.server.tokens.cachedTokens / b.server.tokens.promptTokens)
+          : 0,
+      serverLatencyMsP50: Math.round(
+        percentileFromHistogram(b.server.latencyHistogram, LATENCY_BUCKET_BOUNDARIES_MS, 0.5),
+      ),
+      concept: b.server.modeSplit.concept,
+      calc: b.server.modeSplit.calc,
+      imageCalls: b.server.byModel[IMAGE_VISION_MODEL]?.calls ?? 0,
+      newInstalls: 0, // cross-day cohort pass (metrics-load.ts) fills this
+      activeInstalls: b.installHashes.length,
+      paywallHits: b.paywallHits,
+      revenueCreated: b.revenue.created,
+      revenueCancelled: b.revenue.cancelled,
+    });
   }
 
   const daily = [...dates]
     .reverse()
     .map((d) => dailyByDate.get(d))
-    .filter((x): x is { date: string; questions: number; apiCalls: number } => !!x);
+    .filter((x): x is DailyPoint => !!x);
 
   // dates[0]/buckets[0] = today (most-recent-first).
   const dau = buckets[0]?.installHashes.length ?? 0;
@@ -167,6 +324,7 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
     for (const h of buckets[i]?.installHashes ?? []) wauSet.add(h);
   }
   const wau = wauSet.size;
+  const mau = mauSet.size;
 
   const totalAttempts = solveAttempts + interpretAttempts;
   const totalSuccesses = solveSuccesses + interpretSuccesses;
@@ -174,6 +332,12 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
 
   const writeBackTotal = writeBackByOutcome.written + writeBackByOutcome.nowrite + writeBackByOutcome.error;
   const writeBackSuccessRate = writeBackTotal > 0 ? writeBackByOutcome.written / writeBackTotal : 0;
+
+  const writeBackByQuestionType: Record<string, WriteBackTypeStat> = {};
+  for (const [type, o] of Object.entries(writeBackByType)) {
+    const total = o.written + o.nowrite + o.error;
+    writeBackByQuestionType[type] = { ...o, writeBackRate: total > 0 ? roundRate(o.written / total) : 0 };
+  }
 
   const serverLatencyMsP50 = Math.round(percentileFromHistogram(serverHist, LATENCY_BUCKET_BOUNDARIES_MS, 0.5));
   const serverLatencyMsP95 = Math.round(percentileFromHistogram(serverHist, LATENCY_BUCKET_BOUNDARIES_MS, 0.95));
@@ -194,19 +358,55 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
     roundedModelsUsed[model] = { calls: usage.calls, costUsd: roundMoney(usage.costUsd) };
   }
 
+  // --- item 1: token/cache economics ---
+  const cacheHitRate = tokens.promptTokens > 0 ? tokens.cachedTokens / tokens.promptTokens : 0;
+  const tokensPerQuestion =
+    questionsAnswered > 0 ? (tokens.promptTokens + tokens.completionTokens) / questionsAnswered : 0;
+  const inputOutputRatio = tokens.completionTokens > 0 ? tokens.promptTokens / tokens.completionTokens : 0;
+
+  // --- item 3: image/vision share ---
+  const imageUsage = modelsUsed[IMAGE_VISION_MODEL] ?? { calls: 0, costUsd: 0 };
+  const imageCallSharePct = apiCalls > 0 ? (imageUsage.calls / apiCalls) * 100 : 0;
+  const imageCostSharePct = totalCostUsd > 0 ? (imageUsage.costUsd / totalCostUsd) * 100 : 0;
+
+  // --- items 6 & 9: real revenue (activeSubscribers passed in from KV scan) ---
+  const mrrUsd = activeSubscribers * priceMonthlyUsd;
+  const netNewSubs30d = revenueFlow.created - revenueFlow.cancelled;
+  const churnRatePct =
+    activeSubscribers > 0 ? roundPct((revenueFlow.cancelled / activeSubscribers) * 100) : null;
+  const realGrossMarginPct = mrrUsd > 0 ? roundPct(((mrrUsd - totalCostUsd) / mrrUsd) * 100) : null;
+  const cogsPerActiveUserUsd = activeSubscribers > 0 ? roundMoney(totalCostUsd / activeSubscribers) : null;
+
+  // --- item 7: funnel ---
+  const paywallToUpgradeRatePct =
+    paywallHits30d > 0 ? roundPct((revenueFlow.created / paywallHits30d) * 100) : null;
+
   return {
     generatedAt: now,
     range: { days },
-    volume: { questionsAnswered, apiCalls, byQuestionType, dau, wau, daily },
+    comparison: { prevRangeDays: 0, deltaPct: {} },
+    volume: { questionsAnswered, apiCalls, byQuestionType, dau, wau, mau, newInstalls: 0, daily },
     quality: {
       solveSuccessRate: roundRate(solveSuccessRate),
       writeBackSuccessRate: roundRate(writeBackSuccessRate),
       writeBackByOutcome,
+      writeBackByQuestionType,
       confidence,
+      confidenceCalc,
       modeSplit,
       webrUsage: modeSplit.calc,
+      byErrorType,
+      errorsTotal,
     },
-    performance: { serverLatencyMsP50, serverLatencyMsP95, clientLatencyMsP50, clientLatencyMsP95 },
+    performance: {
+      serverLatencyMsP50,
+      serverLatencyMsP95,
+      clientLatencyMsP50,
+      clientLatencyMsP95,
+      serverLatencyHistogram: serverHist,
+      clientLatencyHistogram: clientHist,
+      latencyBoundariesMs: [...LATENCY_BUCKET_BOUNDARIES_MS],
+    },
     economics: {
       model: PRIMARY_TEXT_MODEL,
       rates: rate,
@@ -218,6 +418,37 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
       breakEvenQuestionsPerUser: roundMoney(breakEvenQuestionsPerUser),
       grossMarginPerUserPct: roundPct(grossMarginPerUserPct),
       modelsUsed: roundedModelsUsed,
+      tokens,
+      cacheHitRate: roundRate(cacheHitRate),
+      tokensPerQuestion: Math.round(tokensPerQuestion),
+      inputOutputRatio: roundRate(inputOutputRatio),
+      imageCalls: imageUsage.calls,
+      imageCallSharePct: roundPct(imageCallSharePct),
+      imageCostSharePct: roundPct(imageCostSharePct),
+    },
+    revenue: {
+      activeSubscribers,
+      mrrUsd: roundMoney(mrrUsd),
+      arpuUsd: activeSubscribers > 0 ? roundMoney(mrrUsd / activeSubscribers) : 0,
+      created30d: revenueFlow.created,
+      cancelled30d: revenueFlow.cancelled,
+      paymentFailed30d: revenueFlow.paymentFailed,
+      netNewSubs30d,
+      churnRatePct,
+      realGrossMarginPct,
+      cogsPerActiveUserUsd,
+    },
+    funnel: {
+      newInstalls30d: 0, // cross-day cohort pass (metrics-load.ts) fills this
+      activeInstalls30d: mau,
+      paywallHits30d,
+      upgrades30d: revenueFlow.created,
+      paywallToUpgradeRatePct,
+    },
+    retention: {
+      nextDayRetentionPct: null,
+      sevenDayRetentionPct: null,
+      returningSharePct: null,
     },
   };
 }

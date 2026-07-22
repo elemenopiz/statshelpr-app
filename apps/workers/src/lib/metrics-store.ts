@@ -47,6 +47,35 @@ export interface ModelUsage {
   costUsd: number;
 }
 
+/** Write-back outcome tally, reused for the overall daily count and for the
+ *  per-question-type cross-tab (dashboard-v2 item 4). */
+export interface WriteBackOutcomeCounts {
+  written: number;
+  nowrite: number;
+  error: number;
+}
+
+/** Daily subscription-lifecycle FLOW counts (not point-in-time state — the
+ *  live active-subscriber count is derived at read time from the `sub:` KV
+ *  keyspace, see lib/metrics-load.ts). Written by
+ *  routes/lemonsqueezy-webhook.ts (dashboard-v2 item 6). */
+export interface RevenueFlowCounts {
+  created: number;
+  cancelled: number;
+  paymentFailed: number;
+}
+
+// ===========================================================================
+// === dashboard-v2 metrics contract (frozen) ================================
+// Any agent editing this file MUST branch off the `dashboard-v2` commit that
+// introduced this marker. If this comment is absent from your base, STOP —
+// you have forked from a stale base (see project memory
+// "worktree-agents-fork-stale"). The field NAMES/shapes below are the shared
+// contract between the write path (solve/interpret/telemetry/webhook), the
+// aggregator (metrics-aggregate.ts), and the renderer (dashboard-render.ts);
+// change values, never rename/reshape these without updating all three.
+// ===========================================================================
+
 export interface DailyMetricsBucket {
   date: string;
   server: {
@@ -57,10 +86,20 @@ export interface DailyMetricsBucket {
      *  at interpret.ts's success — NOT at solve.ts's RCODE handoff, which
      *  would double-count (a calc question spans two LLM calls). */
     modeSplit: { concept: number; calc: number };
-    /** Solve-concept-path confidence only, per the pinned contract's explicit
-     *  "(solve concept path)" scoping — calc-path confidence isn't folded in
-     *  here (interpret.ts's own confidence isn't wired into this counter). */
+    /** Solve-CONCEPT-path confidence. Kept concept-only (its original pinned
+     *  scope) so existing aggregates/tests are unchanged; the calc path is
+     *  tracked separately in `confidenceCalc` below. */
     confidence: ConfidenceCounts;
+    /** Solve-CALC-path confidence (dashboard-v2 item 16) — interpret.ts's
+     *  `finalParsed.confidence`, previously parsed-then-dropped. Split from
+     *  `confidence` so "low-confidence" views can cover BOTH paths instead of
+     *  being blind to calc. */
+    confidenceCalc: ConfidenceCounts;
+    /** Per-error-class counts for failed solve/interpret calls (dashboard-v2
+     *  item 2) — keyed by the stable enum classifyError() returns
+     *  ("quota"|"auth"|"rate_limit"|"timeout"|"bad_input"|"upstream"|
+     *  "unknown"). Open Record so a new class never needs a schema bump. */
+    byErrorType: Record<string, number>;
     tokens: { promptTokens: number; completionTokens: number; cachedTokens: number };
     /** Grand total of every event's costUsd, success or error (errors cost
      *  ~0 anyway since there's no usage to bill). */
@@ -80,15 +119,27 @@ export interface DailyMetricsBucket {
   };
   client: {
     byQuestionType: Record<string, number>;
-    writeBackByOutcome: { written: number; nowrite: number; error: number };
+    writeBackByOutcome: WriteBackOutcomeCounts;
+    /** Write-back outcome cross-tabbed BY question type (dashboard-v2 item 4).
+     *  Same telemetry beacon as `byQuestionType` + `writeBackByOutcome`, just
+     *  keyed together so "which question types write back badly?" is
+     *  answerable. Keys are the client-reported questionType (untrusted —
+     *  escape on render). */
+    writeBackByQuestionType: Record<string, WriteBackOutcomeCounts>;
     latencyHistogram: number[];
   };
   /** Distinct SHA-256 install-id hashes seen today, from EITHER a server
    *  event (solve/interpret) or a client telemetry beacon — capped at
-   *  INSTALL_HASH_CAP. Feeds DAU/WAU. Never raw install ids (see
-   *  lib/rate-limit.ts's hashBucket, reused here for the exact same hash so
-   *  the same install id dedupes across both event sources). */
+   *  INSTALL_HASH_CAP. Feeds DAU/WAU/MAU + retention. Never raw install ids
+   *  (see lib/rate-limit.ts's hashBucket, reused here for the exact same hash
+   *  so the same install id dedupes across both event sources). */
   installHashes: string[];
+  /** Count of free-tier solves rejected at the daily cap (the HTTP 402 in
+   *  solve.ts) — the paywall-hit event, the #1 leading indicator of
+   *  conversion (dashboard-v2 item 7). Written by recordPaywallHit. */
+  paywallHits: number;
+  /** Daily subscription-lifecycle flow counts (dashboard-v2 item 6). */
+  revenue: RevenueFlowCounts;
 }
 
 function emptyRouteCounters(): RouteCounters {
@@ -99,6 +150,14 @@ function emptyConfidence(): ConfidenceCounts {
   return { High: 0, Med: 0, Low: 0, "": 0 };
 }
 
+function emptyWriteBack(): WriteBackOutcomeCounts {
+  return { written: 0, nowrite: 0, error: 0 };
+}
+
+function emptyRevenue(): RevenueFlowCounts {
+  return { created: 0, cancelled: 0, paymentFailed: 0 };
+}
+
 export function emptyBucket(date: string): DailyMetricsBucket {
   return {
     date,
@@ -106,6 +165,8 @@ export function emptyBucket(date: string): DailyMetricsBucket {
       routes: { solve: emptyRouteCounters(), interpret: emptyRouteCounters() },
       modeSplit: { concept: 0, calc: 0 },
       confidence: emptyConfidence(),
+      confidenceCalc: emptyConfidence(),
+      byErrorType: {},
       tokens: { promptTokens: 0, completionTokens: 0, cachedTokens: 0 },
       costUsd: 0,
       costUsdByMode: { concept: 0, calc: 0 },
@@ -114,10 +175,13 @@ export function emptyBucket(date: string): DailyMetricsBucket {
     },
     client: {
       byQuestionType: {},
-      writeBackByOutcome: { written: 0, nowrite: 0, error: 0 },
+      writeBackByOutcome: emptyWriteBack(),
+      writeBackByQuestionType: {},
       latencyHistogram: emptyHistogram(),
     },
     installHashes: [],
+    paywallHits: 0,
+    revenue: emptyRevenue(),
   };
 }
 
@@ -147,6 +211,29 @@ export function normalizeBucket(raw: unknown, date: string): DailyMetricsBucket 
     return out;
   };
 
+  /** Coerce an unknown blob into a flat Record<string, number> (byErrorType). */
+  const okCountRecord = (v: unknown): Record<string, number> => {
+    if (!v || typeof v !== "object") return {};
+    const out: Record<string, number> = {};
+    for (const [k, n] of Object.entries(v as Record<string, unknown>)) out[k] = Number(n) || 0;
+    return out;
+  };
+
+  /** Coerce an unknown blob into Record<string, WriteBackOutcomeCounts>. */
+  const okWriteBackByType = (v: unknown): Record<string, WriteBackOutcomeCounts> => {
+    if (!v || typeof v !== "object") return {};
+    const out: Record<string, WriteBackOutcomeCounts> = {};
+    for (const [k, o] of Object.entries(v as Record<string, unknown>)) {
+      const w = (o ?? {}) as Partial<WriteBackOutcomeCounts>;
+      out[k] = {
+        written: Number(w.written) || 0,
+        nowrite: Number(w.nowrite) || 0,
+        error: Number(w.error) || 0,
+      };
+    }
+    return out;
+  };
+
   return {
     date,
     server: {
@@ -156,6 +243,8 @@ export function normalizeBucket(raw: unknown, date: string): DailyMetricsBucket 
       },
       modeSplit: { ...empty.server.modeSplit, ...s.modeSplit },
       confidence: { ...empty.server.confidence, ...s.confidence },
+      confidenceCalc: { ...empty.server.confidenceCalc, ...s.confidenceCalc },
+      byErrorType: okCountRecord(s.byErrorType),
       tokens: { ...empty.server.tokens, ...s.tokens },
       costUsd: typeof s.costUsd === "number" ? s.costUsd : 0,
       costUsdByMode: { ...empty.server.costUsdByMode, ...s.costUsdByMode },
@@ -165,11 +254,14 @@ export function normalizeBucket(raw: unknown, date: string): DailyMetricsBucket 
     client: {
       byQuestionType: typeof cl.byQuestionType === "object" && cl.byQuestionType ? { ...cl.byQuestionType } : {},
       writeBackByOutcome: { ...empty.client.writeBackByOutcome, ...cl.writeBackByOutcome },
+      writeBackByQuestionType: okWriteBackByType(cl.writeBackByQuestionType),
       latencyHistogram: okHist(cl.latencyHistogram, empty.client.latencyHistogram.length),
     },
     installHashes: Array.isArray(r.installHashes)
       ? r.installHashes.filter((h: unknown) => typeof h === "string")
       : [],
+    paywallHits: typeof r.paywallHits === "number" ? r.paywallHits : 0,
+    revenue: { ...empty.revenue, ...r.revenue },
   };
 }
 
@@ -229,6 +321,9 @@ export interface ServerEventInput {
   costUsd: number;
   serverLatencyMs: number;
   installHash: string;
+  /** Stable error class for a FAILED call (dashboard-v2 item 2), from
+   *  classifyError() in the route. Ignored when success is true. */
+  errorType?: string;
   /** Which cost/token bucket this call's spend belongs to. Omit on error
    *  (no spend to attribute — usage is 0 anyway when a call fails). */
   costMode?: "concept" | "calc";
@@ -236,8 +331,9 @@ export interface ServerEventInput {
    *  DailyMetricsBucket.server.modeSplit doc above for why). */
   completedQuestion?: {
     mode: "concept" | "calc";
-    /** Per the pinned contract, confidence is recorded "(solve concept
-     *  path)" only — interpret.ts's completedQuestion omits this. */
+    /** Recorded per-path now: concept path -> `confidence`, calc path ->
+     *  `confidenceCalc` (dashboard-v2 item 16). interpret.ts should pass its
+     *  parsed calc confidence here. */
     confidence?: "High" | "Med" | "Low" | "";
   };
 }
@@ -249,7 +345,11 @@ export async function recordServerEvent(env: Env, input: ServerEventInput): Prom
     const r = bucket.server.routes[input.route];
     r.attempts += 1;
     if (input.success) r.successes += 1;
-    else r.errors += 1;
+    else {
+      r.errors += 1;
+      const cls = input.errorType || "unknown";
+      bucket.server.byErrorType[cls] = (bucket.server.byErrorType[cls] ?? 0) + 1;
+    }
 
     const modelUsage = bucket.server.byModel[input.model] ?? { calls: 0, costUsd: 0 };
     modelUsage.calls += 1;
@@ -263,10 +363,13 @@ export async function recordServerEvent(env: Env, input: ServerEventInput): Prom
     if (input.costMode) bucket.server.costUsdByMode[input.costMode] += input.costUsd;
 
     if (input.completedQuestion) {
-      bucket.server.modeSplit[input.completedQuestion.mode] += 1;
-      const conf = input.completedQuestion.confidence;
+      const { mode, confidence: conf } = input.completedQuestion;
+      bucket.server.modeSplit[mode] += 1;
       if (conf !== undefined) {
-        bucket.server.confidence[conf] = (bucket.server.confidence[conf] ?? 0) + 1;
+        // Per-path confidence: concept -> `confidence`, calc -> `confidenceCalc`
+        // (dashboard-v2 item 16) so low-confidence views cover both paths.
+        const target = mode === "calc" ? bucket.server.confidenceCalc : bucket.server.confidence;
+        target[conf] = (target[conf] ?? 0) + 1;
       }
     }
 
@@ -293,6 +396,10 @@ export async function recordClientEvent(env: Env, input: ClientEventInput): Prom
     const type = input.questionType || "unknown";
     bucket.client.byQuestionType[type] = (bucket.client.byQuestionType[type] ?? 0) + 1;
     bucket.client.writeBackByOutcome[input.outcome] += 1;
+    // Cross-tab: same outcome, also keyed by question type (dashboard-v2 item 4).
+    const wb = bucket.client.writeBackByQuestionType[type] ?? emptyWriteBack();
+    wb[input.outcome] += 1;
+    bucket.client.writeBackByQuestionType[type] = wb;
     addToHistogram(bucket.client.latencyHistogram, LATENCY_BUCKET_BOUNDARIES_MS, input.clientLatencyMs);
     addInstallHash(bucket, input.installHash);
 
@@ -324,5 +431,42 @@ export function recordClientEventInBackground(c: EnvContext, input: ClientEventI
     c.executionCtx.waitUntil(p);
   } catch {
     /* no ExecutionContext — promise is already running on its own */
+  }
+}
+
+/** Record a paywall hit — a free-tier solve rejected at the daily cap
+ *  (dashboard-v2 item 7). `installHash`, when known, is added to the day's
+ *  active-install set too: a user who hit the cap is an ACTIVE user even
+ *  though no solve event fired for them. Best-effort; never throws. */
+export async function recordPaywallHit(env: Env, installHash?: string): Promise<void> {
+  try {
+    const bucket = await readBucket(env, todayUtc());
+    bucket.paywallHits += 1;
+    if (installHash) addInstallHash(bucket, installHash);
+    await writeBucket(env, bucket);
+  } catch {
+    // Best-effort — never break/delay the caller's 402 response.
+  }
+}
+
+export function recordPaywallHitInBackground(c: EnvContext, installHash?: string): void {
+  const p = recordPaywallHit(c.env, installHash);
+  try {
+    c.executionCtx.waitUntil(p);
+  } catch {
+    /* no ExecutionContext — promise already running */
+  }
+}
+
+/** Bump one of today's subscription-lifecycle flow counters (dashboard-v2
+ *  item 6), called from routes/lemonsqueezy-webhook.ts. Best-effort; the
+ *  webhook's own idempotency guard prevents double-counting on LS retries. */
+export async function recordRevenueEvent(env: Env, kind: keyof RevenueFlowCounts): Promise<void> {
+  try {
+    const bucket = await readBucket(env, todayUtc());
+    bucket.revenue[kind] += 1;
+    await writeBucket(env, bucket);
+  } catch {
+    // Best-effort.
   }
 }

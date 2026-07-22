@@ -1,16 +1,17 @@
-import type { MetricsResponse } from "./metrics-aggregate";
-import type { ModelUsage } from "./metrics-store";
+import type { DailyPoint, MetricsResponse, WriteBackTypeStat } from "./metrics-aggregate";
+import type { ModelUsage, WriteBackOutcomeCounts } from "./metrics-store";
 import { IMAGE_VISION_MODEL, PRIMARY_TEXT_MODEL } from "./cost";
+import { LATENCY_BUCKET_BOUNDARIES_MS } from "./histogram";
 
 /**
  * Hardcoded realistic payload for `/dashboard?demo=1`, matching the exact
- * `MetricsResponse` shape aggregateMetrics() produces. Used for visual QA
- * and for reviewing the layout without live KV data. Numbers are
- * deterministic (seeded PRNG) so the page looks the same on every reload
- * rather than jittering.
- *
- * Ported from the old apps/api/app/dashboard/mock.ts (Next.js dashboard,
- * now removed) — kept numerically identical.
+ * `MetricsResponse` shape aggregateMetrics() produces (dashboard-v2 contract).
+ * Used for visual QA and for reviewing the layout without live KV data.
+ * Numbers are deterministic (seeded PRNG) so the page looks the same on every
+ * reload rather than jittering, and internally consistent (per-day series sum
+ * to the 30d headline totals) so every new panel — trends, revenue, funnel,
+ * retention, error breakdown, latency distribution — renders with plausible
+ * data.
  *
  * Pricing basis (verified live, July 2026): Gemini 3.5 Flash-Lite —
  * $0.30 / 1M input tokens, $2.50 / 1M output tokens. Cached-input rate is
@@ -53,12 +54,19 @@ function splitByWeights(total: number, weights: Record<string, number>): Record<
   return out;
 }
 
-function buildDaily(days: number): Array<{ date: string; questions: number; apiCalls: number }> {
+const round4 = (n: number): number => Math.round(n * 1e4) / 1e4;
+const round6 = (n: number): number => Math.round(n * 1e6) / 1e6;
+const round2 = (n: number): number => Math.round(n * 100) / 100;
+
+/** Full per-day series (DailyPoint) so trend/sparkline/composition charts have
+ *  real data in demo mode. Fields are internally consistent (concept+calc =
+ *  questions, errors < apiCalls, etc.). */
+function buildDaily(days: number): DailyPoint[] {
   const rand = mulberry32(20260722);
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
 
-  const points: { date: string; questions: number; apiCalls: number }[] = [];
+  const points: DailyPoint[] = [];
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date(today);
     d.setUTCDate(d.getUTCDate() - i);
@@ -69,16 +77,52 @@ function buildDaily(days: number): Array<{ date: string; questions: number; apiC
     const questions = Math.max(20, Math.round(base * jitter));
     const callsPerQuestion = 1.28 + rand() * 0.14; // accounts for 2-call calc path
     const apiCalls = Math.round(questions * callsPerQuestion);
-    const iso = d.toISOString().slice(0, 10);
-    points.push({ date: iso, questions, apiCalls });
+    const concept = Math.round(questions * 0.726);
+    const calc = questions - concept;
+    const errors = Math.round(apiCalls * (0.03 + rand() * 0.045)); // 3-7.5%
+    const solveSuccessRate = round4((apiCalls - errors) / Math.max(1, apiCalls));
+    const costUsd = round6(questions * (0.016 + rand() * 0.006));
+    const cacheHitRate = round4(0.18 + rand() * 0.16);
+    const serverLatencyMsP50 = Math.round(1250 + rand() * 460);
+    const imageCalls = Math.round(apiCalls * (0.15 + rand() * 0.07));
+    const newInstalls = Math.round(4 + rand() * 13);
+    const activeInstalls = Math.round(38 + rand() * 44);
+    const paywallHits = Math.round(4 + rand() * 15);
+    const revenueCreated = rand() < 0.38 ? 1 : 0;
+    const revenueCancelled = rand() < 0.1 ? 1 : 0;
+    points.push({
+      date: d.toISOString().slice(0, 10),
+      questions,
+      apiCalls,
+      errors,
+      solveSuccessRate,
+      costUsd,
+      cacheHitRate,
+      serverLatencyMsP50,
+      concept,
+      calc,
+      imageCalls,
+      newInstalls,
+      activeInstalls,
+      paywallHits,
+      revenueCreated,
+      revenueCancelled,
+    });
   }
   return points;
 }
 
 const RANGE_DAYS = 30;
 const DAILY = buildDaily(RANGE_DAYS);
-const QUESTIONS_ANSWERED = DAILY.reduce((s, p) => s + p.questions, 0);
-const API_CALLS = DAILY.reduce((s, p) => s + p.apiCalls, 0);
+const sum = (pick: (p: DailyPoint) => number): number => DAILY.reduce((s, p) => s + pick(p), 0);
+
+const QUESTIONS_ANSWERED = sum((p) => p.questions);
+const API_CALLS = sum((p) => p.apiCalls);
+const ERRORS_TOTAL = sum((p) => p.errors);
+const PAYWALL_HITS_30D = sum((p) => p.paywallHits);
+const NEW_INSTALLS_30D = sum((p) => p.newInstalls);
+const REVENUE_CREATED_30D = sum((p) => p.revenueCreated);
+const REVENUE_CANCELLED_30D = sum((p) => p.revenueCancelled);
 
 const BY_QUESTION_TYPE = splitByWeights(QUESTIONS_ANSWERED, {
   multiple_choice_question: 0.42,
@@ -102,13 +146,40 @@ const WRITE_BACK_RAW = splitByWeights(QUESTIONS_ANSWERED, {
   nowrite: 0.125,
   error: 0.065,
 });
-const WRITE_BACK_BY_OUTCOME = {
+const WRITE_BACK_BY_OUTCOME: WriteBackOutcomeCounts = {
   written: WRITE_BACK_RAW["written"] ?? 0,
   nowrite: WRITE_BACK_RAW["nowrite"] ?? 0,
   error: WRITE_BACK_RAW["error"] ?? 0,
 };
 
-const CONFIDENCE_RAW = splitByWeights(QUESTIONS_ANSWERED, {
+// Per-question-type write-back cross-tab (item 4). Each type gets its own
+// plausible write-back rate — MC/true-false write back cleanly, matching and
+// multi-blanks are the problem children — so the "what to fix" panel has signal.
+const WRITE_RATE_BY_TYPE: Record<string, number> = {
+  multiple_choice_question: 0.96,
+  true_false_question: 0.97,
+  numerical_question: 0.9,
+  fill_in_multiple_blanks_question: 0.74,
+  multiple_dropdowns_question: 0.71,
+  matching_question: 0.6,
+  short_answer_question: 0.83,
+  essay_question: 0.55,
+};
+const WRITE_BACK_BY_QUESTION_TYPE: Record<string, WriteBackTypeStat> = {};
+for (const [type, total] of Object.entries(BY_QUESTION_TYPE)) {
+  const rate = WRITE_RATE_BY_TYPE[type] ?? 0.85;
+  const written = Math.round(total * rate);
+  const error = Math.round((total - written) * 0.4);
+  const nowrite = total - written - error;
+  WRITE_BACK_BY_QUESTION_TYPE[type] = {
+    written,
+    nowrite,
+    error,
+    writeBackRate: total > 0 ? round4(written / total) : 0,
+  };
+}
+
+const CONFIDENCE_RAW = splitByWeights(MODE_SPLIT.concept, {
   High: 0.62,
   Med: 0.29,
   Low: 0.075,
@@ -121,13 +192,61 @@ const CONFIDENCE = {
   "": CONFIDENCE_RAW["Unset"] ?? 0,
 };
 
+// Calc-path confidence (item 16) — separate distribution, a bit less confident
+// than the concept path (numeric interpretation is harder).
+const CONFIDENCE_CALC_RAW = splitByWeights(MODE_SPLIT.calc, {
+  High: 0.51,
+  Med: 0.34,
+  Low: 0.12,
+  Unset: 0.03,
+});
+const CONFIDENCE_CALC = {
+  High: CONFIDENCE_CALC_RAW["High"] ?? 0,
+  Med: CONFIDENCE_CALC_RAW["Med"] ?? 0,
+  Low: CONFIDENCE_CALC_RAW["Low"] ?? 0,
+  "": CONFIDENCE_CALC_RAW["Unset"] ?? 0,
+};
+
+// Error breakdown (item 2) — sums to ERRORS_TOTAL.
+const BY_ERROR_TYPE = splitByWeights(ERRORS_TOTAL, {
+  rate_limit: 0.44,
+  quota: 0.19,
+  upstream: 0.14,
+  timeout: 0.11,
+  bad_input: 0.07,
+  auth: 0.03,
+  unknown: 0.02,
+});
+
 const WEBR_USAGE = Math.round(MODE_SPLIT.calc * 0.87);
+
+// Latency distributions (item 11) — 9 fixed buckets matching
+// LATENCY_BUCKET_BOUNDARIES_MS, peaking around 1-2s; client is slightly slower
+// (WebR + write-back). Sum to API_CALLS so the histogram reconciles with volume.
+const SERVER_LATENCY_HISTOGRAM = boundariesSplit(API_CALLS, [
+  0.01, 0.05, 0.13, 0.27, 0.25, 0.16, 0.08, 0.035, 0.015,
+]);
+const CLIENT_LATENCY_HISTOGRAM = boundariesSplit(API_CALLS, [
+  0.005, 0.03, 0.09, 0.2, 0.26, 0.2, 0.11, 0.06, 0.03,
+]);
+
+function boundariesSplit(total: number, weights: number[]): number[] {
+  const keyed: Record<string, number> = {};
+  weights.forEach((w, i) => (keyed[String(i)] = w));
+  const out = splitByWeights(total, keyed);
+  return LATENCY_BUCKET_BOUNDARIES_MS.map((_, i) => out[String(i)] ?? 0);
+}
 
 const AVG_COST_PER_QUESTION_USD = 0.0186;
 const AVG_COST_PER_CALC_QUESTION_USD = 0.0344;
 const TOTAL_COST_USD = Number((QUESTIONS_ANSWERED * AVG_COST_PER_QUESTION_USD).toFixed(2));
 const PRICE_MONTHLY_USD = 15;
 const ASSUMED_SOLVES_PER_USER_PER_MONTH = 90;
+
+// Token totals (item 1) — plausible per-question shape with a ~24% cache hit.
+const PROMPT_TOKENS = Math.round(QUESTIONS_ANSWERED * 1320);
+const COMPLETION_TOKENS = Math.round(QUESTIONS_ANSWERED * 430);
+const CACHED_TOKENS = Math.round(PROMPT_TOKENS * 0.24);
 
 // Two models in play: text solves route to the cheap/fast text model;
 // image solves (full-question screenshots) route to a pricier vision model.
@@ -157,38 +276,74 @@ const MODELS_USED: Record<string, ModelUsage> = {
   [IMAGE_MODEL_ID]: { calls: IMAGE_CALLS, costUsd: IMAGE_MODEL_COST_USD },
 };
 
+// Revenue (items 6 & 9) — point-in-time active subs (from the `sub:` KV scan
+// in prod). MRR = active × price. Real blended margin reconciles COGS vs
+// actual revenue.
+const ACTIVE_SUBSCRIBERS = 34;
+const MRR_USD = ACTIVE_SUBSCRIBERS * PRICE_MONTHLY_USD;
+const NET_NEW_SUBS_30D = REVENUE_CREATED_30D - REVENUE_CANCELLED_30D;
+const DAU = 58;
+const WAU = 241;
+const MAU = 612;
+
 /** Build the mock payload fresh on each call so `generatedAt` reflects "now"
  * (everything else is deterministic/seeded). */
 export function buildMockMetrics(): MetricsResponse {
   return {
     generatedAt: Date.now(),
     range: { days: RANGE_DAYS },
+    comparison: {
+      prevRangeDays: RANGE_DAYS,
+      deltaPct: {
+        questionsAnswered: 12.4,
+        solveSuccessRate: 1.1,
+        errorsTotal: -8.3,
+        totalCostUsd: 9.6,
+        avgCostPerQuestionUsd: -2.5,
+        cacheHitRate: 4.2,
+        dau: 6.7,
+        wau: 8.9,
+        mrrUsd: 18.2,
+        activeSubscribers: 15.3,
+        paywallHits30d: 22.5,
+      },
+    },
     volume: {
       questionsAnswered: QUESTIONS_ANSWERED,
       apiCalls: API_CALLS,
       byQuestionType: BY_QUESTION_TYPE,
-      dau: 58,
-      wau: 241,
+      dau: DAU,
+      wau: WAU,
+      mau: MAU,
+      newInstalls: NEW_INSTALLS_30D,
       daily: DAILY,
     },
     quality: {
-      solveSuccessRate: 0.94,
-      writeBackSuccessRate:
+      solveSuccessRate: round4((API_CALLS - ERRORS_TOTAL) / Math.max(1, API_CALLS)),
+      writeBackSuccessRate: round4(
         WRITE_BACK_BY_OUTCOME.written /
-        Math.max(
-          1,
-          WRITE_BACK_BY_OUTCOME.written + WRITE_BACK_BY_OUTCOME.nowrite + WRITE_BACK_BY_OUTCOME.error,
-        ),
+          Math.max(
+            1,
+            WRITE_BACK_BY_OUTCOME.written + WRITE_BACK_BY_OUTCOME.nowrite + WRITE_BACK_BY_OUTCOME.error,
+          ),
+      ),
       writeBackByOutcome: WRITE_BACK_BY_OUTCOME,
+      writeBackByQuestionType: WRITE_BACK_BY_QUESTION_TYPE,
       confidence: CONFIDENCE,
+      confidenceCalc: CONFIDENCE_CALC,
       modeSplit: MODE_SPLIT,
       webrUsage: WEBR_USAGE,
+      byErrorType: BY_ERROR_TYPE,
+      errorsTotal: ERRORS_TOTAL,
     },
     performance: {
       serverLatencyMsP50: 1420,
       serverLatencyMsP95: 4150,
       clientLatencyMsP50: 1890,
       clientLatencyMsP95: 5320,
+      serverLatencyHistogram: SERVER_LATENCY_HISTOGRAM,
+      clientLatencyHistogram: CLIENT_LATENCY_HISTOGRAM,
+      latencyBoundariesMs: [...LATENCY_BUCKET_BOUNDARIES_MS],
     },
     economics: {
       model: TEXT_MODEL_ID,
@@ -208,6 +363,41 @@ export function buildMockMetrics(): MetricsResponse {
           PRICE_MONTHLY_USD) *
         100,
       modelsUsed: MODELS_USED,
+      tokens: {
+        promptTokens: PROMPT_TOKENS,
+        completionTokens: COMPLETION_TOKENS,
+        cachedTokens: CACHED_TOKENS,
+      },
+      cacheHitRate: round4(CACHED_TOKENS / PROMPT_TOKENS),
+      tokensPerQuestion: Math.round((PROMPT_TOKENS + COMPLETION_TOKENS) / QUESTIONS_ANSWERED),
+      inputOutputRatio: round4(PROMPT_TOKENS / COMPLETION_TOKENS),
+      imageCalls: IMAGE_CALLS,
+      imageCallSharePct: round2((IMAGE_CALLS / API_CALLS) * 100),
+      imageCostSharePct: round2((IMAGE_MODEL_COST_USD / TOTAL_COST_USD) * 100),
+    },
+    revenue: {
+      activeSubscribers: ACTIVE_SUBSCRIBERS,
+      mrrUsd: MRR_USD,
+      arpuUsd: PRICE_MONTHLY_USD,
+      created30d: REVENUE_CREATED_30D,
+      cancelled30d: REVENUE_CANCELLED_30D,
+      paymentFailed30d: 2,
+      netNewSubs30d: NET_NEW_SUBS_30D,
+      churnRatePct: round2((REVENUE_CANCELLED_30D / ACTIVE_SUBSCRIBERS) * 100),
+      realGrossMarginPct: round2(((MRR_USD - TOTAL_COST_USD) / MRR_USD) * 100),
+      cogsPerActiveUserUsd: round6(TOTAL_COST_USD / ACTIVE_SUBSCRIBERS),
+    },
+    funnel: {
+      newInstalls30d: NEW_INSTALLS_30D,
+      activeInstalls30d: MAU,
+      paywallHits30d: PAYWALL_HITS_30D,
+      upgrades30d: REVENUE_CREATED_30D,
+      paywallToUpgradeRatePct: round2((REVENUE_CREATED_30D / Math.max(1, PAYWALL_HITS_30D)) * 100),
+    },
+    retention: {
+      nextDayRetentionPct: 38.4,
+      sevenDayRetentionPct: 22.1,
+      returningSharePct: 61.3,
     },
   };
 }
