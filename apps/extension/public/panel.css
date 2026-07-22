@@ -37,7 +37,7 @@
   cursor: pointer;
   vertical-align: middle;
   user-select: none;
-  transition: background 0.18s ease, border-color 0.18s ease;
+  transition: background 0.18s ease, border-color 0.18s ease, opacity 0.18s ease;
 }
 
 .statshelpr-btn-text {
@@ -68,6 +68,11 @@
   cursor: progress;
   background: transparent;
   border-color: transparent;
+  /* Dim the loading spinner to the same discreet level as the badge — the
+     spinner's own colors are fixed, so without this it popped to full
+     visibility mid-solve, breaking discreet mode. The button is disabled
+     while loading, so the direct-hover reveal never fires here. */
+  opacity: var(--sh-outline-opacity, 1);
 }
 
 .statshelpr-btn-tutor.error {
