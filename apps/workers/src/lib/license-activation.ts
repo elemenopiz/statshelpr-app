@@ -61,6 +61,9 @@ export interface ActivationResult {
 
 const KV_ACTIVATION_PREFIX = "activation:";
 const KV_CURRENT_PREFIX = "activation-current:";
+/** Same key space lib/license.ts writes/reads (`license:{key}`) — read here
+ *  only to detect the dev-license flag that skips LS activation. */
+const LICENSE_PREFIX = "license:";
 const ACTIVATION_TTL_SEC = 400 * 86_400;
 
 interface LsLicenseKey {
@@ -105,6 +108,20 @@ export async function activateForInstall(
 ): Promise<ActivationResult> {
   // LS not configured -> dev mode, same bypass as validateLicense().
   if (!env.LEMONSQUEEZY_API_KEY) return { ok: true, activated: true };
+
+  // Dev/test licenses: a `license:{key}` KV record seeded directly (with
+  // `{"dev":true}`) that LemonSqueezy never sold. Calling LS /activate for
+  // such a key returns "license_key not found" and would 403 an otherwise
+  // valid paid solve. These skip activation entirely (no single-device
+  // binding — they're for internal testing across devices). Safe because the
+  // only way to get one is a manual `wrangler kv key put` with the dev flag;
+  // a real buyer's key never has it, so real single-device enforcement is
+  // unchanged. validateLicense() already returns tier:"paid" for the same
+  // record. See the founder's test-access provisioning, 2026-07-23.
+  const licRecord = (await env.STATSHELPR_KV.get(`${LICENSE_PREFIX}${licenseKey}`, "json")) as
+    | { dev?: boolean }
+    | null;
+  if (licRecord?.dev === true) return { ok: true, activated: true };
 
   const name = installId || "anon";
   const licHash = await sha256Hex(licenseKey);
