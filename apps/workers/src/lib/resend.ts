@@ -55,6 +55,45 @@ export async function sendResetEmail(
   }
 }
 
+/**
+ * Send a founder-metrics alert email (dashboard-v2 item 15). Same Resend
+ * endpoint, FROM_ADDRESS, and error handling as sendResetEmail; the caller
+ * (lib/alerts.ts) supplies a prebuilt subject + HTML body.
+ */
+export async function sendAlertEmail(
+  apiKey: string,
+  to: string,
+  subject: string,
+  html: string,
+): Promise<SendEmailResult> {
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: FROM_ADDRESS,
+        to: [to],
+        subject,
+        html,
+      }),
+    });
+
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => "");
+      return {
+        ok: false,
+        reason: `Resend API ${res.status}${errBody ? `: ${errBody.slice(0, 200)}` : ""}`,
+      };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, reason: `Resend request failed: ${(e as Error).message}` };
+  }
+}
+
 function renderResetEmailHtml(resetUrl: string): string {
   return `
     <p>Someone requested to move your statshelpr license to a new device.</p>

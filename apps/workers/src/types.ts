@@ -9,8 +9,13 @@ export interface Env {
   LEMONSQUEEZY_WEBHOOK_SECRET?: string;
   LEMONSQUEEZY_STORE_ID?: string;
   LEMONSQUEEZY_VARIANT_ID?: string;
-  /** Required only for POST /api/reset/request (Resend email-token reset flow). */
+  /** Required for POST /api/reset/request (Resend email-token reset flow) and
+   *  for the scheduled founder-metrics alert emails (see lib/alerts.ts). */
   RESEND_API_KEY?: string;
+  /** Recipient for scheduled founder-metrics threshold alerts (item 15).
+   *  Set via `wrangler secret put ALERT_EMAIL`. Unset (or RESEND_API_KEY
+   *  unset) means alerting is skipped silently — snapshots still roll up. */
+  ALERT_EMAIL?: string;
   /** Bearer token gating GET /api/metrics — `wrangler secret put METRICS_TOKEN`.
    *  Unset means the route hard-fails closed (401 on every request), not open. */
   METRICS_TOKEN?: string;

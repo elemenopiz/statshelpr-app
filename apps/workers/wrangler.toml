@@ -40,6 +40,19 @@ id = "23d6ef6041854bec96fd277cb013e7e6"
 #                                                     generate with e.g. `openssl rand -hex 32`.
 #                                                     Unset = route hard-fails closed, including
 #                                                     ?demo=1.)
+#   wrangler secret put ALERT_EMAIL                  (recipient for the scheduled founder-metrics
+#                                                     threshold alerts — see [triggers] below and
+#                                                     lib/alerts.ts. Unset (or RESEND_API_KEY unset)
+#                                                     = alerting skipped silently; the daily
+#                                                     snapshot rollup still runs.)
+
+# Cron trigger — drives the `scheduled` handler in src/index.ts, which (a)
+# rolls up a compact daily KPI snapshot (`snapshot:YYYY-MM-DD`) so trends
+# survive the raw buckets' TTL, and (b) evaluates threshold alerts and emails
+# them via Resend (needs the ALERT_EMAIL + RESEND_API_KEY secrets above;
+# alerting is skipped silently if either is unset). Runs daily at 08:00 UTC.
+[triggers]
+crons = ["0 8 * * *"]
 
 # Custom domain — statshelpr.com is already in this Cloudflare account so
 # `custom_domain = true` auto-creates the AAAA record + provisions SSL.
