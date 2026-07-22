@@ -46,23 +46,11 @@
   transition: opacity 0.18s ease, color 0.18s ease;
 }
 
-/* Reveal ONLY when the cursor is on the badge itself (below) — NOT when it's
-   anywhere over the parent question. A question-level hover-reveal made the
-   badge you were mousing near pop to ~half opacity while every other question
-   stayed at the dimmed setting, which looked exactly like "the slider only
-   dimmed the other questions" even though the setting is applied uniformly to
-   all of them (one shared --sh-*-opacity var on :root). Dropping it keeps the
-   discreet setting visually consistent across every question; direct-badge
-   hover still lights it up so you get click feedback on the one you're on. */
-.statshelpr-btn-tutor:hover:not(:disabled) {
-  background: #fff;
-  border-color: #2742c8;
-}
-
-.statshelpr-btn-tutor:hover:not(:disabled) .statshelpr-btn-text {
-  opacity: 1;
-  color: #1c31a2;
-}
+/* No hover-reveal. The badge stays at exactly the opacity the discreet-mode
+   slider sets, hovered or not — a hover-reveal (whether the old
+   question-level one or a direct-badge one) restored the badge toward full
+   opacity, which defeats the point of dimming it. The base `cursor: pointer`
+   is the hover affordance; opacity never changes on hover. */
 
 .statshelpr-btn-tutor.loading {
   cursor: progress;
