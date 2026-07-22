@@ -181,26 +181,59 @@ themeToggleEl?.addEventListener("click", () => {
 // settings + health + plan
 // =============================================================================
 
+// The slider is a 0–100 integer PERCENT (step 1); the stored `buttonOpacity`
+// is that percent / 100 in [0, 1]. content.ts turns it into the rendered
+// opacity via a perceptual gamma curve (see applyButtonOpacity there) — the
+// popup just reports the position, it doesn't do the curve itself.
+function dialToPercent(dial: number): number {
+  return Math.round(Math.min(1, Math.max(0, dial)) * 100);
+}
+
 chrome.storage.sync.get(["apiUrl", "licenseKey", "buttonOpacity"], (cfg: StoredConfig) => {
-  const opacity = typeof cfg.buttonOpacity === "number" ? cfg.buttonOpacity : DEFAULT_OPACITY;
-  if (opacityInput) opacityInput.value = String(opacity);
-  if (opacityValueEl) opacityValueEl.textContent = opacity.toFixed(2);
+  const dial = typeof cfg.buttonOpacity === "number" ? cfg.buttonOpacity : DEFAULT_OPACITY;
+  const pct = dialToPercent(dial);
+  if (opacityInput) opacityInput.value = String(pct);
+  if (opacityValueEl) opacityValueEl.textContent = `${pct}%`;
   void pingHealth(API_URL);
   void refreshPlan(API_URL, cfg.licenseKey ?? "");
 });
 
-// Live-preview the opacity readout as the user drags the slider.
+/** Push a live opacity value to the on-page solve button in the active tab so
+ *  it dims IN REAL TIME as the slider is dragged. Fire-and-forget: the active
+ *  tab is usually the Canvas quiz whose content script is listening, but if it
+ *  isn't (a non-Canvas tab, or the popup opened over chrome://) sendMessage
+ *  has no receiver and we swallow the lastError. Needs no "tabs" permission —
+ *  active/currentWindow returns the tab id, and delivery rides our existing
+ *  instructure.com host permission. */
+function previewOpacityOnActiveTab(dial: number): void {
+  try {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const id = tabs[0]?.id;
+      if (id == null) return;
+      chrome.tabs.sendMessage(id, { type: "sh-preview-opacity", value: dial }, () => {
+        void chrome.runtime.lastError; // no content script on this tab — ignore
+      });
+    });
+  } catch {
+    /* file:// popup preview or no active tab — live preview just won't fire */
+  }
+}
+
+// While DRAGGING: update the % readout and live-dim the on-page button, but
+// don't touch storage yet (its write-rate limit would throttle a drag).
 opacityInput?.addEventListener("input", () => {
-  if (!opacityValueEl) return;
-  const v = Number(opacityInput.value);
-  opacityValueEl.textContent = Number.isFinite(v) ? v.toFixed(2) : String(opacityInput.value);
+  const pct = Number(opacityInput.value);
+  if (!Number.isFinite(pct)) return;
+  if (opacityValueEl) opacityValueEl.textContent = `${Math.round(pct)}%`;
+  previewOpacityOnActiveTab(pct / 100);
 });
 
-// No Save button anymore — persist the moment the slider settles.
+// On RELEASE: persist the settled value (content.ts's storage.onChanged then
+// applies it to every open Canvas tab, and it survives across sessions).
 opacityInput?.addEventListener("change", () => {
-  const v = Number(opacityInput.value);
+  const pct = Number(opacityInput.value);
   void chrome.storage.sync.set({
-    buttonOpacity: Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : DEFAULT_OPACITY,
+    buttonOpacity: Number.isFinite(pct) ? Math.min(1, Math.max(0, pct / 100)) : DEFAULT_OPACITY,
   });
 });
 
@@ -318,8 +351,8 @@ function applyOpacityGate(plan: "free" | "paid") {
   if (opacityInput) {
     if (plan === "free") {
       opacityInput.disabled = true;
-      opacityInput.value = "1";
-      if (opacityValueEl) opacityValueEl.textContent = "1.00";
+      opacityInput.value = "100";
+      if (opacityValueEl) opacityValueEl.textContent = "100%";
     } else {
       opacityInput.disabled = false;
     }

@@ -1,21 +1,16 @@
 /* =========================================================================
  * Inline tutor button — a small "solve" badge next to each question heading.
  * White fill, blue outline, blue label — a rounded rectangle, not a pill.
- * One discreet-mode slider in the extension popup (0 = fully invisible, 1 =
- * fully visible; default 1) drives two independent CSS custom properties,
- * derived in content.ts's applyButtonOpacity() and set on
- * document.documentElement on inject and whenever storage changes:
- *
- *   --sh-text-opacity     [0.2, 1.0] of the dial fades the "solve" label
- *                         in/out while the outline (border + white fill)
- *                         stays fully visible.
- *   --sh-outline-opacity  [0, 0.2) of the dial — label is already gone —
- *                         fades the border and fill down to nothing.
- *
- * The two are split across different CSS mechanisms on purpose: the outline
- * uses an alpha color (border-color/background), the label uses element
- * opacity on its own child span — that way fading one never drags the other
- * down with it (a real `opacity` on the button would fade both at once).
+ * The discreet-mode slider in the extension popup (0–100%, default 100) sets
+ * both CSS custom properties below to the SAME rendered opacity, derived in
+ * content.ts's applyButtonOpacity() via a perceptual gamma curve (position ^
+ * 2.0) so the faint end has fine, evenly-perceived resolution. They're kept
+ * as two vars (rather than one `opacity` on the button) only so the outline
+ * can use an alpha COLOR (border-color/background) while the label uses
+ * element opacity on its own child span — the hover-reveal rules below then
+ * lerp both toward 1 together, so a faint button always sharpens on hover.
+ *   --sh-text-opacity     opacity of the "solve" label span.
+ *   --sh-outline-opacity  alpha of the border + white fill.
  * ========================================================================= */
 
 :root {

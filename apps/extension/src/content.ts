@@ -160,6 +160,20 @@ function boot() {
     }
   });
 
+  // Live preview while the popup slider is being DRAGGED. The popup messages
+  // the active tab on every `input` event (see popup.ts's previewOpacity) so
+  // the on-page button dims in real time — chrome.storage.sync only persists
+  // on release (its per-item write-rate limit would throttle a drag's dozens
+  // of updates, and the storage.onChanged round-trip lags visibly). The
+  // storage.onChanged branch above still applies the final persisted value
+  // and covers OTHER open Canvas tabs; this just makes the tab you're looking
+  // at track the slider instantly.
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg && msg.type === "sh-preview-opacity" && typeof msg.value === "number") {
+      applyButtonOpacity(msg.value);
+    }
+  });
+
   const observer = new MutationObserver(() => scanAndInject());
   observer.observe(document.body, { childList: true, subtree: true });
 }
@@ -676,27 +690,30 @@ async function applyButtonOpacityFromStorage(): Promise<void> {
   applyButtonOpacity(typeof r.buttonOpacity === "number" ? r.buttonOpacity : 1);
 }
 
-// One dial, two phases — see the derivation below and panel.css's header.
-const OUTLINE_FADE_START = 0.2;
+// Discreet-mode dimming curve. The popup slider hands us a linear position
+// `dial` in [0, 1] (its 0–100% value / 100); we render the button at
+// `dial ^ DIM_GAMMA`. The gamma is the whole point: the eye reads opacity
+// roughly logarithmically, so on a LINEAR slider almost all the visible
+// change happens in the bottom sliver and the top 60% looks identical —
+// useless for a control whose entire job is fine discreetness. Gamma > 1
+// stretches that bottom sliver across most of the travel, so equal drags
+// produce roughly equal *perceived* change and the faint end has real
+// resolution: at 1% steps the positions just above 0 render as ~0.0001,
+// 0.0004, 0.0009, 0.0016, 0.0025 … i.e. many distinct barely-there levels
+// between 0 and 0.05, which the old linear 0.05-step slider couldn't express
+// at all (it jumped straight 0 → 0.05). Both CSS vars get the SAME value now
+// (uniform dim of label + outline together) — panel.css still lerps them
+// toward 1 on hover, so a faint button always sharpens when you mouse it.
+const DIM_GAMMA = 2.0;
 
 function applyButtonOpacity(dial: number): void {
-  // Clamp to a sane range so a bad stored value can't blow past 1.0 or go
-  // negative. Paid users can drag the popup slider to 0 (fully invisible) —
-  // gating who's allowed to write a low value is the popup's job, not ours.
+  // Clamp so a bad stored value can't blow past 1.0 or go negative. Paid
+  // users can drag the popup slider to 0 (fully invisible) — gating who's
+  // allowed to write a low value is the popup's job, not ours.
   const clamped = Math.min(1, Math.max(0, dial));
-
-  // [0.2, 1.0] → fades the "solve" label in/out, outline stays fully visible.
-  // [0, 0.2)   → label is already gone, so this stretch fades the outline
-  //              itself, ending fully invisible at 0.
-  const textOpacity =
-    clamped >= OUTLINE_FADE_START
-      ? (clamped - OUTLINE_FADE_START) / (1 - OUTLINE_FADE_START)
-      : 0;
-  const outlineOpacity =
-    clamped >= OUTLINE_FADE_START ? 1 : clamped / OUTLINE_FADE_START;
-
-  document.documentElement.style.setProperty("--sh-text-opacity", String(textOpacity));
-  document.documentElement.style.setProperty("--sh-outline-opacity", String(outlineOpacity));
+  const opacity = Math.pow(clamped, DIM_GAMMA).toFixed(4);
+  document.documentElement.style.setProperty("--sh-text-opacity", opacity);
+  document.documentElement.style.setProperty("--sh-outline-opacity", opacity);
 }
 
 async function getConfig(): Promise<{ apiUrl?: string; licenseKey?: string; telemetryDisabled?: boolean }> {
