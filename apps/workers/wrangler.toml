@@ -22,7 +22,7 @@ AVG_SOLVES_PER_USER_PER_MONTH = "110"
 # (see r-runner/README.md) — this placeholder host is deliberately fake so a
 # forgotten replacement fails loudly (DNS/connection error) instead of
 # silently misrouting every calc question. ***
-R_RUNNER_URL = "https://REPLACE-WITH-CLOUD-RUN-URL.run.app"
+R_RUNNER_URL = "https://statshelpr-r-runner-964221203874.us-central1.run.app"
 
 # --- Abuse-hole closing (security audit, 2026-07-22) — see lib/rate-limit.ts
 # and lib/kill-switch.ts for the full rationale behind the two below. Neither
