@@ -704,7 +704,7 @@ async function applyButtonOpacityFromStorage(): Promise<void> {
 // at all (it jumped straight 0 → 0.05). Both CSS vars get the SAME value now
 // (uniform dim of label + outline together) — panel.css still lerps them
 // toward 1 on hover, so a faint button always sharpens when you mouse it.
-const DIM_GAMMA = 2.0;
+const DIM_GAMMA = 2.2;
 
 function applyButtonOpacity(dial: number): void {
   // Clamp so a bad stored value can't blow past 1.0 or go negative. Paid

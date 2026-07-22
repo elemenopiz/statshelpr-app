@@ -4,7 +4,7 @@
  * The discreet-mode slider in the extension popup (0–100%, default 100) sets
  * both CSS custom properties below to the SAME rendered opacity, derived in
  * content.ts's applyButtonOpacity() via a perceptual gamma curve (position ^
- * 2.0) so the faint end has fine, evenly-perceived resolution. They're kept
+ * 2.2) so the faint end has fine, evenly-perceived resolution. They're kept
  * as two vars (rather than one `opacity` on the button) only so the outline
  * can use an alpha COLOR (border-color/background) while the label uses
  * element opacity on its own child span — the hover-reveal rules below then

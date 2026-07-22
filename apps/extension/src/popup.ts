@@ -81,6 +81,13 @@ const resetStatusEl = document.getElementById("reset-status") as HTMLDivElement;
 
 let dataFiles: DataFile[] = [];
 
+// Current entitlement, set by applyOpacityGate() once refreshPlan() resolves.
+// Gates whether a slider drag PERSISTS (paid) or just previews then reverts
+// (free) — see the "change" handler below. Defaults to "free" so that until
+// the plan check comes back we treat the user as free (never accidentally
+// persist a discreet setting for someone who hasn't paid).
+let currentPlan: "free" | "paid" = "free";
+
 // =============================================================================
 // theme (light/dark toggle, next to the status dot)
 // =============================================================================
@@ -228,14 +235,39 @@ opacityInput?.addEventListener("input", () => {
   previewOpacityOnActiveTab(pct / 100);
 });
 
-// On RELEASE: persist the settled value (content.ts's storage.onChanged then
-// applies it to every open Canvas tab, and it survives across sessions).
+// On RELEASE:
+//  - paid: persist the settled value (content.ts's storage.onChanged then
+//    applies it to every open Canvas tab, and it survives across sessions).
+//  - free: this was a live PREVIEW only. Snap the button back to fully
+//    visible and pulse the upgrade nudge — the taste of discreet mode is the
+//    conversion hook, keeping it is the paid feature. Nothing is persisted,
+//    so the on-page button returns to full on the next page load regardless.
 opacityInput?.addEventListener("change", () => {
   const pct = Number(opacityInput.value);
+  if (currentPlan !== "paid") {
+    if (opacityInput) opacityInput.value = "100";
+    if (opacityValueEl) opacityValueEl.textContent = "100%";
+    previewOpacityOnActiveTab(1); // restore the on-page button immediately
+    flashOpacityLock();
+    return;
+  }
   void chrome.storage.sync.set({
     buttonOpacity: Number.isFinite(pct) ? Math.min(1, Math.max(0, pct / 100)) : DEFAULT_OPACITY,
   });
 });
+
+/** Briefly pull attention to the "Unlimited unlocks discreet mode" nudge when
+ *  a free user lets go of the slider — restarts a short CSS pulse (see
+ *  popup.html's .opacity-lock.pulse). */
+let lockPulseTimer: ReturnType<typeof setTimeout> | undefined;
+function flashOpacityLock(): void {
+  if (!opacityLockEl) return;
+  opacityLockEl.classList.remove("pulse");
+  void opacityLockEl.offsetWidth; // force reflow so re-adding the class restarts the animation
+  opacityLockEl.classList.add("pulse");
+  if (lockPulseTimer) clearTimeout(lockPulseTimer);
+  lockPulseTimer = setTimeout(() => opacityLockEl?.classList.remove("pulse"), 1000);
+}
 
 async function pingHealth(apiUrl: string) {
   setDot("checking…", "");
@@ -345,16 +377,18 @@ function setPlanNote(msg: string) {
   planNoteEl.style.display = msg ? "block" : "none";
 }
 
-/** Discreet mode (solve-button opacity) is a paid-only feature. Free users
- * get a disabled slider pinned to fully-visible plus an upgrade nudge. */
+/** Discreet mode (persisting a dimmed solve button) is a paid feature — but
+ *  free users can still DRAG the slider to preview it live on the page (see
+ *  the "input"/"change" handlers). The slider is always interactive now; what
+ *  differs is whether release persists (paid) or reverts with an upgrade nudge
+ *  (free). Free users see the lock CTA; paid users don't. */
 function applyOpacityGate(plan: "free" | "paid") {
+  currentPlan = plan;
   if (opacityInput) {
+    opacityInput.disabled = false; // draggable for everyone (free = preview only)
     if (plan === "free") {
-      opacityInput.disabled = true;
       opacityInput.value = "100";
       if (opacityValueEl) opacityValueEl.textContent = "100%";
-    } else {
-      opacityInput.disabled = false;
     }
   }
   if (opacityLockEl) {

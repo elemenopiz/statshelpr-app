@@ -420,6 +420,14 @@
         transition: background-color 0.2s, color 0.2s;
       }
       .opacity-lock:hover { background: var(--blue-ring); color: var(--blue-deep); }
+      /* Pulsed by popup.ts when a free user releases the slider — the preview
+         snaps back and this nudge flashes to point at the upgrade. */
+      .opacity-lock.pulse { animation: opacityLockPulse 1s ease; }
+      @keyframes opacityLockPulse {
+        0%   { background: var(--blue-tint); transform: scale(1); }
+        18%  { background: var(--blue-ring); color: var(--blue-deep); transform: scale(1.045); }
+        100% { background: var(--blue-tint); transform: scale(1); }
+      }
       .meta {
         margin-top: 10px;
         padding-top: 8px;

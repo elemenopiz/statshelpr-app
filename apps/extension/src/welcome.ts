@@ -31,7 +31,7 @@ document.getElementById("finish-btn")?.addEventListener("click", finish);
 // (label + outline together) along a gamma curve, so equal slider movement is
 // roughly equal perceived change and the faint end has fine resolution. Keep
 // DIM_GAMMA in sync with content.ts.
-const DIM_GAMMA = 2.0;
+const DIM_GAMMA = 2.2;
 const discreetSlider = document.getElementById("discreet-slider") as HTMLInputElement | null;
 const discreetBtn = document.getElementById("discreet-demo-btn");
 const discreetText = document.getElementById("discreet-demo-text");
