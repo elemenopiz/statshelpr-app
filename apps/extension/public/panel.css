@@ -7,8 +7,9 @@
  * 2.2) so the faint end has fine, evenly-perceived resolution. They're kept
  * as two vars (rather than one `opacity` on the button) only so the outline
  * can use an alpha COLOR (border-color/background) while the label uses
- * element opacity on its own child span — the hover-reveal rules below then
- * lerp both toward 1 together, so a faint button always sharpens on hover.
+ * element opacity on its own child span. Both vars live on :root, so the
+ * setting applies UNIFORMLY to every question's badge at once; only a direct
+ * hover on the badge itself (rule below) lifts it to full for click feedback.
  *   --sh-text-opacity     opacity of the "solve" label span.
  *   --sh-outline-opacity  alpha of the border + white fill.
  * ========================================================================= */
@@ -45,31 +46,14 @@
   transition: opacity 0.18s ease, color 0.18s ease;
 }
 
-/* Hover reveal — scales with the user's idle preference: half-way between
-   idle and full when the parent question is hovered. (Written as calc()'d
-   alpha/opacity on NORMAL properties — a custom property redefined in terms
-   of itself is an invalid cycle and would silently no-op.) */
-.question_holder:hover .statshelpr-btn-tutor,
-.display_question:hover .statshelpr-btn-tutor,
-.question-container:hover .statshelpr-btn-tutor,
-.QuestionItem:hover .statshelpr-btn-tutor,
-.item-body:hover .statshelpr-btn-tutor,
-[data-testid="question-container"]:hover .statshelpr-btn-tutor,
-[data-testid="quiz-question"]:hover .statshelpr-btn-tutor {
-  background: rgba(255, 255, 255, calc((var(--sh-outline-opacity, 1) + 1) / 2));
-  border-color: rgba(39, 66, 200, calc((var(--sh-outline-opacity, 1) + 1) / 2));
-}
-
-.question_holder:hover .statshelpr-btn-tutor .statshelpr-btn-text,
-.display_question:hover .statshelpr-btn-tutor .statshelpr-btn-text,
-.question-container:hover .statshelpr-btn-tutor .statshelpr-btn-text,
-.QuestionItem:hover .statshelpr-btn-tutor .statshelpr-btn-text,
-.item-body:hover .statshelpr-btn-tutor .statshelpr-btn-text,
-[data-testid="question-container"]:hover .statshelpr-btn-tutor .statshelpr-btn-text,
-[data-testid="quiz-question"]:hover .statshelpr-btn-tutor .statshelpr-btn-text {
-  opacity: calc((var(--sh-text-opacity, 1) + 1) / 2);
-}
-
+/* Reveal ONLY when the cursor is on the badge itself (below) — NOT when it's
+   anywhere over the parent question. A question-level hover-reveal made the
+   badge you were mousing near pop to ~half opacity while every other question
+   stayed at the dimmed setting, which looked exactly like "the slider only
+   dimmed the other questions" even though the setting is applied uniformly to
+   all of them (one shared --sh-*-opacity var on :root). Dropping it keeps the
+   discreet setting visually consistent across every question; direct-badge
+   hover still lights it up so you get click feedback on the one you're on. */
 .statshelpr-btn-tutor:hover:not(:disabled) {
   background: #fff;
   border-color: #2742c8;
