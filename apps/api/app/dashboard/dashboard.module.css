@@ -1,0 +1,405 @@
+/* Internal metrics dashboard. Self-contained design tokens (scoped to
+   .page so nothing leaks globally) inspired by the marketing site's
+   paper/ink/blue palette, using system font stacks only — no web-font
+   network requests from a server-rendered internal tool. */
+
+.page {
+  --paper: #faf9f5;
+  --card: #ffffff;
+  --ink: #1d1c17;
+  --ink-2: #55534a;
+  --ink-3: #8d8a7e;
+  --line: rgba(29, 28, 23, 0.12);
+  --line-soft: rgba(29, 28, 23, 0.07);
+  --blue: #2742c8;
+  --blue-deep: #1c31a2;
+  --blue-tint: rgba(39, 66, 200, 0.08);
+  --green: #0b7a4b;
+  --green-tint: rgba(11, 122, 75, 0.1);
+  --red: #c24029;
+  --red-tint: rgba(194, 64, 41, 0.1);
+  --amber: #92650f;
+  --amber-tint: rgba(176, 128, 26, 0.12);
+  --shadow-card: 0 1px 2px rgba(29, 28, 23, 0.05), 0 8px 24px rgba(29, 28, 23, 0.06);
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 18px;
+
+  background: var(--paper);
+  color: var(--ink);
+  min-height: 100vh;
+  font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+  padding: 2rem 1.25rem 4rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .page {
+    --paper: #131310;
+    --card: #1c1b17;
+    --ink: #f2f0e8;
+    --ink-2: #c8c4b6;
+    --ink-3: #8f8b7c;
+    --line: rgba(242, 240, 232, 0.14);
+    --line-soft: rgba(242, 240, 232, 0.08);
+    --blue: #7f96ff;
+    --blue-deep: #a9b8ff;
+    --blue-tint: rgba(127, 150, 255, 0.14);
+    --green: #4fd08a;
+    --green-tint: rgba(79, 208, 138, 0.14);
+    --red: #ff8066;
+    --red-tint: rgba(255, 128, 102, 0.14);
+    --amber: #e8b54a;
+    --amber-tint: rgba(232, 181, 74, 0.16);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+}
+
+:global(html[data-theme="dark"]) .page {
+  --paper: #131310;
+  --card: #1c1b17;
+  --ink: #f2f0e8;
+  --ink-2: #c8c4b6;
+  --ink-3: #8f8b7c;
+  --line: rgba(242, 240, 232, 0.14);
+  --line-soft: rgba(242, 240, 232, 0.08);
+  --blue: #7f96ff;
+  --blue-deep: #a9b8ff;
+  --blue-tint: rgba(127, 150, 255, 0.14);
+  --green: #4fd08a;
+  --green-tint: rgba(79, 208, 138, 0.14);
+  --red: #ff8066;
+  --red-tint: rgba(255, 128, 102, 0.14);
+  --amber: #e8b54a;
+  --amber-tint: rgba(232, 181, 74, 0.16);
+}
+
+.wrap {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.subtitle {
+  color: var(--ink-3);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.demoBanner {
+  background: var(--amber-tint);
+  color: var(--amber);
+  border: 1px solid rgba(146, 101, 15, 0.25);
+  border-radius: var(--r-sm);
+  padding: 0.5rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 1.25rem;
+  display: inline-block;
+}
+
+/* ---------- headline (unit-economics banner) ---------- */
+
+.headline {
+  background: linear-gradient(135deg, var(--blue-tint), transparent 65%);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card);
+  padding: 1.5rem 1.75rem;
+  margin-bottom: 2rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem 2.5rem;
+}
+
+.headlineFigure {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.headlineLabel {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-3);
+  font-weight: 600;
+}
+
+.headlineValue {
+  font-size: 2.6rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--blue-deep);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.headlineSub {
+  display: flex;
+  gap: 1.75rem;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.headlineCaption {
+  flex-basis: 100%;
+  color: var(--ink-3);
+  font-size: 0.78rem;
+}
+
+/* ---------- sections ---------- */
+
+.section {
+  margin-bottom: 2.25rem;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-bottom: 0.9rem;
+}
+
+.sectionTitle {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.sectionDesc {
+  color: var(--ink-3);
+  font-size: 0.8rem;
+}
+
+/* ---------- grids / cards ---------- */
+
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-card);
+  padding: 1.1rem 1.25rem;
+}
+
+.twoCol {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr;
+  gap: 0.9rem;
+}
+
+@media (max-width: 720px) {
+  .twoCol {
+    grid-template-columns: 1fr;
+  }
+}
+
+.statLabel {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-3);
+  font-weight: 600;
+  margin: 0 0 0.35rem;
+}
+
+.statValue {
+  font-size: 1.65rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.statCaption {
+  color: var(--ink-3);
+  font-size: 0.75rem;
+  margin-top: 0.3rem;
+}
+
+.tone-blue { color: var(--blue-deep); }
+.tone-green { color: var(--green); }
+.tone-red { color: var(--red); }
+.tone-amber { color: var(--amber); }
+
+/* ---------- bar list ---------- */
+
+.barList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.barRow {
+  display: grid;
+  grid-template-columns: minmax(90px, 34%) 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.8rem;
+}
+
+.barRowLabel {
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.barTrack {
+  background: var(--line-soft);
+  border-radius: 999px;
+  height: 9px;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--blue);
+}
+
+.barFill.green { background: var(--green); }
+.barFill.red { background: var(--red); }
+.barFill.amber { background: var(--amber); }
+.barFill.ink { background: var(--ink-3); }
+
+.barRowValue {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+  font-size: 0.76rem;
+  min-width: 3.6rem;
+  text-align: right;
+}
+
+/* ---------- daily chart ---------- */
+
+.chartCard {
+  overflow-x: auto;
+}
+
+.chartSvgWrap {
+  min-width: 560px;
+}
+
+.barQuestions { fill: var(--blue); }
+.barApiCalls { fill: var(--blue-tint); }
+.axisLabel { fill: var(--ink-3); font-size: 9px; font-family: inherit; }
+.axisLine { stroke: var(--line); stroke-width: 1; }
+
+.chartLegend {
+  display: flex;
+  gap: 1.1rem;
+  font-size: 0.72rem;
+  color: var(--ink-3);
+  margin-top: 0.5rem;
+}
+
+.legendSwatch {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  margin-right: 0.35rem;
+  vertical-align: middle;
+}
+
+/* ---------- rate table / small print ---------- */
+
+.rateTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+  margin-top: 0.5rem;
+}
+
+.rateTable th,
+.rateTable td {
+  text-align: left;
+  padding: 0.3rem 0.6rem 0.3rem 0;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--ink-2);
+}
+
+.rateTable th {
+  color: var(--ink-3);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+}
+
+.rateTable td:not(:first-child),
+.rateTable th:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.mono {
+  font-family: ui-monospace, "SF Mono", Consolas, monospace;
+}
+
+.caption {
+  color: var(--ink-3);
+  font-size: 0.78rem;
+  margin-top: 0.6rem;
+}
+
+.footer {
+  margin-top: 2.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line-soft);
+  color: var(--ink-3);
+  font-size: 0.75rem;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* ---------- unavailable / empty state ---------- */
+
+.centerState {
+  max-width: 480px;
+  margin: 10vh auto;
+  text-align: center;
+}
+
+.centerState h1 {
+  font-size: 1.2rem;
+  margin-bottom: 0.6rem;
+}
+
+.centerState p {
+  color: var(--ink-2);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.centerState code {
+  background: var(--line-soft);
+  border-radius: 4px;
+  padding: 0.1rem 0.35rem;
+  font-size: 0.85em;
+}
