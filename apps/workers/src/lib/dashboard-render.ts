@@ -423,6 +423,15 @@ html[data-theme="dark"] .page {
   gap: 0.5rem;
 }
 
+.footer a {
+  color: var(--ink-3);
+  text-decoration: underline;
+}
+
+.footer a:hover {
+  color: var(--ink-2);
+}
+
 /* ---------- unavailable / empty state ---------- */
 
 .centerState {
@@ -844,7 +853,7 @@ export function renderDashboardPage(data: MetricsResponse, isDemo: boolean): str
 
     <footer class="footer">
       <span>Internal dashboard — not for public distribution.</span>
-      <span>Source: ${escapeHtml(source)}</span>
+      <span>Source: ${escapeHtml(source)} · <a href="/dashboard/logout">Log out</a></span>
     </footer>
   </div>
 </div>`;
@@ -859,38 +868,71 @@ export function renderUnavailablePage(reason: string): string {
     "Metrics unavailable",
     `<p>${escapeHtml(reason)}</p>
     <p>
-      Reload to retry, or append <code>?demo=1</code> (plus your access key) to preview the
-      layout with mock data instead.
+      Reload to retry, or append <code>?demo=1</code> to preview the layout with mock data
+      instead.
     </p>`,
   );
   return renderDocument("Metrics — statshelpr", body);
 }
 
-/** Standalone 401 page for the access gate — ported from apps/api/proxy.ts's
- * `unauthorized()`. Deliberately independent of the dashboard CSS tokens
- * above (small, self-contained, dark-only) since it must render even when
- * DASHBOARD_PASSWORD is unset / everything else about the request is
- * untrusted. */
-export function renderUnauthorizedPage(reason: string): string {
+export interface LoginPageOptions {
+  /** Shown as a red error banner — e.g. "Incorrect password." after a
+   *  failed POST /dashboard/login. Omitted on a plain GET with no session. */
+  error?: string;
+  /** DASHBOARD_PASSWORD is unset on this worker, so login can never
+   *  succeed. Shown as a persistent amber note and disables the form. */
+  notConfigured?: boolean;
+}
+
+/**
+ * Login page for the access gate — served at GET /dashboard whenever there's
+ * no valid session cookie, and re-rendered by POST /dashboard/login on
+ * failure. Replaces the old renderUnauthorizedPage 401 page from the
+ * `?key=` era (a login prompt on GET is no longer treated as an error page;
+ * see routes/dashboard.ts's doc comment). Deliberately independent of the
+ * dashboard CSS tokens above (small, self-contained, dark-only) since it
+ * must render even when DASHBOARD_PASSWORD is unset / everything else about
+ * the request is untrusted. Styling ported 1:1 from the old
+ * renderUnauthorizedPage (same bg/ink/card colors) with a card + form added.
+ */
+export function renderLoginPage(opts: LoginPageOptions = {}): string {
+  const { error, notConfigured } = opts;
+  const disabledAttr = notConfigured ? " disabled" : "";
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
-<title>401 — Unauthorized</title>
+<title>Log in — statshelpr metrics</title>
 <style>
   body { font-family: -apple-system, "Segoe UI", system-ui, sans-serif; background: #131310; color: #f2f0e8; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 1.5rem; }
-  main { max-width: 30rem; }
-  h1 { font-size: 1.1rem; margin: 0 0 0.75rem; }
-  p { color: #c8c4b6; font-size: 0.9rem; line-height: 1.5; }
+  main.card { width: 100%; max-width: 22rem; background: #1c1b17; border: 1px solid rgba(242, 240, 232, 0.14); border-radius: 18px; box-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35); padding: 2rem 1.75rem; box-sizing: border-box; }
+  h1 { font-size: 1.1rem; margin: 0 0 0.4rem; }
+  p.lede { color: #c8c4b6; font-size: 0.85rem; margin: 0 0 1.4rem; line-height: 1.5; }
+  label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: #8f8b7c; font-weight: 600; margin-bottom: 0.4rem; }
+  input[type="password"] { width: 100%; box-sizing: border-box; background: #131310; border: 1px solid rgba(242, 240, 232, 0.16); border-radius: 8px; color: #f2f0e8; font-size: 0.95rem; padding: 0.65rem 0.75rem; margin-bottom: 1.15rem; }
+  input[type="password"]:focus { outline: none; border-color: #7f96ff; }
+  input[type="password"]:disabled { opacity: 0.5; }
+  button { width: 100%; background: #7f96ff; color: #131310; border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 700; padding: 0.7rem 0.75rem; cursor: pointer; }
+  button:hover { background: #a9b8ff; }
+  button:disabled { background: #55534a; color: #8f8b7c; cursor: not-allowed; }
+  .error { background: rgba(255, 128, 102, 0.14); color: #ff8066; border: 1px solid rgba(255, 128, 102, 0.3); border-radius: 8px; padding: 0.55rem 0.75rem; font-size: 0.82rem; margin-bottom: 1.15rem; }
+  .note { background: rgba(232, 181, 74, 0.16); color: #e8b54a; border: 1px solid rgba(232, 181, 74, 0.3); border-radius: 8px; padding: 0.55rem 0.75rem; font-size: 0.8rem; margin-top: 1.4rem; line-height: 1.5; }
   code { background: rgba(242,240,232,0.1); border-radius: 4px; padding: 0.1rem 0.35rem; }
 </style>
 </head>
 <body>
-<main>
-<h1>401 — Unauthorized</h1>
-<p>${escapeHtml(reason)}</p>
+<main class="card">
+  <h1>statshelpr metrics</h1>
+  <p class="lede">Enter the dashboard password to continue.</p>
+  ${error ? `<div class="error">${escapeHtml(error)}</div>` : ""}
+  <form method="POST" action="/dashboard/login">
+    <label for="password">Password</label>
+    <input type="password" name="password" id="password" autofocus autocomplete="current-password"${disabledAttr} />
+    <button type="submit"${disabledAttr}>Log in</button>
+  </form>
+  ${notConfigured ? `<p class="note">Dashboard not configured: DASHBOARD_PASSWORD is unset on this worker, so login is disabled. Set it with <code>wrangler secret put DASHBOARD_PASSWORD</code> (see wrangler.toml) to enable access.</p>` : ""}
 </main>
 </body>
 </html>`;
