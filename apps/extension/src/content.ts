@@ -4,24 +4,22 @@
  * Flow on click:
  *   1. Set button to spinner (visual "thinking" feedback)
  *   2. Scrape question text + answer choices + any images
- *   3. POST /api/solve (SSE) — either a "concept" result, or a "rcode"
- *      hand-off that's run locally via WebR and interpreted by /api/interpret
- *      (SSE) — see onSolve() for the full branch.
+ *   3. POST /api/solve (SSE) — a single round trip. The server runs the
+ *      whole pipeline itself (LLM, then for calc questions R on a Cloud Run
+ *      service, then an LLM interpret pass) and streams back one terminal
+ *      "concept" or "calc" result — see onSolve() for the full parse.
  *   4. Parse the answer letter, find the matching radio/checkbox, click it
  *   5. Set button to ✓ briefly, then back to "solve" (re-clickable) — or, if
  *      nothing in the page could actually be written to, a "?" instead, with
  *      the answer itself in the hover title.
  *
- * No answer card, no explanation, no R code display — status during the
- * (rare, R-only) multi-step path surfaces only as the button's hover title.
+ * No answer card, no explanation, no R code display, and no code execution
+ * of any kind in this content script — calc questions now run their R
+ * server-side (see docs/cloud-run-r-migration.md) and arrive as a plain
+ * finished answer, identical in shape to a concept result.
  *
  * A small floating CSV widget in the bottom-right manages course-wide data
  * files, persisted in chrome.storage.local across sessions.
- *
- * RCODE questions (server hands back R code instead of a final answer): WebR
- * (R compiled to WebAssembly, see ./webr-runner) runs the code right here in
- * the content script, then the stdout is POSTed to /api/interpret for the
- * LLM to turn into a final answer — see the RCODE branch in onSolve().
  *
  * DOM scraping and write-back (reading the question, clicking/filling the
  * answer into the page) live in ./canvas-dom, which is chrome-free — this
@@ -30,7 +28,6 @@
  */
 
 import { getInstallId } from "./install-id";
-import { initWebR, runR } from "./webr-runner";
 import {
   type BlankAnswer,
   type ScrapedQuestion,
@@ -50,10 +47,13 @@ interface DataFile {
 }
 
 // =============================================================================
-// /api/solve + /api/interpret — both stream Server-Sent Events. "phase" and
-// "delta" events exist for a richer streaming UI; the inline button UX here
-// doesn't render them (no panel to update) so they're consumed and ignored —
-// only the terminal "result"/"error" event matters to onSolve.
+// /api/solve streams Server-Sent Events. "phase" and "delta" events exist for
+// a richer streaming UI; the inline button UX here doesn't render them (no
+// panel to update) so they're consumed and ignored — only the terminal
+// "result"/"error" event matters to onSolve. On a calc question, "phase"
+// events double as heartbeats while the server runs R remotely and
+// interprets its output (see SSE_IDLE_TIMEOUT_MS below) — still nothing this
+// UI renders, just keep-alive so the idle watchdog doesn't fire mid-solve.
 // =============================================================================
 
 interface ConceptResult {
@@ -67,22 +67,11 @@ interface ConceptResult {
   lowConfidence: boolean;
 }
 
-/** /api/solve hands off to the client when the question needs R: the server
- * sends back the R code to run (via WebR) instead of running it itself. */
-interface RCodeResult {
-  mode: "rcode";
-  rCode: string;
-  assistantBody: string;
-  /** Signed, short-lived token proving this /api/solve call happened —
-   * /api/interpret now requires it (server-side abuse-hole fix) before it
-   * will do anything with the R output below. Absent only if the server's
-   * INTERPRET_SIGNING_SECRET isn't configured, in which case /api/interpret
-   * will reject the follow-up call with a clear error. */
-  interpretToken?: string;
-}
-
-/** Final answer after WebR ran the R code and /api/interpret reasoned over
- * its stdout. */
+/** Final answer for a calc question. The server ran the R itself (Cloud Run)
+ * and interpreted its output into an answer before ever responding — the
+ * rCode/rOutput/rExitCode/rDurationMs fields are metadata about that server-
+ * side run, carried along for potential future display, not something this
+ * client acts on or executes. */
 interface CalcResult {
   mode: "calc";
   rCode: string;
@@ -96,7 +85,7 @@ interface CalcResult {
   lowConfidence: boolean;
 }
 
-type SolveResult = ConceptResult | RCodeResult | CalcResult;
+type SolveResult = ConceptResult | CalcResult;
 
 type SseEvent =
   | { type: "phase"; label: string }
@@ -157,17 +146,6 @@ function boot() {
   // document root so it applies to every injected button, and re-applied
   // whenever the user drags the popup slider.
   void applyButtonOpacityFromStorage();
-
-  // Preload WebR in the background the moment we mount on a Canvas page, so
-  // the (one-time, ~15s) boot happens invisibly while the user reads the
-  // quiz instead of blocking their first RCODE solve. Fire-and-forget: we
-  // swallow failures here rather than surface them before the user has even
-  // asked for a solve — a real RCODE attempt will call initWebR()/runR()
-  // itself and report the same (cached) failure through the button's error
-  // state instead.
-  initWebR().catch(() => {
-    /* swallowed — see comment above */
-  });
 
   // Re-load CSVs (and re-apply opacity) whenever the popup updates them so
   // freshly-uploaded files / settings changes are picked up without reload.
@@ -256,11 +234,11 @@ function hasQuestionAncestor(question: HTMLElement): boolean {
 // solve flow
 // =============================================================================
 //
-// /api/solve always streams SSE. Two outcomes:
-//   - mode "concept" — done, render like any other result.
-//   - mode "rcode"   — server wants R run client-side. We boot WebR (lazy,
-//     cached — see webr-runner.ts), run the code, then POST the stdout to
-//     /api/interpret (also SSE) for the LLM to turn into a final answer.
+// /api/solve always streams SSE down to exactly one terminal result: mode
+// "concept" or mode "calc". Both are done the instant they arrive — for
+// calc, the server has already run the R (on Cloud Run) and interpreted its
+// output into an answer, so there's nothing left for the client to do but
+// render/write it back, same as concept.
 
 /** No SSE activity — not even the initial connection — for this long aborts
  * the request. Neither fetch() nor a stalled ReadableStream reject on their
@@ -268,7 +246,11 @@ function hasQuestionAncestor(question: HTMLElement): boolean {
  * this the button spins forever. Generous vs. the 4-6s timeout used
  * elsewhere (activate.ts, popup.ts) for quick non-streaming calls, since a
  * legitimate solve keeps emitting phase/delta events throughout a slow model
- * response — see solve/route.ts's write() calls. */
+ * response — see solve/route.ts's write() calls. That includes calc
+ * questions: the server emits a "phase" heartbeat at least every 10s while
+ * the remote R run and any repair/interpret passes are in flight, so this
+ * stays comfortably above the real gap between events even on a slow calc
+ * solve. */
 const SSE_IDLE_TIMEOUT_MS = 30_000;
 
 /** Idle/connect watchdog for a streamed fetch: call the returned `poke()` on
@@ -301,7 +283,7 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
   if (btn.disabled) return;
   // Wall-clock start for the telemetry beacon's clientLatencyMs — captured
   // here (solve click) so it includes the full round trip through to a
-  // written/nowrite/error result below, RCODE's WebR run included.
+  // written/nowrite/error result below.
   const solveStartedAt = performance.now();
   setBtnState(btn, "loading");
   // Clear any prior visual marker on this question
@@ -340,8 +322,8 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
   }
   const apiUrl = (cfg.apiUrl ?? "https://api.statshelpr.com").replace(/\/$/, "");
   const licenseKey = cfg.licenseKey ?? "";
-  // Shared by both /api/solve and /api/interpret below — the install id lets
-  // the server bucket the free-tier rate limit per install (see install-id.ts).
+  // Sent with /api/solve below — the install id lets the server bucket the
+  // free-tier rate limit per install (see install-id.ts).
   const headers: HeadersInit = {
     "Content-Type": "application/json",
     "X-Install-Id": installId,
@@ -361,7 +343,6 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
 
   const solveCtrl = new AbortController();
   const solveIdle = armIdleAbort(solveCtrl, SSE_IDLE_TIMEOUT_MS);
-  let interpretIdle: ReturnType<typeof armIdleAbort> | undefined;
 
   let final: ConceptResult | CalcResult;
   try {
@@ -409,69 +390,24 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
     void clearActivationBlocked();
     const solveResult = await consumeSseResult(solveRes, solveIdle.poke);
 
-    if (solveResult.mode === "concept") {
+    // Both live modes are already a finished answer — a calc result arrives
+    // with its R already run and interpreted server-side, identical in shape
+    // (from this client's perspective) to a concept result. Anything else is
+    // a contract break with the server and should surface as a hard error
+    // rather than silently doing nothing.
+    if (solveResult.mode === "concept" || solveResult.mode === "calc") {
       final = solveResult;
-    } else if (solveResult.mode === "rcode") {
-      // RCODE — run R locally via WebR, then have the server interpret it.
-      // No panel in this button-only UI, so the button's title attribute (a
-      // native hover tooltip) is the only status surface we have.
-      btn.setAttribute("title", "Running R…");
-
-      // Race a short timeout so we only show the "first-time setup" message
-      // when the (one-time, ~15s) WebR boot is actually happening — repeat
-      // solves reuse the already-booted instance and this resolves instantly.
-      const raceOutcome = await Promise.race([
-        initWebR().then(() => "ready" as const),
-        sleep(500).then(() => "slow" as const),
-      ]);
-      if (raceOutcome === "slow") {
-        btn.setAttribute("title", "First-time setup, ~15s…");
-        await initWebR(); // same cached boot promise — just waiting it out
-        btn.setAttribute("title", "Running R…");
-      }
-
-      const runResult = await runR(solveResult.rCode, apiDataFiles);
-
-      btn.setAttribute("title", "Interpreting result…");
-      const interpretCtrl = new AbortController();
-      interpretIdle = armIdleAbort(interpretCtrl, SSE_IDLE_TIMEOUT_MS);
-      const interpretRes = await fetch(`${apiUrl}/api/interpret`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          questionText: scraped.text,
-          choices: apiChoices,
-          ...(apiBlanks.length ? { blanks: apiBlanks } : {}),
-          images: scraped.images,
-          dataFiles: apiDataFiles,
-          rCode: solveResult.rCode,
-          stdout: runResult.stdout,
-          exitCode: runResult.exitCode,
-          durationMs: runResult.durationMs,
-          assistantBody: solveResult.assistantBody,
-          ...(solveResult.interpretToken ? { interpretToken: solveResult.interpretToken } : {}),
-        }),
-        signal: interpretCtrl.signal,
-      });
-      if (!interpretRes.ok) throw new Error(await readErrorBody(interpretRes));
-      const interpretResult = await consumeSseResult(interpretRes, interpretIdle.poke);
-      if (interpretResult.mode !== "calc") {
-        throw new Error("Unexpected response from interpreter.");
-      }
-      final = interpretResult;
     } else {
       throw new Error("Unexpected response from solve.");
     }
   } catch (e) {
-    const message =
-      solveIdle.timedOut || interpretIdle?.timedOut
-        ? `No response for ${SSE_IDLE_TIMEOUT_MS / 1000}s — check your connection and try again.`
-        : (e as Error).message;
+    const message = solveIdle.timedOut
+      ? `No response for ${SSE_IDLE_TIMEOUT_MS / 1000}s — check your connection and try again.`
+      : (e as Error).message;
     setBtnState(btn, "error", message);
     return;
   } finally {
     solveIdle.clear();
-    interpretIdle?.clear();
   }
 
   const cleaned = stripTags(final.answer);
@@ -562,10 +498,6 @@ function fireTelemetryBeacon(args: {
     // Fire-and-forget — a 404 (e.g. a local dev API with no telemetry route
     // yet) or any network failure is silently ignored, never surfaced.
   });
-}
-
-async function readErrorBody(res: Response): Promise<string> {
-  return extractErrorMsg(await res.text());
 }
 
 function extractErrorMsg(body: string): string {
@@ -679,10 +611,6 @@ async function consumeSseResult(res: Response, poke: () => void): Promise<SolveR
   if (errorMsg) throw new Error(errorMsg);
   if (!result) throw new Error("No result received from server.");
   return result;
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 type BtnState = "default" | "loading" | "success" | "error" | "nowrite";

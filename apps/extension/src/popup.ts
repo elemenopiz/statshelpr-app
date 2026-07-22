@@ -1,5 +1,3 @@
-import { UT_BUNDLE } from "./packages";
-
 interface StoredConfig {
   apiUrl?: string;
   licenseKey?: string;
@@ -26,7 +24,6 @@ interface HealthResponse {
    * aiTutorReady's backward-tolerant lookup below. */
   kimiConfigured?: boolean;
   moonshotConfigured?: boolean;
-  sandboxConfigured?: boolean;
   lemonsqueezyConfigured?: boolean;
 }
 
@@ -41,17 +38,6 @@ const STORAGE_KEY_FILES = "statshelpr.files";
 const FILE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_FILE_BYTES = 5 * 1024 * 1024;     // 5MB per file
 const MAX_TOTAL_BYTES = 8 * 1024 * 1024;    // chrome.storage.local has ~10MB
-
-/** Full active R-library list (UT bundle defaults + any user edits). Every
- * chip — including the 6 defaults — is addable/removable from here on. */
-const STORAGE_KEY_EXTRA_PACKAGES = "extraPackages";
-
-/** Written by webr-runner.ts after boot: which libraries failed to load. */
-const STORAGE_KEY_PACKAGE_ERRORS = "packageErrors";
-interface PackageError {
-  pkg: string;
-  message: string;
-}
 
 /** Written by content.ts: local mirror of the free tier's daily solve count. */
 const STORAGE_KEY_SOLVE_STATS = "statshelpr.solveStats";
@@ -80,11 +66,6 @@ const dropzone = document.getElementById("dropzone") as HTMLDivElement;
 const fileInput = document.getElementById("file-input") as HTMLInputElement;
 const filesList = document.getElementById("files-list") as HTMLDivElement;
 const filesEmpty = document.getElementById("files-empty") as HTMLDivElement;
-const pkgInput = document.getElementById("pkg-input") as HTMLInputElement;
-const pkgAddBtn = document.getElementById("pkg-add") as HTMLButtonElement;
-const libraryChipsEl = document.getElementById("library-chips") as HTMLDivElement;
-const pkgEmptyEl = document.getElementById("pkg-empty") as HTMLDivElement;
-const pkgErrorsEl = document.getElementById("pkg-errors") as HTMLDivElement;
 const planCardEl = document.getElementById("plan-card") as HTMLDivElement;
 const planSolvesEl = document.getElementById("plan-solves") as HTMLSpanElement;
 const solvesMeterEl = document.getElementById("solves-meter") as HTMLDivElement;
@@ -97,8 +78,6 @@ const resetDeviceBtn = document.getElementById("reset-device-btn") as HTMLButton
 const resetStatusEl = document.getElementById("reset-status") as HTMLDivElement;
 
 let dataFiles: DataFile[] = [];
-let libraries: string[] = [];
-let packageErrors: PackageError[] = [];
 
 // =============================================================================
 // theme (light/dark toggle, next to the status dot)
@@ -205,7 +184,6 @@ function renderMeta(data: HealthResponse) {
   const rows: Array<[string, string, "ok" | "warn" | ""]> = [
     ["version", data.version ?? "—", ""],
     ["ai tutor", aiTutorReady ? "ready" : "not set", aiTutorReady ? "ok" : "warn"],
-    ["r sandbox", data.sandboxConfigured ? "ready" : "not set", data.sandboxConfigured ? "ok" : ""],
     ["license", data.lemonsqueezyConfigured ? "gated" : "open", data.lemonsqueezyConfigured ? "ok" : ""],
   ];
   for (const [k, v, kind] of rows) {
@@ -597,129 +575,6 @@ function flashStatus(msg: string, kind: "ok" | "err") {
 }
 
 // =============================================================================
-// R libraries (one unified, fully editable list — defaults included)
-// =============================================================================
-
-void loadLibraries().then(async () => {
-  await loadPackageErrors();
-  renderLibraryChips();
-});
-
-pkgAddBtn.addEventListener("click", async () => {
-  await addPackagesFromInput();
-});
-pkgInput.addEventListener("keydown", async (e) => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    await addPackagesFromInput();
-  }
-});
-
-async function addPackagesFromInput() {
-  // Split on commas/whitespace so pasting a list ("dplyr, rpart car") in one
-  // go works, not just a single name.
-  const candidates = pkgInput.value
-    .split(/[,\s]+/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
-  pkgInput.value = "";
-  if (candidates.length === 0) return;
-
-  let changed = false;
-  for (const pkg of candidates) {
-    if (!libraries.includes(pkg)) {
-      libraries.push(pkg);
-      changed = true;
-    }
-  }
-  if (changed) {
-    await saveLibraries();
-    renderLibraryChips();
-  }
-}
-
-function renderLibraryChips() {
-  while (libraryChipsEl.firstChild) libraryChipsEl.removeChild(libraryChipsEl.firstChild);
-  const errByPkg = new Map(packageErrors.map((e) => [e.pkg, e.message]));
-
-  if (libraries.length === 0) {
-    pkgEmptyEl.style.display = "";
-  } else {
-    pkgEmptyEl.style.display = "none";
-    for (const pkg of libraries) {
-      const chip = document.createElement("span");
-      const failed = errByPkg.has(pkg);
-      chip.className = failed ? "chip extra pkg-err" : "chip extra";
-      if (failed) chip.title = errByPkg.get(pkg) ?? "failed to load";
-      const label = document.createElement("span");
-      label.textContent = failed ? `${pkg} !` : pkg;
-      const rm = document.createElement("button");
-      rm.className = "remove";
-      rm.textContent = "×";
-      rm.title = "remove";
-      rm.setAttribute("aria-label", `remove ${pkg}`);
-      rm.addEventListener("click", async () => {
-        libraries = libraries.filter((p) => p !== pkg);
-        await saveLibraries();
-        renderLibraryChips();
-      });
-      chip.appendChild(label);
-      chip.appendChild(rm);
-      libraryChipsEl.appendChild(chip);
-    }
-  }
-
-  renderPackageErrors(errByPkg);
-}
-
-/** Inline list of libraries that failed to install at the last WebR boot
- * (written by webr-runner.ts). Only errors for packages still in the list. */
-function renderPackageErrors(errByPkg: Map<string, string>) {
-  while (pkgErrorsEl.firstChild) pkgErrorsEl.removeChild(pkgErrorsEl.firstChild);
-  const relevant = libraries.filter((p) => errByPkg.has(p));
-  if (relevant.length === 0) {
-    pkgErrorsEl.style.display = "none";
-    return;
-  }
-  pkgErrorsEl.style.display = "block";
-  for (const pkg of relevant) {
-    const line = document.createElement("div");
-    const b = document.createElement("b");
-    b.textContent = pkg;
-    line.appendChild(b);
-    line.appendChild(document.createTextNode(`: ${errByPkg.get(pkg) ?? "failed to load"}`));
-    pkgErrorsEl.appendChild(line);
-  }
-}
-
-async function loadLibraries() {
-  const r = await chrome.storage.sync.get(STORAGE_KEY_EXTRA_PACKAGES);
-  const stored = r[STORAGE_KEY_EXTRA_PACKAGES] as string[] | undefined;
-  if (stored === undefined) {
-    // First-ever load: seed with the UT bundle defaults and persist
-    // immediately so a fresh install still shows/uses the 6 defaults, and
-    // this becomes the source of truth from here on.
-    libraries = [...UT_BUNDLE];
-    await saveLibraries();
-  } else {
-    libraries = stored;
-  }
-}
-
-async function loadPackageErrors() {
-  try {
-    const r = await chrome.storage.local.get(STORAGE_KEY_PACKAGE_ERRORS);
-    packageErrors = (r[STORAGE_KEY_PACKAGE_ERRORS] as PackageError[] | undefined) ?? [];
-  } catch {
-    packageErrors = [];
-  }
-}
-
-async function saveLibraries() {
-  await chrome.storage.sync.set({ [STORAGE_KEY_EXTRA_PACKAGES]: libraries });
-}
-
-// =============================================================================
 // live updates while the popup is open
 // =============================================================================
 
@@ -727,9 +582,6 @@ try {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === "local" && changes[STORAGE_KEY_SOLVE_STATS]) {
       void renderSolvesLeft();
-    }
-    if (area === "local" && changes[STORAGE_KEY_PACKAGE_ERRORS]) {
-      void loadPackageErrors().then(() => renderLibraryChips());
     }
     if (area === "local" && changes[STORAGE_KEY_FILES]) {
       void loadFiles().then(() => renderFilesList());

@@ -1,19 +1,10 @@
 {
   "manifest_version": 3,
   "name": "statshelpr",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Canvas stats tutor — worked solutions with runnable R code, inline on quiz questions.",
-  "web_accessible_resources": [
-    {
-      "resources": ["webr/*"],
-      "matches": [
-        "https://*.instructure.com/*",
-        "https://quizzes.next.instructure.com/*"
-      ]
-    }
-  ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+    "extension_pages": "script-src 'self'; object-src 'self'"
   },
   "permissions": ["storage"],
   "host_permissions": [

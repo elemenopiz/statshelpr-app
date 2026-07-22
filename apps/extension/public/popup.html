@@ -345,7 +345,7 @@
         font-size: 10px; font-family: var(--font-mono);
         flex: none;
       }
-      .files-list .remove, .chip .remove {
+      .files-list .remove {
         background: none; border: none;
         color: var(--ink-3);
         font-size: 14px; line-height: 1;
@@ -353,68 +353,13 @@
         width: auto; font-weight: 400;
         transition: color 0.15s, background-color 0.15s;
       }
-      .files-list .remove:hover, .chip .remove:hover { color: var(--err); background: var(--err-tint); }
+      .files-list .remove:hover { color: var(--err); background: var(--err-tint); }
       .files-empty {
         font-size: 11px;
         color: var(--ink-3);
         margin-top: 8px;
         text-align: center;
         font-style: italic;
-      }
-
-      /* -------------------------------------------------- R libraries */
-      .chip-list { display: flex; flex-wrap: wrap; gap: 5px; }
-      .chip-list:not(:empty) { margin-bottom: 8px; }
-      .chip {
-        display: inline-flex; align-items: center; gap: 4px;
-        padding: 3px 9px;
-        border-radius: 999px;
-        font-size: 10.5px;
-        font-family: var(--font-mono);
-        background: var(--card);
-        border: 1px solid var(--line-soft);
-        color: var(--ink-3);
-        animation: chipIn 0.3s var(--ease-out);
-      }
-      @keyframes chipIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: none; } }
-      .chip.extra {
-        color: var(--blue);
-        border-color: var(--blue-ring);
-        background: var(--blue-tint);
-      }
-      .chip.pkg-err {
-        color: var(--err);
-        border-color: rgba(194, 64, 41, 0.3);
-        background: var(--err-tint);
-      }
-      .pkg-add-row { display: flex; gap: 6px; margin-bottom: 8px; }
-      .pkg-add-row input { flex: 1; margin-bottom: 0; }
-      .pkg-add-row button {
-        width: auto; padding: 7px 13px; flex-shrink: 0;
-        background: var(--card);
-        color: var(--ink);
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        font-size: 12px; font-weight: 600;
-        transition: border-color 0.2s, background-color 0.2s, color 0.2s;
-      }
-      .pkg-add-row button:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-tint); }
-      .pkg-errors {
-        display: none;
-        margin: 2px 0 8px;
-        font-size: 10.5px; line-height: 1.5;
-        color: var(--err);
-        background: var(--err-tint);
-        border-radius: 7px;
-        padding: 6px 9px;
-      }
-      .pkg-errors b { font-family: var(--font-mono); font-weight: 600; }
-      .note {
-        font-size: 9.5px;
-        color: var(--ink-3);
-        font-family: var(--font-mono);
-        line-height: 1.5;
-        margin-top: 2px;
       }
 
       /* ------------------------------------------------ settings area */
@@ -589,29 +534,6 @@
       no data files yet
     </div>
     <div id="status" class="status" role="status"></div>
-
-    <details id="libraries-details">
-      <summary><span class="chev"></span>R libraries</summary>
-      <div class="settings-body">
-        <!-- static chips below are placeholders for the file:// preview;
-             popup.ts clears the container and re-renders from storage -->
-        <div id="library-chips" class="chip-list">
-          <span class="chip">tidyverse</span><span class="chip">mosaic</span><span class="chip">moderndive</span><span class="chip">infer</span><span class="chip">broom</span><span class="chip">ggplot2</span>
-        </div>
-        <div id="pkg-empty" class="files-empty" style="display: none">
-          no libraries added
-        </div>
-        <div id="pkg-errors" class="pkg-errors"></div>
-        <div class="pkg-add-row">
-          <input type="text" id="pkg-input" placeholder="add a package, e.g. rpart"
-                 aria-label="Add an R package" />
-          <button id="pkg-add" type="button">Add</button>
-        </div>
-        <div class="note">
-          changes apply after the extension reloads &mdash; WebR boots once and caches
-        </div>
-      </div>
-    </details>
 
     <details id="settings-details">
       <summary><span class="chev"></span>Status</summary>
