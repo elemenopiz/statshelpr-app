@@ -35,6 +35,11 @@ id = "23d6ef6041854bec96fd277cb013e7e6"
 #   wrangler secret put METRICS_TOKEN               (required for GET /api/metrics — bearer
 #                                                     token; generate with e.g. `openssl rand
 #                                                     -hex 32`. Unset = route hard-fails closed.)
+#   wrangler secret put DASHBOARD_PASSWORD           (required for GET /dashboard — access key
+#                                                     checked against ?key= or a cookie it sets;
+#                                                     generate with e.g. `openssl rand -hex 32`.
+#                                                     Unset = route hard-fails closed, including
+#                                                     ?demo=1.)
 
 # Custom domain — statshelpr.com is already in this Cloudflare account so
 # `custom_domain = true` auto-creates the AAAA record + provisions SSL.

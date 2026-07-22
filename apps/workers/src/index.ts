@@ -13,6 +13,7 @@ import { activateLicense } from "./routes/activate-license";
 import { reset } from "./routes/reset";
 import { metrics } from "./routes/metrics";
 import { telemetry } from "./routes/telemetry";
+import { dashboard } from "./routes/dashboard";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -30,6 +31,7 @@ app.route("/api/activate-license", activateLicense);
 app.route("/api/reset", reset);
 app.route("/api/metrics", metrics);
 app.route("/api/telemetry", telemetry);
+app.route("/dashboard", dashboard);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 

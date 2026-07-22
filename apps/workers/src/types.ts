@@ -14,6 +14,11 @@ export interface Env {
   /** Bearer token gating GET /api/metrics — `wrangler secret put METRICS_TOKEN`.
    *  Unset means the route hard-fails closed (401 on every request), not open. */
   METRICS_TOKEN?: string;
+  /** Access key gating GET /dashboard — `wrangler secret put DASHBOARD_PASSWORD`.
+   *  Checked against `?key=` or the `sh_dash_key` cookie it sets on first use.
+   *  Unset means the route hard-fails closed (401 on every request, including
+   *  ?demo=1), not open. */
+  DASHBOARD_PASSWORD?: string;
 
   // Vars (from wrangler.toml [vars])
   LLM_PROVIDER: string;

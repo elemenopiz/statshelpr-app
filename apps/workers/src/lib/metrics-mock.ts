@@ -1,10 +1,16 @@
-import type { MetricsPayload } from "./types";
+import type { MetricsResponse } from "./metrics-aggregate";
+import type { ModelUsage } from "./metrics-store";
+import { IMAGE_VISION_MODEL, PRIMARY_TEXT_MODEL } from "./cost";
 
 /**
  * Hardcoded realistic payload for `/dashboard?demo=1`, matching the exact
- * `GET /api/metrics` shape. Used for visual QA and for reviewing the layout
- * without a live worker/token. Numbers are deterministic (seeded PRNG) so
- * the page looks the same on every reload rather than jittering.
+ * `MetricsResponse` shape aggregateMetrics() produces. Used for visual QA
+ * and for reviewing the layout without live KV data. Numbers are
+ * deterministic (seeded PRNG) so the page looks the same on every reload
+ * rather than jittering.
+ *
+ * Ported from the old apps/api/app/dashboard/mock.ts (Next.js dashboard,
+ * now removed) — kept numerically identical.
  *
  * Pricing basis (verified live, July 2026): Gemini 3.5 Flash-Lite —
  * $0.30 / 1M input tokens, $2.50 / 1M output tokens. Cached-input rate is
@@ -28,10 +34,7 @@ function mulberry32(seed: number): () => number {
 
 /** Split `total` across `weights` (must sum to ~1) as whole numbers that
  * add back up to exactly `total` — remainder goes to the largest bucket. */
-function splitByWeights(
-  total: number,
-  weights: Record<string, number>,
-): Record<string, number> {
+function splitByWeights(total: number, weights: Record<string, number>): Record<string, number> {
   const keys = Object.keys(weights);
   const raw = keys.map((k) => ({ k, v: total * (weights[k] ?? 0) }));
   const floored = raw.map(({ k, v }) => ({ k, v: Math.floor(v), frac: v - Math.floor(v) }));
@@ -50,7 +53,7 @@ function splitByWeights(
   return out;
 }
 
-function buildDaily(days: number) {
+function buildDaily(days: number): Array<{ date: string; questions: number; apiCalls: number }> {
   const rand = mulberry32(20260722);
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
@@ -129,10 +132,11 @@ const ASSUMED_SOLVES_PER_USER_PER_MONTH = 90;
 // Two models in play: text solves route to the cheap/fast text model;
 // image solves (full-question screenshots) route to a pricier vision model.
 // Split API_CALLS between them and back into TOTAL_COST_USD so the per-model
-// breakdown always reconciles with the headline total (see gemini.ts:
-// DEFAULT_MODEL vs IMAGE_MODEL for the real routing logic this mirrors).
-const TEXT_MODEL_ID = "gemini-3.5-flash-lite";
-const IMAGE_MODEL_ID = "gemini-3.6-flash";
+// breakdown always reconciles with the headline total (see lib/cost.ts:
+// PRIMARY_TEXT_MODEL vs IMAGE_VISION_MODEL for the real routing logic this
+// mirrors).
+const TEXT_MODEL_ID = PRIMARY_TEXT_MODEL;
+const IMAGE_MODEL_ID = IMAGE_VISION_MODEL;
 const IMAGE_CALL_SHARE = 0.18;
 // gemini-3.6-flash is ~5x gemini-3.5-flash-lite on input tokens ($1.50 vs
 // $0.30/1M) and ~3x on output ($7.50 vs $2.50/1M); blend to a rough
@@ -148,9 +152,14 @@ const TEXT_MODEL_COST_USD = Number((TEXT_CALLS * TEXT_COST_PER_CALL).toFixed(2))
 // always sum to exactly TOTAL_COST_USD.
 const IMAGE_MODEL_COST_USD = Number((TOTAL_COST_USD - TEXT_MODEL_COST_USD).toFixed(2));
 
+const MODELS_USED: Record<string, ModelUsage> = {
+  [TEXT_MODEL_ID]: { calls: TEXT_CALLS, costUsd: TEXT_MODEL_COST_USD },
+  [IMAGE_MODEL_ID]: { calls: IMAGE_CALLS, costUsd: IMAGE_MODEL_COST_USD },
+};
+
 /** Build the mock payload fresh on each call so `generatedAt` reflects "now"
  * (everything else is deterministic/seeded). */
-export function buildMockMetrics(): MetricsPayload {
+export function buildMockMetrics(): MetricsResponse {
   return {
     generatedAt: Date.now(),
     range: { days: RANGE_DAYS },
@@ -166,7 +175,10 @@ export function buildMockMetrics(): MetricsPayload {
       solveSuccessRate: 0.94,
       writeBackSuccessRate:
         WRITE_BACK_BY_OUTCOME.written /
-        Math.max(1, WRITE_BACK_BY_OUTCOME.written + WRITE_BACK_BY_OUTCOME.nowrite + WRITE_BACK_BY_OUTCOME.error),
+        Math.max(
+          1,
+          WRITE_BACK_BY_OUTCOME.written + WRITE_BACK_BY_OUTCOME.nowrite + WRITE_BACK_BY_OUTCOME.error,
+        ),
       writeBackByOutcome: WRITE_BACK_BY_OUTCOME,
       confidence: CONFIDENCE,
       modeSplit: MODE_SPLIT,
@@ -195,10 +207,7 @@ export function buildMockMetrics(): MetricsPayload {
         ((PRICE_MONTHLY_USD - ASSUMED_SOLVES_PER_USER_PER_MONTH * AVG_COST_PER_QUESTION_USD) /
           PRICE_MONTHLY_USD) *
         100,
-      modelsUsed: {
-        [TEXT_MODEL_ID]: { calls: TEXT_CALLS, costUsd: TEXT_MODEL_COST_USD },
-        [IMAGE_MODEL_ID]: { calls: IMAGE_CALLS, costUsd: IMAGE_MODEL_COST_USD },
-      },
+      modelsUsed: MODELS_USED,
     },
   };
 }

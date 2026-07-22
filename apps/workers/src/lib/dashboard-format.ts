@@ -1,5 +1,8 @@
-/** Number/currency/percent formatting for the metrics dashboard. Kept
- * dependency-free (Intl is built into the Node/edge runtime). */
+/** Number/currency/percent formatting + HTML escaping for the
+ * server-rendered metrics dashboard (routes/dashboard.ts). Ported from the
+ * old apps/api/app/dashboard/format.ts (Next.js dashboard, now removed) —
+ * kept numerically identical. `Intl` is fully available in the Workers
+ * runtime, so no dependency needed. */
 
 const intFmt = new Intl.NumberFormat("en-US");
 
@@ -83,4 +86,18 @@ export function prettyQuestionType(key: string): string {
     .split(" ")
     .map((w) => (w ? w[0]!.toUpperCase() + w.slice(1) : w))
     .join(" ");
+}
+
+/** HTML-escape a dynamic string before interpolating into a template
+ * literal. Everything rendered by routes/dashboard.ts that isn't a number
+ * run through the fmt* helpers above MUST go through this first — model
+ * ids and question-type keys both ultimately originate from client-
+ * reported telemetry (routes/telemetry.ts), so they're untrusted input. */
+export function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
