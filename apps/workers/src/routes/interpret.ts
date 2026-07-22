@@ -109,8 +109,18 @@ interpret.post("/", async (c) => {
   // Skipped for verified paid licenses, matching /api/solve's unlimited-tier
   // model — a paid license is already bound to one device
   // (lib/license-activation.ts) and already had to call /api/solve to get
-  // here at all.
+  // here at all. IP checked before install id, same order as routes/solve.ts.
   if (lic.tier !== "paid") {
+    const ip = getClientIp(c);
+    const ipLimit = Number(c.env.IP_DAILY_LIMIT ?? "200") || 200;
+    const rlIp = await checkAndIncrement(c.env, ip, { limit: ipLimit, keyPrefix: "rl:ip:interpret:" });
+    if (!rlIp.allowed) {
+      return c.json(
+        { error: "Too many requests from this network today. Try again later.", resetAt: rlIp.resetAt },
+        429,
+      );
+    }
+
     const interpretLimit = Number(c.env.INTERPRET_DAILY_LIMIT ?? "10") || 10;
     const rl = await checkAndIncrement(c.env, installId || "anon", {
       limit: interpretLimit,
@@ -119,16 +129,6 @@ interpret.post("/", async (c) => {
     if (!rl.allowed) {
       return c.json(
         { error: `Interpret daily limit reached (${rl.count}/${rl.limit}).`, resetAt: rl.resetAt },
-        429,
-      );
-    }
-
-    const ip = getClientIp(c);
-    const ipLimit = Number(c.env.IP_DAILY_LIMIT ?? "200") || 200;
-    const rlIp = await checkAndIncrement(c.env, ip, { limit: ipLimit, keyPrefix: "rl:ip:interpret:" });
-    if (!rlIp.allowed) {
-      return c.json(
-        { error: "Too many requests from this network today. Try again later.", resetAt: rlIp.resetAt },
         429,
       );
     }
