@@ -24,13 +24,18 @@ export interface Env {
    *  Unset means the route hard-fails closed (401 on every request, including
    *  ?demo=1), not open. */
   DASHBOARD_PASSWORD?: string;
-  /** HMAC key signing the short-lived token that binds /api/interpret to a
-   *  prior /api/solve call — `wrangler secret put INTERPRET_SIGNING_SECRET`
-   *  (e.g. `openssl rand -hex 32`). See lib/interpret-token.ts for the full
-   *  rationale. Unset means /api/interpret hard-fails closed (403 on every
-   *  request) — same fail-closed contract as DASHBOARD_PASSWORD/
-   *  METRICS_TOKEN above. *** MUST BE SET BEFORE DEPLOY. *** */
-  INTERPRET_SIGNING_SECRET?: string;
+  /** Shared-secret auth between this Worker and the Cloud Run R-runner
+   *  service (r-runner/plumber.R's `@filter auth`) —
+   *  `wrangler secret put R_RUNNER_SECRET`, the SAME value passed to Cloud
+   *  Run as its own `R_RUNNER_SECRET` env var at `gcloud run deploy` (see
+   *  r-runner/README.md and docs/cloud-run-r-migration.md §2.3/§3.4). Sent
+   *  as the `X-Runner-Secret` header on every POST /runR (lib/r-runner.ts).
+   *  Unset means lib/r-runner.ts's runRRemote fails closed with a clear
+   *  "R runner not configured" error — calc questions error, concept
+   *  questions are unaffected — same fail-closed contract this codebase uses
+   *  for DASHBOARD_PASSWORD/METRICS_TOKEN above. *** MUST BE SET BEFORE
+   *  DEPLOY (alongside R_RUNNER_URL in [vars] below). *** */
+  R_RUNNER_SECRET: string;
 
   // Vars (from wrangler.toml [vars])
   LLM_PROVIDER: string;
@@ -39,26 +44,37 @@ export interface Env {
    *  in GET /api/metrics only — not a cap or rate limit. Default 110 (the
    *  documented paid-user usage assumption, ~10 solves / 2 weekdays). */
   AVG_SOLVES_PER_USER_PER_MONTH?: string;
-  /** Independent free-tier daily cap on /api/interpret calls, per install id
-   *  (security-audit item B) — defense-in-depth so a leaked/replayed
-   *  interpret token can't be redeemed unboundedly even though it's valid.
-   *  Deliberately separate from FREE_TIER_DAILY_LIMIT (solve's own counter);
-   *  see routes/interpret.ts for how it's applied. Default 10 if unset. */
-  INTERPRET_DAILY_LIMIT?: string;
+  /** Base URL of the Cloud Run R-runner service (r-runner/), e.g.
+   *  `https://statshelpr-r-runner-xxxx.run.app` — non-secret, set in
+   *  wrangler.toml's [vars] (the URL alone grants nothing without
+   *  R_RUNNER_SECRET above). Filled in with the real Cloud Run URL after the
+   *  first `gcloud run deploy` (see r-runner/README.md and
+   *  docs/cloud-run-r-migration.md §2.3/§3.4) — the wrangler.toml placeholder
+   *  is an obviously-fake host so a forgotten placeholder fails loudly
+   *  (DNS/connection error) instead of silently. lib/r-runner.ts's
+   *  runRRemote POSTs `${R_RUNNER_URL}/runR`; unset (or R_RUNNER_SECRET
+   *  unset) fails closed — see that field's doc above. */
+  R_RUNNER_URL: string;
   /** Per-IP daily cap (security-audit item C), applied on top of the
-   *  per-install free-tier counters on BOTH /api/solve and /api/interpret
-   *  (each route tracks its own independent per-IP counter) — a backstop
-   *  against trivial install-id rotation (the install id is a client-picked
+   *  per-install free-tier counter on /api/solve — a backstop against
+   *  trivial install-id rotation (the install id is a client-picked
    *  crypto.randomUUID(), see apps/extension/src/install-id.ts, with no
    *  server issuance, so it resets for free). Only applied to free-tier
-   *  callers, same as the per-install counters — paid licenses stay
-   *  unlimited. Default 200 if unset. */
+   *  callers, same as the per-install counter — paid licenses stay
+   *  unlimited. Default 200 if unset. (Used to also gate the now-deleted
+   *  /api/interpret route independently — see docs/cloud-run-r-migration.md
+   *  §3; the interpret pass is an internal leg of /api/solve now, already
+   *  covered by this same per-IP check on the one request.) */
   IP_DAILY_LIMIT?: string;
-  /** Global (not per-user) daily ceiling on combined solve+interpret Gemini
-   *  calls (security-audit item D) — the real backstop: hard-stops the
+  /** Global (not per-user) daily ceiling on every Gemini call this Worker
+   *  makes (security-audit item D) — the real backstop: hard-stops the
    *  ENTIRE service with a 503 once crossed, regardless of caller or tier.
-   *  See lib/kill-switch.ts for the $/day sizing math behind the default
-   *  (1000 if unset). */
+   *  Checked before EACH Gemini call individually, not once per request — a
+   *  calc question can make up to three (first pass, an optional R-repair
+   *  retry, interpret), all inside one /api/solve call now that the
+   *  interpret pass is no longer a separate route (see
+   *  docs/cloud-run-r-migration.md §3). See lib/kill-switch.ts for the
+   *  $/day sizing math behind the default (1000 if unset). */
   GLOBAL_DAILY_CALL_LIMIT?: string;
 
   // KV binding

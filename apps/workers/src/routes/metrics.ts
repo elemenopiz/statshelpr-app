@@ -6,8 +6,9 @@ import { loadMetrics } from "@/lib/metrics-load";
 /**
  * GET /api/metrics — bearer-token-gated read of the last 30 days of product
  * metrics (volume/quality/performance/economics), aggregated from the daily
- * KV buckets lib/metrics-store.ts writes (populated by routes/solve.ts,
- * routes/interpret.ts, and routes/telemetry.ts). The actual read+aggregate
+ * KV buckets lib/metrics-store.ts writes (populated by routes/solve.ts —
+ * its calc-path interpret leg included — and routes/telemetry.ts). The
+ * actual read+aggregate
  * lives in lib/metrics-load.ts, shared with routes/dashboard.ts (the
  * server-rendered HTML view) so both stay in sync off one code path.
  *

@@ -5,25 +5,29 @@ import type { Env } from "../types";
 import {
   buildDataContext,
   buildSystemPrompt,
+  extractRCode,
   parseResponse,
 } from "@statshelpr/solver-core/core";
 import { chatStream, type LlmChatUsage } from "@statshelpr/solver-core/core/providers";
 import { classifyError } from "@/lib/classify-error";
 import { costUsdForUsage } from "@/lib/cost";
 import { summarizeCsv } from "@/lib/data-summary";
-import { issueInterpretToken } from "@/lib/interpret-token";
 import { KILL_SWITCH_MESSAGE, checkGlobalKillSwitch } from "@/lib/kill-switch";
 import { validateLicense } from "@/lib/license";
 import { activateForInstall } from "@/lib/license-activation";
 import { recordPaywallHitInBackground, recordServerEventInBackground } from "@/lib/metrics-store";
+import { repairRCode } from "@/lib/r-repair";
+import { runRRemote, type RunRResult } from "@/lib/r-runner";
 import { checkAndIncrement, getClientIp, hashBucket } from "@/lib/rate-limit";
 import { makeSseStream, sseHeaders } from "@/lib/sse";
 import {
+  buildFollowupContent,
   buildQuestionPrompt,
   buildUserContent,
   deriveBlankAnswers,
   deriveSelectedChoices,
   MAX_TOKENS_FIRST,
+  MAX_TOKENS_SECOND,
   resolveModel,
   type DataFile,
   type SolveBody,
@@ -139,6 +143,14 @@ solve.post("/", async (c) => {
   // single IP could trip a service-wide 503 for the rest of the UTC day.
   // The per-IP + per-install gates above now absorb that before we reach
   // here.) Atomic check-and-increment; a trip 503s without starting the stream.
+  //
+  // NOTE: this is the gate for the FIRST Gemini call only. A calc question
+  // may make up to two MORE Gemini calls inside this same request (an
+  // R-repair retry, then the interpret pass) — each of those is gated again,
+  // individually, right before it fires (see the repair-leg and interpret-leg
+  // kill-switch checks further down) so GLOBAL_DAILY_CALL_LIMIT still bounds
+  // total Gemini spend per-call, not per-request. See
+  // docs/cloud-run-r-migration.md §3 and lib/kill-switch.ts.
   const kill = await checkGlobalKillSwitch(c.env);
   if (!kill.allowed) return c.json({ error: KILL_SWITCH_MESSAGE }, 503);
 
@@ -233,13 +245,17 @@ solve.post("/", async (c) => {
         return;
       }
 
-      // RCODE path — hand off to client. Client runs WebR then POSTs
-      // /api/interpret with { question, images, dataFiles, rCode, stdout }.
-      // We include assistantBody so /api/interpret can reconstruct the
-      // exact conversation shape. This leg's own cost is attributed to
-      // "calc" — the question isn't fully answered until interpret.ts
-      // finishes, so modeSplit.calc increments there, not here (see
-      // lib/metrics-store.ts's DailyMetricsBucket doc).
+      // First leg of the calc pipeline is done (Gemini wrote R code instead
+      // of a concept answer) — record its own cost now. costMode:"calc", but
+      // deliberately NO completedQuestion: the question isn't answered yet
+      // (R hasn't even run). modeSplit.calc increments exactly ONCE, at the
+      // interpret leg's success further down (see lib/metrics-store.ts's
+      // DailyMetricsBucket doc) — the same invariant the old two-route split
+      // preserved (this route recorded the hand-off leg's cost here; the old
+      // /api/interpret route incremented modeSplit.calc at ITS success), just
+      // all three legs (first pass, optional repair, interpret) now run
+      // inside this ONE /api/solve request instead of two separate ones —
+      // see docs/cloud-run-r-migration.md §3.
       recordServerEventInBackground(c, {
         route: "solve",
         success: true,
@@ -250,20 +266,270 @@ solve.post("/", async (c) => {
         installHash,
         costMode: "calc",
       });
-      const { extractRCode } = await import("@statshelpr/solver-core/core");
-      const rCode = extractRCode(parsed.body);
-      // Security-audit item A: mint the token that proves to /api/interpret
-      // that a real, rate-limited /api/solve call preceded it. Omitted
-      // entirely (not an empty string) when INTERPRET_SIGNING_SECRET isn't
-      // configured — see lib/interpret-token.ts's fail-closed contract.
-      const interpretToken = await issueInterpretToken(c.env, installId);
+
+      // --- server-side calc pipeline ----------------------------------
+      // Was: hand rCode + an interpret token to the browser, which ran WebR
+      // client-side then POSTed /api/interpret. Now the R execution and the
+      // interpret pass both happen HERE, and the extension only ever gets a
+      // FINAL answer for calc questions too — same shape as concept. See
+      // docs/cloud-run-r-migration.md §1/§3.2.
+      let rCode = extractRCode(parsed.body);
+
+      await write({ type: "phase", label: "Computing…" });
+
+      // Heartbeat — the extension aborts a solve stream after 30s with no
+      // SSE bytes on the wire (SSE_IDLE_TIMEOUT_MS, apps/extension/src/
+      // content.ts). The R call below, an optional repair-on-error round
+      // trip (a full extra Gemini call), and a second R call can together
+      // silently blow past that budget. Re-emit the SAME phase event every
+      // 10s for as long as this block is in flight so the connection never
+      // looks idle. Scope: ONLY the R/repair pipeline below — the interpret
+      // leg further down streams its own `delta` events as tokens arrive, so
+      // it never goes quiet on its own and doesn't need this.
+      //
+      // Why a tick can never write after the stream has closed: `write`
+      // bottoms out in lib/sse.ts's makeSseStream at `controller.enqueue`,
+      // which throws once the stream is closed — and the ONLY thing that
+      // closes it is makeSseStream's own `finally`, which runs after this
+      // entire `produce` callback (our `async (write) => {...}` body) has
+      // returned or thrown. Our OWN `finally` below runs synchronously as
+      // part of that same return/throw (no `await` in between), so
+      // `clearInterval` there is sufficient by itself to guarantee no tick
+      // fires post-close. `heartbeatClosed` plus the inner `.catch(() => {})`
+      // are pure defense in depth on top of that — a timer callback must
+      // never let an unhandled rejection escape, no matter how the stream
+      // ends up closing.
+      let heartbeatClosed = false;
+      const heartbeat = setInterval(() => {
+        if (heartbeatClosed) return;
+        write({ type: "phase", label: "Computing…" }).catch(() => {
+          // Stream already closing/closed — clearInterval in the `finally`
+          // below stops further ticks; nothing else to do here.
+        });
+      }, 10_000);
+
+      // Shared by both runRRemote call sites below (the initial run and the
+      // post-repair rerun): on failure, records a metrics event under a
+      // distinct "r_runner" errorType — deliberately NOT routed through
+      // classify-error.ts's classifyError(), which is tuned for Gemini-shaped
+      // failures (quota/auth/rate_limit/timeout/bad_input/upstream); a Cloud
+      // Run R-service failure is a different operational signal, and
+      // byErrorType is an open Record specifically so a new class like this
+      // never needs a schema bump (see lib/metrics-store.ts) — then writes a
+      // user-readable error event and returns `undefined` so the caller can
+      // bail with a plain `if` check instead of threading exceptions through
+      // the whole calc pipeline below.
+      const recordRRunnerFailure = async (): Promise<void> => {
+        recordServerEventInBackground(c, {
+          route: "solve",
+          success: false,
+          model,
+          promptTokens: 0,
+          completionTokens: 0,
+          cachedTokens: 0,
+          costUsd: 0,
+          serverLatencyMs: Date.now() - startedAt,
+          installHash,
+          errorType: "r_runner",
+        });
+        await write({
+          type: "error",
+          message: "Couldn't run the R calculation — please try again.",
+        });
+      };
+      const runRSafe = async (code: string): Promise<RunRResult | undefined> => {
+        try {
+          return await runRRemote(c.env, code, dataFiles);
+        } catch {
+          await recordRRunnerFailure();
+          return undefined;
+        }
+      };
+
+      // Steps d/e/f (docs/cloud-run-r-migration.md §3.2) collapsed into one
+      // closure so the heartbeat's try/finally below has a single `await` to
+      // wrap, and `runResult`'s definite-assignment stays trivial
+      // (RunRResult | undefined, checked once right after the try).
+      const runCalcPipeline = async (): Promise<RunRResult | undefined> => {
+        let result = await runRSafe(rCode);
+        if (!result) return undefined; // recordRRunnerFailure already handled it
+
+        if (result.exitCode !== 0) {
+          // The repair leg is a NEW Gemini call, so gate it exactly like the
+          // pre-stream kill-switch check above solve.post — item D's ceiling
+          // is sized in per-Gemini-call dollars (lib/kill-switch.ts), and the
+          // old /api/interpret route incremented it separately from
+          // /api/solve; per-call increments here (this repair leg, and the
+          // interpret leg further down) preserve that same cost bound now
+          // that all three legs live inside one request. See
+          // docs/cloud-run-r-migration.md §3.
+          const repairKill = await checkGlobalKillSwitch(c.env);
+          if (!repairKill.allowed) {
+            recordServerEventInBackground(c, {
+              route: "solve",
+              success: false,
+              model,
+              promptTokens: 0,
+              completionTokens: 0,
+              cachedTokens: 0,
+              costUsd: 0,
+              serverLatencyMs: Date.now() - startedAt,
+              installHash,
+              // "quota" is classify-error.ts's closest existing bucket for a
+              // self-imposed global volume-ceiling trip — the same semantic
+              // slot a Gemini "resource exhausted" error lands in, just
+              // tripped by our OWN counter instead of Gemini's.
+              errorType: "quota",
+            });
+            await write({ type: "error", message: KILL_SWITCH_MESSAGE });
+            return undefined;
+          }
+
+          const repair = await repairRCode(apiKey, model, system, questionPrompt, rCode, result);
+          const repairUsageTokens = {
+            promptTokens: repair.usage?.prompt_tokens ?? 0,
+            completionTokens: repair.usage?.completion_tokens ?? 0,
+            cachedTokens: repair.usage?.cached_tokens ?? 0,
+          };
+          // Repair leg's own metrics event. route:"solve" (a continuation of
+          // the solve leg, not the interpret leg) and deliberately NO
+          // completedQuestion — same reasoning as the first-pass event above.
+          recordServerEventInBackground(c, {
+            route: "solve",
+            success: true,
+            model,
+            ...repairUsageTokens,
+            costUsd: costUsdForUsage(model, repairUsageTokens),
+            serverLatencyMs: Date.now() - startedAt,
+            installHash,
+            costMode: "calc",
+          });
+
+          if (repair.code) {
+            rCode = repair.code;
+            result = await runRSafe(rCode);
+            if (!result) return undefined;
+          }
+        }
+
+        return result;
+      };
+
+      let runResult: RunRResult | undefined;
+      try {
+        runResult = await runCalcPipeline();
+      } finally {
+        heartbeatClosed = true;
+        clearInterval(heartbeat);
+      }
+      if (!runResult) return; // failure already recorded + error event already written
+
+      await write({ type: "phase", label: "Finalizing…" });
+
+      // The interpret leg is also a NEW Gemini call -> same kill-switch gate
+      // as the repair leg above, same rationale. Labeled route:"interpret"
+      // (not "solve") on trip so a failure here is attributed to the LEG
+      // that actually failed — matches the interpret leg's own success event
+      // below, which also keeps route:"interpret" as its label.
+      const interpretKill = await checkGlobalKillSwitch(c.env);
+      if (!interpretKill.allowed) {
+        recordServerEventInBackground(c, {
+          route: "interpret",
+          success: false,
+          model,
+          promptTokens: 0,
+          completionTokens: 0,
+          cachedTokens: 0,
+          costUsd: 0,
+          serverLatencyMs: Date.now() - startedAt,
+          installHash,
+          errorType: "quota",
+        });
+        await write({ type: "error", message: KILL_SWITCH_MESSAGE });
+        return;
+      }
+
+      // Interpret leg — nearly verbatim port of the old routes/interpret.ts
+      // chatStream block (see docs/cloud-run-r-migration.md §3.2). One
+      // conscious deviation: REUSE the first-pass `system` (built above,
+      // includes hasBlanks) instead of rebuilding a fresh one without it like
+      // interpret.ts did — this matches the ORIGINAL apps/api/lib/solver/
+      // non-streaming.ts template (runInterpretStage reuses the SAME
+      // `system` solveNonStreaming built once) and keeps blank-format
+      // instructions available to the interpret pass for blanks/matching
+      // questions.
+      let fbuf = "";
+      let fSent = "";
+      let finalUsage: LlmChatUsage | undefined;
+      for await (const delta of chatStream(apiKey, {
+        model,
+        system,
+        messages: [
+          { role: "user", content: userContent },
+          { role: "assistant", content: parsed.body },
+          { role: "user", content: buildFollowupContent(body, rCode, runResult.stdout) },
+        ],
+        temperature: 0.6,
+        maxTokens: MAX_TOKENS_SECOND,
+        thinking: { type: "disabled" },
+      })) {
+        // Usage arrives on the final chunk, which has no `text` — capture it
+        // before the text-only `continue` below would otherwise skip it.
+        if (delta.usage) finalUsage = delta.usage;
+        if (!delta.text) continue;
+        fbuf += delta.text;
+        const cleaned = fbuf.replace(/^\s*\[(CONCEPT|RCODE|CALC)\]\s*\n?/i, "");
+        const display = cleaned.replace(/\n?CONFIDENCE:\s*\w+\s*$/i, "");
+        const newSlice = display.slice(fSent.length);
+        if (newSlice) {
+          fSent = display;
+          await write({ type: "delta", text: newSlice });
+        }
+      }
+
+      const finalParsed = parseResponse(fbuf);
+      const finalBlanks = deriveBlankAnswers(finalParsed.body, body.blanks);
+      const finalUsageTokens = {
+        promptTokens: finalUsage?.prompt_tokens ?? 0,
+        completionTokens: finalUsage?.completion_tokens ?? 0,
+        cachedTokens: finalUsage?.cached_tokens ?? 0,
+      };
+
+      // Interpret leg's metrics — exactly what the old routes/interpret.ts
+      // recorded. route:"interpret" is kept as the label even though the
+      // public route is gone — it now means "the interpret LEG" — so
+      // dashboard cost-by-route continuity holds (see lib/metrics-store.ts).
+      // This is the ONE place modeSplit.calc increments (the first-pass
+      // event above and the repair-leg event both deliberately omit
+      // completedQuestion) — a calc question counts once, not two or three
+      // times, across all the legs that now share a single request.
+      recordServerEventInBackground(c, {
+        route: "interpret",
+        success: true,
+        model,
+        ...finalUsageTokens,
+        costUsd: costUsdForUsage(model, finalUsageTokens),
+        serverLatencyMs: Date.now() - startedAt,
+        installHash,
+        costMode: "calc",
+        completedQuestion: { mode: "calc", confidence: finalParsed.confidence },
+      });
+
+      // Final result — PINNED shape (the extension is being updated against
+      // exactly this event; see docs/cloud-run-r-migration.md §1/§3.2).
       await write({
         type: "result",
         result: {
-          mode: "rcode",
+          mode: "calc",
           rCode,
-          assistantBody: parsed.body,
-          ...(interpretToken ? { interpretToken } : {}),
+          rOutput: runResult.stdout,
+          rExitCode: runResult.exitCode,
+          rDurationMs: runResult.durationMs,
+          answer: finalParsed.body,
+          selectedChoices: deriveSelectedChoices(finalParsed.body, body.choices),
+          ...(finalBlanks.length ? { blanks: finalBlanks } : {}),
+          confidence: finalParsed.confidence,
+          lowConfidence: finalParsed.lowConfidence,
         },
       });
     } catch (e) {

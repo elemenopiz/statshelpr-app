@@ -83,6 +83,10 @@ export interface MetricsResponse {
     /** Calc/interpret-path confidence (item 16). */
     confidenceCalc: ConfidenceCounts;
     modeSplit: { concept: number; calc: number };
+    /** Calc solves that executed R — an alias of modeSplit.calc. The field
+     *  name is legacy (R ran client-side via WebR before the Cloud Run
+     *  migration, docs/cloud-run-r-migration.md); kept as "webrUsage" so the
+     *  GET /api/metrics response shape stays stable across the migration. */
     webrUsage: number;
     /** Failed-call counts by error class (item 2). */
     byErrorType: Record<string, number>;

@@ -4,8 +4,8 @@
  *
  * Every other limiter in this codebase (lib/rate-limit.ts's per-install and
  * per-IP buckets) is scoped to ONE caller. This one isn't scoped to anyone:
- * it caps the COMBINED total of solve+interpret Gemini-billed calls across
- * the entire service, every caller, free or paid, at a single configurable
+ * it caps the total of EVERY Gemini-billed call this Worker makes — across
+ * the entire service, every caller, free or paid — at a single configurable
  * daily ceiling. The point is a hard, known-in-advance upper bound on
  * worst-case daily spend that holds even if every per-caller limiter is
  * somehow bypassed, misconfigured, or simply hasn't been thought of yet (a
@@ -18,18 +18,34 @@
  * file's doc comment for the exact residual race window), just with no
  * per-caller scope to hash: everyone shares the one "global" bucket.
  *
- * Checked in both routes/solve.ts and routes/interpret.ts AFTER the per-caller
- * auth/license/token/rate-limit gates and immediately BEFORE the Gemini stream,
- * so only requests that will actually incur Gemini cost count toward the global
- * ceiling. It deliberately is NOT at the very top of the routes: a top-of-route
- * check-and-increment let cheap rejected requests (bad/empty auth, over-IP-limit,
- * malformed body) bump the global counter, so ~GLOBAL_DAILY_CALL_LIMIT junk
- * requests from a single IP could trip a service-wide 503 for the rest of the UTC
- * day — a DoS vector. The per-IP + per-install gates absorb that before this point.
+ * Checked in routes/solve.ts before EACH Gemini call it makes, individually —
+ * not once per request. A concept question makes one (the first pass, right
+ * after the per-caller auth/license/rate-limit gates and immediately before
+ * the Gemini stream). A calc question can make up to three, each gated here
+ * separately right before it fires: the first pass, an optional R-repair
+ * retry, and the interpret pass (the latter two used to be the separate
+ * /api/interpret route's own single call — see
+ * docs/cloud-run-r-migration.md §3 — that route is gone; both are now
+ * internal continuations of the one /api/solve request, but the PER-CALL
+ * checkpoint is preserved so the global ceiling still bounds worst-case
+ * Gemini spend the same way it did when solve and interpret were separate
+ * requests). Checking before each call rather than once per request means
+ * only work that will actually incur Gemini cost counts toward the ceiling.
+ * It deliberately is NOT at the very top of the route: a top-of-route
+ * check-and-increment let cheap rejected requests (bad/empty auth,
+ * over-IP-limit, malformed body) bump the global counter, so
+ * ~GLOBAL_DAILY_CALL_LIMIT junk requests from a single IP could trip a
+ * service-wide 503 for the rest of the UTC day — a DoS vector. The per-IP +
+ * per-install gates absorb that before the first checkpoint.
  *
  * *** CEILING SIZING — re-check before trusting, same spirit as lib/cost.ts's
  * pricing-source disclaimer ***
- * Default GLOBAL_DAILY_CALL_LIMIT = 1000 (combined solve+interpret calls/day).
+ * Default GLOBAL_DAILY_CALL_LIMIT = 1000 (every Gemini call/day, across all
+ * legs of /api/solve — see the per-call checkpoints above; NOT 1000
+ * questions/day, since a calc question can now consume up to 3 calls against
+ * this ceiling instead of 2 — the R-repair leg is a new addition this
+ * migration brought back from apps/api/lib/solver/r-repair.ts, which the
+ * prior Cloudflare-native solve.ts/interpret.ts split never had).
  * Worst-case $/day math (see lib/cost.ts for the underlying rates):
  *   - Pessimistic per-call cost assumes EVERY call is costed at the pricier
  *     IMAGE_VISION_MODEL rate ($1.50/$7.50 per 1M in/out — a caller can
@@ -77,9 +93,11 @@ export const KILL_SWITCH_MESSAGE =
 
 /** Checks AND increments the global daily counter in one call — mirrors
  *  lib/rate-limit.ts's per-caller buckets: an "allowed" result has already
- *  been counted, so routes/solve.ts and routes/interpret.ts should call this
- *  exactly once per request, before doing any Gemini-bound work, and 503
- *  immediately on `!allowed` without incrementing anything else. */
+ *  been counted, so the caller should call this once per GEMINI CALL, not
+ *  once per REQUEST (routes/solve.ts calls this up to three times for a
+ *  single calc question — see the module doc above), immediately before
+ *  doing that call's Gemini-bound work, and 503 immediately on `!allowed`
+ *  without incrementing anything else or making the call. */
 export async function checkGlobalKillSwitch(env: Env): Promise<RateLimitResult> {
   const limit = Number(env.GLOBAL_DAILY_CALL_LIMIT ?? String(DEFAULT_LIMIT)) || DEFAULT_LIMIT;
   return checkAndIncrement(env, GLOBAL_BUCKET_ID, { limit, keyPrefix: KV_PREFIX });

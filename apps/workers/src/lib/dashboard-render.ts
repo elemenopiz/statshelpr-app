@@ -1444,9 +1444,9 @@ function renderQualitySection(quality: QualityMetrics, comparison: ComparisonMet
       deltaHtml: renderDeltaFor(comparison, "errorsTotal"),
     }),
     renderStatTile({
-      label: "WebR usage",
+      label: "Calc R runs",
       value: fmtInt(quality.webrUsage),
-      caption: `${fmtPct(quality.webrUsage / calcTotal, 0)} of calc-mode solves ran client-side`,
+      caption: `${fmtPct(quality.webrUsage / calcTotal, 0)} of calc-mode solves executed R server-side`,
     }),
   ])}
   <div class="twoCol">
@@ -1503,7 +1503,7 @@ function renderPerformanceSection(performance: PerformanceMetrics): string {
     "chartCard",
   );
   const clientCard = renderCard(
-    `<p class="statLabel">Client latency distribution</p><p class="statCaption" style="margin: 0 0 0.4rem">End-to-end, includes WebR + write-back</p>${renderLatencyHistogram(
+    `<p class="statLabel">Client latency distribution</p><p class="statCaption" style="margin: 0 0 0.4rem">End-to-end, includes the full solve round trip + write-back</p>${renderLatencyHistogram(
       performance.clientLatencyHistogram,
       performance.latencyBoundariesMs,
       "histBarAlt",

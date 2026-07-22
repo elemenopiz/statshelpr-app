@@ -222,7 +222,8 @@ const WEBR_USAGE = Math.round(MODE_SPLIT.calc * 0.87);
 
 // Latency distributions (item 11) — 9 fixed buckets matching
 // LATENCY_BUCKET_BOUNDARIES_MS, peaking around 1-2s; client is slightly slower
-// (WebR + write-back). Sum to API_CALLS so the histogram reconciles with volume.
+// (full solve round trip + write-back). Sum to API_CALLS so the histogram
+// reconciles with volume.
 const SERVER_LATENCY_HISTOGRAM = boundariesSplit(API_CALLS, [
   0.01, 0.05, 0.13, 0.27, 0.25, 0.16, 0.08, 0.035, 0.015,
 ]);

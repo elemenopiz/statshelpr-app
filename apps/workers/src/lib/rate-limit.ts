@@ -17,14 +17,15 @@
  * Security-audit follow-up (closing the unbounded-LLM-cost hole):
  *  - `checkAndIncrement` now takes an optional `{ limit, keyPrefix }` so the
  *    SAME get/put/recheck logic can back multiple independent counters —
- *    solve's per-install bucket (unchanged default), solve/interpret's new
- *    per-IP backstop (see `getClientIp` below, wired in routes/solve.ts +
- *    routes/interpret.ts), interpret's own independent per-install counter
- *    (routes/interpret.ts), and the global kill switch (lib/kill-switch.ts).
- *    Each caller passes its own `keyPrefix` so these never share a KV
- *    keyspace even though they may hash the SAME raw bucket id (e.g.
- *    interpret's per-install counter hashes the same install id solve's
- *    does, but under a different prefix — see routes/interpret.ts).
+ *    solve's per-install bucket (unchanged default), solve's per-IP backstop
+ *    (see `getClientIp` below, wired in routes/solve.ts), and the global
+ *    kill switch (lib/kill-switch.ts). Each caller passes its own
+ *    `keyPrefix` so these never share a KV keyspace even when they hash the
+ *    SAME raw bucket id. (The retired standalone /api/interpret route ran
+ *    its own per-install + per-IP counters under separate prefixes on this
+ *    same mechanism; the Cloud Run migration folded the interpret leg into
+ *    /api/solve — docs/cloud-run-r-migration.md — so solve's gates now cover
+ *    the whole request and those counters simply age out of KV.)
  *  - Added a best-effort optimistic recheck immediately before the
  *    increment-`put` (see the doc comment inside `checkAndIncrement`) to
  *    shrink — not eliminate — the read-modify-write race window.
@@ -49,8 +50,8 @@ export interface RateLimitOptions {
    *  byte-for-byte unchanged). */
   limit?: number;
   /** Overrides the default "rl:" KV key prefix. Two counters that hash the
-   *  SAME raw bucket id (e.g. interpret's per-install counter reusing the
-   *  same install id solve's counter hashes) MUST use different prefixes or
+   *  SAME raw bucket id (e.g. solve's per-IP backstop vs. any future
+   *  counter keyed on the same IP string) MUST use different prefixes or
    *  they'd silently share one KV entry — SHA-256 collision odds between
    *  *different* raw bucket ids (an install-id UUID vs an IP string) already
    *  make cross-purpose collisions astronomically unlikely on their own, but
@@ -67,8 +68,8 @@ interface StoredCount {
 /** SHA-256 the bucket id so we never store license keys / install ids raw in KV.
  *  Exported so lib/metrics-store.ts / routes/telemetry.ts can hash install ids
  *  with this EXACT same function — the metrics DAU/WAU install-hash set only
- *  dedupes correctly if server events (solve/interpret) and the client
- *  telemetry beacon hash the same install id to the same value. */
+ *  dedupes correctly if server events (solve, its interpret leg included) and
+ *  the client telemetry beacon hash the same install id to the same value. */
 export async function hashBucket(bucketId: string): Promise<string> {
   const buf = new TextEncoder().encode(bucketId);
   const digest = await crypto.subtle.digest("SHA-256", buf);
