@@ -11,7 +11,7 @@ import { recordClientEventInBackground } from "@/lib/metrics-store";
  * license required: free users must be able to report too, or the aggregate
  * metrics would silently exclude most of the user base. CORS mirrors
  * routes/solve.ts (open origin — this is called directly from the
- * extension's content-script context, same as solve/interpret).
+ * extension's content-script context, same as solve).
  *
  * Always responds 204 (even on a malformed/unparseable body) — this is a
  * fire-and-forget beacon, not a request the caller is expected to check or
@@ -55,7 +55,7 @@ telemetry.post("/", async (c) => {
   // aren't currently folded into an aggregate — quality.modeSplit and
   // quality.confidence are server-derived instead (see metrics-store.ts's
   // DailyMetricsBucket doc: that split avoids double-counting a question
-  // that's ALSO visible to solve.ts/interpret.ts). Kept validated-but-mostly-
+  // that's ALSO visible to solve.ts). Kept validated-but-mostly-
   // unused here, rather than dropped from the accepted shape, so the wire
   // contract stays exactly as pinned and a future aggregate can pick them up
   // without a client-side change.

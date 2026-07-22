@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import type { Env } from "./types";
 
 import { solve } from "./routes/solve";
-import { interpret } from "./routes/interpret";
 import { health } from "./routes/health";
 import { validateLicenseRoute } from "./routes/validate-license";
 import { feedback } from "./routes/feedback";
@@ -24,8 +23,10 @@ const app = new Hono<{ Bindings: Env }>();
 app.get("/", (c) => c.json({ ok: true, name: "statshelpr-api" }));
 
 app.route("/api/health", health);
+// /api/interpret was retired with the Cloud Run R-execution migration — the
+// interpret pass is now an internal leg of /api/solve, not a separate public
+// route (see docs/cloud-run-r-migration.md §3 and routes/solve.ts).
 app.route("/api/solve", solve);
-app.route("/api/interpret", interpret);
 app.route("/api/auth/validate-license", validateLicenseRoute);
 app.route("/api/feedback", feedback);
 app.route("/api/user", user);

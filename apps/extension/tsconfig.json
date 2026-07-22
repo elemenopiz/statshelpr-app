@@ -3,10 +3,7 @@
   "compilerOptions": {
     "types": ["chrome"],
     "noEmit": true,
-    "baseUrl": ".",
-    "paths": {
-      "@r-wasm/webr": ["./node_modules/@r-wasm/webr/dist/webR/webr-main"]
-    }
+    "baseUrl": "."
   },
   "include": ["src/**/*", "test/**/*", "vitest.config.ts"]
 }

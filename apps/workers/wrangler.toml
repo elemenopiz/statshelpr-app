@@ -14,39 +14,52 @@ LEMONSQUEEZY_VARIANT_ID = "1929562"
 # paid-user usage assumption (~10 solves / 2 weekdays).
 AVG_SOLVES_PER_USER_PER_MONTH = "110"
 
-# --- Abuse-hole closing (security audit, 2026-07-22) — see lib/rate-limit.ts,
-# lib/kill-switch.ts, lib/interpret-token.ts for the full rationale behind
-# each of these. None of the three below change pricing/tiers/the 5/day free
-# cap — they're purely anti-abuse backstops layered around it.
+# Base URL of the Cloud Run R-runner service (r-runner/) that executes calc
+# questions' R code server-side — see docs/cloud-run-r-migration.md. Non-secret
+# (the URL alone grants nothing without the R_RUNNER_SECRET header — see the
+# secrets block below); lib/r-runner.ts's runRRemote POSTs `${R_RUNNER_URL}/runR`.
+# *** REPLACE with the real Cloud Run URL after the first `gcloud run deploy`
+# (see r-runner/README.md) — this placeholder host is deliberately fake so a
+# forgotten replacement fails loudly (DNS/connection error) instead of
+# silently misrouting every calc question. ***
+R_RUNNER_URL = "https://REPLACE-WITH-CLOUD-RUN-URL.run.app"
+
+# --- Abuse-hole closing (security audit, 2026-07-22) — see lib/rate-limit.ts
+# and lib/kill-switch.ts for the full rationale behind the two below. Neither
+# changes pricing/tiers/the 5/day free cap — they're purely anti-abuse
+# backstops layered around it. (A third, per-install-id daily cap that used
+# to live here — gating the old standalone /api/interpret route on its own —
+# was retired along with that route: docs/cloud-run-r-migration.md §3. The
+# interpret pass is now an internal leg of /api/solve, already covered by
+# IP_DAILY_LIMIT and the per-install counter below, same as the rest of that
+# request.)
 #
-# Independent free-tier daily cap on /api/interpret, per install id —
-# defense-in-depth so a leaked/replayed interpret token can't be redeemed
-# unboundedly even though it's cryptographically valid. Set a little above
-# FREE_TIER_DAILY_LIMIT (a calc question is 1 solve + 1 interpret call, so
-# this only needs to be >= that to never be the bottleneck for legitimate
-# use; the extra headroom covers a client retry after e.g. a WebR crash).
-INTERPRET_DAILY_LIMIT = "10"
-# Per-IP daily cap, applied on top of the per-install counters on BOTH
-# /api/solve and /api/interpret (each route/direction tracks its own
-# independent per-IP counter) — a backstop against trivial install-id
-# rotation (the install id is just a client-picked crypto.randomUUID(), see
-# apps/extension/src/install-id.ts, with no server issuance, so it resets
-# for free). Sized to be generous for shared-NAT campus WiFi (200 solve
-# calls/day from one IP ~= 40 distinct free users each maxing out their own
-# 5/day cap, or many more if most don't) while still bounding a single-IP
-# install-id-rotation script to a small, known fraction (well under half) of
-# the global ceiling below. Only applied to free-tier callers — paid
-# licenses stay unlimited, same as the per-install counters.
+# Per-IP daily cap, applied on top of the per-install counter on /api/solve —
+# a backstop against trivial install-id rotation (the install id is just a
+# client-picked crypto.randomUUID(), see apps/extension/src/install-id.ts,
+# with no server issuance, so it resets for free). Sized to be generous for
+# shared-NAT campus WiFi (200 solve calls/day from one IP ~= 40 distinct free
+# users each maxing out their own 5/day cap, or many more if most don't)
+# while still bounding a single-IP install-id-rotation script to a small,
+# known fraction (well under half) of the global ceiling below. Only applied
+# to free-tier callers — paid licenses stay unlimited, same as the
+# per-install counter.
 IP_DAILY_LIMIT = "200"
-# Global (NOT per-user) daily ceiling on combined solve+interpret Gemini
-# calls, checked before EVERY call regardless of caller/tier — the real
+# Global (NOT per-user) daily ceiling on every Gemini call this Worker makes,
+# checked before EACH ONE individually regardless of caller/tier — the real
 # volume/cost backstop the audit flagged as missing (previously: only a
 # daily 08:00 UTC alert EMAIL after the fact, nothing in the request path
-# itself). At the pessimistic per-call cost assumed in lib/kill-switch.ts
-# ($0.08 — worst-case model/token mix, not typical traffic), 1000 calls/day
-# bounds worst-case exposure at ~$80/day. Comfortably above the documented
-# current volume ("single-digit-to-low-hundreds of requests/day" pre-launch,
-# see lib/metrics-store.ts) — raise as real traffic grows past this.
+# itself). A calc question can trip this check up to three times inside ONE
+# /api/solve request (first pass, an optional R-repair retry, interpret) now
+# that the interpret pass is no longer its own route — see
+# docs/cloud-run-r-migration.md §3 — so per-call (not per-request) checking
+# still bounds worst-case spend the same way it did when solve and interpret
+# were separate requests. At the pessimistic per-call cost assumed in
+# lib/kill-switch.ts ($0.08 — worst-case model/token mix, not typical
+# traffic), 1000 calls/day bounds worst-case exposure at ~$80/day.
+# Comfortably above the documented current volume
+# ("single-digit-to-low-hundreds of requests/day" pre-launch, see
+# lib/metrics-store.ts) — raise as real traffic grows past this.
 GLOBAL_DAILY_CALL_LIMIT = "1000"
 
 # KV binding for licenses, rate limiting, feedback, LS webhook idempotency.
@@ -80,16 +93,21 @@ id = "23d6ef6041854bec96fd277cb013e7e6"
 #                                                     lib/alerts.ts. Unset (or RESEND_API_KEY unset)
 #                                                     = alerting skipped silently; the daily
 #                                                     snapshot rollup still runs.)
-#   wrangler secret put INTERPRET_SIGNING_SECRET     (*** REQUIRED — MUST BE SET BEFORE DEPLOY ***
-#                                                     security-audit item A: signs the short-lived
-#                                                     token binding /api/interpret to a prior
-#                                                     /api/solve call — see lib/interpret-token.ts.
+#   wrangler secret put R_RUNNER_SECRET              (*** REQUIRED — MUST BE SET BEFORE DEPLOY ***
+#                                                     shared secret between this Worker and the Cloud
+#                                                     Run R-runner service — sent as the
+#                                                     X-Runner-Secret header on every POST /runR (see
+#                                                     lib/r-runner.ts). MUST be the SAME value passed
+#                                                     to Cloud Run's own R_RUNNER_SECRET env var at
+#                                                     `gcloud run deploy` (see r-runner/README.md and
+#                                                     docs/cloud-run-r-migration.md §2.3/§3.4).
 #                                                     Generate with e.g. `openssl rand -hex 32`.
-#                                                     Unset = /api/interpret hard-fails closed (403
-#                                                     on every request) — same fail-closed contract
-#                                                     as DASHBOARD_PASSWORD/METRICS_TOKEN above, NOT
-#                                                     an open gate. The calc/RCODE question path is
-#                                                     unusable until this is set.)
+#                                                     Unset = calc questions fail closed with a clear
+#                                                     "R runner not configured" error — same
+#                                                     fail-closed contract as DASHBOARD_PASSWORD/
+#                                                     METRICS_TOKEN above, NOT an open gate; concept
+#                                                     questions are unaffected. Also set R_RUNNER_URL
+#                                                     in [vars] above — both are required.)
 
 # Cron trigger — drives the `scheduled` handler in src/index.ts, which (a)
 # rolls up a compact daily KPI snapshot (`snapshot:YYYY-MM-DD`) so trends

@@ -12,7 +12,8 @@
  * Each recorded event carries ITS OWN model id (whatever `resolveModel(body)`
  * returned for that call), so an image solve is costed at the Flash rate and
  * a text solve at the cheaper Flash-Lite rate — never one blended rate
- * applied across all events. See routes/solve.ts / routes/interpret.ts.
+ * applied across all events. See routes/solve.ts (each calc leg — first
+ * pass, optional repair, interpret — records its own event).
  *
  * *** VERIFY-AND-EDIT CONFIG — pricing changes; re-check before trusting ***
  * Source: https://ai.google.dev/gemini-api/docs/pricing (fetched 2026-07-22),

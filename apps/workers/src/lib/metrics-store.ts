@@ -2,8 +2,11 @@
  * KV-backed daily metrics buckets: server-side call counters/cost/latency
  * plus client-reported write-back outcomes, merged at read time by
  * lib/metrics-aggregate.ts (called from routes/metrics.ts). Written by
- * routes/solve.ts, routes/interpret.ts (server events) and
- * routes/telemetry.ts (client beacon events).
+ * routes/solve.ts (server events — including its internal interpret LEG,
+ * recorded under route:"interpret"; the standalone /api/interpret route this
+ * used to come from was retired, see docs/cloud-run-r-migration.md §3 and
+ * the `routes` field doc below) and routes/telemetry.ts (client beacon
+ * events).
  *
  * Storage: one JSON blob per UTC day at key `metrics:YYYY-MM-DD`, updated via
  * a plain KV read-modify-write (get -> mutate in memory -> put) — the same
@@ -18,7 +21,7 @@
  * for exactly this write pattern, no read-modify-write needed) — this
  * module's public functions (recordServerEvent/recordClientEvent/
  * readBucketsForRange) are the seam to swap the storage backend behind
- * without touching solve.ts/interpret.ts/telemetry.ts's call sites.
+ * without touching solve.ts/telemetry.ts's call sites.
  */
 
 import type { Context } from "hono";
@@ -84,21 +87,32 @@ export interface RevenueFlowCounts {
 export interface DailyMetricsBucket {
   date: string;
   server: {
+    /** Keyed by LEG, not necessarily by HTTP route anymore. "solve" covers
+     *  the first Gemini pass and any R-repair retry; "interpret" covers the
+     *  interpret pass. Both legs are recorded from inside routes/solve.ts —
+     *  the standalone /api/interpret route that used to write the
+     *  "interpret" counters was retired (see
+     *  docs/cloud-run-r-migration.md §3) — the key is kept as "interpret" so
+     *  dashboard cost-by-route continuity holds across the migration. */
     routes: { solve: RouteCounters; interpret: RouteCounters };
     /** Completed-question counts (NOT raw call counts — see recordServerEvent's
      *  `completedQuestion` doc below). `concept` increments once per concept
      *  answer (solve.ts). `calc` increments once per completed calc answer,
-     *  at interpret.ts's success — NOT at solve.ts's RCODE handoff, which
-     *  would double-count (a calc question spans two LLM calls). */
+     *  at the interpret LEG's success — recorded from routes/solve.ts under
+     *  route:"interpret" (see the `routes` field doc above) — NOT at the
+     *  first pass's RCODE hand-off, which would double-count (a calc
+     *  question can span up to three LLM calls: first pass, optional repair,
+     *  interpret). */
     modeSplit: { concept: number; calc: number };
     /** Solve-CONCEPT-path confidence. Kept concept-only (its original pinned
      *  scope) so existing aggregates/tests are unchanged; the calc path is
      *  tracked separately in `confidenceCalc` below. */
     confidence: ConfidenceCounts;
-    /** Solve-CALC-path confidence (dashboard-v2 item 16) — interpret.ts's
-     *  `finalParsed.confidence`, previously parsed-then-dropped. Split from
-     *  `confidence` so "low-confidence" views can cover BOTH paths instead of
-     *  being blind to calc. */
+    /** Solve-CALC-path confidence (dashboard-v2 item 16) — the interpret
+     *  leg's `finalParsed.confidence` (recorded from routes/solve.ts under
+     *  route:"interpret", see the `routes` field doc above), previously
+     *  parsed-then-dropped. Split from `confidence` so "low-confidence"
+     *  views can cover BOTH paths instead of being blind to calc. */
     confidenceCalc: ConfidenceCounts;
     /** Per-error-class counts for failed solve/interpret calls (dashboard-v2
      *  item 2) — keyed by the stable enum classifyError() returns
@@ -110,9 +124,11 @@ export interface DailyMetricsBucket {
      *  ~0 anyway since there's no usage to bill). */
     costUsd: number;
     /** Same total, split by which question-mode the spend is attributable
-     *  to. A calc question costs two LLM calls (solve.ts's RCODE generation
-     *  + interpret.ts's interpretation); both legs' cost land in `calc` so
-     *  avgCostPerCalcQuestionUsd reflects the true pipeline cost. */
+     *  to. A calc question can cost up to three LLM calls — the first pass,
+     *  an optional R-repair retry, and the interpret pass (all three now run
+     *  inside routes/solve.ts, see docs/cloud-run-r-migration.md §3); every
+     *  leg's cost lands in `calc` so avgCostPerCalcQuestionUsd reflects the
+     *  true pipeline cost. */
     costUsdByMode: { concept: number; calc: number };
     /** Per-model call count + cost, keyed on the exact model id
      *  `resolveModel(body)` returned for that call (see lib/cost.ts —
@@ -314,6 +330,12 @@ function addInstallHash(bucket: DailyMetricsBucket, hash: string): void {
 }
 
 export interface ServerEventInput {
+  /** Which LEG of the pipeline this event is for — not necessarily an HTTP
+   *  route anymore. "solve" covers the first Gemini pass and any R-repair
+   *  retry; "interpret" covers the interpret pass. Both are recorded from
+   *  inside routes/solve.ts (the standalone /api/interpret route was
+   *  retired — see docs/cloud-run-r-migration.md §3); "interpret" is kept
+   *  as the label so dashboard cost-by-route continuity holds. */
   route: "solve" | "interpret";
   success: boolean;
   /** Exact model id this call used (resolveModel(body) — text vs image). */
@@ -337,8 +359,9 @@ export interface ServerEventInput {
   completedQuestion?: {
     mode: "concept" | "calc";
     /** Recorded per-path now: concept path -> `confidence`, calc path ->
-     *  `confidenceCalc` (dashboard-v2 item 16). interpret.ts should pass its
-     *  parsed calc confidence here. */
+     *  `confidenceCalc` (dashboard-v2 item 16). The interpret leg (recorded
+     *  from routes/solve.ts under route:"interpret") should pass its parsed
+     *  calc confidence here. */
     confidence?: "High" | "Med" | "Low" | "";
   };
 }

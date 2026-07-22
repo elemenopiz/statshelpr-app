@@ -1,8 +1,18 @@
 /**
- * Self-test for the pure/near-pure logic behind the security-audit fixes
- * (closing the /api/interpret unbounded-LLM-cost hole): lib/rate-limit.ts's
- * options-driven bucketing + optimistic recheck, lib/kill-switch.ts's global
- * ceiling, and lib/interpret-token.ts's sign/verify contract.
+ * Self-test for the pure/near-pure logic behind the security-audit fixes:
+ * lib/rate-limit.ts's options-driven bucketing + optimistic recheck, and
+ * lib/kill-switch.ts's global ceiling.
+ *
+ * Used to also cover a signed hand-off token's sign/verify contract (the
+ * primary fix for the old /api/interpret unbounded-LLM-cost hole) — that
+ * module and its tests were removed when /api/interpret itself was retired
+ * by the Cloud Run R-execution migration: the interpret pass is now an
+ * internal leg of /api/solve, covered by that one request's own
+ * auth/license/rate-limit gates, so the hand-off token this used to sign no
+ * longer has a separate call to bind together (see
+ * docs/cloud-run-r-migration.md §3). The per-install + per-IP + global
+ * kill-switch limits below still apply to /api/solve and are still
+ * exercised here.
  *
  * Same plain-tsx pattern as self-test-metrics.ts (no vitest in this
  * workspace) — run via:
@@ -18,13 +28,6 @@
 
 import type { Context } from "hono";
 import { checkGlobalKillSwitch } from "../src/lib/kill-switch";
-import {
-  base64UrlEncode,
-  hmacHex,
-  issueInterpretToken,
-  verifyInterpretToken,
-  type InterpretTokenPayload,
-} from "../src/lib/interpret-token";
 import { checkAndIncrement, getClientIp } from "../src/lib/rate-limit";
 import type { Env } from "../src/types";
 
@@ -65,6 +68,12 @@ async function main() {
       GEMINI_API_KEY: "test-key",
       LLM_PROVIDER: "gemini",
       FREE_TIER_DAILY_LIMIT: "5",
+      // Required fields added by the Cloud Run R-execution migration (see
+      // docs/cloud-run-r-migration.md §3) — not exercised by any check in
+      // this file, but Env now requires both, so fakeEnv needs a value for
+      // each to stay a valid Env.
+      R_RUNNER_URL: "https://fake-r-runner.example.com",
+      R_RUNNER_SECRET: "fake-runner-secret",
       STATSHELPR_KV: new FakeKv() as unknown as Env["STATSHELPR_KV"],
       ...overrides,
     } as Env;
@@ -102,10 +111,10 @@ async function main() {
 
   {
     // Prefix isolation: the SAME raw bucket id under two different
-    // keyPrefixes must be tracked independently (this is exactly how
-    // interpret's per-install counter stays separate from solve's, and how
-    // solve's per-IP counter stays separate from interpret's per-IP counter
-    // — see routes/solve.ts / routes/interpret.ts).
+    // keyPrefixes must be tracked independently — this is how
+    // routes/solve.ts's per-install counter ("rl:", the default) stays
+    // separate from its own per-IP counter ("rl:ip:solve:") even on inputs
+    // that could otherwise collide.
     const env = fakeEnv();
     await checkAndIncrement(env, "shared-id", { limit: 5, keyPrefix: "rl:scope-a:" });
     await checkAndIncrement(env, "shared-id", { limit: 5, keyPrefix: "rl:scope-a:" });
@@ -159,108 +168,17 @@ async function main() {
     check("global switch: falls back to the documented default (1000) when unset", r1.limit === 1000, `got ${r1.limit}`);
   }
   {
-    // Solve and interpret each call checkGlobalKillSwitch independently per
-    // request, but it's the SAME global counter either way — confirm two
-    // separate fakeEnv() instances sharing one KV would in fact share state
-    // (same bucket id/prefix regardless of caller), by reusing one env/KV.
+    // routes/solve.ts now calls checkGlobalKillSwitch multiple times per
+    // request for a calc question (first pass, optional repair, interpret —
+    // see docs/cloud-run-r-migration.md §3), but it's the SAME global
+    // counter every time — confirm three sequential calls sharing one KV do
+    // in fact share state (same bucket id/prefix regardless of which leg is
+    // calling), by reusing one env/KV.
     const env = fakeEnv({ GLOBAL_DAILY_CALL_LIMIT: "3" });
-    await checkGlobalKillSwitch(env); // simulates a solve.ts call
-    await checkGlobalKillSwitch(env); // simulates an interpret.ts call
-    const third = await checkGlobalKillSwitch(env); // simulates another solve.ts call
-    check("global switch: solve+interpret share ONE combined counter", third.count === 3, JSON.stringify(third));
-  }
-
-  // ---------------------------------------------------------------------------
-  console.log("interpret-token.ts (issue/verify)");
-
-  {
-    const env = fakeEnv({ INTERPRET_SIGNING_SECRET: "test-secret-please-ignore" });
-    const token = await issueInterpretToken(env, "install-X");
-    check("issue: returns a token when the secret is configured", typeof token === "string" && token.length > 0);
-
-    const ok = await verifyInterpretToken(env, token, "install-X");
-    check("verify: a freshly issued token verifies for the SAME caller install id", ok.ok === true, JSON.stringify(ok));
-
-    const wrongCaller = await verifyInterpretToken(env, token, "install-Y");
-    check("verify: rejects when the caller's install id differs from the minted one", wrongCaller.ok === false);
-  }
-
-  {
-    // Fail-closed contract (must match DASHBOARD_PASSWORD/METRICS_TOKEN):
-    // an unset secret rejects EVERY verify call, and issue emits nothing to
-    // verify in the first place.
-    const env = fakeEnv(); // INTERPRET_SIGNING_SECRET unset
-    const token = await issueInterpretToken(env, "install-X");
-    check("issue: returns undefined when INTERPRET_SIGNING_SECRET is unset (fail closed)", token === undefined);
-
-    const verifyWithoutSecret = await verifyInterpretToken(env, "anything.at-all", "install-X");
-    check(
-      "verify: rejects outright when INTERPRET_SIGNING_SECRET is unset, even given SOME token string",
-      verifyWithoutSecret.ok === false,
-    );
-
-    const verifyMissingToken = await verifyInterpretToken(
-      fakeEnv({ INTERPRET_SIGNING_SECRET: "s" }),
-      undefined,
-      "install-X",
-    );
-    check("verify: rejects a missing token even when the secret IS configured", verifyMissingToken.ok === false);
-  }
-
-  {
-    const env = fakeEnv({ INTERPRET_SIGNING_SECRET: "test-secret-please-ignore" });
-    const token = await issueInterpretToken(env, "install-X");
-    const tampered = token ? token.slice(0, -1) + (token.endsWith("a") ? "b" : "a") : "";
-    const result = await verifyInterpretToken(env, tampered, "install-X");
-    check("verify: a single flipped signature character is rejected", result.ok === false);
-  }
-
-  {
-    const result = await verifyInterpretToken(
-      fakeEnv({ INTERPRET_SIGNING_SECRET: "s" }),
-      "not-a-well-formed-token-at-all",
-      "install-X",
-    );
-    check("verify: a malformed token (no '.' separator) is rejected, not thrown", result.ok === false);
-  }
-
-  {
-    // Hand-build an already-expired token using the exported primitives —
-    // issueInterpretToken's real TTL is 10 minutes, too long to wait out in
-    // a test, so this constructs the exact same shape with `exp` in the past.
-    const secret = "test-secret-please-ignore";
-    const env = fakeEnv({ INTERPRET_SIGNING_SECRET: secret });
-    const payload: InterpretTokenPayload = { iid: "install-X", nonce: "test-nonce", exp: Date.now() - 1000 };
-    const payloadJson = JSON.stringify(payload);
-    const sig = await hmacHex(secret, payloadJson);
-    const expiredToken = `${base64UrlEncode(payloadJson)}.${sig}`;
-
-    const result = await verifyInterpretToken(env, expiredToken, "install-X");
-    check("verify: an expired (but otherwise validly signed) token is rejected", result.ok === false, JSON.stringify(result));
-  }
-
-  {
-    // A token signed with a DIFFERENT secret than the one currently
-    // configured must fail — simulates a secret rotation, or simply
-    // confirms the signature actually depends on the secret at all.
-    const payload: InterpretTokenPayload = { iid: "install-X", nonce: "n", exp: Date.now() + 60_000 };
-    const payloadJson = JSON.stringify(payload);
-    const sig = await hmacHex("wrong-secret", payloadJson);
-    const forged = `${base64UrlEncode(payloadJson)}.${sig}`;
-
-    const result = await verifyInterpretToken(fakeEnv({ INTERPRET_SIGNING_SECRET: "real-secret" }), forged, "install-X");
-    check("verify: a token signed with a different secret is rejected", result.ok === false);
-  }
-
-  {
-    // "anon" fallback parity: an install-id-less /api/solve call mints a
-    // token bound to "anon", and an install-id-less /api/interpret call
-    // must verify against that SAME "anon" fallback (both routes use
-    // `installId || "anon"` — see routes/solve.ts / routes/interpret.ts).
-    const env = fakeEnv({ INTERPRET_SIGNING_SECRET: "test-secret-please-ignore" });
-    const token = await issueInterpretToken(env, "");
-    const result = await verifyInterpretToken(env, token, "");
-    check("issue('') and verify('') both fall back to \"anon\" and match", result.ok === true, JSON.stringify(result));
+    await checkGlobalKillSwitch(env); // simulates the first-pass leg
+    await checkGlobalKillSwitch(env); // simulates the repair leg
+    const third = await checkGlobalKillSwitch(env); // simulates the interpret leg
+    check("global switch: every leg shares ONE combined counter", third.count === 3, JSON.stringify(third));
   }
 
   // ---------------------------------------------------------------------------
