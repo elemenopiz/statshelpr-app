@@ -40,6 +40,7 @@ import {
   selectAnswerChoice,
   writeBlanks,
 } from "./canvas-dom";
+import { type QuestionType, buildTelemetryBody, deriveOutcome, deriveQuestionType } from "./telemetry";
 
 interface DataFile {
   filename: string;
@@ -257,6 +258,10 @@ function hasQuestionAncestor(question: HTMLElement): boolean {
 
 async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
   if (btn.disabled) return;
+  // Wall-clock start for the telemetry beacon's clientLatencyMs — captured
+  // here (solve click) so it includes the full round trip through to a
+  // written/nowrite/error result below, RCODE's WebR run included.
+  const solveStartedAt = performance.now();
   setBtnState(btn, "loading");
   // Clear any prior visual marker on this question
   question.querySelectorAll(".statshelpr-suggested").forEach((el) =>
@@ -399,14 +404,38 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
 
   const cleaned = stripTags(final.answer);
 
+  // Fields shared by every telemetry beacon fired below — built once `final`
+  // is known so each call site only supplies what varies (writeCount/threw).
+  const telemetryBase = {
+    apiUrl,
+    installId,
+    telemetryDisabled: cfg.telemetryDisabled === true,
+    mode: final.mode,
+    confidence: final.confidence,
+    questionType: deriveQuestionType(scraped),
+    startedAt: solveStartedAt,
+  };
+
   // Matching / multiple-dropdowns: write each blank into its own <select>.
   // Otherwise select/fill from the flat choice list. Both report back how
   // many elements they actually touched, so a total miss (writeCount === 0)
   // can be surfaced distinctly from a real success below.
-  const writeCount =
-    final.blanks && final.blanks.length > 0 && scraped.blanks.length > 0
-      ? writeBlanks(question, final.blanks)
-      : selectAnswerChoice(question, cleaned, final.selectedChoices ?? [], scraped.choices);
+  let writeCount: number;
+  try {
+    writeCount =
+      final.blanks && final.blanks.length > 0 && scraped.blanks.length > 0
+        ? writeBlanks(question, final.blanks)
+        : selectAnswerChoice(question, cleaned, final.selectedChoices ?? [], scraped.choices);
+  } catch (e) {
+    // A result came back but the write-back call itself threw. This catch
+    // exists ONLY to report that fact to telemetry — it deliberately
+    // rethrows immediately after so control flow (today: an uncaught
+    // rejection, since onSolve() is invoked as `void onSolve(...)` from the
+    // click handler and had no try/catch around this block before) is
+    // byte-for-byte unchanged from before this beacon existed.
+    fireTelemetryBeacon({ ...telemetryBase, writeCount: 0, threw: true });
+    throw e;
+  }
 
   if (writeCount === 0) {
     // Nothing in the page could be auto-selected/filled (e.g. no scrapable
@@ -416,6 +445,51 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
   } else {
     setBtnState(btn, "success");
   }
+  fireTelemetryBeacon({ ...telemetryBase, writeCount, threw: false });
+}
+
+/**
+ * Fire-and-forget content-free write-back OUTCOME beacon — see the PINNED
+ * CONTRACT this shipped under. Never blocks the button state update (callers
+ * invoke this AFTER setBtnState), never surfaces an error to the user, and
+ * never throws. Skips entirely when the user has opted out via
+ * chrome.storage.sync's telemetryDisabled (default/unset = enabled).
+ *
+ * Question/choice/answer TEXT never reaches this function — only counts,
+ * enums, and DOM element kinds (via telemetryBase.questionType, already
+ * derived by telemetry.ts's chrome-free deriveQuestionType before this is
+ * called) — see telemetry.ts's module doc comment for the full contract.
+ */
+function fireTelemetryBeacon(args: {
+  apiUrl: string;
+  installId: string;
+  telemetryDisabled: boolean;
+  mode: "concept" | "calc";
+  confidence: "High" | "Med" | "Low" | "";
+  questionType: QuestionType;
+  startedAt: number;
+  writeCount: number;
+  threw: boolean;
+}): void {
+  if (args.telemetryDisabled) return;
+
+  const body = buildTelemetryBody({
+    mode: args.mode,
+    questionType: args.questionType,
+    confidence: args.confidence,
+    outcome: deriveOutcome(args.writeCount, args.threw),
+    writeCount: args.writeCount,
+    clientLatencyMs: Math.round(performance.now() - args.startedAt),
+  });
+
+  void fetch(`${args.apiUrl}/api/telemetry`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Install-Id": args.installId },
+    body: JSON.stringify(body),
+  }).catch(() => {
+    // Fire-and-forget — a 404 (e.g. a local dev API with no telemetry route
+    // yet) or any network failure is silently ignored, never surfaced.
+  });
 }
 
 async function readErrorBody(res: Response): Promise<string> {
@@ -611,9 +685,9 @@ function applyButtonOpacity(value: number): void {
   document.documentElement.style.setProperty("--sh-idle-opacity", String(clamped));
 }
 
-async function getConfig(): Promise<{ apiUrl?: string; licenseKey?: string }> {
-  const r = await chrome.storage.sync.get(["apiUrl", "licenseKey"]);
-  return r as { apiUrl?: string; licenseKey?: string };
+async function getConfig(): Promise<{ apiUrl?: string; licenseKey?: string; telemetryDisabled?: boolean }> {
+  const r = await chrome.storage.sync.get(["apiUrl", "licenseKey", "telemetryDisabled"]);
+  return r as { apiUrl?: string; licenseKey?: string; telemetryDisabled?: boolean };
 }
 
 // =============================================================================
