@@ -123,6 +123,30 @@ html[data-theme="dark"] .page {
   --red-tint: rgba(255, 128, 102, 0.14);
   --amber: #e8b54a;
   --amber-tint: rgba(232, 181, 74, 0.16);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* Explicit light override so the "Light" toggle forces light even when the
+   OS/browser prefers dark (the @media dark block above would otherwise win).
+   Values mirror the .page base. */
+html[data-theme="light"] .page {
+  --paper: #faf9f5;
+  --card: #ffffff;
+  --ink: #1d1c17;
+  --ink-2: #55534a;
+  --ink-3: #8d8a7e;
+  --line: rgba(29, 28, 23, 0.12);
+  --line-soft: rgba(29, 28, 23, 0.07);
+  --blue: #2742c8;
+  --blue-deep: #1c31a2;
+  --blue-tint: rgba(39, 66, 200, 0.08);
+  --green: #0b7a4b;
+  --green-tint: rgba(11, 122, 75, 0.1);
+  --red: #c24029;
+  --red-tint: rgba(194, 64, 41, 0.1);
+  --amber: #92650f;
+  --amber-tint: rgba(176, 128, 26, 0.12);
+  --shadow-card: 0 1px 2px rgba(29, 28, 23, 0.05), 0 8px 24px rgba(29, 28, 23, 0.06);
 }
 
 .wrap {
@@ -466,6 +490,12 @@ html[data-theme="dark"] .page {
 
 /* ---------- time-range selector (item 14) ---------- */
 
+.headerControls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
 .rangeSel {
   display: inline-flex;
   gap: 0.2rem;
@@ -1108,6 +1138,39 @@ function renderRangeSelector(selected: number, isDemo: boolean): string {
 }
 
 // ---------------------------------------------------------------------------
+// theme toggle (Auto/Light/Dark) — links only, no client JS, same segmented
+// styling as the range selector. The chosen value is persisted in the
+// sh_dash_theme cookie (set server-side in routes/dashboard.ts) and applied
+// as <html data-theme="..."> by renderDocument; "auto" emits no attribute so
+// the page follows the OS/browser prefers-color-scheme.
+// ---------------------------------------------------------------------------
+
+export type Theme = "auto" | "light" | "dark";
+
+/** Validate an untrusted theme string (query param or cookie) — returns null
+ *  for anything not in the allowed set so the caller can apply its default. */
+export function parseTheme(raw: string | undefined | null): Theme | null {
+  return raw === "auto" || raw === "light" || raw === "dark" ? raw : null;
+}
+
+function renderThemeSelector(current: Theme, selectedRange: number, isDemo: boolean): string {
+  const demoQ = isDemo ? "&demo=1" : "";
+  const opts: Array<{ v: Theme; label: string }> = [
+    { v: "auto", label: "Auto" },
+    { v: "light", label: "Light" },
+    { v: "dark", label: "Dark" },
+  ];
+  const items = opts
+    .map(({ v, label }) =>
+      v === current
+        ? `<span class="rangeOpt active" aria-current="true">${label}</span>`
+        : `<a class="rangeOpt" href="/dashboard?theme=${v}&range=${selectedRange}${demoQ}">${label}</a>`,
+    )
+    .join("");
+  return `<div class="rangeSel" role="group" aria-label="Theme">${items}</div>`;
+}
+
+// ---------------------------------------------------------------------------
 // misc
 // ---------------------------------------------------------------------------
 
@@ -1618,9 +1681,12 @@ function renderEconomicsSection(
 // document assembly
 // ---------------------------------------------------------------------------
 
-function renderDocument(title: string, bodyHtml: string): string {
+function renderDocument(title: string, bodyHtml: string, theme: Theme = "auto"): string {
+  // "auto" emits no attribute so the page follows prefers-color-scheme; an
+  // explicit light/dark forces that theme via the html[data-theme=...] CSS.
+  const themeAttr = theme === "auto" ? "" : ` data-theme="${theme}"`;
   return `<!doctype html>
-<html lang="en">
+<html lang="en"${themeAttr}>
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -1647,6 +1713,7 @@ export function renderDashboardPage(
   data: MetricsResponse,
   isDemo: boolean,
   selectedRange: number = data.range.days,
+  theme: Theme = "dark",
 ): string {
   const m = data;
   const days = m.range.days;
@@ -1662,7 +1729,10 @@ export function renderDashboardPage(
         <h1 class="title">statshelpr metrics</h1>
         <div class="subtitle">generated ${escapeHtml(fmtDateTime(m.generatedAt))} · last ${fmtInt(days)}d</div>
       </div>
-      ${renderRangeSelector(selectedRange, isDemo)}
+      <div class="headerControls">
+        ${renderThemeSelector(theme, selectedRange, isDemo)}
+        ${renderRangeSelector(selectedRange, isDemo)}
+      </div>
     </header>
 
     ${renderHeadlineBanner(m.economics, m.comparison, days)}
@@ -1681,7 +1751,7 @@ export function renderDashboardPage(
   </div>
 </div>`;
 
-  return renderDocument("Metrics — statshelpr", body);
+  return renderDocument("Metrics — statshelpr", body, theme);
 }
 
 /** Rendered when the live KV read/aggregate fails — mirrors the old page's

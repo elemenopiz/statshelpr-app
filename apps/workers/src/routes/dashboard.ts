@@ -5,7 +5,7 @@ import { timingSafeEqualStr } from "@/lib/timing-safe-equal";
 import { loadMetrics } from "@/lib/metrics-load";
 import { buildMockMetrics } from "@/lib/metrics-mock";
 import type { MetricsResponse } from "@/lib/metrics-aggregate";
-import { renderDashboardPage, renderUnavailablePage, renderLoginPage } from "@/lib/dashboard-render";
+import { renderDashboardPage, renderUnavailablePage, renderLoginPage, parseTheme, type Theme } from "@/lib/dashboard-render";
 
 /**
  * GET /dashboard — server-rendered founder metrics dashboard. Cloudflare
@@ -48,6 +48,12 @@ export const dashboard = new Hono<{ Bindings: Env }>();
 const COOKIE_NAME = "sh_dash_session";
 const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // ~7 days
 const COOKIE_PATH = "/dashboard";
+
+// Theme preference (Auto/Light/Dark) — no client JS; persisted in its own
+// cookie and applied server-side as <html data-theme>. Defaults to dark.
+const THEME_COOKIE = "sh_dash_theme";
+const THEME_MAX_AGE_SECONDS = 60 * 60 * 24 * 365; // 1 year
+const DEFAULT_THEME: Theme = "dark";
 
 type LoadResult = { ok: true; data: MetricsResponse } | { ok: false; reason: string };
 
@@ -115,6 +121,21 @@ dashboard.get("/", async (c) => {
     return c.html(renderLoginPage({ notConfigured: !password }), 200);
   }
 
+  // Theme toggle (no client JS): a valid ?theme= persists to the theme cookie;
+  // otherwise fall back to the cookie, then the dark default. Applied as
+  // <html data-theme> by the renderer.
+  const qTheme = parseTheme(c.req.query("theme"));
+  if (qTheme) {
+    setCookie(c, THEME_COOKIE, qTheme, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "Lax",
+      maxAge: THEME_MAX_AGE_SECONDS,
+      path: COOKIE_PATH,
+    });
+  }
+  const theme: Theme = qTheme ?? parseTheme(getCookie(c, THEME_COOKIE)) ?? DEFAULT_THEME;
+
   const isDemo = c.req.query("demo") === "1";
   const range = parseRange(c.req.query("range"));
   const result = await loadDashboardData(c.env, isDemo, range);
@@ -123,7 +144,7 @@ dashboard.get("/", async (c) => {
     return c.html(renderUnavailablePage(result.reason));
   }
 
-  return c.html(renderDashboardPage(result.data, isDemo, range));
+  return c.html(renderDashboardPage(result.data, isDemo, range, theme));
 });
 
 dashboard.post("/login", async (c) => {
