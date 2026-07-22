@@ -18,10 +18,17 @@ FROM rocker/tidyverse:4.4.3
 
 # Extra R packages beyond the base image, mirroring apps/api/lib/sandbox.ts's
 # R_PACKAGES (minus tidyverse/broom/ggplot2, already present in the base
-# image) plus plumber for the HTTP layer. The system libraries these need
-# (openssl/xml2/curl/fontconfig/freetype/harfbuzz/fribidi/png/tiff/jpeg-devel)
-# are already compiled into rocker/tidyverse to support tidyverse's own deps
-# (httr/curl/xml2/ragg etc.), so no extra apt-get is required here.
+# image) plus plumber for the HTTP layer. The system libraries the STATS
+# packages need (openssl/xml2/curl/fontconfig/freetype/harfbuzz/fribidi/png/
+# tiff/jpeg-devel) are already compiled into rocker/tidyverse to support
+# tidyverse's own deps (httr/curl/xml2/ragg etc.) — but plumber's dependency
+# chain (plumber -> sodium) additionally needs libsodium headers, which the
+# base image does NOT ship. Without the apt-get below, sodium fails to
+# configure ("fatal error: sodium.h: No such file or directory"), plumber
+# fails with it, and the stopifnot() guard fails the build — exactly what
+# happened on the first real Cloud Build (2026-07-23).
+RUN apt-get update && apt-get install -y --no-install-recommends libsodium-dev && rm -rf /var/lib/apt/lists/*
+
 #
 # install.packages() does NOT make `docker build` fail just because one
 # package failed to install -- by default it prints a warning and moves on,
