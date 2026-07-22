@@ -31,6 +31,11 @@ metrics.get("/", async (c) => {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
-  const result = await loadMetrics(c.env);
+  // Optional ?days= override (dashboard-v2 item 14). Pass a positive integer
+  // through to loadMetrics; anything else falls back to its default window.
+  const rawDays = Number(c.req.query("days"));
+  const days = Number.isFinite(rawDays) && rawDays > 0 ? Math.floor(rawDays) : undefined;
+
+  const result = await loadMetrics(c.env, days);
   return c.json(result);
 });

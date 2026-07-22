@@ -51,12 +51,23 @@ const COOKIE_PATH = "/dashboard";
 
 type LoadResult = { ok: true; data: MetricsResponse } | { ok: false; reason: string };
 
-async function loadDashboardData(env: Env, isDemo: boolean): Promise<LoadResult> {
+/** Time-range selector (dashboard-v2 item 14): only 7/30/90 are allowed;
+ *  anything else (including a missing or junk `?range=`) falls back to 30. */
+const RANGE_OPTIONS = [7, 30, 90];
+const DEFAULT_RANGE_DAYS = 30;
+
+function parseRange(raw: string | undefined): number {
+  const n = Number(raw);
+  return RANGE_OPTIONS.includes(n) ? n : DEFAULT_RANGE_DAYS;
+}
+
+async function loadDashboardData(env: Env, isDemo: boolean, days: number): Promise<LoadResult> {
   if (isDemo) {
+    // The mock is a fixed 30d payload; the selector still reflects `days`.
     return { ok: true, data: buildMockMetrics() };
   }
   try {
-    const data = await loadMetrics(env);
+    const data = await loadMetrics(env, days);
     return { ok: true, data };
   } catch (e) {
     return {
@@ -105,13 +116,14 @@ dashboard.get("/", async (c) => {
   }
 
   const isDemo = c.req.query("demo") === "1";
-  const result = await loadDashboardData(c.env, isDemo);
+  const range = parseRange(c.req.query("range"));
+  const result = await loadDashboardData(c.env, isDemo, range);
 
   if (!result.ok) {
     return c.html(renderUnavailablePage(result.reason));
   }
 
-  return c.html(renderDashboardPage(result.data, isDemo));
+  return c.html(renderDashboardPage(result.data, isDemo, range));
 });
 
 dashboard.post("/login", async (c) => {
