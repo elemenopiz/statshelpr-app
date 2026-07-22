@@ -14,6 +14,41 @@ LEMONSQUEEZY_VARIANT_ID = "1929562"
 # paid-user usage assumption (~10 solves / 2 weekdays).
 AVG_SOLVES_PER_USER_PER_MONTH = "110"
 
+# --- Abuse-hole closing (security audit, 2026-07-22) — see lib/rate-limit.ts,
+# lib/kill-switch.ts, lib/interpret-token.ts for the full rationale behind
+# each of these. None of the three below change pricing/tiers/the 5/day free
+# cap — they're purely anti-abuse backstops layered around it.
+#
+# Independent free-tier daily cap on /api/interpret, per install id —
+# defense-in-depth so a leaked/replayed interpret token can't be redeemed
+# unboundedly even though it's cryptographically valid. Set a little above
+# FREE_TIER_DAILY_LIMIT (a calc question is 1 solve + 1 interpret call, so
+# this only needs to be >= that to never be the bottleneck for legitimate
+# use; the extra headroom covers a client retry after e.g. a WebR crash).
+INTERPRET_DAILY_LIMIT = "10"
+# Per-IP daily cap, applied on top of the per-install counters on BOTH
+# /api/solve and /api/interpret (each route/direction tracks its own
+# independent per-IP counter) — a backstop against trivial install-id
+# rotation (the install id is just a client-picked crypto.randomUUID(), see
+# apps/extension/src/install-id.ts, with no server issuance, so it resets
+# for free). Sized to be generous for shared-NAT campus WiFi (200 solve
+# calls/day from one IP ~= 40 distinct free users each maxing out their own
+# 5/day cap, or many more if most don't) while still bounding a single-IP
+# install-id-rotation script to a small, known fraction (well under half) of
+# the global ceiling below. Only applied to free-tier callers — paid
+# licenses stay unlimited, same as the per-install counters.
+IP_DAILY_LIMIT = "200"
+# Global (NOT per-user) daily ceiling on combined solve+interpret Gemini
+# calls, checked before EVERY call regardless of caller/tier — the real
+# volume/cost backstop the audit flagged as missing (previously: only a
+# daily 08:00 UTC alert EMAIL after the fact, nothing in the request path
+# itself). At the pessimistic per-call cost assumed in lib/kill-switch.ts
+# ($0.08 — worst-case model/token mix, not typical traffic), 1000 calls/day
+# bounds worst-case exposure at ~$80/day. Comfortably above the documented
+# current volume ("single-digit-to-low-hundreds of requests/day" pre-launch,
+# see lib/metrics-store.ts) — raise as real traffic grows past this.
+GLOBAL_DAILY_CALL_LIMIT = "1000"
+
 # KV binding for licenses, rate limiting, feedback, LS webhook idempotency.
 # Create with: wrangler kv namespace create statshelpr
 # Then replace the id below with the printed id.
@@ -45,6 +80,16 @@ id = "23d6ef6041854bec96fd277cb013e7e6"
 #                                                     lib/alerts.ts. Unset (or RESEND_API_KEY unset)
 #                                                     = alerting skipped silently; the daily
 #                                                     snapshot rollup still runs.)
+#   wrangler secret put INTERPRET_SIGNING_SECRET     (*** REQUIRED — MUST BE SET BEFORE DEPLOY ***
+#                                                     security-audit item A: signs the short-lived
+#                                                     token binding /api/interpret to a prior
+#                                                     /api/solve call — see lib/interpret-token.ts.
+#                                                     Generate with e.g. `openssl rand -hex 32`.
+#                                                     Unset = /api/interpret hard-fails closed (403
+#                                                     on every request) — same fail-closed contract
+#                                                     as DASHBOARD_PASSWORD/METRICS_TOKEN above, NOT
+#                                                     an open gate. The calc/RCODE question path is
+#                                                     unusable until this is set.)
 
 # Cron trigger — drives the `scheduled` handler in src/index.ts, which (a)
 # rolls up a compact daily KPI snapshot (`snapshot:YYYY-MM-DD`) so trends

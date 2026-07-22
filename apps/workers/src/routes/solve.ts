@@ -11,10 +11,12 @@ import { chatStream, type LlmChatUsage } from "@statshelpr/solver-core/core/prov
 import { classifyError } from "@/lib/classify-error";
 import { costUsdForUsage } from "@/lib/cost";
 import { summarizeCsv } from "@/lib/data-summary";
+import { issueInterpretToken } from "@/lib/interpret-token";
+import { KILL_SWITCH_MESSAGE, checkGlobalKillSwitch } from "@/lib/kill-switch";
 import { validateLicense } from "@/lib/license";
 import { activateForInstall } from "@/lib/license-activation";
 import { recordPaywallHitInBackground, recordServerEventInBackground } from "@/lib/metrics-store";
-import { checkAndIncrement, hashBucket } from "@/lib/rate-limit";
+import { checkAndIncrement, getClientIp, hashBucket } from "@/lib/rate-limit";
 import { makeSseStream, sseHeaders } from "@/lib/sse";
 import {
   buildQuestionPrompt,
@@ -38,6 +40,13 @@ solve.use("*", cors({
 solve.post("/", async (c) => {
   const apiKey = c.env.GEMINI_API_KEY;
   if (!apiKey) return c.json({ error: "GEMINI_API_KEY not configured" }, 500);
+
+  // Security-audit item D: global (not per-caller) daily volume ceiling,
+  // checked first — before validateLicense's possible outbound LS call and
+  // before anything Gemini-bound — so a tripped switch costs at most one KV
+  // read. Applies to EVERY caller regardless of tier; see lib/kill-switch.ts.
+  const kill = await checkGlobalKillSwitch(c.env);
+  if (!kill.allowed) return c.json({ error: KILL_SWITCH_MESSAGE }, 503);
 
   const auth = c.req.header("authorization") ?? "";
   const licenseKey = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
@@ -69,6 +78,27 @@ solve.post("/", async (c) => {
       );
     }
   } else {
+    // Security-audit item C: per-IP backstop, checked BEFORE the per-install
+    // counter so a caller rotating install ids specifically to dodge their
+    // own cap (the install id is just a client-picked crypto.randomUUID(),
+    // see apps/extension/src/install-id.ts, with no server issuance) still
+    // gets caught here even though each fresh id starts its own bucket at 0.
+    // Deliberately NOT recorded as a paywall hit below — this is a network-
+    // level abuse signal, not an individual free user hitting their real
+    // cap, and folding it into that metric would misrepresent conversion
+    // data. 429, not 402: the extension only special-cases exactly 402 to
+    // sync its local per-install counter (apps/extension/src/content.ts),
+    // which doesn't apply here.
+    const ip = getClientIp(c);
+    const ipLimit = Number(c.env.IP_DAILY_LIMIT ?? "200") || 200;
+    const rlIp = await checkAndIncrement(c.env, ip, { limit: ipLimit, keyPrefix: "rl:ip:solve:" });
+    if (!rlIp.allowed) {
+      return c.json(
+        { error: "Too many requests from this network today. Try again later.", resetAt: rlIp.resetAt },
+        429,
+      );
+    }
+
     const rl = await checkAndIncrement(c.env, installId || "anon");
     if (!rl.allowed) {
       // Paywall hit — the #1 leading indicator of conversion (item 7).
@@ -216,12 +246,18 @@ solve.post("/", async (c) => {
       });
       const { extractRCode } = await import("@statshelpr/solver-core/core");
       const rCode = extractRCode(parsed.body);
+      // Security-audit item A: mint the token that proves to /api/interpret
+      // that a real, rate-limited /api/solve call preceded it. Omitted
+      // entirely (not an empty string) when INTERPRET_SIGNING_SECRET isn't
+      // configured — see lib/interpret-token.ts's fail-closed contract.
+      const interpretToken = await issueInterpretToken(c.env, installId);
       await write({
         type: "result",
         result: {
           mode: "rcode",
           rCode,
           assistantBody: parsed.body,
+          ...(interpretToken ? { interpretToken } : {}),
         },
       });
     } catch (e) {

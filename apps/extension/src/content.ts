@@ -73,6 +73,12 @@ interface RCodeResult {
   mode: "rcode";
   rCode: string;
   assistantBody: string;
+  /** Signed, short-lived token proving this /api/solve call happened —
+   * /api/interpret now requires it (server-side abuse-hole fix) before it
+   * will do anything with the R output below. Absent only if the server's
+   * INTERPRET_SIGNING_SECRET isn't configured, in which case /api/interpret
+   * will reject the follow-up call with a clear error. */
+  interpretToken?: string;
 }
 
 /** Final answer after WebR ran the R code and /api/interpret reasoned over
@@ -386,6 +392,7 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
           exitCode: runResult.exitCode,
           durationMs: runResult.durationMs,
           assistantBody: solveResult.assistantBody,
+          ...(solveResult.interpretToken ? { interpretToken: solveResult.interpretToken } : {}),
         }),
       });
       if (!interpretRes.ok) throw new Error(await readErrorBody(interpretRes));

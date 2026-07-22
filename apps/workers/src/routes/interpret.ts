@@ -7,9 +7,11 @@ import { chatStream, type LlmChatUsage } from "@statshelpr/solver-core/core/prov
 import { classifyError } from "@/lib/classify-error";
 import { costUsdForUsage } from "@/lib/cost";
 import { summarizeCsv } from "@/lib/data-summary";
+import { verifyInterpretToken } from "@/lib/interpret-token";
+import { KILL_SWITCH_MESSAGE, checkGlobalKillSwitch } from "@/lib/kill-switch";
 import { validateLicense } from "@/lib/license";
 import { recordServerEventInBackground } from "@/lib/metrics-store";
-import { hashBucket } from "@/lib/rate-limit";
+import { checkAndIncrement, getClientIp, hashBucket } from "@/lib/rate-limit";
 import { makeSseStream, sseHeaders } from "@/lib/sse";
 import {
   buildFollowupContent,
@@ -28,7 +30,20 @@ import {
  * plus the original question context and asks the LLM to interpret + emit a
  * final answer.
  *
- * No rate-limit increment here — /api/solve already counted this solve.
+ * Security-audit fix (this route used to have ZERO rate limiting, on the
+ * mistaken assumption that "/api/solve already counted this solve" — nothing
+ * actually LINKED an interpret call to a prior solve, so anyone could POST
+ * fabricated rCode/stdout/questionText straight here for unlimited free
+ * Gemini-billed completions). Now gated by three independent layers, all
+ * checked before Gemini is ever touched:
+ *   1. The global kill switch (lib/kill-switch.ts — item D).
+ *   2. A required, signed, short-lived token proving a real /api/solve call
+ *      just happened for this exact install id (lib/interpret-token.ts —
+ *      item A, the primary fix).
+ *   3. This route's OWN independent per-install + per-IP rate limit
+ *      (lib/rate-limit.ts — items B/C), defense-in-depth against a
+ *      leaked/replayed token, skipped for verified paid licenses (unlimited,
+ *      same as /api/solve).
  */
 interface InterpretBody extends SolveBody {
   rCode: string;
@@ -37,6 +52,10 @@ interface InterpretBody extends SolveBody {
   durationMs?: number;
   /** Assistant message body from /api/solve (contains the R code + PLAN comment). */
   assistantBody: string;
+  /** Signed token from /api/solve's "rcode" result, proving this call is a
+   *  legitimate follow-up to a real, already-rate-limited solve — REQUIRED,
+   *  see lib/interpret-token.ts. */
+  interpretToken?: string;
 }
 
 export const interpret = new Hono<{ Bindings: Env }>();
@@ -51,8 +70,16 @@ interpret.post("/", async (c) => {
   const apiKey = c.env.GEMINI_API_KEY;
   if (!apiKey) return c.json({ error: "GEMINI_API_KEY not configured" }, 500);
 
+  // Security-audit item D: global kill switch, checked first — before
+  // validateLicense's possible outbound LS call and before anything
+  // Gemini-bound — so a tripped switch costs at most one KV read. Applies
+  // to EVERY caller regardless of tier; see lib/kill-switch.ts.
+  const kill = await checkGlobalKillSwitch(c.env);
+  if (!kill.allowed) return c.json({ error: KILL_SWITCH_MESSAGE }, 503);
+
   const auth = c.req.header("authorization") ?? "";
   const licenseKey = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+  const installId = c.req.header("x-install-id") ?? "";
   const lic = await validateLicense(c.env, licenseKey);
   if (!lic.ok) return c.json({ error: lic.reason ?? "Unauthorized" }, 401);
 
@@ -67,6 +94,46 @@ interpret.post("/", async (c) => {
     return c.json({ error: "Provide rCode and stdout." }, 400);
   }
 
+  // Security-audit item A (the primary fix): require + verify the token
+  // /api/solve minted for this exact install id, BEFORE calling Gemini.
+  // Rejects fabricated direct-to-/api/interpret calls that never went
+  // through a real, rate-limited /api/solve — see lib/interpret-token.ts.
+  const tokenCheck = await verifyInterpretToken(c.env, body.interpretToken, installId);
+  if (!tokenCheck.ok) {
+    return c.json({ error: tokenCheck.reason ?? "Invalid or missing interpret token." }, 403);
+  }
+
+  // Security-audit items B/C: independent rate limiting, defense-in-depth
+  // even with a cryptographically valid token (bounds a leaked/replayed
+  // token to a small, known daily ceiling instead of unlimited redemptions).
+  // Skipped for verified paid licenses, matching /api/solve's unlimited-tier
+  // model — a paid license is already bound to one device
+  // (lib/license-activation.ts) and already had to call /api/solve to get
+  // here at all.
+  if (lic.tier !== "paid") {
+    const interpretLimit = Number(c.env.INTERPRET_DAILY_LIMIT ?? "10") || 10;
+    const rl = await checkAndIncrement(c.env, installId || "anon", {
+      limit: interpretLimit,
+      keyPrefix: "rl:interpret:",
+    });
+    if (!rl.allowed) {
+      return c.json(
+        { error: `Interpret daily limit reached (${rl.count}/${rl.limit}).`, resetAt: rl.resetAt },
+        429,
+      );
+    }
+
+    const ip = getClientIp(c);
+    const ipLimit = Number(c.env.IP_DAILY_LIMIT ?? "200") || 200;
+    const rlIp = await checkAndIncrement(c.env, ip, { limit: ipLimit, keyPrefix: "rl:ip:interpret:" });
+    if (!rlIp.allowed) {
+      return c.json(
+        { error: "Too many requests from this network today. Try again later.", resetAt: rlIp.resetAt },
+        429,
+      );
+    }
+  }
+
   const dataFiles: DataFile[] = body.dataFiles ?? [];
   const dataContext = dataFiles.length
     ? buildDataContext(
@@ -76,8 +143,9 @@ interpret.post("/", async (c) => {
 
   // Computed once and reused for both the LLM call and metrics recording
   // below, so the event we record always reflects the model actually used.
+  // (installId was already read above, before body parsing, for the token
+  // check + rate limits.)
   const model = resolveModel(body);
-  const installId = c.req.header("x-install-id") ?? "";
   const installHash = await hashBucket(installId || "anon");
 
   const stream = makeSseStream(async (write) => {
