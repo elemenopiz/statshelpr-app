@@ -26,8 +26,12 @@ export interface RateLimitResult {
   resetAt: number;
 }
 
-/** SHA-256 the bucket id so we never store license keys / install ids raw in KV. */
-async function hashBucket(bucketId: string): Promise<string> {
+/** SHA-256 the bucket id so we never store license keys / install ids raw in KV.
+ *  Exported so lib/metrics-store.ts / routes/telemetry.ts can hash install ids
+ *  with this EXACT same function — the metrics DAU/WAU install-hash set only
+ *  dedupes correctly if server events (solve/interpret) and the client
+ *  telemetry beacon hash the same install id to the same value. */
+export async function hashBucket(bucketId: string): Promise<string> {
   const buf = new TextEncoder().encode(bucketId);
   const digest = await crypto.subtle.digest("SHA-256", buf);
   return Array.from(new Uint8Array(digest))

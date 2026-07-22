@@ -9,6 +9,10 @@ LLM_PROVIDER = "gemini"
 FREE_TIER_DAILY_LIMIT = "5"
 LEMONSQUEEZY_STORE_ID = "300628"
 LEMONSQUEEZY_VARIANT_ID = "1929562"
+# Assumed solves/user/month for GET /api/metrics's economics.grossMarginPerUserPct
+# estimate only (COGS vs price — not a cap or rate limit). 110 = the documented
+# paid-user usage assumption (~10 solves / 2 weekdays).
+AVG_SOLVES_PER_USER_PER_MONTH = "110"
 
 # KV binding for licenses, rate limiting, feedback, LS webhook idempotency.
 # Create with: wrangler kv namespace create statshelpr
@@ -28,6 +32,9 @@ id = "23d6ef6041854bec96fd277cb013e7e6"
 #                                                     device-reset emails go via Resend; also
 #                                                     verify the "statshelpr.com" sending domain
 #                                                     in the Resend dashboard or sends 403)
+#   wrangler secret put METRICS_TOKEN               (required for GET /api/metrics — bearer
+#                                                     token; generate with e.g. `openssl rand
+#                                                     -hex 32`. Unset = route hard-fails closed.)
 
 # Custom domain — statshelpr.com is already in this Cloudflare account so
 # `custom_domain = true` auto-creates the AAAA record + provisions SSL.

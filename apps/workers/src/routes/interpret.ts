@@ -3,9 +3,12 @@ import { cors } from "hono/cors";
 import type { Env } from "../types";
 
 import { buildDataContext, buildSystemPrompt, parseResponse } from "@statshelpr/solver-core/core";
-import { chatStream } from "@statshelpr/solver-core/core/providers";
+import { chatStream, type LlmChatUsage } from "@statshelpr/solver-core/core/providers";
+import { costUsdForUsage } from "@/lib/cost";
 import { summarizeCsv } from "@/lib/data-summary";
 import { validateLicense } from "@/lib/license";
+import { recordServerEventInBackground } from "@/lib/metrics-store";
+import { hashBucket } from "@/lib/rate-limit";
 import { makeSseStream, sseHeaders } from "@/lib/sse";
 import {
   buildFollowupContent,
@@ -70,7 +73,14 @@ interpret.post("/", async (c) => {
       )
     : "";
 
+  // Computed once and reused for both the LLM call and metrics recording
+  // below, so the event we record always reflects the model actually used.
+  const model = resolveModel(body);
+  const installId = c.req.header("x-install-id") ?? "";
+  const installHash = await hashBucket(installId || "anon");
+
   const stream = makeSseStream(async (write) => {
+    const startedAt = Date.now(); // wall time around the stream, for serverLatencyMs
     try {
       const hasImage = (body.images?.length ?? 0) > 0;
       const system = buildSystemPrompt({ dataContext, imageMode: hasImage });
@@ -81,8 +91,9 @@ interpret.post("/", async (c) => {
 
       let fbuf = "";
       let fSent = "";
+      let usage: LlmChatUsage | undefined;
       for await (const delta of chatStream(apiKey, {
-        model: resolveModel(body),
+        model,
         system,
         messages: [
           { role: "user", content: userContent },
@@ -96,6 +107,9 @@ interpret.post("/", async (c) => {
         maxTokens: MAX_TOKENS_SECOND,
         thinking: { type: "disabled" },
       })) {
+        // Usage arrives on the final chunk, which has no `text` — capture it
+        // before the text-only `continue` below would otherwise skip it.
+        if (delta.usage) usage = delta.usage;
         if (!delta.text) continue;
         fbuf += delta.text;
         const cleaned = fbuf.replace(/^\s*\[(CONCEPT|RCODE|CALC)\]\s*\n?/i, "");
@@ -109,6 +123,32 @@ interpret.post("/", async (c) => {
 
       const finalParsed = parseResponse(fbuf);
       const finalBlanks = deriveBlankAnswers(finalParsed.body, body.blanks);
+
+      // interpret.ts is always the finishing move for a calc question (solve.ts
+      // already handed off RCODE and recorded its own leg as costMode:"calc";
+      // this is the second leg). This is the ONE place modeSplit.calc
+      // increments — not at solve.ts's handoff — so a calc question counts
+      // once, not twice (see lib/metrics-store.ts's DailyMetricsBucket doc).
+      // No `confidence` here: the pinned contract scopes server-recorded
+      // confidence to "solve concept path" only.
+      recordServerEventInBackground(c, {
+        route: "interpret",
+        success: true,
+        model,
+        promptTokens: usage?.prompt_tokens ?? 0,
+        completionTokens: usage?.completion_tokens ?? 0,
+        cachedTokens: usage?.cached_tokens ?? 0,
+        costUsd: costUsdForUsage(model, {
+          promptTokens: usage?.prompt_tokens ?? 0,
+          completionTokens: usage?.completion_tokens ?? 0,
+          cachedTokens: usage?.cached_tokens ?? 0,
+        }),
+        serverLatencyMs: Date.now() - startedAt,
+        installHash,
+        costMode: "calc",
+        completedQuestion: { mode: "calc" },
+      });
+
       await write({
         type: "result",
         result: {
@@ -125,6 +165,17 @@ interpret.post("/", async (c) => {
         },
       });
     } catch (e) {
+      recordServerEventInBackground(c, {
+        route: "interpret",
+        success: false,
+        model,
+        promptTokens: 0,
+        completionTokens: 0,
+        cachedTokens: 0,
+        costUsd: 0,
+        serverLatencyMs: Date.now() - startedAt,
+        installHash,
+      });
       const msg = (e as Error).message ?? "Interpret failed";
       await write({ type: "error", message: msg });
     }

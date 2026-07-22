@@ -7,11 +7,13 @@ import {
   buildSystemPrompt,
   parseResponse,
 } from "@statshelpr/solver-core/core";
-import { chatStream } from "@statshelpr/solver-core/core/providers";
+import { chatStream, type LlmChatUsage } from "@statshelpr/solver-core/core/providers";
+import { costUsdForUsage } from "@/lib/cost";
 import { summarizeCsv } from "@/lib/data-summary";
 import { validateLicense } from "@/lib/license";
 import { activateForInstall } from "@/lib/license-activation";
-import { checkAndIncrement } from "@/lib/rate-limit";
+import { recordServerEventInBackground } from "@/lib/metrics-store";
+import { checkAndIncrement, hashBucket } from "@/lib/rate-limit";
 import { makeSseStream, sseHeaders } from "@/lib/sse";
 import {
   buildQuestionPrompt,
@@ -90,7 +92,13 @@ solve.post("/", async (c) => {
       )
     : "";
 
+  // Computed once and reused for both the LLM call and metrics recording
+  // below, so the event we record always reflects the model actually used.
+  const model = resolveModel(body);
+  const installHash = await hashBucket(installId || "anon");
+
   const stream = makeSseStream(async (write) => {
+    const startedAt = Date.now(); // wall time around the stream, for serverLatencyMs
     try {
       const hasImage = (body.images?.length ?? 0) > 0;
       const hasBlanks = (body.blanks?.length ?? 0) >= 2;
@@ -103,14 +111,18 @@ solve.post("/", async (c) => {
       let buf = "";
       let mode: "concept" | "calc" | "unknown" = "unknown";
       let userVisibleSent = "";
+      let usage: LlmChatUsage | undefined;
 
       for await (const delta of chatStream(apiKey, {
-        model: resolveModel(body),
+        model,
         system,
         messages: [{ role: "user", content: userContent }],
         maxTokens: MAX_TOKENS_FIRST,
         thinking: { type: "enabled" },
       })) {
+        // Usage arrives on the final chunk, which has no `text` — capture it
+        // before the text-only `continue` below would otherwise skip it.
+        if (delta.usage) usage = delta.usage;
         if (!delta.text) continue;
         buf += delta.text;
 
@@ -142,9 +154,26 @@ solve.post("/", async (c) => {
       }
 
       const parsed = parseResponse(buf);
+      const usageTokens = {
+        promptTokens: usage?.prompt_tokens ?? 0,
+        completionTokens: usage?.completion_tokens ?? 0,
+        cachedTokens: usage?.cached_tokens ?? 0,
+      };
+      const costUsd = costUsdForUsage(model, usageTokens);
 
       if (parsed.mode === "concept") {
         const blanks = deriveBlankAnswers(parsed.body, body.blanks);
+        recordServerEventInBackground(c, {
+          route: "solve",
+          success: true,
+          model,
+          ...usageTokens,
+          costUsd,
+          serverLatencyMs: Date.now() - startedAt,
+          installHash,
+          costMode: "concept",
+          completedQuestion: { mode: "concept", confidence: parsed.confidence },
+        });
         await write({
           type: "result",
           result: {
@@ -162,7 +191,20 @@ solve.post("/", async (c) => {
       // RCODE path — hand off to client. Client runs WebR then POSTs
       // /api/interpret with { question, images, dataFiles, rCode, stdout }.
       // We include assistantBody so /api/interpret can reconstruct the
-      // exact conversation shape.
+      // exact conversation shape. This leg's own cost is attributed to
+      // "calc" — the question isn't fully answered until interpret.ts
+      // finishes, so modeSplit.calc increments there, not here (see
+      // lib/metrics-store.ts's DailyMetricsBucket doc).
+      recordServerEventInBackground(c, {
+        route: "solve",
+        success: true,
+        model,
+        ...usageTokens,
+        costUsd,
+        serverLatencyMs: Date.now() - startedAt,
+        installHash,
+        costMode: "calc",
+      });
       const { extractRCode } = await import("@statshelpr/solver-core/core");
       const rCode = extractRCode(parsed.body);
       await write({
@@ -174,6 +216,17 @@ solve.post("/", async (c) => {
         },
       });
     } catch (e) {
+      recordServerEventInBackground(c, {
+        route: "solve",
+        success: false,
+        model,
+        promptTokens: 0,
+        completionTokens: 0,
+        cachedTokens: 0,
+        costUsd: 0,
+        serverLatencyMs: Date.now() - startedAt,
+        installHash,
+      });
       await write({ type: "error", message: humanizeError(e) });
     }
   });
