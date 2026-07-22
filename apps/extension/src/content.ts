@@ -256,6 +256,41 @@ function hasQuestionAncestor(question: HTMLElement): boolean {
 //     cached — see webr-runner.ts), run the code, then POST the stdout to
 //     /api/interpret (also SSE) for the LLM to turn into a final answer.
 
+/** No SSE activity — not even the initial connection — for this long aborts
+ * the request. Neither fetch() nor a stalled ReadableStream reject on their
+ * own when a connection dies silently (dead proxy, hung server), so without
+ * this the button spins forever. Generous vs. the 4-6s timeout used
+ * elsewhere (activate.ts, popup.ts) for quick non-streaming calls, since a
+ * legitimate solve keeps emitting phase/delta events throughout a slow model
+ * response — see solve/route.ts's write() calls. */
+const SSE_IDLE_TIMEOUT_MS = 30_000;
+
+/** Idle/connect watchdog for a streamed fetch: call the returned `poke()` on
+ * every sign of life (it's called once immediately, covering the initial
+ * connect, and again by consumeSseResult on every chunk). If `poke()` isn't
+ * called again within `ms`, aborts `ctrl`. */
+function armIdleAbort(ctrl: AbortController, ms: number) {
+  let timedOut = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const poke = () => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timedOut = true;
+      ctrl.abort();
+    }, ms);
+  };
+  poke();
+  return {
+    poke,
+    clear: () => {
+      if (timer) clearTimeout(timer);
+    },
+    get timedOut() {
+      return timedOut;
+    },
+  };
+}
+
 async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
   if (btn.disabled) return;
   // Wall-clock start for the telemetry beacon's clientLatencyMs — captured
@@ -269,8 +304,16 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
   );
 
   // Refresh CSVs from storage in case the popup uploaded a file while we
-  // were already on the Canvas page.
-  await loadFiles();
+  // were already on the Canvas page. Guarded because a long-lived tab whose
+  // extension auto-updated mid-session throws "Extension context
+  // invalidated" here — left unguarded, that throw was unhandled and the
+  // button never left its loading spinner.
+  try {
+    await loadFiles();
+  } catch (e) {
+    setBtnState(btn, "error", (e as Error).message);
+    return;
+  }
 
   let scraped: ScrapedQuestion;
   try {
@@ -280,10 +323,17 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
     return;
   }
 
-  const cfg = await getConfig();
+  let cfg: Awaited<ReturnType<typeof getConfig>>;
+  let installId: string;
+  try {
+    cfg = await getConfig();
+    installId = await getInstallId();
+  } catch (e) {
+    setBtnState(btn, "error", (e as Error).message);
+    return;
+  }
   const apiUrl = (cfg.apiUrl ?? "https://api.statshelpr.com").replace(/\/$/, "");
   const licenseKey = cfg.licenseKey ?? "";
-  const installId = await getInstallId();
   // Shared by both /api/solve and /api/interpret below — the install id lets
   // the server bucket the free-tier rate limit per install (see install-id.ts).
   const headers: HeadersInit = {
@@ -303,6 +353,10 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
   }));
   const apiDataFiles = dataFiles.map((f) => ({ filename: f.filename, content: f.content }));
 
+  const solveCtrl = new AbortController();
+  const solveIdle = armIdleAbort(solveCtrl, SSE_IDLE_TIMEOUT_MS);
+  let interpretIdle: ReturnType<typeof armIdleAbort> | undefined;
+
   let final: ConceptResult | CalcResult;
   try {
     const solveRes = await fetch(`${apiUrl}/api/solve`, {
@@ -315,6 +369,7 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
         images: scraped.images,
         dataFiles: apiDataFiles,
       }),
+      signal: solveCtrl.signal,
     });
     if (!solveRes.ok) {
       const bodyText = await solveRes.text();
@@ -346,7 +401,7 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
     // stale device-limit flag so the popup stops showing the reset prompt once
     // the user has reset onto this device.
     void clearActivationBlocked();
-    const solveResult = await consumeSseResult(solveRes);
+    const solveResult = await consumeSseResult(solveRes, solveIdle.poke);
 
     if (solveResult.mode === "concept") {
       final = solveResult;
@@ -372,6 +427,8 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
       const runResult = await runR(solveResult.rCode, apiDataFiles);
 
       btn.setAttribute("title", "Interpreting result…");
+      const interpretCtrl = new AbortController();
+      interpretIdle = armIdleAbort(interpretCtrl, SSE_IDLE_TIMEOUT_MS);
       const interpretRes = await fetch(`${apiUrl}/api/interpret`, {
         method: "POST",
         headers,
@@ -387,9 +444,10 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
           durationMs: runResult.durationMs,
           assistantBody: solveResult.assistantBody,
         }),
+        signal: interpretCtrl.signal,
       });
       if (!interpretRes.ok) throw new Error(await readErrorBody(interpretRes));
-      const interpretResult = await consumeSseResult(interpretRes);
+      const interpretResult = await consumeSseResult(interpretRes, interpretIdle.poke);
       if (interpretResult.mode !== "calc") {
         throw new Error("Unexpected response from interpreter.");
       }
@@ -398,8 +456,15 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
       throw new Error("Unexpected response from solve.");
     }
   } catch (e) {
-    setBtnState(btn, "error", (e as Error).message);
+    const message =
+      solveIdle.timedOut || interpretIdle?.timedOut
+        ? `No response for ${SSE_IDLE_TIMEOUT_MS / 1000}s — check your connection and try again.`
+        : (e as Error).message;
+    setBtnState(btn, "error", message);
     return;
+  } finally {
+    solveIdle.clear();
+    interpretIdle?.clear();
   }
 
   const cleaned = stripTags(final.answer);
@@ -569,9 +634,11 @@ async function clearActivationBlocked(): Promise<void> {
 /**
  * Read an SSE response stream down to its terminal "result" event.
  * "phase"/"delta" events are consumed and ignored — this button-only UI has no
- * panel to stream text into, only the button's spinner/title.
+ * panel to stream text into, only the button's spinner/title. `poke` is
+ * called on every chunk received so the caller's idle watchdog (see
+ * armIdleAbort) knows the connection is still alive.
  */
-async function consumeSseResult(res: Response): Promise<SolveResult> {
+async function consumeSseResult(res: Response, poke: () => void): Promise<SolveResult> {
   const reader = res.body?.getReader();
   if (!reader) throw new Error("Empty response stream.");
   const decoder = new TextDecoder();
@@ -582,6 +649,7 @@ async function consumeSseResult(res: Response): Promise<SolveResult> {
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
+    poke();
     buf += decoder.decode(value, { stream: true });
     const frames = buf.split("\n\n");
     buf = frames.pop() ?? "";

@@ -56,6 +56,13 @@ const STORAGE_KEY_EXTRA_PACKAGES = "extraPackages";
  * read which of the user's extras failed to load. */
 const STORAGE_KEY_PACKAGE_ERRORS = "packageErrors";
 
+/** Ceiling on a single R execution. Without it, a runaway loop in
+ * model-written R code hangs runR() — and the whole solve button — forever,
+ * since nothing else here ever settles. interrupt() is WebR's documented way
+ * to stop a running evaluation; racing it against a timer also bounds runR()
+ * itself in case interrupt() doesn't unstick things in time. */
+const R_EXEC_TIMEOUT_MS = 30_000;
+
 /** One user-added package that failed to install/attach during boot. */
 export interface PackageError {
   pkg: string;
@@ -202,6 +209,14 @@ export async function runR(code: string, dataFiles: DataFileInput[]): Promise<Ru
   const webR = await getWebR();
   const shelter = await new webR.Shelter();
 
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      webR.interrupt();
+      reject(new Error(`R execution timed out after ${R_EXEC_TIMEOUT_MS / 1000}s.`));
+    }, R_EXEC_TIMEOUT_MS);
+  });
+
   try {
     for (const f of dataFiles) {
       const bytes = new TextEncoder().encode(f.content);
@@ -209,16 +224,19 @@ export async function runR(code: string, dataFiles: DataFileInput[]): Promise<Ru
     }
 
     const preamble = dataLoadPreamble(dataFiles);
-    const { output } = await shelter.captureR(preamble ? `${preamble}\n${code}` : code, {
-      captureStreams: true,
-      captureConditions: true,
-      withAutoprint: false,
-      // Don't let R errors throw a JS exception — we want the error message
-      // captured as stderr (with exitCode=1) so the caller can still POST
-      // it to /api/interpret for the model to reason about, same as the old
-      // sandbox's non-zero-exit-code behavior.
-      throwJsException: false,
-    });
+    const { output } = await Promise.race([
+      shelter.captureR(preamble ? `${preamble}\n${code}` : code, {
+        captureStreams: true,
+        captureConditions: true,
+        withAutoprint: false,
+        // Don't let R errors throw a JS exception — we want the error message
+        // captured as stderr (with exitCode=1) so the caller can still POST
+        // it to /api/interpret for the model to reason about, same as the old
+        // sandbox's non-zero-exit-code behavior.
+        throwJsException: false,
+      }),
+      timeout,
+    ]);
 
     const { stdout, stderr } = formatCaptureOutput(output as CaptureOutputItem[]);
     const durationMs = performance.now() - start;
@@ -235,6 +253,7 @@ export async function runR(code: string, dataFiles: DataFileInput[]): Promise<Ru
     const message = (e as WebRError | Error).message ?? "R execution failed.";
     return { stdout: message, exitCode: 1, durationMs };
   } finally {
+    if (timer) clearTimeout(timer);
     await shelter.purge();
   }
 }
