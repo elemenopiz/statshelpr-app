@@ -1,0 +1,13 @@
+{
+  "name": "concept-missing-data: household income distribution shape (no data uploaded)",
+  "request": {
+    "questionText": "A data frame incomes.csv contains the annual household income (in dollars) for 10,000 U.S. households sampled at random. The distribution of the income variable is best described as which of the following?",
+    "choices": [
+      { "label": "A", "text": "skewed to the right", "type": "radio" },
+      { "label": "B", "text": "skewed to the left", "type": "radio" },
+      { "label": "C", "text": "approximately symmetric", "type": "radio" },
+      { "label": "D", "text": "uniform", "type": "radio" }
+    ]
+  },
+  "expected": { "mode": "concept", "selectedChoices": ["A"] }
+}

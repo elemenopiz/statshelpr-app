@@ -1,0 +1,13 @@
+{
+  "name": "concept-missing-data: Scooby episode-time distribution shape (no data uploaded)",
+  "request": {
+    "questionText": "Scooby-Doo is an American media franchise based on an animated television series (c. 1969) featuring four teenagers and their talking Great Dane dog named Scooby-Doo who solve mysteries sometimes involving supposedly supernatural forces. The data frame in scooby.csv contains information on more than 500 episodes, including a variable called time for the duration of the episode in minutes. The distribution of the time variable is best described as which of the following?",
+    "choices": [
+      { "label": "A", "text": "skewed to the right", "type": "radio" },
+      { "label": "B", "text": "skewed to the left", "type": "radio" },
+      { "label": "C", "text": "multimodal", "type": "radio" },
+      { "label": "D", "text": "approximately symmetric", "type": "radio" }
+    ]
+  },
+  "expected": { "mode": "concept", "selectedChoices": ["A"] }
+}

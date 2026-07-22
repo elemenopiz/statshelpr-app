@@ -1,0 +1,67 @@
+{
+  "ranAt": "2026-07-22T19:34:11.353Z",
+  "model": "gemini-3.5-flash-lite",
+  "baseUrl": "http://localhost:3030",
+  "fixturesDir": "/private/tmp/claude-501/-Users-zsha-Documents-statshelpr-app/e982a77b-a6be-48e8-bef0-1f74beeb7db5/scratchpad/eval-fixtures",
+  "summary": {
+    "total": 3,
+    "passed": 2,
+    "failed": 1,
+    "tokens": {
+      "prompt": 20835,
+      "completion": 46,
+      "total": 22010,
+      "cached": 0,
+      "output": 1175,
+      "thinking": 1129
+    },
+    "estCostUsd": 0.0092
+  },
+  "failures": [
+    {
+      "name": "calc-inline: Nimbus expected value of contract profit (numbers supplied inline, no data file)",
+      "expected": {
+        "mode": "calc",
+        "selectedChoices": [
+          "B"
+        ],
+        "answerContains": [
+          "186"
+        ]
+      },
+      "checks": [
+        {
+          "label": "answer contains \"186\"",
+          "pass": false,
+          "expected": "186",
+          "actual": "Answer: B"
+        }
+      ],
+      "question": "Software-as-a-service start-up firm Nimbus 2K is weighing the uncertainty around a proposal to pursue a major contract. Their data scientist estimates the following set of potential outcomes: there is an 18% chance the firm wins the contract and earns a profit of $700,000; there is a 12% chance the firm wins the contract but incurs higher expenses, earning a profit of $500,000; otherwise the firm loses the contract and earns no profit. The expected value of the contract profit is closest to which of the following?",
+      "response": {
+        "mode": "concept",
+        "selectedChoices": [
+          "B"
+        ],
+        "answer": "Answer: B",
+        "usage": {
+          "prompt_tokens": 6993,
+          "completion_tokens": 12,
+          "total_tokens": 7340
+        },
+        "debug": {
+          "route": "concept",
+          "rawFirst": "[CONCEPT]\nAnswer: B\nCONFIDENCE: High",
+          "selectedChoices": [
+            "B"
+          ],
+          "usage": {
+            "prompt_tokens": 6993,
+            "completion_tokens": 12,
+            "total_tokens": 7340
+          }
+        }
+      }
+    }
+  ]
+}

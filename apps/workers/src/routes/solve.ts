@@ -354,6 +354,17 @@ solve.post("/", async (c) => {
         let result = await runRSafe(rCode);
         if (!result) return undefined; // recordRRunnerFailure already handled it
 
+        if (result.exitCode !== 0 && isUnrecoverableMissingData(rCode, dataFiles)) {
+          // Fast-fail: the R reads a data file the student never uploaded, so a
+          // repair could only re-emit code reading the same missing file and
+          // fail identically. Skip the repair Gemini call + second R run and let
+          // the interpret leg answer from the question text. Ideally the model
+          // routes these to [CONCEPT] up front (core/system-prompt.ts's
+          // missing-dataset rule) — this is the server-side backstop. Matches
+          // apps/api/lib/solver/non-streaming.ts's isUnrecoverableMissingData.
+          return result;
+        }
+
         if (result.exitCode !== 0) {
           // The repair leg is a NEW Gemini call, so gate it exactly like the
           // pre-stream kill-switch check above solve.post — item D's ceiling
@@ -569,4 +580,15 @@ function humanizeError(e: unknown): string {
 
 function stripExt(name: string) {
   return name.replace(/\.(csv|tsv|txt)$/i, "");
+}
+
+/** A calc failure isn't worth a repair round trip when the model's R tries to
+ *  READ a data file but the student uploaded NONE — the repair loop re-prompts
+ *  the same (empty) data context and can only re-emit code reading the same
+ *  missing file. Skipping it saves a Gemini call + a second R run. Scoped to
+ *  the zero-uploads case (with data present, a failure may be a fixable typo,
+ *  so we still repair). Mirrors apps/api/lib/solver/non-streaming.ts. */
+function isUnrecoverableMissingData(rCode: string, files: DataFile[]): boolean {
+  if (files.length > 0) return false;
+  return /\bread[._](csv|table|delim2?)\s*\(|\bread_(csv|tsv|delim|table)\s*\(|\bfread\s*\(/i.test(rCode);
 }

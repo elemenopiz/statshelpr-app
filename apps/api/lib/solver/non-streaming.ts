@@ -155,13 +155,17 @@ async function runCalculationStage({
   let runResult = await runR(rCode, dataFiles.map(toSandboxFile));
   let repairedRCode: string | undefined;
 
-  if (runResult.exitCode !== 0) {
+  if (runResult.exitCode !== 0 && !isUnrecoverableMissingData(rCode, dataFiles)) {
     repairedRCode = await repairRCode(apiKey, system, questionPrompt, rCode, runResult);
     if (repairedRCode) {
       rCode = repairedRCode;
       runResult = await runR(rCode, dataFiles.map(toSandboxFile));
     }
   }
+  // else: fast-fail — the R read a data file the student never uploaded, so a
+  // repair could only re-emit code reading the same missing file. Skip the
+  // repair Gemini call + second R run and let the interpret stage answer from
+  // the question text. See isUnrecoverableMissingData.
 
   return { rCode, runResult, repairedRCode };
 }
@@ -207,4 +211,20 @@ async function runInterpretStage({
 
 function toSandboxFile(file: DataFile) {
   return { filename: file.filename, content: file.content };
+}
+
+/** A calc failure is "unrecoverable" — not worth a repair round trip — when
+ *  the model's R tries to READ a data file but the student uploaded NONE. The
+ *  repair loop re-prompts the same model with the same (empty) data context,
+ *  so it can only re-emit code that reads the same missing file and fail
+ *  identically; skipping it saves a full Gemini call + a second R run and lets
+ *  the interpret pass answer from the question text instead. Deliberately
+ *  scoped to the zero-uploads case: when data WAS provided, a failure may be a
+ *  fixable filename typo or wrong column, so we still repair there. Ideally the
+ *  model routes these to [CONCEPT] in the first place (see the missing-dataset
+ *  rule in core/system-prompt.ts) — this is the server-side backstop for when
+ *  it still emits [RCODE]. */
+function isUnrecoverableMissingData(rCode: string, dataFiles: DataFile[]): boolean {
+  if (dataFiles.length > 0) return false;
+  return /\bread[._](csv|table|delim2?)\s*\(|\bread_(csv|tsv|delim|table)\s*\(|\bfread\s*\(/i.test(rCode);
 }
