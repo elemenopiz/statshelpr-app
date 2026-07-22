@@ -1,0 +1,13 @@
+# Not needed inside the image -- plumber.R is COPYed explicitly by the
+# Dockerfile, so nothing else in this directory needs to reach the build
+# context at all. Keeping it out anyway makes `gcloud run deploy --source .`
+# uploads smaller and faster.
+.git
+.gitignore
+.dockerignore
+README.md
+smoke-test.sh
+.DS_Store
+*.log
+.env
+.env.*
