@@ -243,19 +243,18 @@
       font-size: 0.78rem; font-weight: 700; letter-spacing: 0.02em; color: var(--ink-2);
     }
     /* the tiny inline solve button — the product itself */
-    .solve-dot {
-      width: 20px; height: 20px; border-radius: 50%;
+    .solve-btn {
+      font-family: var(--font-mono); font-size: 0.64rem; font-weight: 600;
+      letter-spacing: 0.06em; text-transform: uppercase; color: var(--blue);
+      padding: 3px 9px; border-radius: 999px;
       border: 1.5px solid var(--blue);
       background: var(--blue-tint);
       display: inline-flex; align-items: center; justify-content: center;
       position: relative; flex: none;
     }
-    .solve-dot::before {
-      content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--blue);
-    }
-    .solve-dot::after {
+    .solve-btn::after {
       /* pulse ring */
-      content: ""; position: absolute; inset: -1.5px; border-radius: 50%;
+      content: ""; position: absolute; inset: -1.5px; border-radius: 999px;
       border: 1.5px solid var(--blue);
     }
     .demo-qtext { font-size: 0.855rem; line-height: 1.55; color: var(--ink); }
@@ -340,8 +339,8 @@
     }
 
     /* -------- demo timeline (single 14s loop, driven by one shared clock) */
-    .demo-card.play .solve-dot::after { animation: pulse 14s linear infinite; }
-    .demo-card.play .solve-dot { animation: dotPress 14s linear infinite; }
+    .demo-card.play .solve-btn::after { animation: pulse 14s linear infinite; }
+    .demo-card.play .solve-btn { animation: dotPress 14s linear infinite; }
     .demo-card.play .anim { opacity: 0; animation: 14s linear infinite; }
     .demo-card.play .demo-tag.anim      { animation-name: stepTag; }
     .demo-card.play .demo-line.anim.s1  { animation-name: stepS1; }
@@ -826,7 +825,7 @@
             <div class="demo-body">
               <div class="demo-qhead">
                 <span class="demo-qnum">Question 3</span>
-                <span class="solve-dot" title="Solve"></span>
+                <span class="solve-btn">Solve</span>
               </div>
               <p class="demo-qtext">
                 A sample of <span class="m">n&nbsp;=&nbsp;24</span> students took a memory test before and after

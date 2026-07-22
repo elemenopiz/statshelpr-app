@@ -1,0 +1,47 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "api",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@statshelpr/api", "dev"],
+      "port": 3030
+    },
+    {
+      "name": "landing",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "4321", "--directory", "apps/landing"],
+      "port": 4321
+    },
+    {
+      "name": "popup",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "4322", "--directory", "apps/extension/dist"],
+      "port": 4322
+    },
+    {
+      "name": "solve-btn-labeled-worktree",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4323",
+        "--directory",
+        ".worktrees/solve-btn-labeled/apps/extension/dist"
+      ],
+      "port": 4323
+    },
+    {
+      "name": "solve-btn-labeled-landing",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "4324",
+        "--directory",
+        ".worktrees/solve-btn-labeled/apps/landing"
+      ],
+      "port": 4324
+    }
+  ]
+}
