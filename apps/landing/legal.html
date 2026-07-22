@@ -225,27 +225,42 @@
       <p class="lead">This policy describes what data we collect, how we use it, and how we protect it.</p>
 
         <h3><span class="num">1.</span> Information We Collect</h3>
-        <p>We collect account and transaction metadata needed to provide access, enforce device and usage limits, and deliver support.</p>
+        <p>We collect account and transaction metadata needed to provide access, enforce device and usage limits, and deliver support. The statshelpr browser extension also collects and sends more specific data described in detail in items 4 through 9 below, including the quiz content you ask it to solve, any files you upload, and a per-install identifier.</p>
 
         <h3><span class="num">2.</span> How We Use Data</h3>
-        <p>We use data to authenticate users, process payments through third-party providers, issue tokens, send onboarding emails, and improve reliability.</p>
+        <p>We use data to authenticate users, process payments through third-party providers, issue tokens, send onboarding emails, generate answers to the questions you submit through the browser extension, and improve reliability.</p>
 
         <h3><span class="num">3.</span> Payment Data</h3>
         <p>Payment details are handled by external processors. We do not store complete card numbers or CVV data on our infrastructure.</p>
 
-        <h3><span class="num">4.</span> AI Request Data</h3>
-        <p>Requests sent through the assistant are processed to generate responses and may be logged for security, abuse prevention, and operational debugging.</p>
+        <h3><span class="num">4.</span> Quiz Content You Ask Us to Solve</h3>
+        <p>When you click the extension's solve button on a Canvas quiz question, we send that question's text, its answer choices or fill-in-the-blank options, and any images attached to it &mdash; the page's "website content," in Chrome Web Store's data-disclosure terms &mdash; to our servers at api.statshelpr.com/api/solve (and api.statshelpr.com/api/interpret for questions that need an R-based calculation) so our AI can generate an answer. This content is processed by our backend and by our upstream AI model provider, Google Gemini, in order to produce the response, and request data may be logged on our side for security, abuse prevention, and operational debugging.</p>
 
-        <h3><span class="num">5.</span> Data Sharing</h3>
-        <p>We share data only with vendors needed to operate the product, including payment processing and email delivery services.</p>
+        <h3><span class="num">5.</span> Quiz Images That Require Your Canvas Login</h3>
+        <p>Some quiz images are only viewable while you're logged into Canvas. For those, the extension fetches the image using your existing Canvas browser session so it can be included in the request described above. That session is used only to load the image from Canvas's own servers &mdash; we do not receive, see, or store your Canvas login, password, or session cookie. Once fetched, the image itself is sent to our servers like any other quiz content.</p>
 
-        <h3><span class="num">6.</span> Security</h3>
+        <h3><span class="num">6.</span> Files You Upload</h3>
+        <p>CSV, TSV, or plain-text data files you add through the extension's popup &mdash; "user-generated content" &mdash; are stored locally in your browser (up to 5MB per file and 8MB total) and automatically removed after 7 days. While a file is active, its full contents are sent along with your solve requests so the AI, and any R code run locally in your browser for a calculation question, can reference your data. Uploaded files are used only to answer your questions.</p>
+
+        <h3><span class="num">7.</span> Install Identifier</h3>
+        <p>The first time you install the extension, it generates a random identifier &mdash; not derived from your name, email, or Canvas account &mdash; and stores it via Chrome's built-in sync storage, which may follow you across browsers signed into the same Google account. This identifier is sent as an X-Install-Id header on solve and telemetry requests so we can apply the free plan's daily solve limit per install, and enforce the one-active-device rule on paid licenses described in item 8.</p>
+
+        <h3><span class="num">8.</span> License Key (Paid Plans)</h3>
+        <p>If you purchase Unlimited, checkout hands your Lemon Squeezy license key to the extension, which stores it via Chrome's sync storage. The key is sent as an authorization header on solve requests, and included in requests to activate a device, validate the license, or reset it so it can move to a new device &mdash; all needed to confirm your paid access and enforce the single-device limit described in our Terms.</p>
+
+        <h3><span class="num">9.</span> Product Usage Telemetry (Content-Free)</h3>
+        <p>Each solve attempt also sends a small usage event to api.statshelpr.com/api/telemetry: which solving mode was used, a coarse question-type category (e.g. multiple choice, dropdown), the model's confidence level, whether the answer could be automatically filled into the page (and how many fields were affected), and how long the request took, tagged with the install identifier from item 7. This event never includes your question text, answer choices, uploaded files, or the model's answer &mdash; only these counts and category labels &mdash; and is used to monitor reliability and answer quality across the product.</p>
+
+        <h3><span class="num">10.</span> Data Sharing</h3>
+        <p>We share data only with vendors needed to operate the product, including payment processing, email delivery, and our AI model provider, Google Gemini, which processes request content as described in item 4.</p>
+
+        <h3><span class="num">11.</span> Security</h3>
         <p>We use reasonable technical and operational safeguards, including access controls and transport encryption, to protect service data.</p>
 
-        <h3><span class="num">7.</span> Data Retention</h3>
-        <p>We retain records only as long as needed for account operations, legal obligations, fraud prevention, and support.</p>
+        <h3><span class="num">12.</span> Data Retention</h3>
+        <p>We retain records only as long as needed for account operations, legal obligations, fraud prevention, and support. Uploaded data files are automatically deleted from your browser after 7 days; your install identifier and license key remain in your browser's sync storage until you remove them, reset your license, or uninstall the extension.</p>
 
-        <h3><span class="num">8.</span> Your Rights</h3>
+        <h3><span class="num">13.</span> Your Rights</h3>
         <p>For account or privacy requests, contact support by email and we will respond within a reasonable timeframe.</p>
     </section>
 

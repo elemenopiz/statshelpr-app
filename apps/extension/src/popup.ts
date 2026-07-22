@@ -17,6 +17,13 @@ type Theme = "light" | "dark";
 interface HealthResponse {
   ok?: boolean;
   version?: string;
+  /** Current worker field (see apps/workers/src/routes/health.ts) — the
+   * active AI provider is Gemini as of this field's introduction. */
+  geminiConfigured?: boolean;
+  /** Legacy fields from a prior AI provider. The worker no longer sends
+   * these, but a stale/pinned worker deployment might still be running the
+   * old response shape, so we keep reading them as a fallback — see
+   * aiTutorReady's backward-tolerant lookup below. */
   kimiConfigured?: boolean;
   moonshotConfigured?: boolean;
   sandboxConfigured?: boolean;
@@ -175,8 +182,8 @@ async function pingHealth(apiUrl: string) {
     clearTimeout(timer);
     if (!res.ok) return setDot(`API ${res.status}`, "err");
     const data = (await res.json()) as HealthResponse;
-    const kimiReady = data.kimiConfigured ?? data.moonshotConfigured ?? false;
-    if (!kimiReady) {
+    const aiTutorReady = data.geminiConfigured ?? data.kimiConfigured ?? data.moonshotConfigured ?? false;
+    if (!aiTutorReady) {
       setDot("api key missing", "warn");
     } else {
       setDot("ready", "ok");
@@ -194,10 +201,10 @@ function setDot(label: string, kind: "ok" | "warn" | "err" | "") {
 
 function renderMeta(data: HealthResponse) {
   while (metaEl.firstChild) metaEl.removeChild(metaEl.firstChild);
-  const kimiReady = data.kimiConfigured ?? data.moonshotConfigured ?? false;
+  const aiTutorReady = data.geminiConfigured ?? data.kimiConfigured ?? data.moonshotConfigured ?? false;
   const rows: Array<[string, string, "ok" | "warn" | ""]> = [
     ["version", data.version ?? "—", ""],
-    ["ai tutor", kimiReady ? "ready" : "not set", kimiReady ? "ok" : "warn"],
+    ["ai tutor", aiTutorReady ? "ready" : "not set", aiTutorReady ? "ok" : "warn"],
     ["r sandbox", data.sandboxConfigured ? "ready" : "not set", data.sandboxConfigured ? "ok" : ""],
     ["license", data.lemonsqueezyConfigured ? "gated" : "open", data.lemonsqueezyConfigured ? "ok" : ""],
   ];
