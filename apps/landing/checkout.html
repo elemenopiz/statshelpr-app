@@ -37,6 +37,13 @@
       --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Consolas, monospace;
       --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
       --shadow-pop: 0 2px 4px rgba(29,28,23,0.06), 0 20px 48px rgba(29,28,23,0.12);
+      /* Width of the payment column = the embed's desktop sheet, which is a
+         FIXED ~512px. The sheet only fills the card flush when the card is
+         exactly sheet-width; any wider and the embed centers the sheet over
+         its backdrop, leaving tinted strips. The iframe itself is drawn
+         wider than the card (see .embed-frame) so the embed still measures
+         a desktop-size viewport. */
+      --pay-w: 512px;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -49,8 +56,12 @@
       color: var(--ink);
       -webkit-font-smoothing: antialiased;
       min-height: 100vh;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      padding: 44px 24px 26px;
+      /* Column flex + auto margins on .split (NOT justify-content: center,
+         which clips the top edge unreachably once content overflows a short
+         viewport; auto margins collapse to 0 instead and let the page
+         scroll). */
+      display: flex; flex-direction: column; align-items: center;
+      padding: 56px 32px 36px;
       position: relative;
       overflow-x: clip;
       line-height: 1.6;
@@ -71,90 +82,94 @@
       transition: color 0.2s;
     }
     .back-link:hover { color: var(--ink); }
+    /* ---- two-column stage: pitch on the left, payment card on the right ---- */
+    .split {
+      display: grid;
+      grid-template-columns: minmax(320px, 1fr) var(--pay-w);
+      gap: 56px;
+      align-items: center;
+      width: 100%;
+      max-width: 1100px;
+      /* Center vertically when there's room; collapse to normal flow when
+         there isn't. flex:none so a tight viewport scrolls instead of
+         squeezing the grid into the fixed-height embed shell. */
+      flex: none;
+      margin-top: auto;
+      margin-bottom: auto;
+    }
+    .pitch { animation: riseIn 0.6s var(--ease-out) both; }
     .logo {
-      font-family: var(--font-display); font-size: 1.55rem; font-weight: 500;
-      color: var(--ink); margin-bottom: 10px; letter-spacing: -0.01em;
-      animation: riseIn 0.6s var(--ease-out) both;
+      font-family: var(--font-display); font-size: 1.5rem; font-weight: 500;
+      color: var(--ink); margin-bottom: 26px; letter-spacing: -0.01em;
     }
     .logo em { color: var(--blue); font-style: italic; }
-    .wrap {
-      width: 100%; max-width: 640px;
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 24px 26px 20px;
-      box-shadow: var(--shadow-pop);
-      animation: riseIn 0.65s var(--ease-out) 0.1s both;
-    }
-    @keyframes riseIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
-    .wrap h1 {
+    .pitch h1 {
       font-family: var(--font-display);
-      font-size: 1.55rem; font-weight: 500; color: var(--ink);
-      margin: 0 0 2px; letter-spacing: -0.015em; line-height: 1.15;
+      font-size: clamp(2rem, 3vw, 2.5rem); font-weight: 500; color: var(--ink);
+      margin: 0 0 6px; letter-spacing: -0.015em; line-height: 1.1;
     }
-    .wrap h1 em { color: var(--blue); font-style: italic; }
-    .muted { color: var(--ink-2); font-size: 0.92rem; margin-bottom: 10px; }
+    .pitch h1 em { color: var(--blue); font-style: italic; }
+    .muted { color: var(--ink-2); font-size: 1rem; margin-bottom: 22px; }
     .muted strong { color: var(--ink); }
+    .benefits {
+      list-style: none;
+      display: grid; gap: 11px;
+      margin-bottom: 24px;
+      color: var(--ink-2); font-size: 0.95rem; line-height: 1.5;
+    }
+    .benefits li { position: relative; padding-left: 27px; }
+    .benefits li::before {
+      content: "✓";
+      position: absolute; left: 0; top: 0;
+      color: var(--green); font-weight: 700;
+    }
+    .benefits li strong { color: var(--ink); font-weight: 600; }
     .consent {
-      font-size: 0.8rem; color: var(--ink-3); line-height: 1.5;
-      margin-bottom: 12px;
+      font-size: 0.8rem; color: var(--ink-3); line-height: 1.55;
+      margin-bottom: 14px; max-width: 44ch;
     }
     .consent a { color: var(--ink-2); text-decoration: none; border-bottom: 1px solid var(--line); }
     .consent a:hover { color: var(--blue); border-color: var(--blue); }
-    .notice {
-      background: rgba(11,122,75,0.06);
-      border: 1px solid rgba(11,122,75,0.25);
-      border-radius: 12px;
-      padding: 13px 16px;
-      color: var(--green);
-      font-size: 0.885rem;
-      line-height: 1.55;
-      margin-bottom: 14px;
+    .legal-links { font-size: 0.8rem; color: var(--ink-3); }
+    .legal-links a { color: var(--ink-2); text-decoration: none; }
+    .legal-links a:hover { color: var(--blue); }
+    /* ---- payment card: the embed IS the card face, no inner box ---- */
+    .pay-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: var(--shadow-pop);
+      overflow: hidden;
+      animation: riseIn 0.65s var(--ease-out) 0.1s both;
     }
-    .status {
-      background: rgba(29,28,23,0.018);
-      border: 1px solid var(--line-soft);
-      border-radius: 12px;
-      padding: 14px 16px;
-      margin-bottom: 14px;
-      color: var(--ink-2);
-      line-height: 1.6;
-      font-size: 0.895rem;
-    }
-    .status strong { color: var(--ink); }
-    .status a { color: var(--blue); text-decoration: none; }
-    .status a:hover { text-decoration: underline; }
-    .upgrade-warning {
-      border: 1px solid rgba(39,66,200,0.3);
-      background: var(--blue-tint);
-      padding: 12px 14px;
-      border-radius: 10px;
-      font-size: 0.885rem;
-      color: var(--blue-deep);
-      margin-bottom: 14px;
-      line-height: 1.5;
-    }
-    .upgrade-warning strong { color: var(--blue-deep); }
-    /* ---- inline embedded checkout ---- */
+    @keyframes riseIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
     .embed-shell {
       position: relative;
       /* Cap at 700: taller shells make the embed page's sheet run out of
          content mid-viewport (dead backdrop below a cut-off sheet edge);
          at ≤700 the form fills the shell and scrolls internally instead. */
-      height: clamp(560px, calc(100vh - 320px), 700px);
-      border: 1px solid var(--line-soft);
-      border-radius: 14px;
-      overflow: hidden;
-      background: var(--paper);
+      height: clamp(560px, calc(100vh - 200px), 700px);
+      background: var(--card);
     }
     .embed-frame {
-      display: block; width: 100%;
+      display: block;
+      /* Sideways crop, same idea as the top crop below: the embed needs an
+         internal viewport ≥ ~560px to pick its desktop layout (below ~430 it
+         goes full-bleed mobile; in between it overflows), but its sheet is a
+         fixed ~512px centered over backdrop. Drawing the iframe 64px wider
+         than the 512px card and pulling it 32px left gives the embed a
+         576px viewport while the card clips both backdrop strips — so the
+         sheet lands flush against the card edges. */
+      width: calc(100% + 64px);
+      margin-left: -32px;
       /* The embed page reserves a fixed ~240px "peek at the page behind"
          band above the sheet (plus its floating X, which closes an overlay
          we don't have) — make the iframe taller than the shell and pull it
          up so that band and the X are cropped out, leaving just the form.
          Cropping 220 (not the full 240) keeps a sliver of the sheet's
-         rounded top visible as a safety margin if LS nudges the offset. */
+         rounded top visible as a safety margin if LS nudges the offset.
+         The sheet's translucent backdrop sits over this card's white, so
+         the cropped edges and side margins read as one white surface. */
       height: calc(100% + 220px);
       margin-top: -220px;
       border: 0; background: transparent;
@@ -175,7 +190,7 @@
       100% { opacity: 0; transform: scale(1.4); }
     }
     .embed-shell.ready .embed-loading { display: none; }
-    .fallback { margin-top: 4px; }
+    .pay-card .fallback { padding: 18px 22px 22px; }
     .fallback p { color: var(--ink-2); font-size: 0.895rem; margin-bottom: 4px; }
     .buy-btn {
       width: 100%;
@@ -194,34 +209,40 @@
       transform: translateY(-1px);
       box-shadow: 0 6px 20px rgba(39,66,200,0.28), inset 0 1px 0 rgba(255,255,255,0.14);
     }
-    .legal-links {
-      text-align: center; margin-top: 12px; font-size: 0.8rem; color: var(--ink-3);
-    }
-    .legal-links a { color: var(--ink-2); text-decoration: none; }
-    .legal-links a:hover { color: var(--blue); }
-    /* The embed's DESKTOP sheet needs ~560px of iframe width; below that it
-       overflows sideways until the embed's own MOBILE (full-bleed) layout
-       kicks in around ~430px. Skip the broken band in between: once the
-       card can no longer give the iframe ~560px, drop the whole card to a
-       width where the embed goes full-bleed mobile. */
-    @media (max-width: 720px) {
-      .wrap { max-width: 432px; }
-    }
-    @media (max-width: 600px) {
-      body { padding: 48px 10px 24px; }
-      .wrap { padding: 18px 12px 14px; }
-      .back-link { top: 16px; left: 16px; }
-      .embed-shell { height: clamp(520px, calc(100vh - 260px), 700px); }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
-      .logo, .wrap { opacity: 1 !important; transform: none !important; }
-      .embed-loading::before { animation: none; opacity: 0.5; }
-    }
-    /* ---- checkout result / activation states (reuses the .notice / .status /
-       .upgrade-warning tokens above for each variant) ---- */
-    .ls-result { margin-top: 14px; }
+    /* ---- checkout result / activation states, shown inside the pay card ---- */
+    .pay-card .ls-result { margin: 16px 22px 20px; }
     .ls-result p { margin-bottom: 10px; }
+    .notice {
+      background: rgba(11,122,75,0.06);
+      border: 1px solid rgba(11,122,75,0.25);
+      border-radius: 12px;
+      padding: 13px 16px;
+      color: var(--green);
+      font-size: 0.885rem;
+      line-height: 1.55;
+    }
+    .status {
+      background: rgba(29,28,23,0.018);
+      border: 1px solid var(--line-soft);
+      border-radius: 12px;
+      padding: 14px 16px;
+      color: var(--ink-2);
+      line-height: 1.6;
+      font-size: 0.895rem;
+    }
+    .status strong { color: var(--ink); }
+    .status a { color: var(--blue); text-decoration: none; }
+    .status a:hover { text-decoration: underline; }
+    .upgrade-warning {
+      border: 1px solid rgba(39,66,200,0.3);
+      background: var(--blue-tint);
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 0.885rem;
+      color: var(--blue-deep);
+      line-height: 1.5;
+    }
+    .upgrade-warning strong { color: var(--blue-deep); }
     .key-box {
       display: flex; align-items: center; gap: 8px;
       padding: 9px 10px 9px 14px;
@@ -238,6 +259,50 @@
       transition: background-color 0.2s, border-color 0.2s, color 0.2s;
     }
     .copy-btn:hover { border-color: var(--blue); color: var(--blue-deep); background: var(--blue-tint); }
+    /* ---- responsive ---- */
+    @media (max-width: 1020px) {
+      /* Stack: compact pitch header above the payment card. */
+      .split {
+        grid-template-columns: 1fr;
+        gap: 26px;
+        max-width: var(--pay-w);
+      }
+      .logo { margin-bottom: 14px; }
+      .muted { margin-bottom: 14px; }
+      .benefits { display: none; } /* keep the stacked page one-glance */
+      .consent { max-width: none; margin-bottom: 8px; }
+      .pitch .legal-links { display: none; } /* shown under the card instead */
+      .embed-shell { height: clamp(540px, calc(100vh - 320px), 700px); }
+    }
+    .legal-links-stacked { display: none; }
+    @media (max-width: 1020px) {
+      .legal-links-stacked {
+        display: block; text-align: center; margin-top: 14px;
+        font-size: 0.8rem; color: var(--ink-3);
+      }
+      .legal-links-stacked a { color: var(--ink-2); text-decoration: none; }
+      .legal-links-stacked a:hover { color: var(--blue); }
+    }
+    /* The embed's DESKTOP layout needs an internal viewport ≥ ~560px; below
+       that it overflows sideways until its MOBILE (full-bleed) layout kicks
+       in around ~430px. Skip the broken band: drop straight to a 432px
+       column, and stop the sideways crop — the mobile sheet is full-bleed
+       (no backdrop strips), so cropping would cut real form content. */
+    @media (max-width: 720px) {
+      :root { --pay-w: 432px; }
+      .split { max-width: 432px; }
+      .embed-frame { width: 100%; margin-left: 0; }
+    }
+    @media (max-width: 600px) {
+      body { padding: 52px 12px 24px; }
+      .back-link { top: 16px; left: 16px; }
+      .embed-shell { height: clamp(520px, calc(100vh - 280px), 700px); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+      .pitch, .pay-card { opacity: 1 !important; transform: none !important; }
+      .embed-loading::before { animation: none; opacity: 0.5; }
+    }
   </style>
 </head>
 <body>
@@ -246,43 +311,56 @@
     Back
   </a>
 
-  <div class="logo">stats<em>helpr</em></div>
-
-  <div class="wrap">
-    <h1>Upgrade to <em>Unlimited</em></h1>
-    <p class="muted"><strong>$15.00 / month</strong> &middot; cancel anytime</p>
-    <p class="consent">Secure checkout by Lemon Squeezy &mdash; card details never touch this site. By subscribing you agree to the <a href='/legal.html#terms' target='_blank' rel='noopener'>Terms</a>, <a href='/legal.html#privacy' target='_blank' rel='noopener'>Privacy Policy</a> &amp; <a href='/legal.html#refunds' target='_blank' rel='noopener'>Refund Policy</a>.</p>
-
-    <div id="embed-shell" class="embed-shell" role="region" aria-label="Secure checkout">
-      <div class="embed-loading" aria-hidden="true">Loading secure checkout&hellip;</div>
-    </div>
-
-    <div id="embed-fallback" class="fallback" hidden>
-      <p id="fallback-msg"></p>
-      <a id="buy-btn" class="buy-btn" href="https://statshelpr.lemonsqueezy.com/checkout/buy/8ded2ea7-979f-4027-afb2-f03036e12015" rel="noopener">Continue to secure checkout &rarr;</a>
-    </div>
-    <noscript>
-      <div class="fallback">
-        <p>JavaScript is disabled &mdash; use the secure checkout page instead:</p>
-        <a class="buy-btn" href="https://statshelpr.lemonsqueezy.com/checkout/buy/8ded2ea7-979f-4027-afb2-f03036e12015" rel="noopener">Continue to secure checkout &rarr;</a>
+  <main class="split">
+    <section class="pitch">
+      <div class="logo">stats<em>helpr</em></div>
+      <h1>Upgrade to <em>Unlimited</em></h1>
+      <p class="muted"><strong>$15.00 / month</strong> &middot; cancel anytime</p>
+      <ul class="benefits">
+        <li><strong>Unlimited solves</strong> &mdash; the 5-a-day free cap is gone</li>
+        <li><strong>Runnable R on every calc</strong> &mdash; in your course's libraries</li>
+        <li><strong>Discreet mode stays on</strong> &mdash; your opacity setting persists</li>
+        <li><strong>Instant activation</strong> &mdash; the extension unlocks right after payment</li>
+      </ul>
+      <p class="consent">Secure checkout by Lemon Squeezy &mdash; card details never touch this site. By subscribing you agree to the <a href='/legal.html#terms' target='_blank' rel='noopener'>Terms</a>, <a href='/legal.html#privacy' target='_blank' rel='noopener'>Privacy Policy</a> &amp; <a href='/legal.html#refunds' target='_blank' rel='noopener'>Refund Policy</a>.</p>
+      <div class="legal-links">
+        <a href="/legal.html#terms" target="_blank" rel="noopener">Terms</a> &middot;
+        <a href="/legal.html#privacy" target="_blank" rel="noopener">Privacy</a> &middot;
+        <a href="/legal.html#refunds" target="_blank" rel="noopener">Refunds</a> &middot;
+        <a href="mailto:helpr451@gmail.com">helpr451@gmail.com</a>
       </div>
-    </noscript>
+    </section>
 
-    <div id="ls-result" class="ls-result" hidden aria-live="polite"></div>
+    <section class="pay-card" aria-label="Secure checkout">
+      <div id="embed-shell" class="embed-shell">
+        <div class="embed-loading" aria-hidden="true">Loading secure checkout&hellip;</div>
+      </div>
+      <div id="embed-fallback" class="fallback" hidden>
+        <p id="fallback-msg"></p>
+        <a id="buy-btn" class="buy-btn" href="https://statshelpr.lemonsqueezy.com/checkout/buy/8ded2ea7-979f-4027-afb2-f03036e12015" rel="noopener">Continue to secure checkout &rarr;</a>
+      </div>
+      <noscript>
+        <div class="fallback" style="padding: 18px 22px 22px;">
+          <p>JavaScript is disabled &mdash; use the secure checkout page instead:</p>
+          <a class="buy-btn" href="https://statshelpr.lemonsqueezy.com/checkout/buy/8ded2ea7-979f-4027-afb2-f03036e12015" rel="noopener">Continue to secure checkout &rarr;</a>
+        </div>
+      </noscript>
+      <div id="ls-result" class="ls-result" hidden aria-live="polite"></div>
+    </section>
+  </main>
 
-    <div class="legal-links">
-      <a href="/legal.html#terms" target="_blank" rel="noopener">Terms</a> &middot;
-      <a href="/legal.html#privacy" target="_blank" rel="noopener">Privacy</a> &middot;
-      <a href="/legal.html#refunds" target="_blank" rel="noopener">Refunds</a> &middot;
-      <a href="mailto:helpr451@gmail.com">helpr451@gmail.com</a>
-    </div>
+  <div class="legal-links-stacked">
+    <a href="/legal.html#terms" target="_blank" rel="noopener">Terms</a> &middot;
+    <a href="/legal.html#privacy" target="_blank" rel="noopener">Privacy</a> &middot;
+    <a href="/legal.html#refunds" target="_blank" rel="noopener">Refunds</a> &middot;
+    <a href="mailto:helpr451@gmail.com">helpr451@gmail.com</a>
   </div>
   <script>
     /**
      * Inline Lemon Squeezy embedded checkout + auto-activation handoff to the
-     * extension. The checkout <iframe> is hosted directly in the card (one
-     * click from the extension popup: popup CTA -> this page, form already
-     * open) instead of lemon.js's full-viewport overlay behind a
+     * extension. The checkout <iframe> is hosted directly in the payment card
+     * (one click from the extension popup: popup CTA -> this page, form
+     * already open) instead of lemon.js's full-viewport overlay behind a
      * "Continue to checkout" button.
      *
      * Embed contract (verified against the shipped lemon.js at
@@ -296,7 +374,7 @@
      *   - logo=0&media=0&desc=0&discount=0 are Lemon Squeezy checkout-options
      *     params (same fields as the Checkout API's checkout_options) that
      *     hide the store logo / product media / description / discount field
-     *     — the page already shows its own title+price, and trimming these
+     *     — the pitch column already carries title+price, and trimming these
      *     keeps the embedded form short enough to sit fully on screen. The
      *     buy URL 302s to a per-visit /checkout/cart/<id> URL that persists
      *     these options server-side, so they survive the redirect.
