@@ -1,6 +1,47 @@
 import { STATS_REFERENCE } from "./stats-reference";
 
-const ROUTING_RULES: string[] = [
+/**
+ * Sanitize a user-supplied R package list before it goes into the system
+ * prompt. The list originates in the extension's library picker (untrusted
+ * free text), so we keep only syntactically plausible R package tokens
+ * (letters/digits/dots, starting with a letter — R names are case-sensitive),
+ * dedupe, and cap the count. This is defense-in-depth against prompt injection
+ * via a crafted "package name" — the picker validates too, but the server must
+ * not trust that.
+ */
+function sanitizePackageNames(names: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of names) {
+    const name = typeof raw === "string" ? raw.trim() : "";
+    if (!/^[A-Za-z][A-Za-z0-9.]*$/.test(name) || name.length > 64) continue;
+    if (seen.has(name)) continue;
+    seen.add(name);
+    out.push(name);
+    if (out.length >= 40) break;
+  }
+  return out;
+}
+
+/**
+ * The [RCODE] package-priority directive, dynamic from the picker selection:
+ *   - undefined  → historical default wording (old clients + evals unaffected)
+ *   - []         → base R only (the user deliberately cleared every package)
+ *   - [a, b, …]  → "prioritize <a>, <b>, and base R"
+ */
+function rcodePackageDirective(rPackages?: readonly string[]): string {
+  if (rPackages === undefined) {
+    return "For [RCODE], prioritize tidyverse, mosaic, moderndive, and base R — use whichever is most appropriate.";
+  }
+  const clean = sanitizePackageNames(rPackages);
+  if (clean.length === 0) {
+    return "For [RCODE], prioritize base R — use whichever base function is most appropriate.";
+  }
+  return `For [RCODE], prioritize ${clean.join(", ")}, and base R — use whichever is most appropriate.`;
+}
+
+function buildRoutingRules(rPackages?: readonly string[]): string[] {
+  return [
   "Your first non-empty line must be exactly one routing tag: [CONCEPT] or [RCODE].",
   "Use [CONCEPT] for multiple choice, true/false, dropdown, definitions, interpretation, or explanation questions.",
   "Use [RCODE] when the answer requires any computation, statistical test, plotting, data wrangling, or code.",
@@ -18,7 +59,7 @@ const ROUTING_RULES: string[] = [
   "For [RCODE], every line after the tag must be valid R code, an R comment, or a blank line.",
   "For [RCODE], the first line must be an R comment: # PLAN: <test or function>, <column(s)>, <key arguments>. Example: # PLAN: prop.test, smoker (yes), n=total, correct=TRUE. State the plan explicitly before writing any code.",
   "For [RCODE], do not output bare prose labels like 'Final answer:' outside R syntax.",
-  "For [RCODE], prioritize tidyverse, mosaic, moderndive, and base R — use whichever is most appropriate.",
+  rcodePackageDirective(rPackages),
   "For [RCODE], avoid creating plots or graphics. The sandbox returns text output, so answer graph-style questions by printing numerical summaries that support the visual conclusion: counts, proportions, mean, median, sd, min/max, quartiles, skew direction, group summaries, correlations, slopes, or model tables as appropriate.",
   "If a question asks what a plot would show, compute and print the values needed to infer it instead of calling ggplot(), plot(), hist(), boxplot(), or ggsave().",
   "For inference, consult the statistics reference for exact function signatures and argument defaults.",
@@ -34,7 +75,8 @@ const ROUTING_RULES: string[] = [
   "If required data is missing, add a short comment at top explaining what is missing.",
   "The sampling distributions of means, medians, proportions, differences of means, differences of proportions, and regression coefficients are all approximately normal for large samples via the CLT. Always include medians when asked about statistics with approximately normal sampling distributions.",
   "After your answer (whether [CONCEPT] or [RCODE]), append on a new line: CONFIDENCE: High, CONFIDENCE: Med, or CONFIDENCE: Low. Use Low only when genuinely uncertain or the question is ambiguous.",
-];
+  ];
+}
 
 /**
  * Regression-table interpretation guidance. SCOPED by its own opening clause so
@@ -78,12 +120,17 @@ export interface SystemPromptOptions {
    * "answer only the open dropdown" guidance, which would otherwise tell the
    * model to leave the other blanks blank. */
   hasBlanks?: boolean;
+  /** R packages the user selected in the extension's library picker, steering
+   * the [RCODE] package-priority directive. Undefined (old clients / evals)
+   * keeps the historical default wording; [] means base R only. */
+  rPackages?: readonly string[];
 }
 
 export function buildSystemPrompt({
   dataContext = "",
   imageMode = false,
   hasBlanks = false,
+  rPackages,
 }: SystemPromptOptions = {}): string {
   const roleLines: string[] = [
     "You are a statistics quiz assistant.",
@@ -114,7 +161,7 @@ export function buildSystemPrompt({
   const parts: string[] = [
     ...roleLines,
     ...imageOnlyLines,
-    ...ROUTING_RULES,
+    ...buildRoutingRules(rPackages),
     REGRESSION_INTERPRETATION,
     STATS_REFERENCE,
   ];

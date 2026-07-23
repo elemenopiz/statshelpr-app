@@ -1,3 +1,11 @@
+import {
+  RPKG_STORAGE_KEY,
+  MAX_R_PACKAGES,
+  isValidPackageName,
+  isInstalled,
+  loadRPackages,
+} from "./r-packages";
+
 interface StoredConfig {
   apiUrl?: string;
   licenseKey?: string;
@@ -696,6 +704,94 @@ function flashStatus(msg: string, kind: "ok" | "err") {
     statusEl.textContent = "";
     statusEl.className = "status";
   }, 2400);
+}
+
+// =============================================================================
+// R libraries picker (folded; steers the tutor's package choice server-side)
+// =============================================================================
+//
+// The chosen list is POSTed with each solve (see content.ts) and shapes which
+// R packages the tutor's generated code reaches for. Defaults are the intro-
+// stats core and are fully REMOVABLE — a user in another course clears them and
+// adds their own. Only packages pre-installed on the runner actually run, so a
+// typed-in one outside INSTALLED_CATALOG is kept but flagged (dashed chip).
+
+const rpkgChipsEl = document.getElementById("rpkg-chips") as HTMLDivElement;
+const rpkgInput = document.getElementById("rpkg-input") as HTMLInputElement;
+const rpkgAddBtn = document.getElementById("rpkg-add") as HTMLButtonElement;
+const rpkgEmptyEl = document.getElementById("rpkg-empty") as HTMLDivElement;
+
+let rPackages: string[] = [];
+
+void loadRPackages().then(({ list }) => {
+  rPackages = list;
+  renderRPackages();
+});
+
+rpkgAddBtn.addEventListener("click", () => void addRPackagesFromInput());
+rpkgInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    void addRPackagesFromInput();
+  }
+});
+
+function renderRPackages() {
+  while (rpkgChipsEl.firstChild) rpkgChipsEl.removeChild(rpkgChipsEl.firstChild);
+  rpkgEmptyEl.style.display = rPackages.length === 0 ? "" : "none";
+  for (const pkg of rPackages) {
+    const installed = isInstalled(pkg);
+    const chip = document.createElement("span");
+    chip.className = installed ? "chip" : "chip unknown";
+    if (!installed) chip.title = "Not pre-installed on the server yet — may not run.";
+    const label = document.createElement("span");
+    label.textContent = pkg;
+    const rm = document.createElement("button");
+    rm.className = "rm";
+    rm.textContent = "×";
+    rm.title = `remove ${pkg}`;
+    rm.setAttribute("aria-label", `remove ${pkg}`);
+    rm.addEventListener("click", () => {
+      rPackages = rPackages.filter((p) => p !== pkg);
+      void saveRPackages();
+      renderRPackages();
+    });
+    chip.appendChild(label);
+    chip.appendChild(rm);
+    rpkgChipsEl.appendChild(chip);
+  }
+}
+
+async function addRPackagesFromInput() {
+  // Split on commas/whitespace so pasting a list ("car, lme4 psych") in one go
+  // works, not just a single name.
+  const candidates = rpkgInput.value
+    .split(/[,\s]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  rpkgInput.value = "";
+  if (candidates.length === 0) return;
+
+  let changed = false;
+  for (const pkg of candidates) {
+    if (!isValidPackageName(pkg)) continue; // silently drop junk tokens
+    if (rPackages.includes(pkg)) continue; // case-sensitive: MASS != mass
+    if (rPackages.length >= MAX_R_PACKAGES) break;
+    rPackages.push(pkg);
+    changed = true;
+  }
+  if (changed) {
+    await saveRPackages();
+    renderRPackages();
+  }
+}
+
+async function saveRPackages() {
+  try {
+    await chrome.storage.sync.set({ [RPKG_STORAGE_KEY]: rPackages });
+  } catch {
+    /* file:// preview — selection just won't persist */
+  }
 }
 
 // =============================================================================

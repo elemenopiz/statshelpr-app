@@ -42,6 +42,7 @@ import {
   writeBlanks,
 } from "./canvas-dom";
 import { type QuestionType, buildTelemetryBody, deriveOutcome, deriveQuestionType } from "./telemetry";
+import { loadRPackages } from "./r-packages";
 
 interface DataFile {
   filename: string;
@@ -364,6 +365,11 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
     options: b.options.map((o) => o.text),
   }));
   const apiDataFiles = dataFiles.map((f) => ({ filename: f.filename, content: f.content }));
+  // R libraries the user picked in the popup — steers which packages the tutor
+  // reaches for server-side (see solver-core buildSystemPrompt rPackages). Only
+  // sent once the user has actually customized the picker; left untouched, we
+  // omit it so the server keeps its historical default wording (no drift).
+  const { list: rPackages, customized: rPackagesCustomized } = await loadRPackages();
 
   const solveCtrl = new AbortController();
   const solveIdle = armIdleAbort(solveCtrl, SSE_IDLE_TIMEOUT_MS);
@@ -379,6 +385,7 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
         ...(apiBlanks.length ? { blanks: apiBlanks } : {}),
         images: scraped.images,
         dataFiles: apiDataFiles,
+        ...(rPackagesCustomized ? { packages: rPackages } : {}),
       }),
       signal: solveCtrl.signal,
     });

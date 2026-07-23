@@ -16,17 +16,28 @@
 #   compiled into this base image.
 FROM rocker/tidyverse:4.4.3
 
-# Extra R packages beyond the base image, mirroring apps/api/lib/sandbox.ts's
-# R_PACKAGES (minus tidyverse/broom/ggplot2, already present in the base
-# image) plus plumber for the HTTP layer. The system libraries the STATS
-# packages need (openssl/xml2/curl/fontconfig/freetype/harfbuzz/fribidi/png/
-# tiff/jpeg-devel) are already compiled into rocker/tidyverse to support
-# tidyverse's own deps (httr/curl/xml2/ragg etc.) — but plumber's dependency
-# chain (plumber -> sodium) additionally needs libsodium headers, which the
-# base image does NOT ship. Without the apt-get below, sodium fails to
-# configure ("fatal error: sodium.h: No such file or directory"), plumber
-# fails with it, and the stopifnot() guard fails the build — exactly what
-# happened on the first real Cloud Build (2026-07-23).
+# R package catalog for the runner. This is the source of truth for what the
+# extension's library picker can select and actually have run — KEEP IN SYNC
+# with apps/extension/src/r-packages.ts's INSTALLED_CATALOG. The base image
+# (rocker/tidyverse) already ships tidyverse, ggplot2, broom, MASS, and knitr,
+# so those are NOT reinstalled here; everything else the picker offers is added
+# below. INFRA (openssl/base64enc for the data-file handling, plumber for the
+# HTTP layer) rounds out the vector.
+#
+# The catalog is deliberately broad but bounded — the set of R packages used
+# across intro/intermediate stats courses is small and overlapping, so we
+# pre-bake a cross-curriculum superset (one-time build cost, ZERO per-solve
+# cost) rather than installing per request. Growing it from real usage is how
+# the picker generalizes beyond the intro-stats core.
+#
+# System libraries the STATS packages need (openssl/xml2/curl/fontconfig/
+# freetype/harfbuzz/fribidi/png/tiff/jpeg-devel) are already compiled into
+# rocker/tidyverse to support tidyverse's own deps (httr/curl/xml2/ragg etc.)
+# — but plumber's dependency chain (plumber -> sodium) additionally needs
+# libsodium headers, which the base image does NOT ship. Without the apt-get
+# below, sodium fails to configure ("fatal error: sodium.h: No such file or
+# directory"), plumber fails with it, and the stopifnot() guard fails the
+# build — exactly what happened on the first real Cloud Build (2026-07-23).
 RUN apt-get update && apt-get install -y --no-install-recommends libsodium-dev && rm -rf /var/lib/apt/lists/*
 
 #
@@ -36,7 +47,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libsodium-dev &
 # request needs the missing package. stopifnot(...) below asserts every
 # requested package actually landed in the library, so a broken install fails
 # the build loudly instead.
-RUN R -e "pkgs <- c('mosaic', 'moderndive', 'infer', 'openssl', 'base64enc', 'plumber'); install.packages(pkgs, repos = 'https://cloud.r-project.org', Ncpus = 4); stopifnot(all(pkgs %in% rownames(installed.packages())))"
+RUN R -e "pkgs <- c('mosaic', 'moderndive', 'infer', 'car', 'lme4', 'psych', 'janitor', 'rstatix', 'effsize', 'pwr', 'lsr', 'BSDA', 'gmodels', 'openssl', 'base64enc', 'plumber'); install.packages(pkgs, repos = 'https://cloud.r-project.org', Ncpus = 4); stopifnot(all(pkgs %in% rownames(installed.packages())))"
 
 COPY plumber.R /app/plumber.R
 WORKDIR /app

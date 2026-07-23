@@ -362,6 +362,58 @@
         font-style: italic;
       }
 
+      /* ------------------------------------------------ R libraries */
+      .chip-list {
+        display: flex; flex-wrap: wrap; gap: 6px;
+        margin-bottom: 9px;
+      }
+      .chip-list:empty { margin-bottom: 0; }
+      .chip {
+        display: inline-flex; align-items: center; gap: 4px;
+        padding: 3px 4px 3px 9px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--card);
+        font-size: 11.5px;
+        font-family: var(--font-mono);
+        color: var(--ink);
+        animation: rowIn 0.25s var(--ease-out);
+      }
+      .chip .rm {
+        background: none; border: none;
+        color: var(--ink-3);
+        font-size: 13px; line-height: 1;
+        padding: 0 3px; border-radius: 999px;
+        width: auto; font-weight: 400;
+        transition: color 0.15s, background-color 0.15s;
+      }
+      .chip .rm:hover { color: var(--err); background: var(--err-tint); }
+      /* A typed-in package that isn't in the runner's pre-installed catalog —
+         still added, but flagged so the user knows it may not run server-side. */
+      .chip.unknown {
+        border-style: dashed;
+        border-color: var(--warn);
+        color: var(--warn);
+      }
+      .pkg-add-row { display: flex; gap: 6px; align-items: stretch; }
+      .pkg-add-row input[type="text"] { margin-bottom: 0; }
+      .pkg-add-btn {
+        flex: none;
+        padding: 0 13px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--card);
+        color: var(--ink-2);
+        font-size: 12px; font-weight: 600;
+        transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+      }
+      .pkg-add-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-tint); }
+      .pkg-hint {
+        margin-top: 8px;
+        font-size: 10px; line-height: 1.5;
+        color: var(--ink-3);
+      }
+
       /* ------------------------------------------------ settings area */
       details { margin-top: 14px; }
       summary {
@@ -542,6 +594,28 @@
       no data files yet
     </div>
     <div id="status" class="status" role="status"></div>
+
+    <details id="rlibs-details">
+      <summary><span class="chev"></span>R libraries</summary>
+      <div class="settings-body">
+        <div id="rpkg-chips" class="chip-list"></div>
+        <div class="pkg-add-row">
+          <input type="text" id="rpkg-input" placeholder="add a library, e.g. car"
+                 autocomplete="off" autocapitalize="off" spellcheck="false"
+                 aria-label="Add an R library" />
+          <button id="rpkg-add" type="button" class="pkg-add-btn">Add</button>
+        </div>
+        <div id="rpkg-empty" class="pkg-hint" style="display: none">
+          No libraries selected &mdash; the tutor will use base R only.
+        </div>
+        <div class="pkg-hint">
+          These steer which R packages the tutor uses. The presets fit intro
+          stats &mdash; clear them and add the ones your course uses. A
+          <span style="color: var(--warn)">dashed</span> library isn't in our
+          pre-installed set yet, so it may not run.
+        </div>
+      </div>
+    </details>
 
     <details id="settings-details">
       <summary><span class="chev"></span>Status</summary>

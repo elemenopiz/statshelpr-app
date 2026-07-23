@@ -159,7 +159,7 @@ solve.post("/", async (c) => {
     try {
       const hasImage = (body.images?.length ?? 0) > 0;
       const hasBlanks = (body.blanks?.length ?? 0) >= 2;
-      const system = buildSystemPrompt({ dataContext, imageMode: hasImage, hasBlanks });
+      const system = buildSystemPrompt({ dataContext, imageMode: hasImage, hasBlanks, rPackages: body.packages });
       const questionPrompt = buildQuestionPrompt(body);
       const userContent = buildUserContent(questionPrompt, body.images);
 
