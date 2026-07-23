@@ -181,6 +181,36 @@ export interface MetricsResponse {
     sevenDayRetentionPct: number | null;
     returningSharePct: number | null;
   };
+  /** Cloud Run infra health for the R-runner service (R-runner health
+   *  tracking phase 2) — live-fetched from GCP Cloud Monitoring on every
+   *  metrics-load.ts call (see lib/gcp-monitoring.ts's fetchCloudRunMetrics),
+   *  NOT event-sourced from our own KV buckets like the rest of this
+   *  response. Distinct from `rRunner` above (our own Worker-side call
+   *  instrumentation) — this is Cloud Run's own billing + cold-start
+   *  telemetry for the same service. aggregateMetrics() only fills in the
+   *  "not fetched yet" default below; metrics-load.ts overlays the real
+   *  (or gracefully-unavailable) value afterward, same pattern as
+   *  `comparison`/`retention` above. */
+  cloudRun: {
+    available: boolean;
+    /** Why `available` is false — shown on the dashboard in place of the
+     *  numbers. Always null when available. */
+    unavailableReason: string | null;
+    /** Free-tier burn for the current UTC calendar month vs. Cloud Run's
+     *  always-free allotment (180,000 vCPU-sec, 360,000 GiB-sec/mo). */
+    billableInstanceTime: {
+      vcpuSeconds: number;
+      gibSeconds: number;
+      vcpuFreeTierBurnPct: number;
+      gibFreeTierBurnPct: number;
+    } | null;
+    /** Cold-start duration alone (container startup), a more precise signal
+     *  than `rRunner.coldStartRatePct`'s durationMs > 8000 heuristic. */
+    startupLatency: {
+      p50Ms: number;
+      p95Ms: number;
+    } | null;
+  };
 }
 
 export interface AggregateMetricsInput {
@@ -489,6 +519,12 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
       nextDayRetentionPct: null,
       sevenDayRetentionPct: null,
       returningSharePct: null,
+    },
+    cloudRun: {
+      available: false,
+      unavailableReason: "not fetched", // metrics-load.ts overlays the real value
+      billableInstanceTime: null,
+      startupLatency: null,
     },
   };
 }

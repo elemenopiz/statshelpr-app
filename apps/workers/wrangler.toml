@@ -112,6 +112,17 @@ id = "23d6ef6041854bec96fd277cb013e7e6"
 #                                                     METRICS_TOKEN above, NOT an open gate; concept
 #                                                     questions are unaffected. Also set R_RUNNER_URL
 #                                                     in [vars] above — both are required.)
+#   wrangler secret put GCP_MONITORING_SA_KEY        (OPTIONAL — full JSON key file, verbatim, for
+#                                                     the read-only statshelpr-monitoring-reader@...
+#                                                     service account, roles/monitoring.viewer ONLY.
+#                                                     Powers the /dashboard "Cloud Run Infra" panel
+#                                                     (lib/gcp-monitoring.ts) — free-tier burn +
+#                                                     cold-start latency pulled live from GCP Cloud
+#                                                     Monitoring. NOT fail-closed: unset just renders
+#                                                     that one panel as "unavailable", same as a GCP
+#                                                     outage or expired key — every other panel is
+#                                                     unaffected. Not present in any .dev.vars in this
+#                                                     repo; local dev simply runs without it.)
 
 # Cron trigger — drives the `scheduled` handler in src/index.ts, which (a)
 # rolls up a compact daily KPI snapshot (`snapshot:YYYY-MM-DD`) so trends

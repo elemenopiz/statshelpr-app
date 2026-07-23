@@ -36,6 +36,7 @@ type VolumeMetrics = MetricsResponse["volume"];
 type QualityMetrics = MetricsResponse["quality"];
 type PerformanceMetrics = MetricsResponse["performance"];
 type RRunnerMetrics = MetricsResponse["rRunner"];
+type CloudRunMetrics = MetricsResponse["cloudRun"];
 type EconomicsMetrics = MetricsResponse["economics"];
 type RevenueMetrics = MetricsResponse["revenue"];
 type FunnelMetrics = MetricsResponse["funnel"];
@@ -1556,6 +1557,75 @@ function renderRRunnerSection(rRunner: RRunnerMetrics): string {
 }
 
 // ---------------------------------------------------------------------------
+// 3c. Cloud Run infra (GCP) — free-tier burn + cold-start latency pulled
+// live from GCP Cloud Monitoring (R-runner health tracking phase 2), a
+// distinct data source from the Worker-side rRunner section above.
+// ---------------------------------------------------------------------------
+
+function renderCloudRunSection(cloudRun: CloudRunMetrics): string {
+  if (!cloudRun.available || !cloudRun.billableInstanceTime) {
+    const inner = renderCard(`<p class="statLabel">GCP metrics unavailable</p>
+      <p class="statCaption">${escapeHtml(cloudRun.unavailableReason ?? "unknown reason")}</p>`);
+    return renderSection(
+      "Cloud Run Infra (GCP)",
+      "free-tier burn + cold-start latency, live from Cloud Monitoring",
+      inner,
+    );
+  }
+
+  const { vcpuSeconds, gibSeconds, vcpuFreeTierBurnPct, gibFreeTierBurnPct } = cloudRun.billableInstanceTime;
+  const startup = cloudRun.startupLatency;
+
+  const tiles = renderStatGrid([
+    renderStatTile({
+      label: "vCPU-sec this month",
+      value: fmtInt(vcpuSeconds),
+      caption: `of 180,000 free-tier/mo`,
+    }),
+    renderStatTile({
+      label: "vCPU free-tier burn",
+      value: fmtPctValue(vcpuFreeTierBurnPct),
+      tone: toneLowerBetter(vcpuFreeTierBurnPct, 50, 80),
+    }),
+    renderStatTile({
+      label: "GiB-sec this month",
+      value: fmtInt(gibSeconds),
+      caption: `of 360,000 free-tier/mo`,
+    }),
+    renderStatTile({
+      label: "GiB free-tier burn",
+      value: fmtPctValue(gibFreeTierBurnPct),
+      tone: toneLowerBetter(gibFreeTierBurnPct, 50, 80),
+    }),
+    renderStatTile({
+      label: "Cold-start p50",
+      value: startup ? fmtMs(startup.p50Ms) : "—",
+      caption: "container startup only",
+    }),
+    renderStatTile({
+      label: "Cold-start p95",
+      value: startup ? fmtMs(startup.p95Ms) : "—",
+      tone: "amber",
+      caption: "container startup only",
+    }),
+  ]);
+
+  const inner = `${tiles}<p class="caption" style="margin-top: 0.6rem">
+    vCPU-sec and GiB-sec burn tracking closely is expected: this service is allocated 1 vCPU / 2Gi,
+    the same 1:2 ratio as the free-tier allotment itself (180,000 / 360,000 per month). Cold-start
+    figures come from Cloud Run's own <span class="mono">startup_latencies</span> metric — a more
+    precise signal than the R-Runner Health section's inferred cold-start rate above, which only
+    approximates it from request duration.
+  </p>`;
+
+  return renderSection(
+    "Cloud Run Infra (GCP)",
+    "free-tier burn + cold-start latency, live from Cloud Monitoring",
+    inner,
+  );
+}
+
+// ---------------------------------------------------------------------------
 // 4. Unit economics — the full audit trail behind the headline banner
 // ---------------------------------------------------------------------------
 
@@ -1782,6 +1852,7 @@ export function renderDashboardPage(
     ${renderQualitySection(m.quality, m.comparison, m.volume.apiCalls)}
     ${renderPerformanceSection(m.performance)}
     ${renderRRunnerSection(m.rRunner)}
+    ${renderCloudRunSection(m.cloudRun)}
     ${renderEconomicsSection(m.economics, m.revenue, m.comparison, days)}
 
     <footer class="footer">
