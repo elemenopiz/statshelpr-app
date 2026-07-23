@@ -50,7 +50,7 @@
       -webkit-font-smoothing: antialiased;
       min-height: 100vh;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      padding: 72px 24px 48px;
+      padding: 44px 24px 26px;
       position: relative;
       overflow-x: clip;
       line-height: 1.6;
@@ -73,28 +73,34 @@
     .back-link:hover { color: var(--ink); }
     .logo {
       font-family: var(--font-display); font-size: 1.55rem; font-weight: 500;
-      color: var(--ink); margin-bottom: 28px; letter-spacing: -0.01em;
+      color: var(--ink); margin-bottom: 10px; letter-spacing: -0.01em;
       animation: riseIn 0.6s var(--ease-out) both;
     }
     .logo em { color: var(--blue); font-style: italic; }
     .wrap {
-      width: 100%; max-width: 560px;
+      width: 100%; max-width: 640px;
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: 18px;
-      padding: 34px 32px;
+      padding: 24px 26px 20px;
       box-shadow: var(--shadow-pop);
       animation: riseIn 0.65s var(--ease-out) 0.1s both;
     }
     @keyframes riseIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
     .wrap h1 {
       font-family: var(--font-display);
-      font-size: 1.9rem; font-weight: 500; color: var(--ink);
-      margin: 0 0 4px; letter-spacing: -0.015em; line-height: 1.15;
+      font-size: 1.55rem; font-weight: 500; color: var(--ink);
+      margin: 0 0 2px; letter-spacing: -0.015em; line-height: 1.15;
     }
     .wrap h1 em { color: var(--blue); font-style: italic; }
-    .muted { color: var(--ink-2); font-size: 0.92rem; margin-bottom: 24px; }
+    .muted { color: var(--ink-2); font-size: 0.92rem; margin-bottom: 10px; }
     .muted strong { color: var(--ink); }
+    .consent {
+      font-size: 0.8rem; color: var(--ink-3); line-height: 1.5;
+      margin-bottom: 12px;
+    }
+    .consent a { color: var(--ink-2); text-decoration: none; border-bottom: 1px solid var(--line); }
+    .consent a:hover { color: var(--blue); border-color: var(--blue); }
     .notice {
       background: rgba(11,122,75,0.06);
       border: 1px solid rgba(11,122,75,0.25);
@@ -104,11 +110,6 @@
       font-size: 0.885rem;
       line-height: 1.55;
       margin-bottom: 14px;
-    }
-    .notice-paused {
-      background: rgba(194,64,41,0.06);
-      border: 1px solid rgba(194,64,41,0.3);
-      color: #A83A26;
     }
     .status {
       background: rgba(29,28,23,0.018);
@@ -134,44 +135,51 @@
       line-height: 1.5;
     }
     .upgrade-warning strong { color: var(--blue-deep); }
-    .help-link { font-size: 0.82rem; color: var(--ink-3); margin: 6px 0 0; }
-    .help-link a { color: var(--blue); text-decoration: none; }
-    .help-link a:hover { text-decoration: underline; }
-    .field-group { margin-bottom: 16px; }
-    .field-group label {
-      display: block; font-size: 0.875rem; font-weight: 600;
-      color: var(--ink); margin-bottom: 6px;
-    }
-    .field-group input[type="email"] {
-      width: 100%;
-      font-family: var(--font-body);
+    /* ---- inline embedded checkout ---- */
+    .embed-shell {
+      position: relative;
+      /* Cap at 700: taller shells make the embed page's sheet run out of
+         content mid-viewport (dead backdrop below a cut-off sheet edge);
+         at ≤700 the form fills the shell and scrolls internally instead. */
+      height: clamp(560px, calc(100vh - 320px), 700px);
+      border: 1px solid var(--line-soft);
+      border-radius: 14px;
+      overflow: hidden;
       background: var(--paper);
-      border: 1px solid var(--line);
-      border-radius: 9px;
-      padding: 10px 12px;
-      font-size: 0.95rem;
-      color: var(--ink);
-      outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .field-group input[type="email"]:focus {
-      border-color: var(--blue);
-      box-shadow: 0 0 0 3px rgba(39,66,200,0.12);
+    .embed-frame {
+      display: block; width: 100%;
+      /* The embed page reserves a fixed ~240px "peek at the page behind"
+         band above the sheet (plus its floating X, which closes an overlay
+         we don't have) — make the iframe taller than the shell and pull it
+         up so that band and the X are cropped out, leaving just the form.
+         Cropping 220 (not the full 240) keeps a sliver of the sheet's
+         rounded top visible as a safety margin if LS nudges the offset. */
+      height: calc(100% + 220px);
+      margin-top: -220px;
+      border: 0; background: transparent;
     }
-    .field-group input::placeholder { color: var(--ink-3); }
-    .checkbox-row {
-      display: flex; align-items: flex-start; gap: 10px;
-      margin-top: 14px;
-      color: var(--ink-2);
-      font-size: 0.875rem;
-      line-height: 1.5;
+    .embed-loading {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      color: var(--ink-3); font-size: 0.9rem;
     }
-    .checkbox-row input { margin-top: 3px; flex-shrink: 0; accent-color: var(--blue); width: 15px; height: 15px; }
-    .checkbox-row a { color: var(--blue); text-decoration: none; }
-    .checkbox-row a:hover { text-decoration: underline; }
+    .embed-loading::before {
+      content: "";
+      width: 13px; height: 13px; border-radius: 50%;
+      background: var(--blue);
+      animation: pulseDot 1s ease-out infinite;
+    }
+    @keyframes pulseDot {
+      0% { opacity: 1; transform: scale(0.35); }
+      100% { opacity: 0; transform: scale(1.4); }
+    }
+    .embed-shell.ready .embed-loading { display: none; }
+    .fallback { margin-top: 4px; }
+    .fallback p { color: var(--ink-2); font-size: 0.895rem; margin-bottom: 4px; }
     .buy-btn {
       width: 100%;
-      margin-top: 16px;
+      margin-top: 12px;
       display: inline-flex; align-items: center; justify-content: center; gap: 8px;
       padding: 14px 18px;
       border: 1px solid transparent; border-radius: 10px;
@@ -186,24 +194,33 @@
       transform: translateY(-1px);
       box-shadow: 0 6px 20px rgba(39,66,200,0.28), inset 0 1px 0 rgba(255,255,255,0.14);
     }
-    .buy-btn[disabled] { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
-    .checkout-form { margin: 0; padding: 0; width: 100%; }
     .legal-links {
-      text-align: center; margin-top: 16px; font-size: 0.8rem; color: var(--ink-3);
+      text-align: center; margin-top: 12px; font-size: 0.8rem; color: var(--ink-3);
     }
     .legal-links a { color: var(--ink-2); text-decoration: none; }
     .legal-links a:hover { color: var(--blue); }
+    /* The embed's DESKTOP sheet needs ~560px of iframe width; below that it
+       overflows sideways until the embed's own MOBILE (full-bleed) layout
+       kicks in around ~430px. Skip the broken band in between: once the
+       card can no longer give the iframe ~560px, drop the whole card to a
+       width where the embed goes full-bleed mobile. */
+    @media (max-width: 720px) {
+      .wrap { max-width: 432px; }
+    }
     @media (max-width: 600px) {
-      .wrap { padding: 28px 20px; }
+      body { padding: 48px 10px 24px; }
+      .wrap { padding: 18px 12px 14px; }
       .back-link { top: 16px; left: 16px; }
+      .embed-shell { height: clamp(520px, calc(100vh - 260px), 700px); }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
       .logo, .wrap { opacity: 1 !important; transform: none !important; }
+      .embed-loading::before { animation: none; opacity: 0.5; }
     }
-    /* ---- overlay checkout result / activation states (additive, reuses the
-       .notice / .status / .upgrade-warning tokens above for each variant) ---- */
-    .ls-result { margin-top: 16px; }
+    /* ---- checkout result / activation states (reuses the .notice / .status /
+       .upgrade-warning tokens above for each variant) ---- */
+    .ls-result { margin-top: 14px; }
     .ls-result p { margin-bottom: 10px; }
     .key-box {
       display: flex; align-items: center; gap: 8px;
@@ -222,7 +239,6 @@
     }
     .copy-btn:hover { border-color: var(--blue); color: var(--blue-deep); background: var(--blue-tint); }
   </style>
-  <script src="https://app.lemonsqueezy.com/js/lemon.js" defer></script>
 </head>
 <body>
   <a class="back-link" href="/">
@@ -234,14 +250,24 @@
 
   <div class="wrap">
     <h1>Upgrade to <em>Unlimited</em></h1>
-    <p class="muted">Monthly subscription &mdash; <strong>$15.00 / month</strong> &middot; cancel anytime</p>
+    <p class="muted"><strong>$15.00 / month</strong> &middot; cancel anytime</p>
+    <p class="consent">Secure checkout by Lemon Squeezy &mdash; card details never touch this site. By subscribing you agree to the <a href='/legal.html#terms' target='_blank' rel='noopener'>Terms</a>, <a href='/legal.html#privacy' target='_blank' rel='noopener'>Privacy Policy</a> &amp; <a href='/legal.html#refunds' target='_blank' rel='noopener'>Refund Policy</a>.</p>
 
-    <div class='notice'><strong>Ready:</strong> Secure checkout is handled by Lemon Squeezy.</div>
-    <div class='status'>You will be redirected to Lemon Squeezy to complete payment. Card details never touch this server.</div>
-    <div class='checkbox-row'><input id='agree' type='checkbox' /><label for='agree'>I have read and understood the <a href='/legal.html#terms' target='_blank' rel='noopener'>Terms</a>, <a href='/legal.html#privacy' target='_blank' rel='noopener'>Privacy</a>, and <a href='/legal.html#refunds' target='_blank' rel='noopener'>Refund Policy</a>.</label></div>
-    <div class='checkout-form'>
-      <a id='buy-btn' class='buy-btn' href='https://statshelpr.lemonsqueezy.com/checkout/buy/8ded2ea7-979f-4027-afb2-f03036e12015' rel='noopener'>Continue to secure checkout &rarr;</a>
+    <div id="embed-shell" class="embed-shell" role="region" aria-label="Secure checkout">
+      <div class="embed-loading" aria-hidden="true">Loading secure checkout&hellip;</div>
     </div>
+
+    <div id="embed-fallback" class="fallback" hidden>
+      <p id="fallback-msg"></p>
+      <a id="buy-btn" class="buy-btn" href="https://statshelpr.lemonsqueezy.com/checkout/buy/8ded2ea7-979f-4027-afb2-f03036e12015" rel="noopener">Continue to secure checkout &rarr;</a>
+    </div>
+    <noscript>
+      <div class="fallback">
+        <p>JavaScript is disabled &mdash; use the secure checkout page instead:</p>
+        <a class="buy-btn" href="https://statshelpr.lemonsqueezy.com/checkout/buy/8ded2ea7-979f-4027-afb2-f03036e12015" rel="noopener">Continue to secure checkout &rarr;</a>
+      </div>
+    </noscript>
+
     <div id="ls-result" class="ls-result" hidden aria-live="polite"></div>
 
     <div class="legal-links">
@@ -252,54 +278,43 @@
     </div>
   </div>
   <script>
-    (function() {
-      const checkbox = document.getElementById("agree");
-      const btn = document.getElementById("buy-btn");
-      if (!checkbox || !btn) return;
-      btn.style.opacity = "0.4";
-      btn.style.pointerEvents = "none";
-      checkbox.addEventListener("change", function() {
-        if (checkbox.checked) {
-          btn.style.opacity = "1";
-          btn.style.pointerEvents = "auto";
-        } else {
-          btn.style.opacity = "0.4";
-          btn.style.pointerEvents = "none";
-        }
-      });
-    })();
-  </script>
-  <script>
     /**
-     * Lemon Squeezy overlay checkout + auto-activation handoff to the extension.
+     * Inline Lemon Squeezy embedded checkout + auto-activation handoff to the
+     * extension. The checkout <iframe> is hosted directly in the card (one
+     * click from the extension popup: popup CTA -> this page, form already
+     * open) instead of lemon.js's full-viewport overlay behind a
+     * "Continue to checkout" button.
      *
-     * lemon.js contract (verified against the shipped script at
-     * https://app.lemonsqueezy.com/js/lemon.js — docs.lemonsqueezy.com 403s
-     * automated fetches, so this was read directly from the source and
-     * cross-checked against third-party write-ups of the same API):
-     *   - The script defines window.createLemonSqueezy() (an idempotent
-     *     factory: first call creates window.LemonSqueezy and wires it up,
-     *     later calls just re-scan ".lemonsqueezy-button" elements) and
-     *     auto-invokes it once on the window "load" event.
-     *   - window.LemonSqueezy.Url.Open(url) opens `url` as a fixed,
-     *     full-viewport overlay <iframe> (highest z-index) — it forces
-     *     ?embed=1 onto the URL itself, so we don't need to add it ourselves.
-     *   - window.LemonSqueezy.Setup({ eventHandler }) registers a callback
-     *     that receives EVERY postMessage the overlay iframe sends, each
-     *     shaped { event: "<Name>", data: <payload> }. A successful purchase
-     *     fires { event: "Checkout.Success", data: <Order JSON:API resource> }
-     *     — the order id is at data.id.
-     *   - We deliberately do NOT use the library's automatic
-     *     ".lemonsqueezy-button" class-click detection. That detection gets
-     *     re-bound on every createLemonSqueezy()/Refresh() call, and the
-     *     library itself calls createLemonSqueezy() again on window "load" —
-     *     so a manual early call (which we'd need, to register Setup()
-     *     well before checkout can complete) plus that automatic later call
-     *     would double-bind the button and open two overlay iframes per
-     *     click. Owning the click handler ourselves (below) avoids that,
-     *     and also removes any "click lands before lemon.js is ready" race,
-     *     since createLemonSqueezy() is called lazily inside the click
-     *     handler rather than deferred to window "load".
+     * Embed contract (verified against the shipped lemon.js at
+     * https://assets.lemonsqueezy.com/lemon.js — docs.lemonsqueezy.com 403s
+     * automated fetches, so the library source is the reference; we no longer
+     * LOAD lemon.js, we just reproduce what its overlay did):
+     *   - The overlay was simply an <iframe> of the checkout URL with
+     *     ?embed=1 forced on, allow="payment", transparent background. We
+     *     create the same iframe ourselves, sized to the card instead of the
+     *     viewport. embed=1 is OUR job now (no lemon.js to force it).
+     *   - logo=0&media=0&desc=0&discount=0 are Lemon Squeezy checkout-options
+     *     params (same fields as the Checkout API's checkout_options) that
+     *     hide the store logo / product media / description / discount field
+     *     — the page already shows its own title+price, and trimming these
+     *     keeps the embedded form short enough to sit fully on screen. The
+     *     buy URL 302s to a per-visit /checkout/cart/<id> URL that persists
+     *     these options server-side, so they survive the redirect.
+     *   - The embed page posts to window.parent (no lemon.js needed to
+     *     receive them): the STRING "mounted" when the form has rendered, the
+     *     STRING "close" when the in-form X is clicked, and OBJECTS shaped
+     *     { event: "<Name>", data: <payload> } for checkout events — a
+     *     successful purchase fires { event: "Checkout.Success", data:
+     *     <Order JSON:API resource> } with the order id at data.id. GA.*
+     *     tracking events arrive in the same object shape and are ignored.
+     *     Unlike lemon.js (which filters nothing), we accept these messages
+     *     ONLY from the checkout URL's own origin.
+     *   - If "mounted" never arrives (iframe blocked, LS down), a fallback
+     *     panel reveals a plain link to the hosted checkout page after
+     *     MOUNT_TIMEOUT_MS. If the buyer clicks the form's X before paying,
+     *     the same panel offers to reopen the form (fresh iframe). A "close"
+     *     AFTER payment just collapses the shell so the activation status
+     *     below stands alone.
      *
      * Worker contract: POST {API_BASE}/api/license-from-order { orderId }
      *   -> { ok: true, licenseKey } | { ok: false, error } (200 either way).
@@ -339,17 +354,71 @@
       // that out at 6000ms) before replying license-activated/activation-
       // blocked. Waiting only ~2s here would misreport a slow-but-installed
       // extension as "not installed", so this stays a little above that 6s
-      // ceiling rather than the task's original ~2s estimate (written before
-      // that round trip existed).
+      // ceiling.
       var ACK_TIMEOUT_MS = 6500;
+      // How long the embed gets to post "mounted" before we assume the iframe
+      // is blocked/unreachable and reveal the hosted-checkout fallback link.
+      var MOUNT_TIMEOUT_MS = 8000;
 
+      var shellEl = document.getElementById("embed-shell");
+      var fallbackEl = document.getElementById("embed-fallback");
+      var fallbackMsgEl = document.getElementById("fallback-msg");
       var buyBtn = document.getElementById("buy-btn");
       var resultEl = document.getElementById("ls-result");
-      if (!buyBtn || !resultEl) return;
+      if (!shellEl || !fallbackEl || !fallbackMsgEl || !buyBtn || !resultEl) return;
 
       var CHECKOUT_URL = buyBtn.getAttribute("href");
+      var LS_ORIGIN = new URL(CHECKOUT_URL).origin;
+      var EMBED_URL =
+        CHECKOUT_URL + "?embed=1&logo=0&media=0&desc=0&discount=0";
+
+      var frameEl = null;
+      var mountTimer = null;
+      // "navigate" (embed never mounted -> link to hosted checkout) or
+      // "remount" (buyer closed the form pre-payment -> reopen it in place).
+      var fallbackMode = "navigate";
       var handledOrderId = null;
       var ackTimer = null;
+
+      function mountEmbed() {
+        if (frameEl) frameEl.remove();
+        shellEl.classList.remove("ready");
+        shellEl.hidden = false;
+        fallbackEl.hidden = true;
+        frameEl = document.createElement("iframe");
+        frameEl.className = "embed-frame";
+        frameEl.src = EMBED_URL;
+        // Same allowance lemon.js grants its overlay iframe — wallet flows
+        // (Cash App Pay etc.) need the Payment Request API.
+        frameEl.allow = "payment";
+        frameEl.title = "Lemon Squeezy secure checkout";
+        shellEl.appendChild(frameEl);
+        if (mountTimer) clearTimeout(mountTimer);
+        mountTimer = setTimeout(function () {
+          mountTimer = null;
+          showFallback(
+            "navigate",
+            "The embedded checkout didn't load — you can pay on Lemon Squeezy's hosted page instead:",
+            "Continue to secure checkout →",
+          );
+        }, MOUNT_TIMEOUT_MS);
+      }
+
+      function showFallback(mode, msg, btnLabel) {
+        fallbackMode = mode;
+        fallbackMsgEl.textContent = msg;
+        buyBtn.textContent = btnLabel;
+        shellEl.hidden = true;
+        fallbackEl.hidden = false;
+      }
+
+      buyBtn.addEventListener("click", function (e) {
+        if (fallbackMode === "remount") {
+          e.preventDefault();
+          mountEmbed();
+        }
+        // "navigate" mode: let the plain <a href> do its job.
+      });
 
       function strongText(str) {
         var s = document.createElement("strong");
@@ -482,14 +551,43 @@
           });
       }
 
-      function onLemonSqueezyEvent(payload) {
-        if (!payload || typeof payload !== "object") return;
-        if (payload.event !== "Checkout.Success") return;
-        var orderId = payload.data && payload.data.id;
+      // Messages from the Lemon Squeezy checkout iframe — origin-checked,
+      // unlike lemon.js's own listener, which accepted every window message.
+      window.addEventListener("message", function (event) {
+        if (event.origin !== LS_ORIGIN) return;
+        var data = event.data;
+
+        if (data === "mounted") {
+          if (mountTimer) {
+            clearTimeout(mountTimer);
+            mountTimer = null;
+          }
+          shellEl.classList.add("ready");
+          return;
+        }
+
+        if (data === "close") {
+          if (handledOrderId) {
+            // Paid, then dismissed the confirmation — the activation status
+            // below the shell is the page's content now.
+            shellEl.hidden = true;
+          } else {
+            showFallback(
+              "remount",
+              "Checkout closed.",
+              "Reopen secure checkout",
+            );
+          }
+          return;
+        }
+
+        if (!data || typeof data !== "object") return;
+        if (data.event !== "Checkout.Success") return;
+        var orderId = data.data && data.data.id;
         if (!orderId || orderId === handledOrderId) return;
         handledOrderId = orderId;
         resolveLicense(orderId, 0);
-      }
+      });
 
       // Extension replies land here (see apps/extension/src/activate.ts).
       // Anything that doesn't match the contract exactly is ignored.
@@ -520,23 +618,7 @@
         }
       });
 
-      function openCheckout(e) {
-        e.preventDefault();
-        if (typeof window.createLemonSqueezy === "function") {
-          window.createLemonSqueezy();
-          window.LemonSqueezy.Setup({ eventHandler: onLemonSqueezyEvent });
-          // Matches the class-based auto-detect's own bookkeeping (a hook for
-          // "don't scroll the page behind the overlay"); lemon.js's message
-          // listener already removes this class again on its "close" event.
-          document.body.classList.add("lemonsqueezy-open");
-          window.LemonSqueezy.Url.Open(CHECKOUT_URL);
-        } else {
-          // lemon.js failed to load (offline/blocked) — don't strand the
-          // buyer, fall back to a plain full-page redirect to LS checkout.
-          window.location.href = CHECKOUT_URL;
-        }
-      }
-      buyBtn.addEventListener("click", openCheckout);
+      mountEmbed();
     })();
   </script>
 </body>
