@@ -36,6 +36,29 @@ const ROUTING_RULES: string[] = [
   "After your answer (whether [CONCEPT] or [RCODE]), append on a new line: CONFIDENCE: High, CONFIDENCE: Med, or CONFIDENCE: Low. Use Low only when genuinely uncertain or the question is ambiguous.",
 ];
 
+/**
+ * Regression-table interpretation guidance. SCOPED by its own opening clause so
+ * it only bites on "which interpretation is accurate?" questions that show a
+ * regression table — it is inert on every other question type, which is the
+ * main reason it can't backfire broadly.
+ *
+ * Why it exists: on an interaction model, the vision model (gemini-3.6-flash)
+ * over-reasoned a MAIN-effect interpretation — it rejected a statement that
+ * correctly described the FarAway coefficient's own CI (20-75 ms) purely
+ * because the interaction terms make the combined effect differ by scene, and
+ * so answered "1 and 2 only" instead of the key's "all of the above". flash-lite
+ * (text) got it right; adding this guidance flips 3.6-flash to the correct
+ * answer in a single pass (POC verified). See the session's regression-eval.
+ *
+ * Two-sided on purpose: it defuses ONLY the "differs at non-reference levels"
+ * objection, and still tells the model to reject a statement that misstates the
+ * row's value/sign/interval — so it doesn't turn into a blanket "accept every
+ * interpretation" rule. Eval-gated against target + backfire-candidate fixtures
+ * before shipping.
+ */
+const REGRESSION_INTERPRETATION =
+  "When a regression table (columns like term, estimate, lower_ci, upper_ci) is shown and the question asks which interpretation(s) are accurate, judge each statement against the specific coefficient row it refers to: its stated direction, rough magnitude, and interval should match that row, and an interval that excludes 0 supports a 'with 95% confidence' claim in that direction. A statement that correctly describes a coefficient's own interval is accurate even for a MAIN-effect coefficient in a model with interactions — that coefficient is the effect at the reference level — so do not call it inaccurate merely because the interaction terms make the combined effect differ for other categories. (A statement is still inaccurate if it misstates the row's value, sign, or interval.)";
+
 const QUICK_REFERENCE = [
   "=== QUICK REFERENCE (re-read before answering) ===",
   "1. First non-empty line MUST be [CONCEPT] or [RCODE] — nothing else before it.",
@@ -92,6 +115,7 @@ export function buildSystemPrompt({
     ...roleLines,
     ...imageOnlyLines,
     ...ROUTING_RULES,
+    REGRESSION_INTERPRETATION,
     STATS_REFERENCE,
   ];
 
