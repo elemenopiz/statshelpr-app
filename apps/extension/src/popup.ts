@@ -234,6 +234,25 @@ void getInstallId().then((id) => {
   });
 });
 
+// Wake up the solve buttons on whichever Canvas tab is active. content.ts
+// boots dormant (see its `activated` flag) specifically so the extension
+// never passively surfaces itself on every quiz for every course — the
+// student has to deliberately reach for the toolbar icon before the API can
+// be used on that page. Fire-and-forget: if the active tab isn't a matching
+// Canvas page there's no listener and we swallow the lastError, same as
+// previewOpacityOnActiveTab below.
+try {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const id = tabs[0]?.id;
+    if (id == null) return;
+    chrome.tabs.sendMessage(id, { type: "sh-activate" }, () => {
+      void chrome.runtime.lastError; // no content script on this tab — ignore
+    });
+  });
+} catch {
+  /* file:// popup preview or no active tab — nothing to activate */
+}
+
 /** Push a live opacity value to the on-page solve button in the active tab so
  *  it dims IN REAL TIME as the slider is dragged. Fire-and-forget: the active
  *  tab is usually the Canvas quiz whose content script is listening, but if it

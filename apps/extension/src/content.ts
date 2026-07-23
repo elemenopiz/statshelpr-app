@@ -1,6 +1,13 @@
 /**
  * Canvas content script — tiny inline "solve" button next to each question.
  *
+ * Dormant until activated: the script boots on every matching Canvas page
+ * but injects nothing until the student clicks the toolbar icon on that tab
+ * (popup.ts sends "sh-activate"). This is per-page-load and not persisted —
+ * a reload or new quiz needs another click. Deliberate friction so the
+ * extension can't passively rack up API usage on every quiz for every
+ * course, stats or not.
+ *
  * Flow on click:
  *   1. Set button to spinner (visual "thinking" feedback)
  *   2. Scrape question text + answer choices + any images
@@ -145,12 +152,22 @@ interface SolveStats {
 
 let dataFiles: DataFile[] = [];
 
+// Buttons stay dormant until the student deliberately clicks the toolbar
+// icon (popup.ts sends "sh-activate" on open — see previewOpacityOnActiveTab's
+// sibling there). This is intentionally NOT persisted anywhere: it's an
+// in-memory flag on this one page load, so a reload or navigating to a new
+// quiz goes dormant again and needs another click. The point is friction —
+// the extension should never passively surface itself on every quiz for
+// every course and nudge API usage on non-stats material; it only runs on
+// pages the student has actively chosen to engage with, right now.
+let activated = false;
+
 // =============================================================================
 // boot
 // =============================================================================
 
 function boot() {
-  void loadFiles().then(() => scanAndInject());
+  void loadFiles();
 
   // Load the user's single discreet-mode dial and derive the two CSS
   // variables (--sh-text-opacity, --sh-outline-opacity) that panel.css
@@ -182,8 +199,19 @@ function boot() {
     if (msg && msg.type === "sh-preview-opacity" && typeof msg.value === "number") {
       applyButtonOpacity(msg.value);
     }
+    if (msg && msg.type === "sh-activate") {
+      activate();
+    }
   });
+}
 
+/** Fired once per page load, the first time the student opens the popup on
+ * this tab (see popup.ts). Idempotent — a second popup open on the same
+ * page is a no-op. */
+function activate() {
+  if (activated) return;
+  activated = true;
+  scanAndInject();
   const observer = new MutationObserver(() => scanAndInject());
   observer.observe(document.body, { childList: true, subtree: true });
 }
