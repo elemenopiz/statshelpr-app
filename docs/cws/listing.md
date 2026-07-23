@@ -9,10 +9,15 @@ trademark of Instructure, and putting it in listing metadata is the most common
 trademark/impersonation rejection. It appears ONLY in the description body as
 descriptive ("works on Canvas quiz pages"), which is accepted nominative use.
 
-## Summary (max 132 chars)
-> Worked solutions for intro-stats quiz questions — step-by-step answers with the real R code behind every result.
-
-(111 chars — room to tweak.)
+## Summary (max 132 chars) — NOT a pasteable field
+The store title AND summary are pulled READ-ONLY "from package" (the manifest
+`name` and `description`) — the listing form has no editable summary box. So the
+public summary IS the manifest description. As of v1.1.1 that is:
+> Stats quiz tutor — worked solutions with runnable R code, shown inline on your quiz questions.
+To change the summary, edit `apps/extension/public/manifest.json` `description`
+and re-upload — do NOT expect a summary field in the dashboard. ("Canvas" is
+kept out of it for the trademark reason; it lives only in the long Description
+body below.)
 
 ## Category / language
 Education · English
