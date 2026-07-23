@@ -36,14 +36,6 @@
       --font-body: 'Public Sans', system-ui, -apple-system, sans-serif;
       --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Consolas, monospace;
       --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-      --shadow-pop: 0 2px 4px rgba(29,28,23,0.06), 0 20px 48px rgba(29,28,23,0.12);
-      /* Width of the payment column = the embed's desktop sheet, which is a
-         FIXED 28rem (448px). The sheet only fills the column flush when the
-         column is exactly sheet-width; any wider and the embed centers the
-         sheet over its backdrop, leaving whitish strips. The iframe itself
-         is drawn wider than the column (see .embed-frame) so the embed
-         still measures a desktop-size viewport. */
-      --pay-w: 448px;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -56,12 +48,8 @@
       color: var(--ink);
       -webkit-font-smoothing: antialiased;
       min-height: 100vh;
-      /* Column flex + auto margins on .split (NOT justify-content: center,
-         which clips the top edge unreachably once content overflows a short
-         viewport; auto margins collapse to 0 instead and let the page
-         scroll). */
       display: flex; flex-direction: column; align-items: center;
-      padding: 56px 32px 36px;
+      padding: 56px 24px 40px;
       position: relative;
       overflow-x: clip;
       line-height: 1.6;
@@ -82,39 +70,28 @@
       transition: color 0.2s;
     }
     .back-link:hover { color: var(--ink); }
-    /* ---- two-column stage: pitch on the left, payment card on the right ---- */
-    .split {
-      display: grid;
-      grid-template-columns: minmax(320px, 1fr) var(--pay-w);
-      gap: 56px;
-      align-items: center;
-      width: 100%;
-      max-width: 1100px;
-      /* Center vertically when there's room; collapse to normal flow when
-         there isn't. flex:none so a tight viewport scrolls instead of
-         squeezing the grid into the fixed-height embed shell. */
-      flex: none;
-      margin-top: auto;
-      margin-bottom: auto;
+    .hero {
+      width: 100%; max-width: 580px;
+      margin-top: auto; margin-bottom: auto;
+      animation: riseIn 0.6s var(--ease-out) both;
     }
-    .pitch { animation: riseIn 0.6s var(--ease-out) both; }
     .logo {
       font-family: var(--font-display); font-size: 1.5rem; font-weight: 500;
       color: var(--ink); margin-bottom: 26px; letter-spacing: -0.01em;
     }
     .logo em { color: var(--blue); font-style: italic; }
-    .pitch h1 {
+    .hero h1 {
       font-family: var(--font-display);
-      font-size: clamp(2rem, 3vw, 2.5rem); font-weight: 500; color: var(--ink);
+      font-size: clamp(2rem, 4.5vw, 2.6rem); font-weight: 500; color: var(--ink);
       margin: 0 0 6px; letter-spacing: -0.015em; line-height: 1.1;
     }
-    .pitch h1 em { color: var(--blue); font-style: italic; }
+    .hero h1 em { color: var(--blue); font-style: italic; }
     .muted { color: var(--ink-2); font-size: 1rem; margin-bottom: 22px; }
     .muted strong { color: var(--ink); }
     .benefits {
       list-style: none;
       display: grid; gap: 11px;
-      margin-bottom: 24px;
+      margin-bottom: 26px;
       color: var(--ink-2); font-size: 0.95rem; line-height: 1.5;
     }
     .benefits li { position: relative; padding-left: 27px; }
@@ -124,96 +101,34 @@
       color: var(--green); font-weight: 700;
     }
     .benefits li strong { color: var(--ink); font-weight: 600; }
-    .consent {
-      font-size: 0.8rem; color: var(--ink-3); line-height: 1.55;
-      margin-bottom: 14px; max-width: 44ch;
-    }
-    .consent a { color: var(--ink-2); text-decoration: none; border-bottom: 1px solid var(--line); }
-    .consent a:hover { color: var(--blue); border-color: var(--blue); }
-    .legal-links { font-size: 0.8rem; color: var(--ink-3); }
-    .legal-links a { color: var(--ink-2); text-decoration: none; }
-    .legal-links a:hover { color: var(--blue); }
-    /* ---- payment card: the embed IS the card face, no inner box ---- */
-    .pay-card {
-      /* No card chrome — no border, no background, no boxed shadow. The
-         embed sheet's own white surface floats directly on the page; this
-         container only clips the crop overhang and re-rounds the corners
-         the crop cut off, plus a whisper of grounding shadow so the form
-         doesn't visually swim over the grid. */
-      border-radius: 20px;
-      box-shadow: 0 30px 70px -38px rgba(29, 28, 23, 0.35);
-      overflow: hidden;
-      animation: riseIn 0.65s var(--ease-out) 0.1s both;
-    }
-    @keyframes riseIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
-    .embed-shell {
-      position: relative;
-      /* Cap at 700: taller shells make the embed page's sheet run out of
-         content mid-viewport (dead backdrop below a cut-off sheet edge);
-         at ≤700 the form fills the shell and scrolls internally instead. */
-      height: clamp(560px, calc(100vh - 200px), 700px);
-      background: var(--card);
-    }
-    .embed-frame {
-      display: block;
-      /* Sideways crop, same idea as the top crop below: the embed needs an
-         internal viewport ≥ ~560px to pick its desktop layout (below ~430 it
-         goes full-bleed mobile; in between it overflows), but its sheet is a
-         fixed 28rem (448px) centered over backdrop. Drawing the iframe
-         128px wider than the 448px column and pulling it 64px left gives
-         the embed a 576px viewport while the clip removes both 64px
-         backdrop strips — the sheet lands flush on the column edges. */
-      width: calc(100% + 128px);
-      margin-left: -64px;
-      /* The embed page reserves a fixed ~240px "peek at the page behind"
-         band above the sheet (plus its floating X, which closes an overlay
-         we don't have) — make the iframe taller than the shell and pull it
-         up so that band and the X are cropped out, leaving just the form.
-         Cropping 220 (not the full 240) keeps a sliver of the sheet's
-         rounded top visible as a safety margin if LS nudges the offset.
-         The sheet's translucent backdrop sits over this card's white, so
-         the cropped edges and side margins read as one white surface. */
-      height: calc(100% + 220px);
-      margin-top: -220px;
-      border: 0; background: transparent;
-    }
-    .embed-loading {
-      position: absolute; inset: 0;
-      display: flex; align-items: center; justify-content: center; gap: 12px;
-      color: var(--ink-3); font-size: 0.9rem;
-    }
-    .embed-loading::before {
-      content: "";
-      width: 13px; height: 13px; border-radius: 50%;
-      background: var(--blue);
-      animation: pulseDot 1s ease-out infinite;
-    }
-    @keyframes pulseDot {
-      0% { opacity: 1; transform: scale(0.35); }
-      100% { opacity: 0; transform: scale(1.4); }
-    }
-    .embed-shell.ready .embed-loading { display: none; }
-    .pay-card .fallback { padding: 18px 22px 22px; }
-    .fallback p { color: var(--ink-2); font-size: 0.895rem; margin-bottom: 4px; }
     .buy-btn {
       width: 100%;
-      margin-top: 12px;
       display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-      padding: 14px 18px;
-      border: 1px solid transparent; border-radius: 10px;
-      font-family: var(--font-body); font-size: 0.985rem; font-weight: 600;
+      padding: 15px 20px;
+      border: 1px solid transparent; border-radius: 11px;
+      font-family: var(--font-body); font-size: 1.02rem; font-weight: 600;
       text-decoration: none; cursor: pointer;
       color: #fff; background: var(--blue);
       box-shadow: 0 1px 2px rgba(28,49,162,0.35), inset 0 1px 0 rgba(255,255,255,0.14);
-      transition: background-color 0.2s, transform 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out), opacity 0.2s;
+      transition: background-color 0.2s, transform 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out);
     }
     .buy-btn:hover {
       background: var(--blue-deep);
       transform: translateY(-1px);
       box-shadow: 0 6px 20px rgba(39,66,200,0.28), inset 0 1px 0 rgba(255,255,255,0.14);
     }
-    /* ---- checkout result / activation states, shown inside the pay card ---- */
-    .pay-card .ls-result { margin: 16px 22px 20px; }
+    .consent {
+      font-size: 0.8rem; color: var(--ink-3); line-height: 1.55;
+      margin-top: 14px;
+    }
+    .consent a { color: var(--ink-2); text-decoration: none; border-bottom: 1px solid var(--line); }
+    .consent a:hover { color: var(--blue); border-color: var(--blue); }
+    .legal-links { margin-top: 18px; font-size: 0.8rem; color: var(--ink-3); }
+    .legal-links a { color: var(--ink-2); text-decoration: none; }
+    .legal-links a:hover { color: var(--blue); }
+    @keyframes riseIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+    /* ---- post-purchase activation states (?license_key= / ?order_id=) ---- */
+    .ls-result { margin: 18px 0 0; }
     .ls-result p { margin-bottom: 10px; }
     .notice {
       background: rgba(11,122,75,0.06);
@@ -234,8 +149,6 @@
       font-size: 0.895rem;
     }
     .status strong { color: var(--ink); }
-    .status a { color: var(--blue); text-decoration: none; }
-    .status a:hover { text-decoration: underline; }
     .upgrade-warning {
       border: 1px solid rgba(39,66,200,0.3);
       background: var(--blue-tint);
@@ -249,7 +162,7 @@
     .key-box {
       display: flex; align-items: center; gap: 8px;
       padding: 9px 10px 9px 14px;
-      background: var(--paper); border: 1px solid var(--line); border-radius: 9px;
+      background: var(--card); border: 1px solid var(--line); border-radius: 9px;
     }
     .key-box code {
       flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap;
@@ -262,49 +175,13 @@
       transition: background-color 0.2s, border-color 0.2s, color 0.2s;
     }
     .copy-btn:hover { border-color: var(--blue); color: var(--blue-deep); background: var(--blue-tint); }
-    /* ---- responsive ---- */
-    @media (max-width: 1020px) {
-      /* Stack: compact pitch header above the payment card. */
-      .split {
-        grid-template-columns: 1fr;
-        gap: 26px;
-        max-width: var(--pay-w);
-      }
-      .logo { margin-bottom: 14px; }
-      .muted { margin-bottom: 14px; }
-      .benefits { display: none; } /* keep the stacked page one-glance */
-      .consent { max-width: none; margin-bottom: 8px; }
-      .pitch .legal-links { display: none; } /* shown under the card instead */
-      .embed-shell { height: clamp(540px, calc(100vh - 320px), 700px); }
-    }
-    .legal-links-stacked { display: none; }
-    @media (max-width: 1020px) {
-      .legal-links-stacked {
-        display: block; text-align: center; margin-top: 14px;
-        font-size: 0.8rem; color: var(--ink-3);
-      }
-      .legal-links-stacked a { color: var(--ink-2); text-decoration: none; }
-      .legal-links-stacked a:hover { color: var(--blue); }
-    }
-    /* The embed's DESKTOP layout needs an internal viewport ≥ ~560px; below
-       that it overflows sideways until its MOBILE (full-bleed) layout kicks
-       in around ~430px. Skip the broken band: drop straight to a 432px
-       column, and stop the sideways crop — the mobile sheet is full-bleed
-       (no backdrop strips), so cropping would cut real form content. */
-    @media (max-width: 720px) {
-      :root { --pay-w: 432px; }
-      .split { max-width: 432px; }
-      .embed-frame { width: 100%; margin-left: 0; }
-    }
     @media (max-width: 600px) {
-      body { padding: 52px 12px 24px; }
+      body { padding: 52px 16px 28px; }
       .back-link { top: 16px; left: 16px; }
-      .embed-shell { height: clamp(520px, calc(100vh - 280px), 700px); }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
-      .pitch, .pay-card { opacity: 1 !important; transform: none !important; }
-      .embed-loading::before { animation: none; opacity: 0.5; }
+      .hero { opacity: 1 !important; transform: none !important; }
     }
   </style>
 </head>
@@ -314,192 +191,91 @@
     Back
   </a>
 
-  <main class="split">
-    <section class="pitch">
-      <div class="logo">stats<em>helpr</em></div>
-      <h1>Upgrade to <em>Unlimited</em></h1>
-      <p class="muted"><strong>$15.00 / month</strong> &middot; cancel anytime</p>
+  <main class="hero">
+    <div class="logo">stats<em>helpr</em></div>
+    <h1 id="hero-title">Upgrade to <em>Unlimited</em></h1>
+    <p class="muted" id="hero-price"><strong>$15.00 / month</strong> &middot; cancel anytime</p>
+    <div id="pitch">
       <ul class="benefits">
         <li><strong>Unlimited solves</strong> &mdash; the 5-a-day free cap is gone</li>
         <li><strong>Runnable R on every calc</strong> &mdash; in your course's libraries</li>
         <li><strong>Discreet mode stays on</strong> &mdash; your opacity setting persists</li>
         <li><strong>Instant activation</strong> &mdash; the extension unlocks right after payment</li>
       </ul>
-      <p class="consent">Secure checkout by Lemon Squeezy &mdash; card details never touch this site. By subscribing you agree to the <a href='/legal.html#terms' target='_blank' rel='noopener'>Terms</a>, <a href='/legal.html#privacy' target='_blank' rel='noopener'>Privacy Policy</a> &amp; <a href='/legal.html#refunds' target='_blank' rel='noopener'>Refund Policy</a>.</p>
-      <div class="legal-links">
-        <a href="/legal.html#terms" target="_blank" rel="noopener">Terms</a> &middot;
-        <a href="/legal.html#privacy" target="_blank" rel="noopener">Privacy</a> &middot;
-        <a href="/legal.html#refunds" target="_blank" rel="noopener">Refunds</a> &middot;
-        <a href="mailto:helpr451@gmail.com">helpr451@gmail.com</a>
-      </div>
-    </section>
+      <a id="buy-btn" class="buy-btn" href="https://statshelpr.lemonsqueezy.com/checkout/buy/8ded2ea7-979f-4027-afb2-f03036e12015" rel="noopener">Continue to secure checkout &rarr;</a>
+      <p class="consent">Payment opens on Lemon Squeezy's secure checkout page &mdash; card details never touch this site. By subscribing you agree to the <a href='/legal.html#terms' target='_blank' rel='noopener'>Terms</a>, <a href='/legal.html#privacy' target='_blank' rel='noopener'>Privacy Policy</a> &amp; <a href='/legal.html#refunds' target='_blank' rel='noopener'>Refund Policy</a>.</p>
+    </div>
 
-    <section class="pay-card" aria-label="Secure checkout">
-      <div id="embed-shell" class="embed-shell">
-        <div class="embed-loading" aria-hidden="true">Loading secure checkout&hellip;</div>
-      </div>
-      <div id="embed-fallback" class="fallback" hidden>
-        <p id="fallback-msg"></p>
-        <a id="buy-btn" class="buy-btn" href="https://statshelpr.lemonsqueezy.com/checkout/buy/8ded2ea7-979f-4027-afb2-f03036e12015" rel="noopener">Continue to secure checkout &rarr;</a>
-      </div>
-      <noscript>
-        <div class="fallback" style="padding: 18px 22px 22px;">
-          <p>JavaScript is disabled &mdash; use the secure checkout page instead:</p>
-          <a class="buy-btn" href="https://statshelpr.lemonsqueezy.com/checkout/buy/8ded2ea7-979f-4027-afb2-f03036e12015" rel="noopener">Continue to secure checkout &rarr;</a>
-        </div>
-      </noscript>
-      <div id="ls-result" class="ls-result" hidden aria-live="polite"></div>
-    </section>
+    <div id="ls-result" class="ls-result" hidden aria-live="polite"></div>
+
+    <div class="legal-links">
+      <a href="/legal.html#terms" target="_blank" rel="noopener">Terms</a> &middot;
+      <a href="/legal.html#privacy" target="_blank" rel="noopener">Privacy</a> &middot;
+      <a href="/legal.html#refunds" target="_blank" rel="noopener">Refunds</a> &middot;
+      <a href="mailto:helpr451@gmail.com">helpr451@gmail.com</a>
+    </div>
   </main>
-
-  <div class="legal-links-stacked">
-    <a href="/legal.html#terms" target="_blank" rel="noopener">Terms</a> &middot;
-    <a href="/legal.html#privacy" target="_blank" rel="noopener">Privacy</a> &middot;
-    <a href="/legal.html#refunds" target="_blank" rel="noopener">Refunds</a> &middot;
-    <a href="mailto:helpr451@gmail.com">helpr451@gmail.com</a>
-  </div>
   <script>
     /**
-     * Inline Lemon Squeezy embedded checkout + auto-activation handoff to the
-     * extension. The checkout <iframe> is hosted directly in the payment card
-     * (one click from the extension popup: popup CTA -> this page, form
-     * already open) instead of lemon.js's full-viewport overlay behind a
-     * "Continue to checkout" button.
+     * Hosted-checkout upgrade flow + auto-activation handoff to the extension.
      *
-     * Embed contract (verified against the shipped lemon.js at
-     * https://assets.lemonsqueezy.com/lemon.js — docs.lemonsqueezy.com 403s
-     * automated fetches, so the library source is the reference; we no longer
-     * LOAD lemon.js, we just reproduce what its overlay did):
-     *   - The overlay was simply an <iframe> of the checkout URL with
-     *     ?embed=1 forced on, allow="payment", transparent background. We
-     *     create the same iframe ourselves, sized to the card instead of the
-     *     viewport. embed=1 is OUR job now (no lemon.js to force it).
-     *   - logo=0&media=0&desc=0&discount=0 are Lemon Squeezy checkout-options
-     *     params (same fields as the Checkout API's checkout_options) that
-     *     hide the store logo / product media / description / discount field
-     *     — the pitch column already carries title+price, and trimming these
-     *     keeps the embedded form short enough to sit fully on screen. The
-     *     buy URL 302s to a per-visit /checkout/cart/<id> URL that persists
-     *     these options server-side, so they survive the redirect.
-     *   - The embed page posts to window.parent (no lemon.js needed to
-     *     receive them): the STRING "mounted" when the form has rendered, the
-     *     STRING "close" when the in-form X is clicked, and OBJECTS shaped
-     *     { event: "<Name>", data: <payload> } for checkout events — a
-     *     successful purchase fires { event: "Checkout.Success", data:
-     *     <Order JSON:API resource> } with the order id at data.id. GA.*
-     *     tracking events arrive in the same object shape and are ignored.
-     *     Unlike lemon.js (which filters nothing), we accept these messages
-     *     ONLY from the checkout URL's own origin.
-     *   - If "mounted" never arrives (iframe blocked, LS down), a fallback
-     *     panel reveals a plain link to the hosted checkout page after
-     *     MOUNT_TIMEOUT_MS. If the buyer clicks the form's X before paying,
-     *     the same panel offers to reopen the form (fresh iframe). A "close"
-     *     AFTER payment just collapses the shell so the activation status
-     *     below stands alone.
+     * The buy button is a plain full-page link to the Lemon Squeezy HOSTED
+     * checkout (their designed-for-full-page experience — no iframe, no
+     * overlay, nothing to scroll inside a box). After a successful payment,
+     * the product's "Confirmation modal" button (configured in the Lemon
+     * Squeezy dashboard, see docs "Customizing Confirmation Modal" + "Link
+     * Variables") sends the buyer back here as:
+     *
+     *   https://statshelpr.com/checkout?license_key=[license_key]&order_id=[order_id]
+     *
+     * [license_key] / [order_id] are Lemon Squeezy link variables — LS
+     * substitutes the real values on purchase. This page then:
+     *   1. strips the query string from the address bar immediately
+     *      (history.replaceState) so the key doesn't linger in the URL,
+     *   2. hands the key to the extension (window.postMessage contract
+     *      below) for instant activation,
+     *   3. if only order_id arrived (older dashboard config), falls back to
+     *      resolving the key via the worker, polling because LS issues
+     *      license keys asynchronously (webhook-driven).
+     * Fulfillment itself NEVER depends on this page — LS's docs warn the
+     * buyer may not click the confirmation button at all; the
+     * lemonsqueezy-webhook worker route is the source of truth, and the
+     * receipt email carries the key for manual popup entry.
      *
      * Worker contract: POST {API_BASE}/api/license-from-order { orderId }
-     *   -> { ok: true, licenseKey } | { ok: false, error } (200 either way).
-     *   The license key is issued asynchronously (Lemon Squeezy webhook), so
-     *   ok:false right after Checkout.Success just means "not issued yet" —
-     *   apps/workers/src/routes/license-from-order.ts's own comment says the
-     *   caller should poll again shortly, so we retry a few times before
-     *   falling back to the "check your email" message.
+     *   -> { ok: true, licenseKey } | { ok: false, error } (200 either way;
+     *   ok:false right after purchase means "not issued yet" — retry).
      *
      * Extension handoff contract (apps/extension/src/activate.ts):
      *   window.postMessage({ source: "statshelpr-web", type: "activate-license",
      *     licenseKey }, window.location.origin)
-     *   -> ack window.postMessage({ source: "statshelpr-ext",
-     *     type: "license-activated" }, window.location.origin)
-     *   -> or, if this license is already bound to another install: ack
-     *     window.postMessage({ source: "statshelpr-ext",
-     *     type: "activation-blocked", reason: "device-limit" }, ...)
+     *   -> ack { source: "statshelpr-ext", type: "license-activated" }
+     *   -> or  { source: "statshelpr-ext", type: "activation-blocked",
+     *            reason: "device-limit" } if the key is bound to another
+     *            install.
      *   activate.ts stores the key locally first, then POSTs
-     *   /api/activate-license (its own 6s AbortController) before it acks
-     *   either way, so we wait a little past that before assuming the
-     *   extension isn't installed — see ACK_TIMEOUT_MS below. If nothing
-     *   acks in time, reveal the key with a copy button instead of stranding
-     *   the buyer. (Lemon Squeezy's activation_limit=1 on the license makes a
-     *   copied/reused key safe — it can only bind to one device.)
+     *   /api/activate-license (its own 6s AbortController) before acking
+     *   either way — ACK_TIMEOUT_MS stays above that ceiling. If nothing
+     *   acks in time, the key is revealed with a copy button instead of
+     *   stranding the buyer (activation_limit=1 keeps a copied key safe).
      *
-     * All result UI below is built with plain DOM methods (textContent /
-     * createElement), not innerHTML — every string here is a static literal,
-     * but the license key itself is server-issued, so it goes through
-     * textContent unconditionally rather than ever touching an HTML string.
+     * All result UI is built with plain DOM methods (textContent /
+     * createElement), never innerHTML — the license key is churned through
+     * textContent unconditionally.
      */
     (function () {
       var API_BASE = "https://api.statshelpr.com";
-      var MAX_ATTEMPTS = 6;
+      var MAX_ATTEMPTS = 8;
       var RETRY_DELAY_MS = 1500;
-      // apps/extension/src/activate.ts doesn't ack instantly: it stores the
-      // key, then POSTs /api/activate-license (its own AbortController times
-      // that out at 6000ms) before replying license-activated/activation-
-      // blocked. Waiting only ~2s here would misreport a slow-but-installed
-      // extension as "not installed", so this stays a little above that 6s
-      // ceiling.
       var ACK_TIMEOUT_MS = 6500;
-      // How long the embed gets to post "mounted" before we assume the iframe
-      // is blocked/unreachable and reveal the hosted-checkout fallback link.
-      var MOUNT_TIMEOUT_MS = 8000;
 
-      var shellEl = document.getElementById("embed-shell");
-      var fallbackEl = document.getElementById("embed-fallback");
-      var fallbackMsgEl = document.getElementById("fallback-msg");
-      var buyBtn = document.getElementById("buy-btn");
+      var pitchEl = document.getElementById("pitch");
+      var titleEl = document.getElementById("hero-title");
+      var priceEl = document.getElementById("hero-price");
       var resultEl = document.getElementById("ls-result");
-      if (!shellEl || !fallbackEl || !fallbackMsgEl || !buyBtn || !resultEl) return;
+      if (!pitchEl || !titleEl || !priceEl || !resultEl) return;
 
-      var CHECKOUT_URL = buyBtn.getAttribute("href");
-      var LS_ORIGIN = new URL(CHECKOUT_URL).origin;
-      var EMBED_URL =
-        CHECKOUT_URL + "?embed=1&logo=0&media=0&desc=0&discount=0";
-
-      var frameEl = null;
-      var mountTimer = null;
-      // "navigate" (embed never mounted -> link to hosted checkout) or
-      // "remount" (buyer closed the form pre-payment -> reopen it in place).
-      var fallbackMode = "navigate";
-      var handledOrderId = null;
       var ackTimer = null;
-
-      function mountEmbed() {
-        if (frameEl) frameEl.remove();
-        shellEl.classList.remove("ready");
-        shellEl.hidden = false;
-        fallbackEl.hidden = true;
-        frameEl = document.createElement("iframe");
-        frameEl.className = "embed-frame";
-        frameEl.src = EMBED_URL;
-        // Same allowance lemon.js grants its overlay iframe — wallet flows
-        // (Cash App Pay etc.) need the Payment Request API.
-        frameEl.allow = "payment";
-        frameEl.title = "Lemon Squeezy secure checkout";
-        shellEl.appendChild(frameEl);
-        if (mountTimer) clearTimeout(mountTimer);
-        mountTimer = setTimeout(function () {
-          mountTimer = null;
-          showFallback(
-            "navigate",
-            "The embedded checkout didn't load — you can pay on Lemon Squeezy's hosted page instead:",
-            "Continue to secure checkout →",
-          );
-        }, MOUNT_TIMEOUT_MS);
-      }
-
-      function showFallback(mode, msg, btnLabel) {
-        fallbackMode = mode;
-        fallbackMsgEl.textContent = msg;
-        buyBtn.textContent = btnLabel;
-        shellEl.hidden = true;
-        fallbackEl.hidden = false;
-      }
-
-      buyBtn.addEventListener("click", function (e) {
-        if (fallbackMode === "remount") {
-          e.preventDefault();
-          mountEmbed();
-        }
-        // "navigate" mode: let the plain <a href> do its job.
-      });
 
       function strongText(str) {
         var s = document.createElement("strong");
@@ -632,44 +408,6 @@
           });
       }
 
-      // Messages from the Lemon Squeezy checkout iframe — origin-checked,
-      // unlike lemon.js's own listener, which accepted every window message.
-      window.addEventListener("message", function (event) {
-        if (event.origin !== LS_ORIGIN) return;
-        var data = event.data;
-
-        if (data === "mounted") {
-          if (mountTimer) {
-            clearTimeout(mountTimer);
-            mountTimer = null;
-          }
-          shellEl.classList.add("ready");
-          return;
-        }
-
-        if (data === "close") {
-          if (handledOrderId) {
-            // Paid, then dismissed the confirmation — the activation status
-            // below the shell is the page's content now.
-            shellEl.hidden = true;
-          } else {
-            showFallback(
-              "remount",
-              "Checkout closed.",
-              "Reopen secure checkout",
-            );
-          }
-          return;
-        }
-
-        if (!data || typeof data !== "object") return;
-        if (data.event !== "Checkout.Success") return;
-        var orderId = data.data && data.data.id;
-        if (!orderId || orderId === handledOrderId) return;
-        handledOrderId = orderId;
-        resolveLicense(orderId, 0);
-      });
-
       // Extension replies land here (see apps/extension/src/activate.ts).
       // Anything that doesn't match the contract exactly is ignored.
       window.addEventListener("message", function (event) {
@@ -684,7 +422,12 @@
         }
         if (data.type === "license-activated") {
           setResult(
-            [strongText("Extension activated"), document.createTextNode(" — you're unlimited.")],
+            [
+              strongText("Extension activated"),
+              document.createTextNode(
+                " — you're unlimited. Head back to your quiz and keep going.",
+              ),
+            ],
             "notice",
           );
         } else if (data.type === "activation-blocked" && data.reason === "device-limit") {
@@ -699,7 +442,29 @@
         }
       });
 
-      mountEmbed();
+      // ---- mode select: pitch page vs post-purchase activation ----
+      var params = new URLSearchParams(window.location.search);
+      var licenseKey = (params.get("license_key") || "").trim();
+      var orderId = (params.get("order_id") || params.get("order") || "").trim();
+
+      if (!licenseKey && !orderId) return; // plain pitch page — nothing to do
+
+      // Don't leave the license key sitting in the address bar / history.
+      try {
+        window.history.replaceState(null, "", window.location.pathname);
+      } catch (e) {
+        /* very old browser — cosmetic only */
+      }
+
+      pitchEl.hidden = true;
+      titleEl.textContent = "You're in.";
+      priceEl.textContent = "Thanks for upgrading — let's switch on Unlimited.";
+
+      if (licenseKey) {
+        activateExtension(licenseKey);
+      } else {
+        resolveLicense(orderId, 0);
+      }
     })();
   </script>
 </body>
