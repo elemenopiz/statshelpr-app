@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "statshelpr",
-  "version": "1.1.0",
-  "description": "Canvas stats tutor — worked solutions with runnable R code, inline on quiz questions.",
+  "version": "1.1.1",
+  "description": "Stats quiz tutor — worked solutions with runnable R code, shown inline on your quiz questions.",
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   },
