@@ -1,13 +1,18 @@
 # Chrome Web Store listing — statshelpr
 
 ## Name
-**statshelpr — stats tutor for Canvas**
-(alt, if a shorter name is preferred: `statshelpr`)
+**statshelpr — stats quiz tutor**
+(alt, shortest form: `statshelpr`)
+
+NOTE: "Canvas" is deliberately NOT in the name or summary — it's a registered
+trademark of Instructure, and putting it in listing metadata is the most common
+trademark/impersonation rejection. It appears ONLY in the description body as
+descriptive ("works on Canvas quiz pages"), which is accepted nominative use.
 
 ## Summary (max 132 chars)
-> Worked solutions for intro-stats questions on Canvas quizzes — step-by-step answers with the real R code behind every result.
+> Worked solutions for intro-stats quiz questions — step-by-step answers with the real R code behind every result.
 
-(121 chars — room to tweak.)
+(111 chars — room to tweak.)
 
 ## Category / language
 Education · English
@@ -30,8 +35,10 @@ Privacy: question content is sent to our servers only when you click solve, and 
 
 statshelpr is a study aid. Use it in accordance with your institution's academic integrity policies.
 
+Not affiliated with, endorsed by, or sponsored by Instructure or Canvas. "Canvas" is a trademark of Instructure, Inc., used here only to describe compatibility.
+
 ## Notes (not part of the listing)
-- The last line (integrity note) is standard for this category and materially helps review approval; recommend keeping it.
-- Functionality statement ("solve button on Canvas quiz pages") is required by CWS metadata policy — the listing must state what the extension does where it does it.
+- The integrity note and the non-affiliation line are both standard for this category and materially help review approval; keep both. The non-affiliation disclaimer is the direct mitigation for the trademark risk — it makes the descriptive use of "Canvas" in the body unambiguous.
+- Functionality statement ("solve button on quiz pages, compatible with Canvas") is required by CWS metadata policy — the listing must state what the extension does. Stated in the description body, not the name/summary.
 - Store assets needed at upload time: at least 1 screenshot 1280×800 (see `docs/cws/screenshots/`), optional promo tile 440×280.
 - Support email + website fields: use the statshelpr.com contact address.
