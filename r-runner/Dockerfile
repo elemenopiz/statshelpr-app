@@ -20,15 +20,15 @@ FROM rocker/tidyverse:4.4.3
 # extension's library picker can select and actually have run — KEEP IN SYNC
 # with apps/extension/src/r-packages.ts's INSTALLED_CATALOG. The base image
 # (rocker/tidyverse) already ships tidyverse, ggplot2, broom, MASS, and knitr,
-# so those are NOT reinstalled here; everything else the picker offers is added
-# below. INFRA (openssl/base64enc for the data-file handling, plumber for the
-# HTTP layer) rounds out the vector.
+# so those are NOT reinstalled here; the intro-stats core (mosaic/moderndive/
+# infer) is added below. INFRA (openssl/base64enc for the data-file handling,
+# plumber for the HTTP layer) rounds out the vector.
 #
-# The catalog is deliberately broad but bounded — the set of R packages used
-# across intro/intermediate stats courses is small and overlapping, so we
-# pre-bake a cross-curriculum superset (one-time build cost, ZERO per-solve
-# cost) rather than installing per request. Growing it from real usage is how
-# the picker generalizes beyond the intro-stats core.
+# Kept deliberately to the small intro-stats core we actually use, NOT a broad
+# cross-curriculum catalog. Broadening the pre-baked set (so the picker could
+# offer more packages across courses/universities) was considered and DEFERRED
+# — revisit only when real usage shows demand. A package the user types that
+# isn't installed here is flagged in the picker and simply won't run.
 #
 # System libraries the STATS packages need (openssl/xml2/curl/fontconfig/
 # freetype/harfbuzz/fribidi/png/tiff/jpeg-devel) are already compiled into
@@ -47,7 +47,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libsodium-dev &
 # request needs the missing package. stopifnot(...) below asserts every
 # requested package actually landed in the library, so a broken install fails
 # the build loudly instead.
-RUN R -e "pkgs <- c('mosaic', 'moderndive', 'infer', 'car', 'lme4', 'psych', 'janitor', 'rstatix', 'effsize', 'pwr', 'lsr', 'BSDA', 'gmodels', 'openssl', 'base64enc', 'plumber'); install.packages(pkgs, repos = 'https://cloud.r-project.org', Ncpus = 4); stopifnot(all(pkgs %in% rownames(installed.packages())))"
+RUN R -e "pkgs <- c('mosaic', 'moderndive', 'infer', 'openssl', 'base64enc', 'plumber'); install.packages(pkgs, repos = 'https://cloud.r-project.org', Ncpus = 4); stopifnot(all(pkgs %in% rownames(installed.packages())))"
 
 COPY plumber.R /app/plumber.R
 WORKDIR /app

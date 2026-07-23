@@ -28,7 +28,6 @@ export const DEFAULT_R_PACKAGES: readonly string[] = [
   "mosaic",
   "moderndive",
   "infer",
-  "broom",
 ];
 
 /** Every package pre-installed on the Cloud Run runner and therefore safe to
@@ -48,16 +47,6 @@ export const INSTALLED_CATALOG: readonly string[] = [
   "mosaic",
   "moderndive",
   "infer",
-  "car",
-  "lme4",
-  "psych",
-  "janitor",
-  "rstatix",
-  "effsize",
-  "pwr",
-  "lsr",
-  "BSDA",
-  "gmodels",
 ];
 
 /** Cap on how many packages we'll store/send — a sane bound so the list can't
