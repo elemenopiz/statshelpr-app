@@ -83,7 +83,7 @@
       function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); }
       function mailLink(label) {
         var a = document.createElement("a");
-        a.href = "mailto:helpr451@gmail.com";
+        a.href = "mailto:statshelpr@gmail.com";
         a.textContent = label;
         return a;
       }
@@ -101,7 +101,7 @@
       if (!token) {
         show("err", "✗", "Invalid reset link",
           "This link is missing its reset token. Request a new one from the extension popup.",
-          [document.createTextNode("Questions? "), mailLink("helpr451@gmail.com")]);
+          [document.createTextNode("Questions? "), mailLink("statshelpr@gmail.com")]);
         return;
       }
 
@@ -124,13 +124,13 @@
               ? r.data.reason
               : "This reset link is invalid or has expired.";
             show("err", "✗", "Reset didn’t go through", reason,
-              [document.createTextNode("Request a fresh link from the extension popup, or email "), mailLink("helpr451@gmail.com")]);
+              [document.createTextNode("Request a fresh link from the extension popup, or email "), mailLink("statshelpr@gmail.com")]);
           }
         })
         .catch(function () {
           show("err", "✗", "Something went wrong",
             "We couldn’t reach the server. Check your connection and open the reset link again.",
-            [document.createTextNode("Still stuck? "), mailLink("helpr451@gmail.com")]);
+            [document.createTextNode("Still stuck? "), mailLink("statshelpr@gmail.com")]);
         });
     })();
   </script>
