@@ -73,7 +73,7 @@ function buildRoutingRules(rPackages?: readonly string[]): string[] {
   "When reporting direction (increase/decrease) for a computed value, always derive the label from the sign: direction <- if(value > 0) 'an increase' else 'a decrease'. Report abs(value) for the magnitude. Never hardcode 'an increase' when the computed value could be negative (e.g., net interaction effects: main_effect + interaction_coef may be negative even if the main effect alone is positive).",
   "Avoid verbose intermediate output unless explicitly requested.",
   "If required data is missing, add a short comment at top explaining what is missing.",
-  "The sampling distributions of means, medians, proportions, differences of means, differences of proportions, and regression coefficients are all approximately normal for large samples via the CLT. Always include medians when asked about statistics with approximately normal sampling distributions.",
+  "Course convention for sampling-distribution select-alls: when a select-all question asks which statistics or estimators generally have approximately normal (unimodal and symmetric) sampling distributions, treat ALL standard summary estimators as approximately normal — means, medians, proportions, differences of means or proportions, regression coefficients, standard deviations, interquartile ranges, and regression model fit statistics — and select EVERY listed option of these kinds. Do not exclude medians, standard deviations, or IQRs on advanced asymptotic-theory grounds; this course's answer keys count them all as approximately normal.",
   "After your answer (whether [CONCEPT] or [RCODE]), append on a new line: CONFIDENCE: High, CONFIDENCE: Med, or CONFIDENCE: Low. Use Low only when genuinely uncertain or the question is ambiguous.",
   ];
 }
@@ -97,9 +97,24 @@ function buildRoutingRules(rPackages?: readonly string[]): string[] {
  * row's value/sign/interval — so it doesn't turn into a blanket "accept every
  * interpretation" rule. Eval-gated against target + backfire-candidate fixtures
  * before shipping.
+ *
+ * v3 (2026-07-23): v1 was validated only single-run on the variant whose
+ * statement referenced a specific level ("SceneLetter: a"); the sibling wording
+ * "when comparing the same scene letter" failed 2/3 runs on 3.6-flash. v2 added
+ * the "comparing the same X / holding X constant" defusal (target went 3/3) but
+ * the scene-a variant then failed 0/2 — the model's objection there is
+ * different: the named level doesn't exist in the data, so it called the
+ * statement meaningless. v3 adds the no-interaction-row clause: a level with no
+ * interaction row (reference level, or absent from the data) gets no
+ * adjustment, so the main-effect row alone IS its effect — which is also just
+ * correct model arithmetic, not only a course convention. Both clauses keep the
+ * two-sided guard, and the subgroup-Z distinction (quick-reference rule 5)
+ * stays intact for levels that DO have an interaction row. Validated multi-run
+ * per wording + backfire set (stochastic family — single-run validation is
+ * what let v1 ship half-covered).
  */
 const REGRESSION_INTERPRETATION =
-  "When a regression table (columns like term, estimate, lower_ci, upper_ci) is shown and the question asks which interpretation(s) are accurate, judge each statement against the specific coefficient row it refers to: its stated direction, rough magnitude, and interval should match that row, and an interval that excludes 0 supports a 'with 95% confidence' claim in that direction. A statement that correctly describes a coefficient's own interval is accurate even for a MAIN-effect coefficient in a model with interactions — that coefficient is the effect at the reference level — so do not call it inaccurate merely because the interaction terms make the combined effect differ for other categories. (A statement is still inaccurate if it misstates the row's value, sign, or interval.)";
+  "When a regression table (columns like term, estimate, lower_ci, upper_ci) is shown and the question asks which interpretation(s) are accurate, judge each statement against the specific coefficient row it refers to: its stated direction, rough magnitude, and interval should match that row, and an interval that excludes 0 supports a 'with 95% confidence' claim in that direction. A statement that correctly describes a coefficient's own interval is accurate even for a MAIN-effect coefficient in a model with interactions — that coefficient is the effect at the reference level — so do not call it inaccurate merely because the interaction terms make the combined effect differ for other categories. The same applies when such a statement pins the comparison within a category of the interacting variable: phrasings like 'when comparing the same <other variable>' or 'holding <other variable> constant' describe the main-effect coefficient's own row (the holding-others-fixed reading), and a statement naming a specific category that has NO interaction row in the table (the reference level, or a level not present in the data) also reduces to the main-effect row alone, since no interaction adjustment applies to it. In all of these cases judge the statement against that coefficient row's estimate and interval, and do not reject it because interaction terms change the effect at OTHER category levels, and do not reject it because the named category is the reference or absent from the data. (This is distinct from 'does Y change for subgroup Z?' when Z HAS an interaction row — there, combine main + interaction. A statement is still inaccurate if it misstates the row's value, sign, or interval.)";
 
 const QUICK_REFERENCE = [
   "=== QUICK REFERENCE (re-read before answering) ===",
