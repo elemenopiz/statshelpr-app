@@ -15,7 +15,11 @@ import { summarizeCsv } from "@/lib/data-summary";
 import { KILL_SWITCH_MESSAGE, checkGlobalKillSwitch } from "@/lib/kill-switch";
 import { validateLicense } from "@/lib/license";
 import { activateForInstall } from "@/lib/license-activation";
-import { recordPaywallHitInBackground, recordServerEventInBackground } from "@/lib/metrics-store";
+import {
+  recordPaywallHitInBackground,
+  recordRRunnerEventInBackground,
+  recordServerEventInBackground,
+} from "@/lib/metrics-store";
 import { repairRCode } from "@/lib/r-repair";
 import { runRRemote, type RunRResult } from "@/lib/r-runner";
 import { checkAndIncrement, getClientIp, hashBucket } from "@/lib/rate-limit";
@@ -332,14 +336,24 @@ solve.post("/", async (c) => {
           installHash,
           errorType: "r_runner",
         });
+        recordRRunnerEventInBackground(c, { success: false });
         await write({
           type: "error",
           message: "Couldn't run the R calculation — please try again.",
         });
       };
+      // Real prod samples showed a clean bimodal split: warm calls finish
+      // under ~7s, cold starts land at ~11.6s/~15.7s — 8s sits in the gap.
+      const R_RUNNER_COLD_START_THRESHOLD_MS = 8_000;
       const runRSafe = async (code: string): Promise<RunRResult | undefined> => {
         try {
-          return await runRRemote(c.env, code, dataFiles);
+          const result = await runRRemote(c.env, code, dataFiles);
+          recordRRunnerEventInBackground(c, {
+            success: true,
+            durationMs: result.durationMs,
+            coldStart: result.durationMs > R_RUNNER_COLD_START_THRESHOLD_MS,
+          });
+          return result;
         } catch {
           await recordRRunnerFailure();
           return undefined;

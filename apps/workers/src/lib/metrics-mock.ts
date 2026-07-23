@@ -1,7 +1,7 @@
 import type { DailyPoint, MetricsResponse, WriteBackTypeStat } from "./metrics-aggregate";
 import type { ModelUsage, WriteBackOutcomeCounts } from "./metrics-store";
 import { IMAGE_VISION_MODEL, PRIMARY_TEXT_MODEL } from "./cost";
-import { LATENCY_BUCKET_BOUNDARIES_MS } from "./histogram";
+import { LATENCY_BUCKET_BOUNDARIES_MS, percentileFromHistogram } from "./histogram";
 
 /**
  * Hardcoded realistic payload for `/dashboard?demo=1`, matching the exact
@@ -238,6 +238,17 @@ function boundariesSplit(total: number, weights: number[]): number[] {
   return LATENCY_BUCKET_BOUNDARIES_MS.map((_, i) => out[String(i)] ?? 0);
 }
 
+// Cloud Run R-runner health (R-runner health tracking phase 1) — one call per
+// calc question (WEBR_USAGE), mostly warm (sub-2s), with a small cold-start
+// tail out past the 8s bucket matching solve.ts's cold-start threshold.
+const R_RUNNER_REQUEST_COUNT = WEBR_USAGE;
+const R_RUNNER_ERROR_COUNT = Math.round(R_RUNNER_REQUEST_COUNT * 0.03);
+const R_RUNNER_SUCCESS_COUNT = R_RUNNER_REQUEST_COUNT - R_RUNNER_ERROR_COUNT;
+const R_RUNNER_COLD_START_COUNT = Math.round(R_RUNNER_SUCCESS_COUNT * 0.06);
+const R_RUNNER_LATENCY_HISTOGRAM = boundariesSplit(R_RUNNER_SUCCESS_COUNT, [
+  0.03, 0.22, 0.3, 0.22, 0.11, 0.05, 0.02, 0.03, 0.02,
+]);
+
 const AVG_COST_PER_QUESTION_USD = 0.0186;
 const AVG_COST_PER_CALC_QUESTION_USD = 0.0344;
 const TOTAL_COST_USD = Number((QUESTIONS_ANSWERED * AVG_COST_PER_QUESTION_USD).toFixed(2));
@@ -348,6 +359,18 @@ export function buildMockMetrics(): MetricsResponse {
       serverLatencyHistogram: SERVER_LATENCY_HISTOGRAM,
       clientLatencyHistogram: CLIENT_LATENCY_HISTOGRAM,
       latencyBoundariesMs: [...LATENCY_BUCKET_BOUNDARIES_MS],
+    },
+    rRunner: {
+      requestCount: R_RUNNER_REQUEST_COUNT,
+      successRate: round4(R_RUNNER_SUCCESS_COUNT / Math.max(1, R_RUNNER_REQUEST_COUNT)),
+      latencyMsP50: Math.round(
+        percentileFromHistogram(R_RUNNER_LATENCY_HISTOGRAM, LATENCY_BUCKET_BOUNDARIES_MS, 0.5),
+      ),
+      latencyMsP95: Math.round(
+        percentileFromHistogram(R_RUNNER_LATENCY_HISTOGRAM, LATENCY_BUCKET_BOUNDARIES_MS, 0.95),
+      ),
+      latencyHistogram: R_RUNNER_LATENCY_HISTOGRAM,
+      coldStartRatePct: round2((R_RUNNER_COLD_START_COUNT / Math.max(1, R_RUNNER_SUCCESS_COUNT)) * 100),
     },
     economics: {
       model: TEXT_MODEL_ID,

@@ -104,6 +104,21 @@ export interface MetricsResponse {
     clientLatencyHistogram: number[];
     latencyBoundariesMs: number[];
   };
+  /** Cloud Run R-execution service health (R-runner health tracking phase 1)
+   *  — a distinct signal from `performance` above, which covers the Gemini
+   *  solve/interpret legs, not the R-runner call itself. */
+  rRunner: {
+    requestCount: number;
+    /** successCount/requestCount, 0..1 — same convention as
+     *  quality.solveSuccessRate. */
+    successRate: number;
+    latencyMsP50: number;
+    latencyMsP95: number;
+    latencyHistogram: number[];
+    /** coldStartCount/successCount*100, 0..100 (only successful calls have a
+     *  durationMs to classify as cold-started). */
+    coldStartRatePct: number;
+  };
   economics: {
     model: string;
     rates: { inputPer1M: number; outputPer1M: number; cachedInputPer1M: number };
@@ -222,6 +237,10 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
   const costUsdByMode = { concept: 0, calc: 0 };
   const serverHist = emptyHistogram();
   const clientHist = emptyHistogram();
+  const rRunnerHist = emptyHistogram();
+  let rRunnerRequestCount = 0;
+  let rRunnerSuccessCount = 0;
+  let rRunnerColdStartCount = 0;
   const dailyByDate = new Map<string, DailyPoint>();
   const mauSet = new Set<string>();
 
@@ -288,6 +307,10 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
     revenueFlow.paymentFailed += b.revenue.paymentFailed;
     mergeHistogramInto(serverHist, b.server.latencyHistogram);
     mergeHistogramInto(clientHist, b.client.latencyHistogram);
+    mergeHistogramInto(rRunnerHist, b.server.rRunner.latencyHistogram);
+    rRunnerRequestCount += b.server.rRunner.requestCount;
+    rRunnerSuccessCount += b.server.rRunner.successCount;
+    rRunnerColdStartCount += b.server.rRunner.coldStartCount;
 
     for (const h of b.installHashes) mauSet.add(h);
 
@@ -347,6 +370,11 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
   const serverLatencyMsP95 = Math.round(percentileFromHistogram(serverHist, LATENCY_BUCKET_BOUNDARIES_MS, 0.95));
   const clientLatencyMsP50 = Math.round(percentileFromHistogram(clientHist, LATENCY_BUCKET_BOUNDARIES_MS, 0.5));
   const clientLatencyMsP95 = Math.round(percentileFromHistogram(clientHist, LATENCY_BUCKET_BOUNDARIES_MS, 0.95));
+  const rRunnerLatencyMsP50 = Math.round(percentileFromHistogram(rRunnerHist, LATENCY_BUCKET_BOUNDARIES_MS, 0.5));
+  const rRunnerLatencyMsP95 = Math.round(percentileFromHistogram(rRunnerHist, LATENCY_BUCKET_BOUNDARIES_MS, 0.95));
+  const rRunnerSuccessRate = rRunnerRequestCount > 0 ? rRunnerSuccessCount / rRunnerRequestCount : 0;
+  const rRunnerColdStartRatePct =
+    rRunnerSuccessCount > 0 ? (rRunnerColdStartCount / rRunnerSuccessCount) * 100 : 0;
 
   const rate = rateForModel(PRIMARY_TEXT_MODEL);
   const avgCostPerQuestionUsd = questionsAnswered > 0 ? totalCostUsd / questionsAnswered : 0;
@@ -410,6 +438,14 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
       serverLatencyHistogram: serverHist,
       clientLatencyHistogram: clientHist,
       latencyBoundariesMs: [...LATENCY_BUCKET_BOUNDARIES_MS],
+    },
+    rRunner: {
+      requestCount: rRunnerRequestCount,
+      successRate: roundRate(rRunnerSuccessRate),
+      latencyMsP50: rRunnerLatencyMsP50,
+      latencyMsP95: rRunnerLatencyMsP95,
+      latencyHistogram: rRunnerHist,
+      coldStartRatePct: roundPct(rRunnerColdStartRatePct),
     },
     economics: {
       model: PRIMARY_TEXT_MODEL,
