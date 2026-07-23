@@ -44,6 +44,11 @@ export interface Env {
    *  in GET /api/metrics only — not a cap or rate limit. Default 110 (the
    *  documented paid-user usage assumption, ~10 solves / 2 weekdays). */
   AVG_SOLVES_PER_USER_PER_MONTH?: string;
+  /** UTC date ("YYYY-MM-DD") before which daily metrics buckets are excluded
+   *  from dashboard aggregation — lets pre-launch dev/testing data be hidden
+   *  from the live dashboard without deleting the underlying KV buckets.
+   *  Unset = no filtering (all stored history shown). */
+  METRICS_LAUNCH_DATE?: string;
   /** Base URL of the Cloud Run R-runner service (r-runner/), e.g.
    *  `https://statshelpr-r-runner-xxxx.run.app` — non-secret, set in
    *  wrangler.toml's [vars] (the URL alone grants nothing without

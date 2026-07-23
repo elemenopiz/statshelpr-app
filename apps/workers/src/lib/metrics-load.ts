@@ -21,7 +21,7 @@
  */
 
 import type { Env } from "../types";
-import { lastNDatesUtc, readBucketsForRange } from "./metrics-store";
+import { emptyBucket, lastNDatesUtc, readBucketsForRange } from "./metrics-store";
 import { aggregateMetrics, type MetricsResponse } from "./metrics-aggregate";
 import { computeCohorts, type CohortResult } from "./cohort";
 
@@ -58,7 +58,19 @@ export async function loadMetrics(env: Env, days: number = METRICS_RANGE_DAYS): 
   const lookbackDates = lastNDatesUtc(2 * windowDays);
   const currentDates = lookbackDates.slice(0, windowDays);
   const priorDates = lookbackDates.slice(windowDays);
-  const allBuckets = await readBucketsForRange(env, lookbackDates);
+  const rawBuckets = await readBucketsForRange(env, lookbackDates);
+
+  // Pre-launch dev/testing buckets are swapped for empty ones rather than
+  // read out of KV differently, so cohorts/deltas below see a real (empty)
+  // bucket per date instead of needing separate "hidden" branching.
+  const launchDate = env.METRICS_LAUNCH_DATE;
+  const allBuckets = launchDate
+    ? rawBuckets.map((b, i) => {
+        const date = lookbackDates[i] ?? b.date;
+        return date < launchDate ? emptyBucket(date) : b;
+      })
+    : rawBuckets;
+
   const currentBuckets = allBuckets.slice(0, windowDays);
   const priorBuckets = allBuckets.slice(windowDays);
 
