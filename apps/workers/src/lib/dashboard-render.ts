@@ -28,12 +28,14 @@ import {
   prettyQuestionType,
   shortModelLabel,
 } from "./dashboard-format";
+import { LATENCY_BUCKET_BOUNDARIES_MS } from "./histogram";
 
 type Tone = "blue" | "green" | "red" | "amber" | "ink";
 
 type VolumeMetrics = MetricsResponse["volume"];
 type QualityMetrics = MetricsResponse["quality"];
 type PerformanceMetrics = MetricsResponse["performance"];
+type RRunnerMetrics = MetricsResponse["rRunner"];
 type EconomicsMetrics = MetricsResponse["economics"];
 type RevenueMetrics = MetricsResponse["revenue"];
 type FunnelMetrics = MetricsResponse["funnel"];
@@ -569,6 +571,7 @@ html[data-theme="light"] .page {
 
 .histBar { fill: var(--blue); }
 .histBarAlt { fill: var(--green); }
+.histBarR { fill: var(--amber); }
 .compConcept { fill: var(--blue); }
 .compCalc { fill: var(--green); }
 
@@ -1517,6 +1520,42 @@ function renderPerformanceSection(performance: PerformanceMetrics): string {
 }
 
 // ---------------------------------------------------------------------------
+// 3b. R-runner health — Cloud Run R-execution service (a distinct signal from
+// the Gemini solve/interpret latency above)
+// ---------------------------------------------------------------------------
+
+function renderRRunnerSection(rRunner: RRunnerMetrics): string {
+  const tiles = renderStatGrid([
+    renderStatTile({ label: "Requests", value: fmtInt(rRunner.requestCount) }),
+    renderStatTile({
+      label: "Success rate",
+      value: fmtPct(rRunner.successRate),
+      tone: toneHigherBetter(rRunner.successRate, 0.95, 0.9),
+    }),
+    renderStatTile({ label: "p50", value: fmtMs(rRunner.latencyMsP50) }),
+    renderStatTile({ label: "p95", value: fmtMs(rRunner.latencyMsP95), tone: "amber" }),
+    renderStatTile({
+      label: "Cold-start rate",
+      value: fmtPctValue(rRunner.coldStartRatePct),
+      tone: toneLowerBetter(rRunner.coldStartRatePct, 10, 25),
+    }),
+  ]);
+
+  const histCard = renderCard(
+    `<p class="statLabel">R-runner latency distribution</p><p class="statCaption" style="margin: 0 0 0.4rem">Cloud Run R-execution service — durationMs self-reported by the runner</p>${renderLatencyHistogram(
+      rRunner.latencyHistogram,
+      [...LATENCY_BUCKET_BOUNDARIES_MS],
+      "histBarR",
+      "R-runner latency distribution by bucket",
+    )}`,
+    "chartCard",
+  );
+
+  const inner = `${tiles}<div class="stack">${histCard}</div>`;
+  return renderSection("R-Runner Health", "Cloud Run R-execution service — volume, latency, cold starts", inner);
+}
+
+// ---------------------------------------------------------------------------
 // 4. Unit economics — the full audit trail behind the headline banner
 // ---------------------------------------------------------------------------
 
@@ -1742,6 +1781,7 @@ export function renderDashboardPage(
     ${renderRetentionSection(m.retention, days)}
     ${renderQualitySection(m.quality, m.comparison, m.volume.apiCalls)}
     ${renderPerformanceSection(m.performance)}
+    ${renderRRunnerSection(m.rRunner)}
     ${renderEconomicsSection(m.economics, m.revenue, m.comparison, days)}
 
     <footer class="footer">

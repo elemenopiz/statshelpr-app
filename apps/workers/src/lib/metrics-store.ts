@@ -137,6 +137,22 @@ export interface DailyMetricsBucket {
      *  blended rate — this is the audit trail for that split. */
     byModel: Record<string, ModelUsage>;
     latencyHistogram: number[];
+    /** Cloud Run R-execution service health (R-runner health tracking phase
+     *  1) — recorded from routes/solve.ts's runRSafe/recordRRunnerFailure on
+     *  EVERY runRRemote call, success or failure, independent of the
+     *  solve/interpret route counters above (those track the LLM legs, not
+     *  the R-runner call itself). `latencyHistogram` uses `durationMs` as
+     *  self-reported by the R-runner service (r-runner/plumber.R), NOT a
+     *  Worker-side Date.now() measurement. `coldStartCount` is inferred
+     *  Worker-side (durationMs > COLD_START_THRESHOLD_MS) since the R-runner
+     *  doesn't report a cold-start flag itself. */
+    rRunner: {
+      requestCount: number;
+      successCount: number;
+      errorCount: number;
+      coldStartCount: number;
+      latencyHistogram: number[];
+    };
   };
   client: {
     byQuestionType: Record<string, number>;
@@ -193,6 +209,7 @@ export function emptyBucket(date: string): DailyMetricsBucket {
       costUsdByMode: { concept: 0, calc: 0 },
       byModel: {},
       latencyHistogram: emptyHistogram(),
+      rRunner: { requestCount: 0, successCount: 0, errorCount: 0, coldStartCount: 0, latencyHistogram: emptyHistogram() },
     },
     client: {
       byQuestionType: {},
@@ -271,6 +288,11 @@ export function normalizeBucket(raw: unknown, date: string): DailyMetricsBucket 
       costUsdByMode: { ...empty.server.costUsdByMode, ...s.costUsdByMode },
       byModel: okByModel(s.byModel),
       latencyHistogram: okHist(s.latencyHistogram, empty.server.latencyHistogram.length),
+      rRunner: {
+        ...empty.server.rRunner,
+        ...s.rRunner,
+        latencyHistogram: okHist(s.rRunner?.latencyHistogram, empty.server.rRunner.latencyHistogram.length),
+      },
     },
     client: {
       byQuestionType: typeof cl.byQuestionType === "object" && cl.byQuestionType ? { ...cl.byQuestionType } : {},
@@ -407,6 +429,50 @@ export async function recordServerEvent(env: Env, input: ServerEventInput): Prom
     await writeBucket(env, bucket);
   } catch {
     // Best-effort — metrics must never break or delay a solve.
+  }
+}
+
+export interface RRunnerEventInput {
+  success: boolean;
+  /** The R-runner service's own self-reported durationMs (RunRResult.durationMs)
+   *  — only present on success; a failed call (network error, 5xx, timeout)
+   *  never reaches a durationMs. */
+  durationMs?: number;
+  /** Worker-side inference (durationMs > threshold — see routes/solve.ts),
+   *  since the R-runner doesn't report a cold-start flag itself. Ignored when
+   *  success is false. */
+  coldStart?: boolean;
+}
+
+/** Records one Cloud Run R-execution service call (success or failure),
+ *  independent of the solve/interpret route counters (R-runner health
+ *  tracking phase 1). Best-effort, matches recordServerEvent's pattern. */
+export async function recordRRunnerEvent(env: Env, input: RRunnerEventInput): Promise<void> {
+  try {
+    const bucket = await readBucket(env, todayUtc());
+    const rr = bucket.server.rRunner;
+    rr.requestCount += 1;
+    if (input.success) {
+      rr.successCount += 1;
+      if (input.coldStart) rr.coldStartCount += 1;
+      if (typeof input.durationMs === "number") {
+        addToHistogram(rr.latencyHistogram, LATENCY_BUCKET_BOUNDARIES_MS, input.durationMs);
+      }
+    } else {
+      rr.errorCount += 1;
+    }
+    await writeBucket(env, bucket);
+  } catch {
+    // Best-effort — metrics must never break or delay a solve.
+  }
+}
+
+export function recordRRunnerEventInBackground(c: EnvContext, input: RRunnerEventInput): void {
+  const p = recordRRunnerEvent(c.env, input);
+  try {
+    c.executionCtx.waitUntil(p);
+  } catch {
+    /* no ExecutionContext — promise is already running on its own */
   }
 }
 

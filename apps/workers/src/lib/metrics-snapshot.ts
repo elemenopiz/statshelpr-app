@@ -57,6 +57,15 @@ export interface Snapshot {
   mau: number;
   questionsAnswered: number;
   writeBackSuccessRate: number;
+  /** Cloud Run R-execution service health (R-runner health tracking phase 1)
+   *  — the trend we want to outlive the raw 70-day buckets. */
+  rRunner: {
+    requestCount: number;
+    successRate: number;
+    coldStartRatePct: number;
+    latencyMsP50: number;
+    latencyMsP95: number;
+  };
   revenue: {
     activeSubscribers: number;
     mrrUsd: number;
@@ -82,6 +91,13 @@ export function toSnapshot(date: string, capturedAt: number, m: MetricsResponse)
     mau: m.volume.mau,
     questionsAnswered: m.volume.questionsAnswered,
     writeBackSuccessRate: m.quality.writeBackSuccessRate,
+    rRunner: {
+      requestCount: m.rRunner.requestCount,
+      successRate: m.rRunner.successRate,
+      coldStartRatePct: m.rRunner.coldStartRatePct,
+      latencyMsP50: m.rRunner.latencyMsP50,
+      latencyMsP95: m.rRunner.latencyMsP95,
+    },
     revenue: {
       activeSubscribers: m.revenue.activeSubscribers,
       mrrUsd: m.revenue.mrrUsd,
