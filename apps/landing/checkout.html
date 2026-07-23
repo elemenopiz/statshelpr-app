@@ -38,12 +38,12 @@
       --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
       --shadow-pop: 0 2px 4px rgba(29,28,23,0.06), 0 20px 48px rgba(29,28,23,0.12);
       /* Width of the payment column = the embed's desktop sheet, which is a
-         FIXED ~512px. The sheet only fills the card flush when the card is
-         exactly sheet-width; any wider and the embed centers the sheet over
-         its backdrop, leaving tinted strips. The iframe itself is drawn
-         wider than the card (see .embed-frame) so the embed still measures
-         a desktop-size viewport. */
-      --pay-w: 512px;
+         FIXED 28rem (448px). The sheet only fills the column flush when the
+         column is exactly sheet-width; any wider and the embed centers the
+         sheet over its backdrop, leaving whitish strips. The iframe itself
+         is drawn wider than the column (see .embed-frame) so the embed
+         still measures a desktop-size viewport. */
+      --pay-w: 448px;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -135,10 +135,13 @@
     .legal-links a:hover { color: var(--blue); }
     /* ---- payment card: the embed IS the card face, no inner box ---- */
     .pay-card {
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      box-shadow: var(--shadow-pop);
+      /* No card chrome — no border, no background, no boxed shadow. The
+         embed sheet's own white surface floats directly on the page; this
+         container only clips the crop overhang and re-rounds the corners
+         the crop cut off, plus a whisper of grounding shadow so the form
+         doesn't visually swim over the grid. */
+      border-radius: 20px;
+      box-shadow: 0 30px 70px -38px rgba(29, 28, 23, 0.35);
       overflow: hidden;
       animation: riseIn 0.65s var(--ease-out) 0.1s both;
     }
@@ -156,12 +159,12 @@
       /* Sideways crop, same idea as the top crop below: the embed needs an
          internal viewport ≥ ~560px to pick its desktop layout (below ~430 it
          goes full-bleed mobile; in between it overflows), but its sheet is a
-         fixed ~512px centered over backdrop. Drawing the iframe 64px wider
-         than the 512px card and pulling it 32px left gives the embed a
-         576px viewport while the card clips both backdrop strips — so the
-         sheet lands flush against the card edges. */
-      width: calc(100% + 64px);
-      margin-left: -32px;
+         fixed 28rem (448px) centered over backdrop. Drawing the iframe
+         128px wider than the 448px column and pulling it 64px left gives
+         the embed a 576px viewport while the clip removes both 64px
+         backdrop strips — the sheet lands flush on the column edges. */
+      width: calc(100% + 128px);
+      margin-left: -64px;
       /* The embed page reserves a fixed ~240px "peek at the page behind"
          band above the sheet (plus its floating X, which closes an overlay
          we don't have) — make the iframe taller than the shell and pull it
