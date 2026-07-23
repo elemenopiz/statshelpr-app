@@ -10,20 +10,24 @@
  * added there) so that module can stay dependency-free/pure per its own
  * header doc — this one is the only piece that touches Env/KV.
  *
- * This layer also owns the three cross-cutting enrichments that need either
- * KV or a second (prior) window and so can't live in the pure aggregator
- * (dashboard-v2 items 6, 8, 10):
+ * This layer also owns the four cross-cutting enrichments that need either
+ * KV, a second (prior) window, or an external API, and so can't live in the
+ * pure aggregator (dashboard-v2 items 6, 8, 10; R-runner health phase 2):
  *   - the live active-subscriber count, scanned from the `sub:` KV keyspace;
  *   - window-over-window deltas, by aggregating the immediately-preceding
  *     window and diffing the two;
  *   - new-install + retention cohorts, computed over a 2×window lookback by
- *     the pure helpers in lib/cohort.ts and overlaid onto the response.
+ *     the pure helpers in lib/cohort.ts and overlaid onto the response;
+ *   - live Cloud Run infra metrics (free-tier burn, cold-start latency) for
+ *     the R-runner service, fetched straight from GCP Cloud Monitoring (not
+ *     KV) by lib/gcp-monitoring.ts and overlaid the same way.
  */
 
 import type { Env } from "../types";
 import { lastNDatesUtc, readBucketsForRange } from "./metrics-store";
 import { aggregateMetrics, type MetricsResponse } from "./metrics-aggregate";
 import { computeCohorts, type CohortResult } from "./cohort";
+import { fetchCloudRunMetrics } from "./gcp-monitoring";
 
 export const METRICS_RANGE_DAYS = 30;
 
@@ -108,6 +112,22 @@ export async function loadMetrics(env: Env, days: number = METRICS_RANGE_DAYS): 
   }));
   const cohorts = computeCohorts(cohortDays, new Set(currentDates));
   overlayCohorts(current, cohorts);
+
+  // Live GCP fetch (R-runner health phase 2) — fetchCloudRunMetrics is
+  // documented to never throw, but this call is wrapped anyway (belt and
+  // suspenders): a GCP-side failure of ANY kind must degrade to the
+  // "unavailable" shape the renderer already knows how to show, never take
+  // the rest of loadMetrics (and therefore the whole dashboard) down with it.
+  try {
+    current.cloudRun = await fetchCloudRunMetrics(env);
+  } catch (e) {
+    current.cloudRun = {
+      available: false,
+      unavailableReason: `unexpected error: ${(e as Error)?.message || "unknown"}`,
+      billableInstanceTime: null,
+      startupLatency: null,
+    };
+  }
 
   return current;
 }

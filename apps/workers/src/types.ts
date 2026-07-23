@@ -36,6 +36,18 @@ export interface Env {
    *  for DASHBOARD_PASSWORD/METRICS_TOKEN above. *** MUST BE SET BEFORE
    *  DEPLOY (alongside R_RUNNER_URL in [vars] below). *** */
   R_RUNNER_SECRET: string;
+  /** Full JSON key file (verbatim) for the read-only
+   *  statshelpr-monitoring-reader@... service account (roles/monitoring.viewer
+   *  ONLY) — `wrangler secret put GCP_MONITORING_SA_KEY`. Used by
+   *  lib/gcp-monitoring.ts to self-sign a JWT and pull two Cloud Run infra
+   *  metrics (billable_instance_time, startup_latencies) straight from GCP
+   *  Cloud Monitoring for the /dashboard "Cloud Run Infra" panel (R-runner
+   *  health tracking phase 2). Optional and NOT fail-closed like the secrets
+   *  above: unset (the normal case in local dev — this is not in any
+   *  .dev.vars) just renders that one panel as "unavailable", the rest of
+   *  the dashboard is unaffected. Never logged; see that module's doc
+   *  comment for the auth flow. */
+  GCP_MONITORING_SA_KEY?: string;
 
   // Vars (from wrangler.toml [vars])
   LLM_PROVIDER: string;

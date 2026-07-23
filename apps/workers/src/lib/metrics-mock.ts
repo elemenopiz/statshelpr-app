@@ -249,6 +249,14 @@ const R_RUNNER_LATENCY_HISTOGRAM = boundariesSplit(R_RUNNER_SUCCESS_COUNT, [
   0.03, 0.22, 0.3, 0.22, 0.11, 0.05, 0.02, 0.03, 0.02,
 ]);
 
+// Cloud Run infra (R-runner health tracking phase 2) — a modest month-to-date
+// burn well under the free tier, plus a cold-start p50/p95 a bit tighter than
+// the R-runner section's inferred (durationMs > 8000) heuristic above, since
+// this is the more precise Cloud-Run-native signal.
+const CLOUD_RUN_BILLABLE_SECONDS_THIS_MONTH = 14_200;
+const CLOUD_RUN_VCPU_SECONDS = CLOUD_RUN_BILLABLE_SECONDS_THIS_MONTH * 1;
+const CLOUD_RUN_GIB_SECONDS = CLOUD_RUN_BILLABLE_SECONDS_THIS_MONTH * 2;
+
 const AVG_COST_PER_QUESTION_USD = 0.0186;
 const AVG_COST_PER_CALC_QUESTION_USD = 0.0344;
 const TOTAL_COST_USD = Number((QUESTIONS_ANSWERED * AVG_COST_PER_QUESTION_USD).toFixed(2));
@@ -371,6 +379,20 @@ export function buildMockMetrics(): MetricsResponse {
       ),
       latencyHistogram: R_RUNNER_LATENCY_HISTOGRAM,
       coldStartRatePct: round2((R_RUNNER_COLD_START_COUNT / Math.max(1, R_RUNNER_SUCCESS_COUNT)) * 100),
+    },
+    cloudRun: {
+      available: true,
+      unavailableReason: null,
+      billableInstanceTime: {
+        vcpuSeconds: CLOUD_RUN_VCPU_SECONDS,
+        gibSeconds: CLOUD_RUN_GIB_SECONDS,
+        vcpuFreeTierBurnPct: round2((CLOUD_RUN_VCPU_SECONDS / 180_000) * 100),
+        gibFreeTierBurnPct: round2((CLOUD_RUN_GIB_SECONDS / 360_000) * 100),
+      },
+      startupLatency: {
+        p50Ms: 340,
+        p95Ms: 2150,
+      },
     },
     economics: {
       model: TEXT_MODEL_ID,
