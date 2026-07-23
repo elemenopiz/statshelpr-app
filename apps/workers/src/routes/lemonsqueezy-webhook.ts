@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Env } from "../types";
 import { recordRevenueEvent } from "@/lib/metrics-store";
+import { activateForInstall } from "@/lib/license-activation";
 
 /**
  * Lemon Squeezy webhook receiver.
@@ -54,6 +55,7 @@ lsWebhook.post("/", async (c) => {
     switch (eventName) {
       case "subscription_created":
         await activateLicense(c.env, payload);
+        await writeInstallClaim(c.env, payload);
         await upsertSubRecord(c.env, payload, "active");
         // First subscription for this id -> a real new-MRR event. Deliberately
         // NOT recorded on payment_success (recurring renewal) or updated (a
@@ -105,6 +107,37 @@ async function activateLicense(env: Env, payload: LSWebhookPayload) {
   await env.STATSHELPR_KV.put(`license:${licenseKey}`, JSON.stringify({ ok: true, ...record }), {
     expirationTtl: 400 * 86_400,
   });
+}
+
+/** Zero-click activation handoff (see routes/claim-license.ts for the other
+ *  half + the security rationale). The popup bakes the extension's install id
+ *  into the checkout link as LS custom data; when the purchase webhook lands
+ *  we park the license key under `claim:{installId}` for the extension's
+ *  background poll to pick up, and pre-bind the license to that install so
+ *  the single-device lock is already pointing at the purchasing browser.
+ *
+ *  ONLY called for subscription_created: custom_data rides along on every
+ *  later lifecycle webhook too (renewals, updates), and re-binding there
+ *  would yank a license BACK to the original install after the user has
+ *  legitimately reset it onto a new device. */
+async function writeInstallClaim(env: Env, payload: LSWebhookPayload) {
+  const attrs = payload.data?.attributes;
+  const licenseKey = attrs?.license_key ?? attrs?.first_subscription_item?.license_key;
+  const installId = payload.meta?.custom_data?.["install_id"];
+  if (!licenseKey || typeof installId !== "string" || !installId) return;
+
+  await env.STATSHELPR_KV.put(
+    `claim:${installId}`,
+    JSON.stringify({ licenseKey, createdAt: Date.now() }),
+    { expirationTtl: 48 * 3600 },
+  );
+
+  try {
+    await activateForInstall(env, licenseKey, installId);
+  } catch {
+    // Best-effort pre-bind — the claim entry above is what auto-activation
+    // needs; binding happens lazily on first solve anyway (routes/solve.ts).
+  }
 }
 
 async function deactivateLicense(env: Env, payload: LSWebhookPayload) {

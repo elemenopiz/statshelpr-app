@@ -5,6 +5,8 @@ import {
   isInstalled,
   loadRPackages,
 } from "./r-packages";
+import { getInstallId } from "./install-id";
+import { startClaiming, tryClaimLicense } from "./claim-license";
 
 interface StoredConfig {
   apiUrl?: string;
@@ -211,6 +213,25 @@ chrome.storage.sync.get(["apiUrl", "licenseKey", "buttonOpacity"], (cfg: StoredC
   if (opacityValueEl) opacityValueEl.textContent = `${pct}%`;
   void pingHealth(API_URL);
   void refreshPlan(API_URL, cfg.licenseKey ?? "");
+  // One-shot zero-click claim check: if an upgrade was started from this
+  // popup and the purchase webhook has landed, this stores the license key
+  // right now — the storage.onChanged listener below then re-runs
+  // refreshPlan, so an open popup flips to Unlimited live.
+  void tryClaimLicense();
+});
+
+// Bake this install's id into the checkout links as Lemon Squeezy custom
+// data (checkout[custom][install_id]) — the purchase webhook echoes it back,
+// which is what lets the license auto-claim onto exactly this browser with
+// zero clicks. See src/claim-license.ts.
+void getInstallId().then((id) => {
+  const param = "checkout[custom][install_id]=" + encodeURIComponent(id);
+  [upgradeCtaEl, opacityLockEl].forEach((a) => {
+    if (!a) return;
+    const href = a.getAttribute("href");
+    if (!href) return;
+    a.href = href + (href.includes("?") ? "&" : "?") + param;
+  });
 });
 
 /** Push a live opacity value to the on-page solve button in the active tab so
@@ -343,27 +364,35 @@ try {
   /* file:// preview — keep the placeholder */
 }
 
-// Open checkout in a tab and get the popup out of the way.
-upgradeCtaEl.addEventListener("click", (e) => {
-  try {
-    e.preventDefault();
-    void chrome.tabs.create({ url: upgradeCtaEl.href });
+// Open checkout in a tab and get the popup out of the way. Arm the
+// zero-click claim poll FIRST (awaited — the popup is about to close, and a
+// fire-and-forget storage write could lose the race with teardown).
+function openCheckout(anchor: HTMLAnchorElement): void {
+  void (async () => {
+    try {
+      await startClaiming();
+    } catch {
+      /* claim is best-effort — checkout still works via redirect/email */
+    }
+    try {
+      await chrome.tabs.create({ url: anchor.href });
+    } catch {
+      window.open(anchor.href, "_blank", "noopener");
+    }
     window.close();
-  } catch {
-    /* fall back to the plain <a target="_blank"> navigation */
-  }
+  })();
+}
+
+upgradeCtaEl.addEventListener("click", (e) => {
+  e.preventDefault();
+  openCheckout(upgradeCtaEl);
 });
 
 // Discreet-mode lock CTA (free plan only) does the same thing as the plan
 // card's upgrade CTA — open checkout and get out of the way.
 opacityLockEl?.addEventListener("click", (e) => {
-  try {
-    e.preventDefault();
-    void chrome.tabs.create({ url: opacityLockEl.href });
-    window.close();
-  } catch {
-    /* fall back to the plain <a target="_blank"> navigation */
-  }
+  e.preventDefault();
+  openCheckout(opacityLockEl);
 });
 
 // =============================================================================

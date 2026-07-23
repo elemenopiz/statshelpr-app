@@ -14,6 +14,10 @@ URL to enter as the privacy policy field.
 - **storage** — stores the user's settings, uploaded course data files (7-day
   expiry), a random install identifier, and (paid plans) the license key, in
   Chrome sync storage.
+- **alarms** — after the user starts an upgrade, a short-lived periodic check
+  (every 30s, for at most 45 minutes) asks our API whether the purchase
+  completed so the paid license can activate automatically. No alarms run
+  outside that window.
 - **Host: `https://*.instructure.com/*` and `https://quizzes.next.instructure.com/*`**
   — Canvas LMS domains where the content script renders the solve button and
   reads the question the user asks to solve. Quiz images that require the
@@ -36,7 +40,7 @@ Check exactly these:
 | Personal communications | No | — |
 | Location | No | — |
 | Web history | No | Content script runs only on matched Canvas quiz/assignment pages; no browsing data is recorded. |
-| User activity | **Yes** | Content-free usage telemetry per solve (mode, coarse question-type, confidence level, timing, install id). Never includes question text or answers. User can disable it in the popup. |
+| User activity | **Yes** | Content-free usage telemetry per solve (mode, coarse question-type, confidence level, timing, install id). Never includes question text or answers. User can disable it in the popup. When the user starts an upgrade, the random install id is also attached to the Lemon Squeezy checkout as order metadata so the license can auto-activate on that install (disclosed in privacy policy item 7). |
 | Website content | **Yes** | The quiz question's text, answer options, and attached images — sent only when the user clicks solve, only to generate the answer. User-uploaded CSV data files are included with solve requests for calculation questions. |
 
 ## Certifications (all three are true — check them)

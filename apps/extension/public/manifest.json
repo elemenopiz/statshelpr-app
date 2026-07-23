@@ -6,7 +6,7 @@
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   },
-  "permissions": ["storage"],
+  "permissions": ["storage", "alarms"],
   "host_permissions": [
     "https://*.instructure.com/*",
     "https://quizzes.next.instructure.com/*",

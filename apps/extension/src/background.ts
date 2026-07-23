@@ -4,11 +4,20 @@
  *  - Opens the welcome/tutorial page on first install.
  *  - Listens for an "openWelcome" message from the popup so the user can
  *    re-open the tutorial anytime.
+ *  - Runs the zero-click license claim poll (chrome.alarms — MV3 service
+ *    workers sleep, so a plain setInterval would die with the worker; each
+ *    alarm tick wakes it just long enough for one claim attempt). Armed by
+ *    popup.ts when an upgrade CTA is clicked; see src/claim-license.ts.
  *  - Legacy: proxies /api/solve calls (currently the content script fetches
  *    directly, but the proxy is kept as a fallback for restricted hosts).
  */
 
 import { getInstallId } from "./install-id";
+import { CLAIM_ALARM, tryClaimLicense } from "./claim-license";
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === CLAIM_ALARM) void tryClaimLicense();
+});
 
 interface SolveRequest {
   type: "solve";
