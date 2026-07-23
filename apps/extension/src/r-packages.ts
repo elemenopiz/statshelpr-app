@@ -27,22 +27,20 @@ export const DEFAULT_R_PACKAGES: readonly string[] = [
   "tidyverse",
   "mosaic",
   "moderndive",
-  "infer",
 ];
 
-/** Every package pre-installed on the Cloud Run runner and therefore safe to
- *  select — the union of what rocker/tidyverse ships (tidyverse, ggplot2,
- *  broom, MASS, knitr) and what r-runner/Dockerfile additionally installs.
- *  KEEP IN SYNC with r-runner/Dockerfile's install vector. Used only to mark
- *  a typed-in custom package that ISN'T here as "may not run" in the picker —
- *  it never blocks the user from adding one. */
+/** Packages that are actually installed on the runner, so the picker doesn't
+ *  false-warn ("may not run") when one is typed. The intro-stats core plus the
+ *  few adjacent packages that ship in the rocker/tidyverse base image and are
+ *  common enough that a student might reference them. NOT an exhaustive list of
+ *  the base image (it has hundreds) — just the ones worth recognizing. KEEP the
+ *  Dockerfile-installed entries IN SYNC with r-runner/Dockerfile's install
+ *  vector. Used only for the dashed flag; it never blocks adding a package. */
 export const INSTALLED_CATALOG: readonly string[] = [
-  // present in the rocker/tidyverse base image
+  // ships in the rocker/tidyverse base image
   "tidyverse",
   "ggplot2",
   "broom",
-  "MASS",
-  "knitr",
   // installed on top by r-runner/Dockerfile
   "mosaic",
   "moderndive",
