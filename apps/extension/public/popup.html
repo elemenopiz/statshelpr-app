@@ -408,6 +408,20 @@
         transition: border-color 0.15s, color 0.15s, background-color 0.15s;
       }
       .pkg-add-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-tint); }
+      .rcode-copy-btn {
+        display: block;
+        width: 100%;
+        padding: 9px 13px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--card);
+        color: var(--ink-2);
+        font-size: 12px; font-weight: 600;
+        text-align: center;
+        transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+      }
+      .rcode-copy-btn:hover:not(:disabled) { border-color: var(--blue); color: var(--blue); background: var(--blue-tint); }
+      .rcode-copy-btn:disabled { color: var(--ink-3); cursor: default; }
       .pkg-hint {
         margin-top: 8px;
         font-size: 10px; line-height: 1.5;
@@ -613,6 +627,16 @@
           stats &mdash; clear them and add the ones your course uses. A
           <span style="color: var(--warn)">dashed</span> library isn't in our
           pre-installed set yet, so it may not run.
+        </div>
+      </div>
+    </details>
+
+    <details id="rcode-details">
+      <summary><span class="chev"></span>R code</summary>
+      <div class="settings-body">
+        <button id="rcode-copy" type="button" class="rcode-copy-btn" disabled>Copy R code for this quiz</button>
+        <div id="rcode-empty" class="pkg-hint">
+          No R code yet &mdash; solve a calculation question on this quiz first.
         </div>
       </div>
     </details>
