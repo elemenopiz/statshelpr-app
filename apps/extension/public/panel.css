@@ -128,6 +128,43 @@
 }
 
 /* =========================================================================
+ * Floating "download my R code" button — persistent (not auto-dismissing
+ * like the toast), fixed to the bottom-LEFT so it never overlaps the toast's
+ * bottom-right corner. Hidden until the first calc question is solved this
+ * page load (content.ts's updateExportButtonVisibility toggles the `.shown`
+ * class); stays available for the rest of the page load once shown.
+ * ========================================================================= */
+
+.statshelpr-export-btn {
+  display: none;
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 2147483647; /* above Canvas chrome, same as the toast */
+  box-sizing: border-box;
+  padding: 8px 14px;
+  background: #2742c8;
+  color: #fff;
+  border: 1px solid #1c319e;
+  border-radius: 8px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.22);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.statshelpr-export-btn.shown {
+  display: inline-flex;
+}
+
+.statshelpr-export-btn:hover {
+  background: #1c319e;
+}
+
+/* =========================================================================
  * Spinner (inside the loading button)
  * ========================================================================= */
 
