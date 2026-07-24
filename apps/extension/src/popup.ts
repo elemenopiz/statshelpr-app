@@ -869,3 +869,52 @@ try {
 } catch {
   /* file:// preview */
 }
+
+// =============================================================================
+// R code export ("copy R code for this quiz")
+// =============================================================================
+//
+// content.ts buffers each solved calc question's raw R code for the page
+// load's lifetime (see r-export.ts's privacy contract — no question text, no
+// comments, no identifiers). The buffer only exists there, so on every popup
+// open we ask the active tab's content script for the current bundle via a
+// `sh-get-r-export` message and cache the response here. The copy button then
+// writes the cached string directly in its own click handler (not after an
+// async round-trip) so the clipboard write stays inside the user-gesture
+// context Chrome requires.
+
+const rcodeCopyBtn = document.getElementById("rcode-copy") as HTMLButtonElement;
+const rcodeEmptyEl = document.getElementById("rcode-empty") as HTMLDivElement;
+
+let cachedRCodeBundle = "";
+
+function setRCodeAvailable(available: boolean): void {
+  rcodeCopyBtn.disabled = !available;
+  rcodeEmptyEl.style.display = available ? "none" : "";
+}
+
+try {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const id = tabs[0]?.id;
+    if (id == null) return;
+    chrome.tabs.sendMessage(id, { type: "sh-get-r-export" }, (response) => {
+      if (chrome.runtime.lastError) return; // no content script on this tab
+      const hasCode = Boolean(response?.hasCode);
+      cachedRCodeBundle = typeof response?.bundle === "string" ? response.bundle : "";
+      setRCodeAvailable(hasCode);
+    });
+  });
+} catch {
+  /* file:// popup preview or no active tab — leave the empty state showing */
+}
+
+rcodeCopyBtn.addEventListener("click", () => {
+  if (!cachedRCodeBundle) return;
+  void navigator.clipboard.writeText(cachedRCodeBundle).then(() => {
+    const original = rcodeCopyBtn.textContent;
+    rcodeCopyBtn.textContent = "Copied!";
+    setTimeout(() => {
+      rcodeCopyBtn.textContent = original;
+    }, 1500);
+  });
+});
