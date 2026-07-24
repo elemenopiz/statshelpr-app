@@ -50,6 +50,7 @@ import {
 } from "./canvas-dom";
 import { type QuestionType, buildTelemetryBody, deriveOutcome, deriveQuestionType } from "./telemetry";
 import { loadRPackages } from "./r-packages";
+import { downloadExportBundle, hasExportableCode, recordCalcCode } from "./r-export";
 
 interface DataFile {
   filename: string;
@@ -168,6 +169,8 @@ let activated = false;
 
 function boot() {
   void loadFiles();
+
+  createExportButton();
 
   // Load the user's single discreet-mode dial and derive the two CSS
   // variables (--sh-text-opacity, --sh-outline-opacity) that panel.css
@@ -521,6 +524,15 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
     showToast("Dataset not found — answered from reasoning. Upload the CSV for an exact result.");
   }
 
+  // Buffer this question's R code for the "download my R code" export — see
+  // r-export.ts for the buffer + the privacy contract on what it holds (the
+  // raw code string only, nothing else from `final`). Reveal/enable the
+  // floating export button the first time there's anything to export.
+  if (final.mode === "calc") {
+    recordCalcCode(final.rCode);
+    updateExportButtonVisibility();
+  }
+
   fireTelemetryBeacon({ ...telemetryBase, writeCount, threw: false });
 }
 
@@ -551,6 +563,33 @@ function showToast(message: string, ms = 5000): void {
   // Trigger the enter transition on the next frame (class added post-attach).
   requestAnimationFrame(() => toast.classList.add("shown"));
   activeToast = { el: toast, timer: setTimeout(dismiss, ms) };
+}
+
+/**
+ * Small persistent floating button, fixed to the bottom-left of the
+ * viewport (the toast above uses bottom-right, so the two never overlap).
+ * Hidden until the first calc question is solved this page load (see
+ * updateExportButtonVisibility), then lets the student download every
+ * buffered R snippet as one file whenever they like — no "quiz end"
+ * detection, just an always-available affordance once there's something to
+ * export. Created once per page load; safe to call more than once.
+ */
+let exportBtn: HTMLButtonElement | null = null;
+function createExportButton(): void {
+  if (exportBtn) return;
+  exportBtn = mkEl("button", {
+    className: "statshelpr-export-btn",
+    type: "button",
+    title: "Download the R code from this session's solved questions",
+    text: "Download R code",
+  });
+  exportBtn.addEventListener("click", () => downloadExportBundle());
+  document.body.appendChild(exportBtn);
+}
+
+function updateExportButtonVisibility(): void {
+  if (!exportBtn) return;
+  exportBtn.classList.toggle("shown", hasExportableCode());
 }
 
 /**
