@@ -212,6 +212,15 @@
         border-radius: 999px;
         padding: 4px 9px 5px;
       }
+      /* Cancellation path — same type scale as the footer .links anchors. */
+      .manage-sub {
+        font-size: 11px;
+        color: var(--ink-2);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        transition: color 0.15s;
+      }
+      .manage-sub:hover { color: var(--blue); }
       /* license problem note */
       .plan-note {
         display: none;
@@ -222,6 +231,10 @@
         border-radius: 7px;
         padding: 7px 9px;
       }
+      /* Paid-only cancellation row. Hidden by default so free users don't see
+         a "cancel" link for a subscription they don't have. */
+      .plan-paid-bar { display: none; justify-content: center; margin: 0 0 4px; }
+      body[data-plan="paid"] .plan-paid-bar { display: flex; }
       /* state switching */
       body[data-plan="paid"] .plan-badge { display: inline-flex; }
       body[data-plan="paid"] .plan-card { display: none; }
@@ -606,10 +619,29 @@
            or content.ts after the worker reports the license is already
            active elsewhere). -->
       <div class="plan-note" id="device-limit-note" style="display: none">
-        <div>This license is active on another device. Switching devices? Reset it here.</div>
+        <div>This license is active on another device. Switching devices? Reset it here &mdash;
+          this moves the license to this browser, it doesn't change or cancel your subscription.</div>
         <button id="reset-device-btn" class="btn-solid" type="button" style="margin-top: 8px">Reset license</button>
         <div id="reset-status" class="status" style="display: none"></div>
       </div>
+    </div>
+
+    <!-- ROSCA: signing up is one click from the upsell card above, so
+         cancelling has to be just as reachable in the same medium. Points at
+         the Lemon Squeezy customer portal — the same URL the landing site uses
+         in legal.html §8 and checkout.html. Lives OUTSIDE .plan-card on
+         purpose: in the paid state that card is display:none (the plan moves
+         into the header badge), so a cancel link nested inside it would never
+         render for the only users who need it. Shown only when popup.ts's
+         setPlan() stamps data-plan="paid" on <body>. Deliberately NOT inside a
+         <details> — a cancellation path must not be hidden behind a
+         disclosure. Distinct from "Reset license" above, which moves the
+         license to a new device and cancels nothing. -->
+    <div class="plan-paid-bar">
+      <a class="manage-sub" id="manage-subscription"
+         href="https://app.lemonsqueezy.com/my-orders/login" target="_blank" rel="noopener">
+        Manage subscription or cancel
+      </a>
     </div>
 
     <div class="section-label">Discreet mode</div>
