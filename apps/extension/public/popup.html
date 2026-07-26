@@ -630,7 +630,7 @@
     <div id="status" class="status" role="status"></div>
 
     <details id="rlibs-details">
-      <summary><span class="chev"></span>R libraries</summary>
+      <summary><span class="chev"></span>R</summary>
       <div class="settings-body">
         <div id="rpkg-chips" class="chip-list"></div>
         <div class="pkg-add-row">
@@ -648,12 +648,7 @@
           <span style="color: var(--warn)">dashed</span> library isn't in our
           pre-installed set yet, so it may not run.
         </div>
-      </div>
-    </details>
 
-    <details id="rcode-details">
-      <summary><span class="chev"></span>R code</summary>
-      <div class="settings-body">
         <button id="rcode-copy" type="button" class="rcode-copy-btn" disabled>Copy R code for this quiz</button>
         <div id="rcode-empty" class="pkg-hint">
           No R code yet &mdash; solve a calculation question on this quiz first.
@@ -664,7 +659,11 @@
     <!-- Telemetry opt-out. The stored flag is telemetryDisabled and is
          INVERTED relative to this box: checked = stats on = flag false.
          content.ts reads the flag on every solve (getConfig) and returns
-         early from fireTelemetryBeacon when it's true. -->
+         early from fireTelemetryBeacon when it's true.
+         Kept under a section literally named "Privacy" so the opt-out stays
+         findable — docs/cws/privacy-form.md tells Google's reviewers the user
+         can disable telemetry in the popup. #meta (diagnostics, usually
+         display:none) rides along here rather than owning a header. -->
     <details id="privacy-details">
       <summary><span class="chev"></span>Privacy</summary>
       <div class="settings-body">
@@ -676,12 +675,6 @@
           Counts and timings only &mdash; never your question text, answers or
           data files. Uncheck to stop sending them.
         </div>
-      </div>
-    </details>
-
-    <details id="settings-details">
-      <summary><span class="chev"></span>Status</summary>
-      <div class="settings-body">
         <div id="meta" class="meta" style="display: none"></div>
       </div>
     </details>
