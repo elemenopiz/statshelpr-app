@@ -101,6 +101,24 @@
       color: var(--green); font-weight: 700;
     }
     .benefits li strong { color: var(--ink); font-weight: 600; }
+    /* Auto-renewal terms. Deliberately NOT .consent (the fine-print class used
+       for the card-details line below the button): ROSCA and the FTC's
+       negative-option rule want the recurring-charge disclosure at least as
+       conspicuous as the offer it qualifies, and .consent is 0.8rem in --ink-3
+       — smaller and lighter than the .benefits bullets selling the thing. This
+       matches .benefits on size and colour so the renewal terms never read as
+       finer print than the marketing. Do not shrink it below .benefits. */
+    .renewal-terms {
+      margin: 0 0 14px;
+      font-size: 0.95rem; line-height: 1.55;
+      color: var(--ink-2);
+    }
+    .renewal-terms strong { color: var(--ink); font-weight: 600; }
+    .renewal-terms a {
+      color: var(--ink); text-decoration: none;
+      border-bottom: 1px solid var(--line);
+    }
+    .renewal-terms a:hover { color: var(--blue); border-color: var(--blue); }
     /* ---- assent gate (clickwrap) ---- */
     .assent {
       display: flex; align-items: flex-start; gap: 12px;
@@ -248,7 +266,7 @@
            ROSCA wants the recurring charge disclosed before the point of
            consent, not after it. The checkbox (not this paragraph) is what
            records assent — see routes/assent.ts. -->
-      <p class="consent">This is a subscription that renews automatically each month at $15/month until you cancel. Cancel any time at <a href='https://app.lemonsqueezy.com/my-orders/login' target='_blank' rel='noopener'>app.lemonsqueezy.com/my-orders/login</a>.</p>
+      <p class="renewal-terms">This is a subscription: <strong>it renews automatically each month at $15/month until you cancel.</strong> Cancel any time at <a href='https://app.lemonsqueezy.com/my-orders/login' target='_blank' rel='noopener'>app.lemonsqueezy.com/my-orders/login</a>.</p>
       <label class="assent" for="assent-check">
         <input type="checkbox" id="assent-check" />
         <span>I have read and agree to the <a href="/legal.html#terms" target="_blank" rel="noopener">Terms of Service</a>, <a href="/legal.html#privacy" target="_blank" rel="noopener">Privacy Policy</a>, and <a href="/legal.html#refunds" target="_blank" rel="noopener">Refund Policy</a>.</span>

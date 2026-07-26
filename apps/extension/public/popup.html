@@ -213,14 +213,30 @@
         padding: 4px 9px 5px;
       }
       /* Cancellation path — same type scale as the footer .links anchors. */
+      /* Cancellation control. Shares .btn-solid's geometry (full width, 8px
+         padding, 8px radius, 12.5px/650) so it reads unmistakably as a button,
+         but outlined rather than filled — cancelling must be as EASY to find
+         as subscribing was (ROSCA), without competing with the primary blue
+         actions for attention. Do not demote this back to a text link. */
       .manage-sub {
-        font-size: 11px;
+        display: block;
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--card);
         color: var(--ink-2);
-        text-decoration: underline;
-        text-underline-offset: 2px;
-        transition: color 0.15s;
+        font-size: 12.5px; font-weight: 650;
+        text-align: center;
+        text-decoration: none;
+        transition: color 0.15s, border-color 0.15s, background-color 0.15s;
       }
-      .manage-sub:hover { color: var(--blue); }
+      .manage-sub:hover {
+        color: var(--blue);
+        border-color: var(--blue-ring);
+        background: var(--blue-tint);
+      }
+      .manage-sub:active { transform: scale(0.99); }
       /* license problem note */
       .plan-note {
         display: none;
@@ -233,7 +249,7 @@
       }
       /* Paid-only cancellation row. Hidden by default so free users don't see
          a "cancel" link for a subscription they don't have. */
-      .plan-paid-bar { display: none; justify-content: center; margin: 0 0 4px; }
+      .plan-paid-bar { display: none; justify-content: center; margin: 0 0 14px; }
       body[data-plan="paid"] .plan-paid-bar { display: flex; }
       /* state switching */
       body[data-plan="paid"] .plan-badge { display: inline-flex; }
@@ -636,11 +652,17 @@
          setPlan() stamps data-plan="paid" on <body>. Deliberately NOT inside a
          <details> — a cancellation path must not be hidden behind a
          disclosure. Distinct from "Reset license" above, which moves the
-         license to a new device and cancels nothing. -->
+         license to a new device and cancels nothing.
+
+         Labelled "Cancel subscription", not "Manage subscription": the FTC's
+         negative-option rule wants the cancellation route named plainly rather
+         than folded into a management menu. The portal it opens is where the
+         cancellation is actually performed (LS asks for the purchase email
+         first), which is the standard hosted-billing flow. -->
     <div class="plan-paid-bar">
       <a class="manage-sub" id="manage-subscription"
          href="https://app.lemonsqueezy.com/my-orders/login" target="_blank" rel="noopener">
-        Manage subscription or cancel
+        Cancel subscription
       </a>
     </div>
 
