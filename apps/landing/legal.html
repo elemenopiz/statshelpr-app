@@ -248,7 +248,7 @@
       <p class="lead">This policy describes what data we collect, how we use it, and how we protect it.</p>
 
         <h3><span class="num">1.</span> Information We Collect</h3>
-        <p>We collect account and transaction metadata needed to provide access, enforce device and usage limits, and deliver support. The statshelpr browser extension also collects and sends more specific data described in detail in items 4 through 9 below, including the quiz content you ask it to solve, any files you upload, and a per-install identifier.</p>
+        <p>We collect account and transaction metadata needed to provide access, enforce device and usage limits, and deliver support. The statshelpr browser extension also collects and sends more specific data described in detail in items 4 through 9 below, including the quiz content you ask it to solve, any files you upload, and a per-install identifier. Item 10 describes a separate record of your agreement to these policies, created at checkout.</p>
 
         <h3><span class="num">2.</span> How We Use Data</h3>
         <p>We use data to authenticate users, process payments through third-party providers, issue tokens, send onboarding emails, generate answers to the questions you submit through the browser extension, and improve reliability.</p>
@@ -274,19 +274,22 @@
         <h3><span class="num">9.</span> License Key (Paid Plans)</h3>
         <p>If you purchase Unlimited, checkout hands your Lemon Squeezy license key to the extension, which stores it via Chrome's sync storage. The key is sent as an authorization header on solve requests, and included in requests to activate a device, validate the license, or reset it so it can move to a new device &mdash; all needed to confirm your paid access and enforce the single-device limit described in our Terms.</p>
 
-        <h3><span class="num">10.</span> Product Usage Telemetry (Content-Free)</h3>
+        <h3><span class="num">10.</span> Record of Your Agreement to the Terms</h3>
+        <p>Before you can continue to checkout, you must tick a box confirming you agree to these Terms, the Privacy Policy, and the Refund Policy. When you then use the purchase button, we record that agreement so we can later show which version of the Terms you accepted and when. The record contains: the install identifier from item 8 &mdash; or, if you reach the checkout page without the extension installed, a one-time identifier generated for that page visit and not stored in your browser; the time we received the acceptance, stamped on our servers, alongside the time your own browser reported; which version of the Terms was displayed to you; your browser's user-agent string, truncated; and the two-letter country code our network provider derives from your connection. <strong>We do not store your IP address in this record, and we never store your license key in it</strong> &mdash; acceptance happens before payment, so no key exists yet. Because the same identifier is attached to your Lemon Squeezy checkout as order metadata (item 8), this record can be matched to the resulting order. We keep it for seven years, which is longer than anything else described in this policy: its only purpose is to still exist if someone later disputes that an agreement was formed, so it has to outlast the deadlines for bringing such a dispute.</p>
+
+        <h3><span class="num">11.</span> Product Usage Telemetry (Content-Free)</h3>
         <p>Each solve attempt also sends a small usage event to api.statshelpr.com/api/telemetry: which solving mode was used, a coarse question-type category (e.g. multiple choice, dropdown), the model's confidence level, whether the answer could be automatically filled into the page (and how many fields were affected), and how long the request took, tagged with the install identifier from item 8. This event never includes your question text, answer choices, uploaded files, or the model's answer &mdash; only these counts and category labels &mdash; and is used to monitor reliability and answer quality across the product.</p>
 
-        <h3><span class="num">11.</span> Data Sharing</h3>
+        <h3><span class="num">12.</span> Data Sharing</h3>
         <p>We share data only with vendors needed to operate the product, including payment processing, email delivery, cloud infrastructure (Cloudflare and Google Cloud), and our AI model provider, Google Gemini, which processes request content as described in item 5.</p>
 
-        <h3><span class="num">12.</span> Security</h3>
+        <h3><span class="num">13.</span> Security</h3>
         <p>We use reasonable technical and operational safeguards, including access controls and transport encryption, to protect service data.</p>
 
-        <h3><span class="num">13.</span> Data Retention</h3>
-        <p>We retain records only as long as needed for account operations, legal obligations, fraud prevention, and support. Uploaded data files are automatically deleted from your browser after 7 days; your install identifier and license key remain in your browser's sync storage until you remove them, reset your license, or uninstall the extension.</p>
+        <h3><span class="num">14.</span> Data Retention</h3>
+        <p>We retain records only as long as needed for account operations, legal obligations, fraud prevention, and support. Uploaded data files are automatically deleted from your browser after 7 days; your install identifier and license key remain in your browser's sync storage until you remove them, reset your license, or uninstall the extension. The record of your agreement to these policies, described in item 10, is kept for seven years &mdash; the longest retention period in this policy, and the reason for it is given there.</p>
 
-        <h3><span class="num">14.</span> Your Rights</h3>
+        <h3><span class="num">15.</span> Your Rights</h3>
         <p>We do not sell your personal information. Depending on your state or country of residence, you may have rights to access, correct, or delete your personal data, or to opt out of certain processing. For account or privacy requests, contact support by email and we will respond within a reasonable timeframe. Last updated: July 2026.</p>
     </section>
 
