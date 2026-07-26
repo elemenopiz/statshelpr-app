@@ -223,17 +223,29 @@ chrome.storage.sync.get(["apiUrl", "licenseKey", "buttonOpacity"], (cfg: StoredC
   void tryClaimLicense();
 });
 
-// Bake this install's id into the checkout links as Lemon Squeezy custom
-// data (checkout[custom][install_id]) — the purchase webhook echoes it back,
-// which is what lets the license auto-claim onto exactly this browser with
-// zero clicks. See src/claim-license.ts.
+// Bake this install's id into the checkout links so the license can
+// auto-claim onto exactly this browser with zero clicks (see
+// src/claim-license.ts).
+//
+// The links point at https://statshelpr.com/checkout, NOT straight at the
+// Lemon Squeezy hosted checkout. That page is where the required
+// Terms/Privacy/Refund assent checkbox lives — routing both CTAs through it
+// is what makes the gate cover the popup path, which is the primary way
+// people actually buy. checkout.html then appends
+// `checkout[custom][install_id]=<id>` to the LS URL itself, byte-for-byte
+// the param this file used to append, so the purchase webhook still echoes
+// it back and zero-click activation is unchanged.
+//
+// The id travels in the URL FRAGMENT, not a query param: fragments are never
+// sent to the server, so this hop doesn't start writing install ids into
+// Cloudflare Pages access logs.
 void getInstallId().then((id) => {
-  const param = "checkout[custom][install_id]=" + encodeURIComponent(id);
+  const frag = "#install_id=" + encodeURIComponent(id);
   [upgradeCtaEl, opacityLockEl].forEach((a) => {
     if (!a) return;
     const href = a.getAttribute("href");
-    if (!href) return;
-    a.href = href + (href.includes("?") ? "&" : "?") + param;
+    if (!href || href.includes("#")) return;
+    a.href = href + frag;
   });
 });
 

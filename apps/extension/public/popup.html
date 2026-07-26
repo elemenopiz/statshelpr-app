@@ -557,8 +557,13 @@
         <div class="meter" id="solves-meter" aria-hidden="true">
           <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span>
         </div>
+        <!-- Points at our own /checkout page, NOT straight at Lemon Squeezy:
+             that page carries the required Terms/Privacy/Refund assent
+             checkbox and forwards the install id onward to LS as
+             checkout[custom][install_id]. popup.ts appends
+             #install_id=<uuid> below. -->
         <a class="upgrade-cta" id="upgrade-cta"
-           href="https://statshelpr.lemonsqueezy.com/checkout/buy/8ded2ea7-979f-4027-afb2-f03036e12015" target="_blank" rel="noopener">
+           href="https://statshelpr.com/checkout" target="_blank" rel="noopener">
           Go Unlimited &mdash; $15/mo <span class="arr">&rarr;</span>
         </a>
         <div class="plan-sub">Every solve, all semester &middot; cancel anytime</div>
@@ -581,8 +586,9 @@
       <span id="opacityValue" class="range-val">100%</span>
     </div>
     <input id="buttonOpacity" type="range" min="0" max="100" step="1" value="100" />
+    <!-- Same assent-gated /checkout page as #upgrade-cta above. -->
     <a id="opacity-lock" class="opacity-lock"
-       href="https://statshelpr.lemonsqueezy.com/checkout/buy/8ded2ea7-979f-4027-afb2-f03036e12015" target="_blank" rel="noopener">
+       href="https://statshelpr.com/checkout" target="_blank" rel="noopener">
       &#128274; Unlimited unlocks discreet mode
     </a>
 

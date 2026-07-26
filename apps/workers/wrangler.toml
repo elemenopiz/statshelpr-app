@@ -66,7 +66,15 @@ IP_DAILY_LIMIT = "200"
 # lib/metrics-store.ts) — raise as real traffic grows past this.
 GLOBAL_DAILY_CALL_LIMIT = "1000"
 
-# KV binding for licenses, rate limiting, feedback, LS webhook idempotency.
+# KV binding for licenses, rate limiting, feedback, LS webhook idempotency,
+# and clickwrap assent records (`assent:{installId}:{tosVersion}`, written by
+# routes/assent.ts). NO NEW NAMESPACE for assent: every other subject-keyed
+# record in this product (`claim:{installId}`, licenses, counters) already
+# lives here under its own key prefix, and a second namespace would buy
+# nothing — Workers KV has no cross-namespace isolation that a prefix doesn't
+# already give. Note the assent prefix carries a ~7-year TTL, far longer than
+# anything else in here; see the RETENTION_TTL_SECONDS comment in
+# routes/assent.ts for why.
 # Create with: wrangler kv namespace create statshelpr
 # Then replace the id below with the printed id.
 [[kv_namespaces]]
