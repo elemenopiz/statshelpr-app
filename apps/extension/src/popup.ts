@@ -102,8 +102,11 @@ let currentPlan: "free" | "paid" = "free";
 // theme (light/dark toggle, next to the status dot)
 // =============================================================================
 
-function systemTheme(): Theme {
-  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+// Dark is the product default — it's what the popup is designed around, and it
+// sits better over Canvas. The OS preference no longer decides; a user who
+// wants light picks it with the toggle and that choice is what persists.
+function defaultTheme(): Theme {
+  return "dark";
 }
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -122,7 +125,7 @@ function svgEl<K extends keyof SVGElementTagNameMap>(
 // The crescent is a circle with a second, offset circle masked out of it —
 // no fragile arc-path math.
 function buildMoonIcon(): SVGSVGElement {
-  const svg = svgEl("svg", { width: "13", height: "13", viewBox: "0 0 24 24", "aria-hidden": "true" });
+  const svg = svgEl("svg", { width: "16", height: "16", viewBox: "0 0 24 24", "aria-hidden": "true" });
   const mask = svgEl("mask", { id: "sh-moon-mask" });
   mask.appendChild(svgEl("rect", { width: "24", height: "24", fill: "#fff" }));
   mask.appendChild(svgEl("circle", { cx: "15", cy: "9", r: "7", fill: "#000" }));
@@ -135,8 +138,8 @@ function buildMoonIcon(): SVGSVGElement {
 
 function buildSunIcon(): SVGSVGElement {
   const svg = svgEl("svg", {
-    width: "13",
-    height: "13",
+    width: "16",
+    height: "16",
     viewBox: "0 0 24 24",
     fill: "none",
     stroke: "currentColor",
@@ -172,7 +175,7 @@ function applyTheme(theme: Theme) {
 }
 
 (async () => {
-  let theme = systemTheme();
+  let theme = defaultTheme();
   try {
     const r = await chrome.storage.local.get(STORAGE_KEY_THEME);
     const stored = r[STORAGE_KEY_THEME] as Theme | undefined;
@@ -426,11 +429,23 @@ opacityLockEl?.addEventListener("click", (e) => {
 
 function setPlan(plan: "free" | "paid") {
   planCardEl.dataset["plan"] = plan;
+  // Paid hides the whole card and shows the header badge instead — the CSS
+  // keys off <body>, since the badge lives outside the card.
+  document.body.dataset["plan"] = plan;
 }
 
 function setPlanNote(msg: string) {
   planNoteEl.textContent = msg;
   planNoteEl.style.display = msg ? "block" : "none";
+  syncPlanNoteFlag();
+}
+
+/** Paid users get no card — except when one of the two notes has something to
+ *  say, in which case the card reappears carrying only that note. */
+function syncPlanNoteFlag() {
+  const shown = planNoteEl.style.display === "block" || deviceLimitNoteEl.style.display === "block";
+  if (shown) planCardEl.dataset["note"] = "on";
+  else delete planCardEl.dataset["note"];
 }
 
 /** Discreet mode (persisting a dimmed solve button) is a paid feature — but
@@ -587,6 +602,7 @@ async function refreshDeviceLimitState() {
 
 function setDeviceLimitBlocked(blocked: boolean) {
   deviceLimitNoteEl.style.display = blocked ? "block" : "none";
+  syncPlanNoteFlag();
   if (!blocked) setResetStatus("", "");
 }
 
