@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "statshelpr",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Stats quiz tutor — worked solutions with runnable R code, shown inline on your quiz questions.",
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
