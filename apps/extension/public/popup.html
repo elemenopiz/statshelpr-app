@@ -213,30 +213,13 @@
         padding: 4px 9px 5px;
       }
       /* Cancellation path — same type scale as the footer .links anchors. */
-      /* Cancellation control. Shares .btn-solid's geometry (full width, 8px
-         padding, 8px radius, 12.5px/650) so it reads unmistakably as a button,
-         but outlined rather than filled — cancelling must be as EASY to find
-         as subscribing was (ROSCA), without competing with the primary blue
-         actions for attention. Do not demote this back to a text link. */
-      .manage-sub {
-        display: block;
-        width: 100%;
-        padding: 8px 12px;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: var(--card);
-        color: var(--ink-2);
-        font-size: 12.5px; font-weight: 650;
-        text-align: center;
-        text-decoration: none;
-        transition: color 0.15s, border-color 0.15s, background-color 0.15s;
-      }
-      .manage-sub:hover {
-        color: var(--blue);
-        border-color: var(--blue-ring);
-        background: var(--blue-tint);
-      }
-      .manage-sub:active { transform: scale(0.99); }
+      /* Cancellation path — a quiet footer link sitting between "open tutorial"
+         and the version stamp, inheriting .links a's colour and 11px scale.
+         Hidden for free users, who have nothing to cancel. It must stay
+         visible and unhidden in the paid state (ROSCA): fine to be understated,
+         not fine to be behind a disclosure, a hover, or an extra click. */
+      .manage-sub { display: none; }
+      body[data-plan="paid"] .manage-sub { display: inline; }
       /* license problem note */
       .plan-note {
         display: none;
@@ -247,10 +230,6 @@
         border-radius: 7px;
         padding: 7px 9px;
       }
-      /* Paid-only cancellation row. Hidden by default so free users don't see
-         a "cancel" link for a subscription they don't have. */
-      .plan-paid-bar { display: none; justify-content: center; margin: 0 0 14px; }
-      body[data-plan="paid"] .plan-paid-bar { display: flex; }
       /* state switching */
       body[data-plan="paid"] .plan-badge { display: inline-flex; }
       body[data-plan="paid"] .plan-card { display: none; }
@@ -642,30 +621,6 @@
       </div>
     </div>
 
-    <!-- ROSCA: signing up is one click from the upsell card above, so
-         cancelling has to be just as reachable in the same medium. Points at
-         the Lemon Squeezy customer portal — the same URL the landing site uses
-         in legal.html §8 and checkout.html. Lives OUTSIDE .plan-card on
-         purpose: in the paid state that card is display:none (the plan moves
-         into the header badge), so a cancel link nested inside it would never
-         render for the only users who need it. Shown only when popup.ts's
-         setPlan() stamps data-plan="paid" on <body>. Deliberately NOT inside a
-         <details> — a cancellation path must not be hidden behind a
-         disclosure. Distinct from "Reset license" above, which moves the
-         license to a new device and cancels nothing.
-
-         Labelled "Cancel subscription", not "Manage subscription": the FTC's
-         negative-option rule wants the cancellation route named plainly rather
-         than folded into a management menu. The portal it opens is where the
-         cancellation is actually performed (LS asks for the purchase email
-         first), which is the standard hosted-billing flow. -->
-    <div class="plan-paid-bar">
-      <a class="manage-sub" id="manage-subscription"
-         href="https://app.lemonsqueezy.com/my-orders/login" target="_blank" rel="noopener">
-        Cancel subscription
-      </a>
-    </div>
-
     <div class="section-label">Discreet mode</div>
     <div class="range-row">
       <label for="buttonOpacity">solve-button visibility &mdash; drag left to fade it out</label>
@@ -750,6 +705,18 @@
 
     <div class="links">
       <a id="open-tutorial" href="#">&#8635; open tutorial</a>
+      <!-- ROSCA cancellation path. Points at the Lemon Squeezy customer
+           portal — the same URL as legal.html §8 and checkout.html. Paid-state
+           only (popup.ts's setPlan() stamps data-plan on <body>); free users
+           have no subscription to cancel. Sits in the footer rather than the
+           plan area by choice, but it must stay a plain always-rendered link
+           in the paid state — never move it inside a <details>, and don't drop
+           it when the plan card is hidden, or cancelling stops being reachable
+           from the surface that sells the subscription. -->
+      <a class="manage-sub" id="manage-subscription"
+         href="https://app.lemonsqueezy.com/my-orders/login" target="_blank" rel="noopener">
+        cancel subscription
+      </a>
       <span class="version" id="ext-version">v1.1.2</span>
     </div>
     <script src="popup.js"></script>
