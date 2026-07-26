@@ -12,13 +12,43 @@
 
 ## EXECUTION STATE — updated 2026-07-27
 
+> ## ⛔ SUGGESTION-ONLY ARC ABANDONED — 2026-07-27 by owner
+>
+> **Tasks 3, 4, and 5 are not shipped and are not going to ship.** The DOM
+> write-back stays as it was at base `0a8efb1`: `selectChoice` clicks the
+> radio/checkbox, `setSelectValue` sets the dropdown, `fillTextInput` and
+> `writeBlanks` type into fields, each downgrading to a highlight-only mark
+> when the field is disabled or read-only.
+>
+> **Why.** Task 5 was cancelled mid-arc (see the row below), which left the
+> product in a state no copy could describe honestly: choices and single text
+> fields were suggestion-only while matching and multiple-dropdowns questions
+> still wrote directly into the submission. A half-converted write-back is
+> worse than either end state — it is harder to explain to a user than "it
+> fills the answer in" and it bought no § 32.50 protection while blanks still
+> wrote. The owner elected to keep the shipping behavior whole and make the
+> legal and store copy accurate to it instead.
+>
+> **Where the code went.** Commits `c24541b`, `632a225`, `c4dfd85`,
+> `524916b`, `3993083` remain on branch `liability-reduction` and its
+> descendants (`assent-gate`, `extension-listing-telemetry`,
+> `hash-separation-comments`, `legal-copy-fixes`). They were **not** merged to
+> `main`. Everything else on those branches was cherry-picked across.
+>
+> **Binding consequence for all copy.** No ToS, Privacy Policy, store listing,
+> popup, or marketing text may say or imply that statshelpr suggests, marks,
+> or highlights rather than enters answers, or that the student performs the
+> selection. That is false for every question type. Copy must say it enters
+> the answer and that the student reviews and submits. See
+> `docs/cws/listing.md` and ToS §5, both written to this rule.
+
 **Worktree:** `/Users/zsha/Documents/statshelpr-liability`, branch `liability-reduction`, base `0a8efb1`.
 
 | Task | Status |
 |---|---|
-| 3 — suggestion-only choices | Implemented (`c24541b`, `632a225`, `c4dfd85`). Spec review ✅. Quality review found 1 Important + 2 Minor; all fixed in `c4dfd85`; re-review in flight. |
-| 4 — answer chip | Implemented (`524916b`, `3993083`). Spec review found weakened assertions (substring vs. exact masked the trailing-period and %-strip regressions); fixed. Spec re-review in flight, quality review pending. |
-| 5 — blanks | **CANCELLED 2026-07-27 by owner.** Started and stopped mid-implementation; worktree reverted clean. Matching and multiple-dropdowns questions **still write answers into the submission** via `writeBlanks`. `setSelectValue` and `setTextInputValue` remain live. **Consequence:** no ToS or store copy may claim the Service does not enter or select answers — that is false for these question types. The three-task suggestion-only arc is incomplete; choices and text-fill are converted, blanks are not. |
+| 3 — suggestion-only choices | **ABANDONED 2026-07-27 — not merged to main.** Was implemented (`c24541b`, `632a225`, `c4dfd85`) and reviewed; superseded by the decision above. |
+| 4 — answer chip | **ABANDONED 2026-07-27 — not merged to main.** Was implemented (`524916b`, `3993083`); superseded by the decision above. |
+| 5 — blanks | **CANCELLED 2026-07-27 by owner.** Started and stopped mid-implementation; worktree reverted clean. Matching and multiple-dropdowns questions **still write answers into the submission** via `writeBlanks`. `setSelectValue` and `setTextInputValue` remain live. This cancellation is what triggered abandoning Tasks 3–4 as well — see the decision above. |
 | 6 — surface gate | **DECIDED 2026-07-27: Config B.** Not implemented. See decision record. |
 | 7–13 | Not started. |
 
@@ -31,7 +61,7 @@
 
 **Finding relevant to Task 5:** `setSelectValue`, `writeBlanks`'s no-match branch, and `setTextInputValue` each mark only the element itself and do **not** need two-class treatment — a `<select>` / text `<input>` is one self-contained widget, unlike a radio paired with a separate `<label>` carrying the visible text. Pending reviewer confirmation. If confirmed, Task 5 has no work on this point.
 
-**Blocking gate — do not forget:** Task 2's ToS sentence *"statshelpr does not enter, select, or submit answers on your behalf"* must NOT ship until Tasks 4 **and** 5 are merged. Task 3 alone covers radio/checkbox/dropdown only.
+**Blocking gate — RESOLVED 2026-07-27 by abandoning the arc:** Task 2's ToS sentence *"statshelpr does not enter, select, or submit answers on your behalf"* must NEVER ship. Tasks 3–5 were abandoned, so the gate it was waiting on can no longer be satisfied — the extension enters answers for every question type. The shipped ToS §5 states that plainly.
 
 ---
 
@@ -123,7 +153,11 @@ integrity policy, including whether outside tools are permitted for a given
 assignment or assessment.
 ```
 
-**Do not ship sentence two until Tasks 3–5 are merged.** It must be true when it publishes.
+> **⛔ DEAD DRAFT — DO NOT COPY THIS BLOCK. Sentence two is false.** It was
+> written for the suggestion-only build that was abandoned on 2026-07-27.
+> statshelpr *does* enter and select answers; only "does not submit" is true.
+> The live wording is in `apps/landing/legal.html` §5 — take it from there,
+> not from here. This block is kept only as a record of what was drafted.
 
 **Step 3:** Add the clauses that carry actual civil value.
 
@@ -409,7 +443,7 @@ git commit -am "extension: suggest blanks instead of writing them"
 >
 > **Risk still mitigated by the rest of the plan.** Tasks 3–5 mean nothing is ever entered into a submission by the extension on any surface, which addresses § 32.50(b) and the civil vector. Tasks 7–10 build genuine tutoring and general-solver surfaces. Task 2 adds the warranty disclaimer and liability cap.
 >
-> **Consequences for other tasks:** Task 2's sentence *"statshelpr does not enter, select, or submit answers on your behalf"* remains accurate under Config B once Tasks 3–5 merge, and ships as written. Task 11's store copy is unaffected. No claim anywhere in the product may state or imply that the extension is unavailable during graded attempts.
+> **Consequences for other tasks:** ~~Task 2's sentence *"statshelpr does not enter, select, or submit answers on your behalf"* remains accurate under Config B once Tasks 3–5 merge, and ships as written.~~ **Superseded 2026-07-27:** Tasks 3–5 were abandoned (see the notice at the top of this document), so that sentence is false and must never ship. The shipped ToS §5 says the opposite — that statshelpr enters the answer and the student reviews and submits it. Only the *"does not submit"* half of the original claim survives. Task 11's store copy is unaffected by the Config B choice but was likewise rewritten to describe entering, not suggesting. No claim anywhere in the product may state or imply that the extension is unavailable during graded attempts.
 
 **Retained below for the record — this is the option that was declined.**
 
