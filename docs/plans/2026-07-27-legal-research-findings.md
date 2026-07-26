@@ -70,10 +70,17 @@ Fix: real "Manage / Cancel subscription" link in the popup's `plan-paid` block, 
 
 ## 2. Important
 
-### 2.1 AAA will likely refuse to administer your arbitration clause
-`legal.html:225` designates AAA Consumer Arbitration Rules. AAA's revised **Rule 12 (effective 2025-05-01)** requires businesses to register consumer clauses with the Consumer Clause Registry before AAA will administer. No evidence this was done, and the clause names AAA with **no fallback provider** — if AAA declines, the whole arbitration promise can evaporate.
+### 2.1 AAA will refuse to administer your arbitration clause — CONFIRMED NOT REGISTERED
+`legal.html:225` designates AAA Consumer Arbitration Rules. AAA's revised **Rule 12 (effective 2025-05-01)** requires businesses to register consumer clauses with the Consumer Clause Registry before AAA will administer. **Owner confirmed 2026-07-27: not registered.** The clause names AAA with **no fallback provider**, so as drafted the arbitration promise fails at the forum step.
 
-Fix: (a) register — check `adr.org` directly, this could not be verified from the research environment; (b) regardless, add fallback language: *"…or, if AAA is unavailable or declines to administer, by another neutral arbitration provider selected under 9 U.S.C. § 5."* Costs nothing.
+Registry cost: **$600 initial review/registration per provision, plus $600 every subsequent calendar year** to stay listed. Lapse in payment and AAA declines to administer.
+
+**Recommendation: do not register yet.** At $15/mo that is 40 subscriber-months in year one and 40/yr thereafter — the same scale test that defers the LLC to ~$1k MRR defers this. Instead:
+
+1. **Add fallback language now — free, and it is the actual fix for the failure mode.** *"…administered by the American Arbitration Association under its Consumer Arbitration Rules, or, if AAA is unavailable or declines to administer, by another neutral arbitration provider selected under 9 U.S.C. § 5."*
+2. **Revisit registration at ~$1k MRR**, alongside the LLC decision.
+
+**Know what you are accepting.** Non-registration is a published plaintiff-side playbook — NCLC runs an article titled "Using the AAA's Rules to Defeat Arbitration Requirements," so consumer counsel check the registry as a matter of routine. Until registered, treat §14 as unlikely to hold if actually tested. The practical loss is smaller than it looks, because §4.2 already establishes the clause cannot be invoked without abandoning pseudonymity — but the loss is real, and it is a decision, not an oversight.
 
 ### 2.2 §12 indemnification is over-broad and not conspicuous
 `legal.html:218-219`. The catch-all "any claim by a third party … resulting from **your use of the Service**" is broad enough to reach statshelpr's own negligence. Texas fair-notice doctrine (*Dresser Industries v. Page Petroleum*; *Ethyl Corp. v. Daniel Construction*) requires such scope to be both **expressly stated and conspicuous** — and nothing in `legal.html` is visually distinguished at all.
@@ -114,10 +121,10 @@ No email-scheduling infrastructure exists at all (`apps/workers/src` has only we
 
 ## 4. Owner decisions — not code
 
-### 4.1 The Gemini API tier (answer this first; it's binary and material)
-Google's current terms: on the **paid** API, prompts are retained 7–55 days for abuse detection and not trained on. On the **free AI Studio quota, Google uses submitted content to improve its products.** `wrangler.toml` only shows `GEMINI_API_KEY` comes from `wrangler secret put` — the tier is not discoverable from code.
+### 4.1 The Gemini API tier — RESOLVED, no action needed
+**Owner confirmed 2026-07-27: paid tier.** Under Google's current terms that means prompts and responses are retained 7–55 days for abuse detection only and are **not** used to train Google's models. Privacy Policy items 5/11 are adequate as written; no disclosure gap.
 
-If that key is unbilled, every student's quiz content is Google training data and Privacy Policy items 5/11 are materially incomplete. **Check the Google Cloud console.**
+(Had it been the free AI Studio quota, Google would use submitted student quiz content to improve its products, and items 5/11 would have been materially incomplete. Re-check if the key is ever rotated onto an unbilled project.)
 
 ### 4.2 Pseudonymity and enforceability are mutually exclusive
 Google and Lemon Squeezy both hold verified identity and disclose on ordinary subpoena. **TRCP 28** permits filing under an assumed name but lets any party *or the court sua sponte* compel substitution of the true name. So compelling arbitration, enforcing the §11 cap, or invoking §12 all require the disclosure pseudonymity exists to prevent.
