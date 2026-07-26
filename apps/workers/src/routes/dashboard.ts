@@ -89,7 +89,7 @@ async function loadDashboardData(env: Env, isDemo: boolean, days: number): Promi
  * resistance), but the password always reproduces the same token, which is
  * all the session check needs to recompute and compare below. Deliberately
  * NOT truncated like the 128-bit KV-key hashes elsewhere in lib/
- * (rate-limit.ts's hashBucket, license-activation.ts's sha256Hex, etc.) —
+ * (rate-limit.ts's hashBucket, license-activation.ts's activationHash, etc.) —
  * those guard dedupe keys, this one substitutes for a login, so it keeps
  * the full 256 bits.
  */

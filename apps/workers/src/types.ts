@@ -36,6 +36,24 @@ export interface Env {
    *  for DASHBOARD_PASSWORD/METRICS_TOKEN above. *** MUST BE SET BEFORE
    *  DEPLOY (alongside R_RUNNER_URL in [vars] below). *** */
   R_RUNNER_SECRET: string;
+  /** HMAC key for every license-activation KV hash (lib/license-activation.ts's
+   *  activationHash) — `wrangler secret put ACTIVATION_HASH_SECRET`, generate
+   *  with e.g. `openssl rand -hex 32`. Its ONLY job is to keep the activation
+   *  hash space disjoint from lib/rate-limit.ts's unkeyed hashBucket (and so
+   *  from lib/metrics-store.ts's daily `installHashes` sets), which otherwise
+   *  lets anyone holding a raw license key — and thus the buyer email on the
+   *  `license:` record — recompute that customer's install hash and read their
+   *  daily activity out of the metrics buckets. Never share this value with
+   *  R_RUNNER_SECRET or any other secret here; a shared value would re-create
+   *  the join it exists to prevent. Rotating it is safe but forces one LS
+   *  /activate round-trip per active install (the keyed lookups miss and the
+   *  legacy-hash fallback no longer matches), so treat it as set-once.
+   *  Unset means activation fails closed with a clear "Activation not
+   *  configured" reason — same contract as R_RUNNER_SECRET above — so
+   *  *** MUST BE SET BEFORE DEPLOY ***. Dev licenses (`{"dev":true}` KV
+   *  records) and the LEMONSQUEEZY_API_KEY-unset dev path both bypass
+   *  activation entirely and are unaffected. */
+  ACTIVATION_HASH_SECRET: string;
   /** Full JSON key file (verbatim) for the read-only
    *  statshelpr-monitoring-reader@... service account (roles/monitoring.viewer
    *  ONLY) — `wrangler secret put GCP_MONITORING_SA_KEY`. Used by

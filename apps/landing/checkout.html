@@ -101,6 +101,37 @@
       color: var(--green); font-weight: 700;
     }
     .benefits li strong { color: var(--ink); font-weight: 600; }
+    /* ---- assent gate (clickwrap) ---- */
+    .assent {
+      display: flex; align-items: flex-start; gap: 12px;
+      margin-bottom: 14px;
+      padding: 13px 15px;
+      min-height: 52px;
+      border: 1px solid var(--line); border-radius: 11px;
+      background: var(--card);
+      cursor: pointer;
+      transition: border-color 0.2s, background-color 0.2s;
+    }
+    .assent:hover { border-color: rgba(39,66,200,0.35); }
+    .assent:has(#assent-check:checked) { border-color: rgba(39,66,200,0.45); background: var(--blue-tint); }
+    .assent input[type="checkbox"] {
+      flex: none;
+      width: 20px; height: 20px; margin: 1px 0 0;
+      accent-color: var(--blue);
+      cursor: pointer;
+    }
+    .assent span {
+      font-size: 0.875rem; color: var(--ink-2); line-height: 1.5;
+      cursor: pointer;
+    }
+    .assent a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line); }
+    .assent a:hover { color: var(--blue); border-color: var(--blue); }
+    .assent-hint {
+      margin-top: 9px;
+      font-size: 0.845rem; font-weight: 500; color: var(--blue-deep);
+      line-height: 1.5;
+    }
+    .assent-hint:empty { display: none; }
     .buy-btn {
       width: 100%;
       display: inline-flex; align-items: center; justify-content: center; gap: 8px;
@@ -116,6 +147,17 @@
       background: var(--blue-deep);
       transform: translateY(-1px);
       box-shadow: 0 6px 20px rgba(39,66,200,0.28), inset 0 1px 0 rgba(255,255,255,0.14);
+    }
+    /* Inert-until-checked. The button stays visible and focusable (it is a
+       link, and aria-disabled — not `disabled` — is what a link can carry);
+       the click handler is what actually blocks it. */
+    .buy-btn[aria-disabled="true"],
+    .buy-btn[aria-disabled="true"]:hover {
+      opacity: 0.42;
+      background: var(--blue);
+      transform: none;
+      box-shadow: none;
+      cursor: default;
     }
     .consent {
       font-size: 0.8rem; color: var(--ink-3); line-height: 1.55;
@@ -202,8 +244,18 @@
         <li><strong>Discreet mode stays on</strong> &mdash; your opacity setting persists</li>
         <li><strong>Instant activation</strong> &mdash; the extension unlocks right after payment</li>
       </ul>
-      <a id="buy-btn" class="buy-btn" href="https://statshelpr.lemonsqueezy.com/checkout/buy/8ded2ea7-979f-4027-afb2-f03036e12015" rel="noopener">Continue to secure checkout &rarr;</a>
-      <p class="consent">Payment opens on Lemon Squeezy's secure checkout page &mdash; card details never touch this site. By subscribing you agree to the <a href='/legal.html#terms' target='_blank' rel='noopener'>Terms</a>, <a href='/legal.html#privacy' target='_blank' rel='noopener'>Privacy Policy</a> &amp; <a href='/legal.html#refunds' target='_blank' rel='noopener'>Refund Policy</a>.</p>
+      <!-- Auto-renewal terms sit ABOVE the checkbox and the button on purpose:
+           ROSCA wants the recurring charge disclosed before the point of
+           consent, not after it. The checkbox (not this paragraph) is what
+           records assent — see routes/assent.ts. -->
+      <p class="consent">This is a subscription that renews automatically each month at $15/month until you cancel. Cancel any time at <a href='https://app.lemonsqueezy.com/my-orders/login' target='_blank' rel='noopener'>app.lemonsqueezy.com/my-orders/login</a>.</p>
+      <label class="assent" for="assent-check">
+        <input type="checkbox" id="assent-check" />
+        <span>I have read and agree to the <a href="/legal.html#terms" target="_blank" rel="noopener">Terms of Service</a>, <a href="/legal.html#privacy" target="_blank" rel="noopener">Privacy Policy</a>, and <a href="/legal.html#refunds" target="_blank" rel="noopener">Refund Policy</a>.</span>
+      </label>
+      <a id="buy-btn" class="buy-btn" aria-disabled="true" aria-describedby="assent-hint" href="https://statshelpr.lemonsqueezy.com/checkout/buy/8ded2ea7-979f-4027-afb2-f03036e12015" rel="noopener">Continue to secure checkout &rarr;</a>
+      <p class="assent-hint" id="assent-hint" role="status" aria-live="polite"></p>
+      <p class="consent">Payment opens on Lemon Squeezy's secure checkout page &mdash; card details never touch this site.</p>
     </div>
 
     <div id="ls-result" class="ls-result" hidden aria-live="polite"></div>
@@ -216,6 +268,159 @@
     </div>
   </main>
   <script>
+    /**
+     * ---- Assent gate (clickwrap) ----------------------------------------
+     *
+     * The Terms carry an arbitration clause (legal.html §14). A link sitting
+     * under a button is browsewrap, and browsewrap invites the argument that
+     * no contract was formed at all. So the purchase link is inert until the
+     * checkbox — UNCHECKED BY DEFAULT, never pre-checked, since a pre-checked
+     * box is not affirmative assent — is ticked, and ticking it POSTs a
+     * durable record to the Worker (routes/assent.ts).
+     *
+     * THIS PAGE IS NOW THE ONLY DOOR TO LEMON SQUEEZY. The extension popup's
+     * two upgrade CTAs used to link straight to the LS hosted checkout,
+     * bypassing this page entirely; they now link here instead
+     * (apps/extension/public/popup.html + src/popup.ts), passing the install
+     * id in the URL FRAGMENT:
+     *
+     *   https://statshelpr.com/checkout#install_id=<uuid>
+     *
+     * A fragment, not a query param, on purpose: fragments are never sent to
+     * the server, so routing the popup through this page does not start
+     * writing install ids into Cloudflare Pages access logs. A `?install_id=`
+     * query param is still accepted as a fallback for anything that can't
+     * carry a fragment.
+     *
+     * The install id then rides onward to LS as
+     * `checkout[custom][install_id]` — byte-for-byte the same param the popup
+     * used to append itself. That is load-bearing: the purchase webhook
+     * echoes it back and auto-claims the license onto exactly that install
+     * with zero clicks (workers/src/routes/lemonsqueezy-webhook.ts ->
+     * claim-license.ts). Breaking it would break activation, so the param is
+     * built here in exactly the old shape.
+     *
+     * A visitor who lands here WITHOUT the extension has no install id. They
+     * get a per-page-load `web-<uuid>` subject id, which is what the assent
+     * record is keyed on and which is also forwarded to LS as
+     * `checkout[custom][assent_id]` so their order still joins back to their
+     * acceptance. Nothing is persisted in their browser for this.
+     */
+    (function () {
+      var API_BASE = "https://api.statshelpr.com";
+      // Mirrors legal.html's Terms closing paragraph ("Version 2.0 —
+      // effective 27 July 2026") and SERVER_TOS_VERSION in
+      // workers/src/routes/assent.ts. All three move together.
+      var TOS_VERSION = "2.0";
+
+      var buyBtn = document.getElementById("buy-btn");
+      var check = document.getElementById("assent-check");
+      var hint = document.getElementById("assent-hint");
+      if (!buyBtn || !check || !hint) return;
+
+      check.checked = false; // defeat Firefox/Safari form-state restore on reload
+
+      // The Terms/Privacy/Refund links sit INSIDE the <label>, so the whole
+      // row is a comfortable hit target. Chromium, however, still runs the
+      // label's activation behaviour when the click started on one of those
+      // links — so opening the Terms would tick the box on the way out.
+      // That is the exact opposite of affirmative assent: it would manufacture
+      // an "agreed" state (and an assent record) for someone who only went to
+      // read. stopPropagation keeps the click from ever reaching the label;
+      // the link's own navigation is untouched.
+      Array.prototype.forEach.call(document.querySelectorAll(".assent a"), function (a) {
+        a.addEventListener("click", function (e) {
+          e.stopPropagation();
+        });
+      });
+
+      function randomId() {
+        try {
+          if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+          var b = new Uint8Array(16);
+          window.crypto.getRandomValues(b);
+          return Array.prototype.map
+            .call(b, function (n) {
+              return (n + 0x100).toString(16).slice(1);
+            })
+            .join("");
+        } catch (e) {
+          return String(Date.now()) + "-" + String(Math.random()).slice(2);
+        }
+      }
+
+      function readParam(source, name) {
+        try {
+          return (new URLSearchParams(source).get(name) || "").trim();
+        } catch (e) {
+          return "";
+        }
+      }
+
+      // Fragment first (never hits our server logs), query string as fallback.
+      var installId =
+        readParam(window.location.hash.replace(/^#/, ""), "install_id") ||
+        readParam(window.location.search, "install_id");
+      if (installId.length > 128) installId = "";
+      var subjectId = installId || "web-" + randomId();
+
+      // Build the outbound LS URL once, at load, so a plain click,
+      // middle-click, or ctrl-click all carry the same custom data.
+      var lsUrl = buyBtn.getAttribute("href") || "";
+      var extra = [];
+      if (installId) {
+        extra.push("checkout[custom][install_id]=" + encodeURIComponent(installId));
+      }
+      extra.push("checkout[custom][assent_id]=" + encodeURIComponent(subjectId));
+      buyBtn.setAttribute("href", lsUrl + (lsUrl.indexOf("?") === -1 ? "?" : "&") + extra.join("&"));
+
+      var recorded = false;
+      function recordAssent() {
+        if (recorded) return;
+        recorded = true;
+        // Fire-and-forget: `keepalive` lets it survive the navigation to LS
+        // that happens on this very click. The record is best-effort — a
+        // failed beacon must never block a paying customer's checkout.
+        try {
+          fetch(API_BASE + "/api/assent", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            keepalive: true,
+            body: JSON.stringify({
+              installId: subjectId,
+              tosVersion: TOS_VERSION,
+              timestamp: new Date().toISOString(),
+            }),
+          }).catch(function () {});
+        } catch (e) {
+          /* no fetch — checkout proceeds regardless */
+        }
+      }
+
+      function sync() {
+        if (check.checked) {
+          buyBtn.setAttribute("aria-disabled", "false");
+          hint.textContent = "";
+        } else {
+          buyBtn.setAttribute("aria-disabled", "true");
+        }
+      }
+      check.addEventListener("change", sync);
+      sync();
+
+      buyBtn.addEventListener("click", function (e) {
+        if (!check.checked) {
+          e.preventDefault();
+          // Only ever shown in response to a real attempt — no scolding on load.
+          hint.textContent = "Please agree to the terms above to continue.";
+          check.focus();
+          return;
+        }
+        recordAssent();
+        // Default navigation proceeds.
+      });
+    })();
+
     /**
      * Hosted-checkout upgrade flow + auto-activation handoff to the extension.
      *

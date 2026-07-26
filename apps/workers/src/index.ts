@@ -13,6 +13,7 @@ import { claimLicense } from "./routes/claim-license";
 import { reset } from "./routes/reset";
 import { metrics } from "./routes/metrics";
 import { telemetry } from "./routes/telemetry";
+import { assent } from "./routes/assent";
 import { dashboard } from "./routes/dashboard";
 
 import { loadMetrics } from "./lib/metrics-load";
@@ -38,6 +39,7 @@ app.route("/api/claim-license", claimLicense);
 app.route("/api/reset", reset);
 app.route("/api/metrics", metrics);
 app.route("/api/telemetry", telemetry);
+app.route("/api/assent", assent);
 app.route("/dashboard", dashboard);
 
 app.notFound((c) => c.json({ error: "Not found" }, 404));

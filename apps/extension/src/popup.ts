@@ -12,6 +12,10 @@ interface StoredConfig {
   apiUrl?: string;
   licenseKey?: string;
   buttonOpacity?: number;
+  /** Telemetry OPT-OUT flag (see the telemetry section below). Unset/false
+   * means the content-free beacon is sent; true suppresses it. Written only
+   * by this popup, read only by content.ts's getConfig(). */
+  telemetryDisabled?: boolean;
 }
 
 // Fully visible by default — a first-install user has to be able to FIND the
@@ -85,6 +89,7 @@ const upgradeCtaEl = document.getElementById("upgrade-cta") as HTMLAnchorElement
 const planNoteEl = document.getElementById("plan-note") as HTMLDivElement;
 const versionEl = document.getElementById("ext-version") as HTMLSpanElement;
 const themeToggleEl = document.getElementById("theme-toggle") as HTMLButtonElement | null;
+const telemetryToggle = document.getElementById("telemetry-toggle") as HTMLInputElement | null;
 const deviceLimitNoteEl = document.getElementById("device-limit-note") as HTMLDivElement;
 const resetDeviceBtn = document.getElementById("reset-device-btn") as HTMLButtonElement;
 const resetStatusEl = document.getElementById("reset-status") as HTMLDivElement;
@@ -209,11 +214,16 @@ function dialToPercent(dial: number): number {
   return Math.round(Math.min(1, Math.max(0, dial)) * 100);
 }
 
-chrome.storage.sync.get(["apiUrl", "licenseKey", "buttonOpacity"], (cfg: StoredConfig) => {
+const SYNC_KEYS = ["apiUrl", "licenseKey", "buttonOpacity", "telemetryDisabled"];
+
+chrome.storage.sync.get(SYNC_KEYS, (cfg: StoredConfig) => {
   const dial = typeof cfg.buttonOpacity === "number" ? cfg.buttonOpacity : DEFAULT_OPACITY;
   const pct = dialToPercent(dial);
   if (opacityInput) opacityInput.value = String(pct);
   if (opacityValueEl) opacityValueEl.textContent = `${pct}%`;
+  // Polarity flip: the box says "send stats", the flag says "disabled".
+  // Unset (a fresh install) = telemetry on = box checked.
+  if (telemetryToggle) telemetryToggle.checked = cfg.telemetryDisabled !== true;
   void pingHealth(API_URL);
   void refreshPlan(API_URL, cfg.licenseKey ?? "");
   // One-shot zero-click claim check: if an upgrade was started from this
@@ -223,17 +233,29 @@ chrome.storage.sync.get(["apiUrl", "licenseKey", "buttonOpacity"], (cfg: StoredC
   void tryClaimLicense();
 });
 
-// Bake this install's id into the checkout links as Lemon Squeezy custom
-// data (checkout[custom][install_id]) — the purchase webhook echoes it back,
-// which is what lets the license auto-claim onto exactly this browser with
-// zero clicks. See src/claim-license.ts.
+// Bake this install's id into the checkout links so the license can
+// auto-claim onto exactly this browser with zero clicks (see
+// src/claim-license.ts).
+//
+// The links point at https://statshelpr.com/checkout, NOT straight at the
+// Lemon Squeezy hosted checkout. That page is where the required
+// Terms/Privacy/Refund assent checkbox lives — routing both CTAs through it
+// is what makes the gate cover the popup path, which is the primary way
+// people actually buy. checkout.html then appends
+// `checkout[custom][install_id]=<id>` to the LS URL itself, byte-for-byte
+// the param this file used to append, so the purchase webhook still echoes
+// it back and zero-click activation is unchanged.
+//
+// The id travels in the URL FRAGMENT, not a query param: fragments are never
+// sent to the server, so this hop doesn't start writing install ids into
+// Cloudflare Pages access logs.
 void getInstallId().then((id) => {
-  const param = "checkout[custom][install_id]=" + encodeURIComponent(id);
+  const frag = "#install_id=" + encodeURIComponent(id);
   [upgradeCtaEl, opacityLockEl].forEach((a) => {
     if (!a) return;
     const href = a.getAttribute("href");
-    if (!href) return;
-    a.href = href + (href.includes("?") ? "&" : "?") + param;
+    if (!href || href.includes("#")) return;
+    a.href = href + frag;
   });
 });
 
@@ -305,6 +327,28 @@ opacityInput?.addEventListener("change", () => {
   void chrome.storage.sync.set({
     buttonOpacity: Number.isFinite(pct) ? Math.min(1, Math.max(0, pct / 100)) : DEFAULT_OPACITY,
   });
+});
+
+// -----------------------------------------------------------------------------
+// telemetry opt-out
+// -----------------------------------------------------------------------------
+//
+// The write side of the content-free usage beacon's opt-out. content.ts already
+// owns the read side: getConfig() pulls `telemetryDisabled` out of
+// chrome.storage.sync on every solve and fireTelemetryBeacon() returns early
+// when it's true, so nothing is sent. This checkbox is the only thing that ever
+// writes that key.
+//
+// MIND THE POLARITY — the checkbox and the stored flag are inverted:
+//   checked   → "send anonymous usage stats" → telemetryDisabled = false
+//   unchecked → opted out                    → telemetryDisabled = true
+// Unset (fresh install) reads back as `!== true`, i.e. checked / telemetry on,
+// which matches content.ts's "default/unset = enabled" behavior.
+//
+// Persisted to storage.sync rather than .local so the choice follows the
+// student across their signed-in Chrome profiles, like the other settings here.
+telemetryToggle?.addEventListener("change", () => {
+  void chrome.storage.sync.set({ telemetryDisabled: !telemetryToggle.checked });
 });
 
 /** Briefly pull attention to the "Unlimited unlocks discreet mode" nudge when

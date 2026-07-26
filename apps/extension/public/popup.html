@@ -212,6 +212,15 @@
         border-radius: 999px;
         padding: 4px 9px 5px;
       }
+      /* Cancellation path — same type scale as the footer .links anchors. */
+      .manage-sub {
+        font-size: 11px;
+        color: var(--ink-2);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        transition: color 0.15s;
+      }
+      .manage-sub:hover { color: var(--blue); }
       /* license problem note */
       .plan-note {
         display: none;
@@ -222,6 +231,10 @@
         border-radius: 7px;
         padding: 7px 9px;
       }
+      /* Paid-only cancellation row. Hidden by default so free users don't see
+         a "cancel" link for a subscription they don't have. */
+      .plan-paid-bar { display: none; justify-content: center; margin: 0 0 4px; }
+      body[data-plan="paid"] .plan-paid-bar { display: flex; }
       /* state switching */
       body[data-plan="paid"] .plan-badge { display: inline-flex; }
       body[data-plan="paid"] .plan-card { display: none; }
@@ -297,6 +310,10 @@
       }
       .status.ok { color: var(--ok); }
       .status.err { color: var(--err); }
+      /* min-height reserves a line so transient messages don't shift the
+         layout, but while empty that plus margin-top was leaving ~22px of
+         dead space above the R section. Same :empty idiom as .chip-list. */
+      .status:empty { display: none; }
 
       /* ---------------------------------------------------- CSV files */
       .dropzone {
@@ -404,6 +421,16 @@
         transition: border-color 0.15s, color 0.15s, background-color 0.15s;
       }
       .pkg-add-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-tint); }
+      /* Sub-group inside a merged <details>. Collapsing "R libraries" and
+         "R code" into one "R" section removed the header that used to
+         separate them, so restore the boundary with a rule instead of
+         spending a second disclosure header on it. */
+      .subgroup {
+        margin-top: 15px;
+        padding-top: 13px;
+        border-top: 1px solid var(--line-soft);
+      }
+      .subgroup > .pkg-hint:first-child { margin-top: 0; }
       .rcode-copy-btn {
         display: block;
         width: 100%;
@@ -422,6 +449,24 @@
         margin-top: 8px;
         font-size: 10px; line-height: 1.5;
         color: var(--ink-3);
+      }
+
+      /* -------------------------------------------------- checkbox row */
+      /* Used by the telemetry opt-out. Overrides the global `label` block
+         style above so the box and its text sit on one line. */
+      .check-row {
+        display: flex; align-items: center; gap: 8px;
+        margin: 0;
+        font-size: 12px; font-weight: 500;
+        color: var(--ink);
+        cursor: pointer;
+      }
+      .check-row input[type="checkbox"] {
+        flex: none;
+        width: 14px; height: 14px;
+        margin: 0;
+        accent-color: var(--blue);
+        cursor: pointer;
       }
 
       /* ------------------------------------------------ settings area */
@@ -557,8 +602,13 @@
         <div class="meter" id="solves-meter" aria-hidden="true">
           <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span>
         </div>
+        <!-- Points at our own /checkout page, NOT straight at Lemon Squeezy:
+             that page carries the required Terms/Privacy/Refund assent
+             checkbox and forwards the install id onward to LS as
+             checkout[custom][install_id]. popup.ts appends
+             #install_id=<uuid> below. -->
         <a class="upgrade-cta" id="upgrade-cta"
-           href="https://statshelpr.lemonsqueezy.com/checkout/buy/8ded2ea7-979f-4027-afb2-f03036e12015" target="_blank" rel="noopener">
+           href="https://statshelpr.com/checkout" target="_blank" rel="noopener">
           Go Unlimited &mdash; $15/mo <span class="arr">&rarr;</span>
         </a>
         <div class="plan-sub">Every solve, all semester &middot; cancel anytime</div>
@@ -569,10 +619,29 @@
            or content.ts after the worker reports the license is already
            active elsewhere). -->
       <div class="plan-note" id="device-limit-note" style="display: none">
-        <div>This license is active on another device. Switching devices? Reset it here.</div>
+        <div>This license is active on another device. Switching devices? Reset it here &mdash;
+          this moves the license to this browser, it doesn't change or cancel your subscription.</div>
         <button id="reset-device-btn" class="btn-solid" type="button" style="margin-top: 8px">Reset license</button>
         <div id="reset-status" class="status" style="display: none"></div>
       </div>
+    </div>
+
+    <!-- ROSCA: signing up is one click from the upsell card above, so
+         cancelling has to be just as reachable in the same medium. Points at
+         the Lemon Squeezy customer portal — the same URL the landing site uses
+         in legal.html §8 and checkout.html. Lives OUTSIDE .plan-card on
+         purpose: in the paid state that card is display:none (the plan moves
+         into the header badge), so a cancel link nested inside it would never
+         render for the only users who need it. Shown only when popup.ts's
+         setPlan() stamps data-plan="paid" on <body>. Deliberately NOT inside a
+         <details> — a cancellation path must not be hidden behind a
+         disclosure. Distinct from "Reset license" above, which moves the
+         license to a new device and cancels nothing. -->
+    <div class="plan-paid-bar">
+      <a class="manage-sub" id="manage-subscription"
+         href="https://app.lemonsqueezy.com/my-orders/login" target="_blank" rel="noopener">
+        Manage subscription or cancel
+      </a>
     </div>
 
     <div class="section-label">Discreet mode</div>
@@ -581,8 +650,9 @@
       <span id="opacityValue" class="range-val">100%</span>
     </div>
     <input id="buttonOpacity" type="range" min="0" max="100" step="1" value="100" />
+    <!-- Same assent-gated /checkout page as #upgrade-cta above. -->
     <a id="opacity-lock" class="opacity-lock"
-       href="https://statshelpr.lemonsqueezy.com/checkout/buy/8ded2ea7-979f-4027-afb2-f03036e12015" target="_blank" rel="noopener">
+       href="https://statshelpr.com/checkout" target="_blank" rel="noopener">
       &#128274; Unlimited unlocks discreet mode
     </a>
 
@@ -606,7 +676,7 @@
     <div id="status" class="status" role="status"></div>
 
     <details id="rlibs-details">
-      <summary><span class="chev"></span>R libraries</summary>
+      <summary><span class="chev"></span>R</summary>
       <div class="settings-body">
         <div id="rpkg-chips" class="chip-list"></div>
         <div class="pkg-add-row">
@@ -619,27 +689,39 @@
           No libraries selected &mdash; the tutor will use base R only.
         </div>
         <div class="pkg-hint">
-          These steer which R packages the tutor uses. The presets fit intro
-          stats &mdash; clear them and add the ones your course uses. A
-          <span style="color: var(--warn)">dashed</span> library isn't in our
-          pre-installed set yet, so it may not run.
+          Steers which R packages the tutor uses. A
+          <span style="color: var(--warn)">dashed</span> one isn't pre-installed,
+          so it may not run.
+        </div>
+
+        <div class="subgroup">
+          <button id="rcode-copy" type="button" class="rcode-copy-btn" disabled>Copy R code for this quiz</button>
+          <div id="rcode-empty" class="pkg-hint">
+            No R code yet &mdash; solve a calculation question on this quiz first.
+          </div>
         </div>
       </div>
     </details>
 
-    <details id="rcode-details">
-      <summary><span class="chev"></span>R code</summary>
+    <!-- Telemetry opt-out. The stored flag is telemetryDisabled and is
+         INVERTED relative to this box: checked = stats on = flag false.
+         content.ts reads the flag on every solve (getConfig) and returns
+         early from fireTelemetryBeacon when it's true.
+         Kept under a section literally named "Privacy" so the opt-out stays
+         findable — docs/cws/privacy-form.md tells Google's reviewers the user
+         can disable telemetry in the popup. #meta (diagnostics, usually
+         display:none) rides along here rather than owning a header. -->
+    <details id="privacy-details">
+      <summary><span class="chev"></span>Privacy</summary>
       <div class="settings-body">
-        <button id="rcode-copy" type="button" class="rcode-copy-btn" disabled>Copy R code for this quiz</button>
-        <div id="rcode-empty" class="pkg-hint">
-          No R code yet &mdash; solve a calculation question on this quiz first.
+        <label class="check-row" for="telemetry-toggle">
+          <input type="checkbox" id="telemetry-toggle" checked />
+          <span>Send anonymous usage stats</span>
+        </label>
+        <div class="pkg-hint">
+          Counts and timings only &mdash; never your question text, answers or
+          data files. Uncheck to stop sending them.
         </div>
-      </div>
-    </details>
-
-    <details id="settings-details">
-      <summary><span class="chev"></span>Status</summary>
-      <div class="settings-body">
         <div id="meta" class="meta" style="display: none"></div>
       </div>
     </details>
