@@ -424,6 +424,24 @@
         color: var(--ink-3);
       }
 
+      /* -------------------------------------------------- checkbox row */
+      /* Used by the telemetry opt-out. Overrides the global `label` block
+         style above so the box and its text sit on one line. */
+      .check-row {
+        display: flex; align-items: center; gap: 8px;
+        margin: 0;
+        font-size: 12px; font-weight: 500;
+        color: var(--ink);
+        cursor: pointer;
+      }
+      .check-row input[type="checkbox"] {
+        flex: none;
+        width: 14px; height: 14px;
+        margin: 0;
+        accent-color: var(--blue);
+        cursor: pointer;
+      }
+
       /* ------------------------------------------------ settings area */
       details { margin-top: 14px; }
       summary {
@@ -639,6 +657,24 @@
         <button id="rcode-copy" type="button" class="rcode-copy-btn" disabled>Copy R code for this quiz</button>
         <div id="rcode-empty" class="pkg-hint">
           No R code yet &mdash; solve a calculation question on this quiz first.
+        </div>
+      </div>
+    </details>
+
+    <!-- Telemetry opt-out. The stored flag is telemetryDisabled and is
+         INVERTED relative to this box: checked = stats on = flag false.
+         content.ts reads the flag on every solve (getConfig) and returns
+         early from fireTelemetryBeacon when it's true. -->
+    <details id="privacy-details">
+      <summary><span class="chev"></span>Privacy</summary>
+      <div class="settings-body">
+        <label class="check-row" for="telemetry-toggle">
+          <input type="checkbox" id="telemetry-toggle" checked />
+          <span>Send anonymous usage stats</span>
+        </label>
+        <div class="pkg-hint">
+          Counts and timings only &mdash; never your question text, answers or
+          data files. Uncheck to stop sending them.
         </div>
       </div>
     </details>

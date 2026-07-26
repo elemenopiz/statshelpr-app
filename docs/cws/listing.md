@@ -13,7 +13,13 @@ descriptive ("works on Canvas quiz pages"), which is accepted nominative use.
 The store title AND summary are pulled READ-ONLY "from package" (the manifest
 `name` and `description`) — the listing form has no editable summary box. So the
 public summary IS the manifest description. As of v1.1.2 that is:
-> Stats quiz tutor — worked solutions with runnable R code, shown inline on your quiz questions.
+> Stats quiz tutor — suggests the answer on your quiz questions, with the R code behind it in the extension popup.
+
+It must describe only what the extension actually does: it MARKS a suggested
+choice on the page (suggestion-only — see canvas-dom.ts) and the R code is
+reachable ONLY via the popup's "Copy R code for this quiz" button. The content
+script renders no answer card, no explanation and no R code, so the summary must
+not claim anything is "shown inline".
 To change the summary, edit `apps/extension/public/manifest.json` `description`
 and re-upload — do NOT expect a summary field in the dashboard. ("Canvas" is
 kept out of it for the trademark reason; it lives only in the long Description
@@ -32,17 +38,25 @@ Built for intro statistics courses (inference, regression, confidence intervals,
 - **Use your course data** — upload the CSV your class provides and solutions are computed on your actual dataset, not a lookalike.
 - **Review where you went wrong** — open a graded quiz and step through the solution for each question you missed.
 - **Pick your libraries** — tell statshelpr which R packages your course uses and solutions follow that style.
-- **Confidence signal** — every answer carries a High/Med/Low confidence indicator, so you know when to double-check.
 
 Free plan: 5 solves per day. Unlimited: $15/month.
 
-Privacy: question content is sent to our servers only when you click solve, and used only to generate the answer. Usage telemetry is content-free and can be disabled. Full policy: https://statshelpr.com/legal
+Privacy: question content is sent to our servers only when you click solve, and used only to generate the answer. Usage telemetry is content-free and can be turned off under "Privacy" in the extension popup. Full policy: https://statshelpr.com/legal
 
 statshelpr is a study aid. Use it in accordance with your institution's academic integrity policies.
 
 Not affiliated with, endorsed by, or sponsored by Instructure or Canvas. "Canvas" is a trademark of Instructure, Inc., used here only to describe compatibility.
 
 ## Notes (not part of the listing)
+- Every bullet above must map to something a user can actually see or do. A
+  "Confidence signal — High/Med/Low indicator" bullet was removed because the
+  `confidence` field is parsed only to populate the content-free telemetry
+  beacon and is never rendered anywhere in the UI. Don't re-add it unless the
+  indicator is actually shipped.
+- The telemetry opt-out claimed here (and in `privacy-form.md`, already
+  submitted to review) is the "Send anonymous usage stats" checkbox under
+  Privacy in the popup — it writes `telemetryDisabled` to `chrome.storage.sync`,
+  which content.ts reads before firing each beacon.
 - The integrity note and the non-affiliation line are both standard for this category and materially help review approval; keep both. The non-affiliation disclaimer is the direct mitigation for the trademark risk — it makes the descriptive use of "Canvas" in the body unambiguous.
 - Functionality statement ("solve button on quiz pages, compatible with Canvas") is required by CWS metadata policy — the listing must state what the extension does. Stated in the description body, not the name/summary.
 - Store assets needed at upload time: at least 1 screenshot 1280×800 (see `docs/cws/screenshots/`), optional promo tile 440×280.
