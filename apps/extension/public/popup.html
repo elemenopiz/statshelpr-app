@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-<html>
+<!-- data-theme is set here, not by script, so the first paint is already dark;
+     popup.ts re-stamps it only if the user has stored a light preference. -->
+<html data-theme="dark">
   <head>
     <meta charset="utf-8" />
     <title>statshelpr</title>
@@ -10,13 +12,16 @@
          page: serif wordmark, humanist UI, mono for data.
          ================================================================== */
       :root {
-        --paper: #FAF9F5;
+        /* Canvas sits a step BELOW the cards so white surfaces read as raised;
+           #FAF9F5 against #FFF was too close to separate. */
+        --paper: #EFEDE4;
         --card: #FFFFFF;
         --ink: #1D1C17;
-        --ink-2: #55534A;
-        --ink-3: #8D8A7E;
-        --line: rgba(29, 28, 23, 0.13);
-        --line-soft: rgba(29, 28, 23, 0.07);
+        --ink-2: #4E4C43;
+        /* was #8D8A7E — 3.3:1 on the canvas, under AA for 10–11px labels */
+        --ink-3: #6E6B5F;
+        --line: rgba(29, 28, 23, 0.18);
+        --line-soft: rgba(29, 28, 23, 0.1);
         --blue: #2742C8;
         --blue-deep: #1C31A2;
         --blue-tint: rgba(39, 66, 200, 0.08);
@@ -28,46 +33,24 @@
         --err: #C24029;
         --err-tint: rgba(194, 64, 41, 0.09);
         --btn-text: #FFFFFF;
-        --shadow: 0 1px 2px rgba(29, 28, 23, 0.05), 0 6px 20px rgba(29, 28, 23, 0.06);
+        --shadow: 0 1px 2px rgba(29, 28, 23, 0.07), 0 6px 20px rgba(29, 28, 23, 0.09);
         --font-serif: 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
         --font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
         --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', Consolas, monospace;
         --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
       }
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --paper: #161614;
-          --card: #1E1E1B;
-          --ink: #EAE8DF;
-          --ink-2: #A8A599;
-          --ink-3: #7A7769;
-          --line: rgba(234, 232, 223, 0.14);
-          --line-soft: rgba(234, 232, 223, 0.08);
-          --blue: #93A3FF;
-          --blue-deep: #AEBAFF;
-          --blue-tint: rgba(147, 163, 255, 0.11);
-          --blue-ring: rgba(147, 163, 255, 0.22);
-          --ok: #6CC49A;
-          --ok-tint: rgba(108, 196, 154, 0.1);
-          --warn: #D8B25E;
-          --warn-tint: rgba(216, 178, 94, 0.12);
-          --err: #E58873;
-          --err-tint: rgba(229, 136, 115, 0.1);
-          --btn-text: #12122B;
-          --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.25);
-        }
-      }
-      /* Explicit overrides for the header theme toggle — win over the OS
-         media query above in both directions since they're declared after
-         it (see popup.ts's applyTheme(), which stamps data-theme on <html>). */
+      /* The two palettes below are keyed on data-theme only — <html> always
+         carries it (dark in the markup, re-stamped by popup.ts's applyTheme()
+         when the user has chosen light), so there's no OS media query to lose
+         a specificity fight with. */
       :root[data-theme="light"] {
-        --paper: #FAF9F5;
+        --paper: #EFEDE4;
         --card: #FFFFFF;
         --ink: #1D1C17;
-        --ink-2: #55534A;
-        --ink-3: #8D8A7E;
-        --line: rgba(29, 28, 23, 0.13);
-        --line-soft: rgba(29, 28, 23, 0.07);
+        --ink-2: #4E4C43;
+        --ink-3: #6E6B5F;
+        --line: rgba(29, 28, 23, 0.18);
+        --line-soft: rgba(29, 28, 23, 0.1);
         --blue: #2742C8;
         --blue-deep: #1C31A2;
         --blue-tint: rgba(39, 66, 200, 0.08);
@@ -79,7 +62,7 @@
         --err: #C24029;
         --err-tint: rgba(194, 64, 41, 0.09);
         --btn-text: #FFFFFF;
-        --shadow: 0 1px 2px rgba(29, 28, 23, 0.05), 0 6px 20px rgba(29, 28, 23, 0.06);
+        --shadow: 0 1px 2px rgba(29, 28, 23, 0.07), 0 6px 20px rgba(29, 28, 23, 0.09);
       }
       :root[data-theme="dark"] {
         --paper: #161614;
@@ -215,14 +198,19 @@
         0%, 100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 0 var(--err-tint); }
         50% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 5px var(--err-tint); }
       }
-      /* paid state */
-      .plan-paid { display: none; align-items: center; justify-content: center; }
-      .plan-paid-word {
+      /* paid state — the card collapses away entirely and the plan moves up
+         into the header as a badge (see .plan-badge), reclaiming ~110px. */
+      .plan-badge {
+        display: none;
+        align-items: center;
         font-family: var(--font-serif);
         font-style: italic;
+        font-size: 12.5px; line-height: 1;
         color: var(--blue);
-        font-size: 1.15rem;
-        font-weight: 500;
+        background: var(--blue-tint);
+        border: 1px solid var(--blue-ring);
+        border-radius: 999px;
+        padding: 4px 9px 5px;
       }
       /* license problem note */
       .plan-note {
@@ -235,8 +223,16 @@
         padding: 7px 9px;
       }
       /* state switching */
-      .plan-card[data-plan="paid"] .plan-free { display: none; }
-      .plan-card[data-plan="paid"] .plan-paid { display: flex; }
+      body[data-plan="paid"] .plan-badge { display: inline-flex; }
+      body[data-plan="paid"] .plan-card { display: none; }
+      /* ...unless a note needs saying (bad license, device limit) — then the
+         card comes back carrying only the note. */
+      body[data-plan="paid"] .plan-card[data-note="on"] { display: block; }
+      body[data-plan="paid"] .plan-card .plan-free { display: none; }
+      body[data-plan="paid"] .plan-card[data-note="on"] {
+        padding: 0; border: 0; background: none; box-shadow: none;
+      }
+      body[data-plan="paid"] .plan-card[data-note="on"] .plan-note { margin-top: 0; }
       .plan-card[data-plan="checking"] .plan-free .upgrade-cta { opacity: 0.75; }
 
       /* ------------------------------------------------- section base */
@@ -542,6 +538,9 @@
     <div class="header">
       <div class="logo">stats<em>helpr</em></div>
       <div class="header-right">
+        <!-- paid users get the plan as a header badge instead of the upsell
+             card below; popup.ts stamps data-plan on <body>. -->
+        <span id="plan-badge" class="plan-badge">Unlimited</span>
         <button id="theme-toggle" class="theme-toggle" type="button"
                 aria-label="Switch to dark theme" title="Switch theme">&#9788;</button>
         <span id="status-dot" class="dot">checking…</span>
@@ -563,9 +562,6 @@
           Go Unlimited &mdash; $15/mo <span class="arr">&rarr;</span>
         </a>
         <div class="plan-sub">Every solve, all semester &middot; cancel anytime</div>
-      </div>
-      <div class="plan-paid" id="plan-paid">
-        <span class="plan-paid-word">Unlimited</span>
       </div>
       <div class="plan-note" id="plan-note"></div>
       <!-- single-device limit: popup.ts toggles this on when
