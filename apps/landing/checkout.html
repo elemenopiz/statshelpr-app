@@ -244,6 +244,11 @@
         <li><strong>Discreet mode stays on</strong> &mdash; your opacity setting persists</li>
         <li><strong>Instant activation</strong> &mdash; the extension unlocks right after payment</li>
       </ul>
+      <!-- Auto-renewal terms sit ABOVE the checkbox and the button on purpose:
+           ROSCA wants the recurring charge disclosed before the point of
+           consent, not after it. The checkbox (not this paragraph) is what
+           records assent — see routes/assent.ts. -->
+      <p class="consent">This is a subscription that renews automatically each month at $15/month until you cancel. Cancel any time at <a href='https://app.lemonsqueezy.com/my-orders/login' target='_blank' rel='noopener'>app.lemonsqueezy.com/my-orders/login</a>.</p>
       <label class="assent" for="assent-check">
         <input type="checkbox" id="assent-check" />
         <span>I have read and agree to the <a href="/legal.html#terms" target="_blank" rel="noopener">Terms of Service</a>, <a href="/legal.html#privacy" target="_blank" rel="noopener">Privacy Policy</a>, and <a href="/legal.html#refunds" target="_blank" rel="noopener">Refund Policy</a>.</span>
