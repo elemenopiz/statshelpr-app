@@ -13,13 +13,20 @@ descriptive ("works on Canvas quiz pages"), which is accepted nominative use.
 The store title AND summary are pulled READ-ONLY "from package" (the manifest
 `name` and `description`) — the listing form has no editable summary box. So the
 public summary IS the manifest description. As of v1.1.2 that is:
-> Stats quiz tutor — suggests the answer on your quiz questions, with the R code behind it in the extension popup.
+> Stats quiz tutor — fills in the answer on your quiz questions, with the R code behind it in the extension popup.
 
-It must describe only what the extension actually does: it MARKS a suggested
-choice on the page (suggestion-only — see canvas-dom.ts) and the R code is
-reachable ONLY via the popup's "Copy R code for this quiz" button. The content
-script renders no answer card, no explanation and no R code, so the summary must
-not claim anything is "shown inline".
+It must describe only what the extension actually does: it WRITES the answer
+into the page — it checks the radio/checkbox, sets the dropdown, and fills the
+text field (see selectChoice / setSelectValue / fillTextInput in canvas-dom.ts),
+downgrading to a highlight-only mark when the field is disabled or read-only.
+It does not submit the quiz. The R code is reachable ONLY via the popup's "Copy
+R code for this quiz" button. The content script renders no answer card, no
+explanation and no R code, so the summary must not claim anything is "shown
+inline".
+
+Do NOT reword this to "suggests" or "marks" — a suggestion-only build was
+written and deliberately not shipped, and that wording is false for what ships.
+Any claim about entering answers must be checked against canvas-dom.ts.
 To change the summary, edit `apps/extension/public/manifest.json` `description`
 and re-upload — do NOT expect a summary field in the dashboard. ("Canvas" is
 kept out of it for the trademark reason; it lives only in the long Description
@@ -30,7 +37,7 @@ Education · English
 
 ## Full description
 
-statshelpr adds a solve button to statistics questions on Canvas quiz pages. Click it and you get a worked solution: the answer and, for calculation questions, the exact R code that produces the result — executed on a real R runtime on our servers.
+statshelpr adds a solve button to statistics questions on Canvas quiz pages. Click it and you get a worked solution: the answer and, for calculation questions, the exact R code that produces the result — executed on a real R runtime on our servers. statshelpr enters its answer into the question for you; review it before you submit. It never submits a quiz for you.
 
 Built for intro statistics courses (inference, regression, confidence intervals, probability), statshelpr turns quiz questions into worked examples:
 
