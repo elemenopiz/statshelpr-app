@@ -18,3 +18,23 @@ apps/extension/public/webr/
 apps/extension-capture/datasets/
 
 .worktrees/
+.claude/worktrees/
+
+# Vendored agent skills (heygen-com/hyperframes and friends). .claude/skills/*
+# are symlinks into .agents/skills/, so both sides have to be ignored together
+# or git follows the links and stores the payload twice. skills-lock.json IS
+# tracked — it pins each skill's source repo and content hash, so the tree here
+# is re-fetchable the same way node_modules is from a lockfile.
+.agents/
+.claude/skills/
+
+# Per-run eval debug dumps (scripts/run-evals.ts). One JSON blob per run,
+# machine-generated and unbounded — the eval fixtures and expectations that
+# matter are tracked elsewhere under evals/.
+evals/_debug/
+
+# Promo video working directory — HyperFrames project with ~18MB of renders,
+# extracted frames, voice/SFX audio and screen captures. Regenerable from the
+# project's own source (SCRIPT.md / STORYBOARD.md / hyperframes.json); see
+# videos/statshelpr-promo/CLAUDE.md for the re-render steps.
+videos/
