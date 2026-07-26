@@ -43,10 +43,38 @@
  *
  * KV schema (never store raw license keys as *values* outside this file's
  * short-lived token use elsewhere; here we use hashed compound keys):
- *   activation:{sha256(licenseKey)}:{sha256(installId)} -> { instanceId, licenseKeyId?, activatedAt }
- *   activation-current:{sha256(licenseKey)}             -> { instanceId, installIdHash, activatedAt }
+ *   activation:{h(licenseKey)}:{h(installId)} -> { instanceId, licenseKeyId?, activatedAt }
+ *   activation-current:{h(licenseKey)}        -> { instanceId, installIdHash, activatedAt }
  * TTL 400 days, refreshed on every cache hit so an active subscriber's
  * binding never expires out from under them.
+ *
+ * `h` = activationHash() below: HMAC-SHA-256 keyed on ACTIVATION_HASH_SECRET,
+ * NOT a bare digest. This hash space is deliberately DISJOINT from the
+ * metrics/rate-limit hash space (lib/rate-limit.ts's hashBucket, whose values
+ * land in lib/metrics-store.ts's per-day `installHashes` presence sets).
+ *
+ * Why that matters (privacy fix, 2026-07-27): both functions used to be a
+ * byte-identical unsalted `sha256(x).slice(0,32)`, so the install hash inside
+ * an `activation:` key was the SAME string that appears in the daily
+ * `installHashes` sets. Anyone holding a raw license key — which is also the
+ * lookup value of the `license:{key}` record, and that record carries the
+ * buyer's email — could recompute the matching install hash offline and read
+ * off exactly which days that named, paying customer was active. Keying this
+ * side with a secret breaks that join: without ACTIVATION_HASH_SECRET the
+ * activation-side hash of an install id is not computable from the license
+ * key (or from anything else an attacker holds), so the two key spaces can no
+ * longer be correlated. hashBucket stays unkeyed on purpose — it must stay
+ * reproducible across the solve path and the client telemetry beacon so DAU
+ * dedupe works, and it never touches license keys.
+ *
+ * Migration (these keys have a 400-day TTL, so live paying customers WILL
+ * have records under the old unsalted hash): every read here falls through to
+ * the legacy unsalted key on a miss, re-writes the record under the new keyed
+ * hash, and deletes the legacy one — see legacyActivationHash() and
+ * readLegacyActivation() at the bottom. Nobody is logged out and no extra LS
+ * /activate call is made; a migrating install just does one extra KV read on
+ * its first request after deploy. Legacy records that are never touched again
+ * simply age out on their existing TTL.
  */
 
 import type { Env } from "../types";
@@ -123,15 +151,43 @@ export async function activateForInstall(
     | null;
   if (licRecord?.dev === true) return { ok: true, activated: true };
 
+  // Fail closed, same contract as R_RUNNER_SECRET / METRICS_TOKEN /
+  // DASHBOARD_PASSWORD: no secret means we cannot compute the keyed hash, and
+  // silently dropping back to the unsalted digest would quietly re-open the
+  // correlation hole this module's header describes. Dev licenses (above) and
+  // the whole LS-unconfigured dev path (further above) both return before
+  // here, so this only ever bites a real deploy that skipped the secret.
+  if (!env.ACTIVATION_HASH_SECRET) {
+    return { ok: false, reason: "Activation not configured (ACTIVATION_HASH_SECRET unset)" };
+  }
+
   const name = installId || "anon";
-  const licHash = await sha256Hex(licenseKey);
-  const installHash = await sha256Hex(name);
+  const licHash = await activationHash(env, licenseKey);
+  const installHash = await activationHash(env, name);
   const kvKey = `${KV_ACTIVATION_PREFIX}${licHash}:${installHash}`;
 
-  const cached = (await env.STATSHELPR_KV.get(kvKey, "json")) as StoredActivation | null;
+  let cached = (await env.STATSHELPR_KV.get(kvKey, "json")) as StoredActivation | null;
+  // Miss under the keyed hash: this install may predate the keyed-hash
+  // migration and still hold a live record under the legacy unsalted key.
+  // Read it through instead of calling LS /activate, which would burn a
+  // second activation slot for the same device and could self-lock a paying
+  // customer out — the exact failure the duplicate-instance guard in this
+  // file's header warns about.
+  let legacy: LegacyActivation | null = null;
+  if (!cached) {
+    legacy = await readLegacyActivation(env, licenseKey, name);
+    cached = legacy?.record ?? null;
+  }
   if (cached?.instanceId) {
     // Idempotent repeat for the same install — refresh TTL, skip LS entirely.
     await storeActivation(env, licHash, installHash, cached.instanceId, cached.licenseKeyId);
+    // Retire the legacy keys only now that the record is safely stored under
+    // the keyed hash — never the other way round. (Even if this Worker died
+    // between the two, the next request would miss both keys, call LS, and be
+    // recovered by findExistingInstanceByName below, which matches the LS
+    // instance by our install-id name. Ordering it this way means that
+    // recovery path is never needed in the first place.)
+    if (legacy) await deleteLegacyActivation(env, legacy);
     return { ok: true, activated: true };
   }
 
@@ -166,10 +222,34 @@ export async function deactivateCurrentInstance(
   licenseKey: string,
 ): Promise<{ ok: boolean; reason?: string }> {
   if (!env.LEMONSQUEEZY_API_KEY) return { ok: true }; // dev mode, nothing bound
+  if (!env.ACTIVATION_HASH_SECRET) {
+    return { ok: false, reason: "Activation not configured (ACTIVATION_HASH_SECRET unset)" };
+  }
 
-  const licHash = await sha256Hex(licenseKey);
+  // Resolve the binding in the keyed hash space first, then fall back to the
+  // legacy unsalted one. `licHash` tracks whichever space we actually FOUND
+  // the record in, because the record's own `installIdHash` was written in
+  // that same space — mixing the two would delete nothing and leave a stale
+  // binding behind, which would make the customer's next device look
+  // at-limit. Nothing is migrated here: this path is deleting the record, so
+  // rewriting it under the new hash first would be pure waste.
+  let licHash = await activationHash(env, licenseKey);
+  let current = (await env.STATSHELPR_KV.get(
+    `${KV_CURRENT_PREFIX}${licHash}`,
+    "json",
+  )) as StoredCurrent | null;
+  if (!current) {
+    const legacyLicHash = await legacyActivationHash(licenseKey);
+    const legacyCurrent = (await env.STATSHELPR_KV.get(
+      `${KV_CURRENT_PREFIX}${legacyLicHash}`,
+      "json",
+    )) as StoredCurrent | null;
+    if (legacyCurrent) {
+      licHash = legacyLicHash;
+      current = legacyCurrent;
+    }
+  }
   const currentKvKey = `${KV_CURRENT_PREFIX}${licHash}`;
-  const current = (await env.STATSHELPR_KV.get(currentKvKey, "json")) as StoredCurrent | null;
   if (!current) return { ok: true }; // nothing activated — already in the reset state
 
   const deact = await lsPost<LsDeactivateResponse>(env, "/v1/licenses/deactivate", {
@@ -275,12 +355,100 @@ async function lsGet<T>(
   }
 }
 
-/** SHA-256 hash, truncated to 128 bits — matches the convention in lib/rate-limit.ts. */
-async function sha256Hex(input: string): Promise<string> {
-  const buf = new TextEncoder().encode(input);
-  const digest = await crypto.subtle.digest("SHA-256", buf);
-  return Array.from(new Uint8Array(digest))
+function toHex128(buf: ArrayBuffer): string {
+  return Array.from(new Uint8Array(buf))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("")
     .slice(0, 32);
+}
+
+/** Importing the HMAC key costs a crypto.subtle round-trip, and we hash two
+ *  values (license key + install id) per activation. Workers isolates are
+ *  reused across requests, so memoizing the CryptoKey on the secret it was
+ *  derived from is safe and cuts that in half; the secret is compared so a
+ *  rotated secret can never be served a stale key. */
+let hmacKeyCache: { secret: string; key: Promise<CryptoKey> } | null = null;
+
+function activationHmacKey(secret: string): Promise<CryptoKey> {
+  if (hmacKeyCache?.secret === secret) return hmacKeyCache.key;
+  const key = crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  hmacKeyCache = { secret, key };
+  return key;
+}
+
+/**
+ * Keyed hash for every activation KV key, truncated to 128 bits.
+ *
+ * HMAC-SHA-256 under ACTIVATION_HASH_SECRET rather than a bare digest, so
+ * this module's hash space cannot be joined to lib/rate-limit.ts's unkeyed
+ * hashBucket (and therefore to lib/metrics-store.ts's daily `installHashes`
+ * presence sets) by anyone holding a raw license key — see the module header
+ * for the full attack this closes. Do NOT "simplify" this back to
+ * crypto.subtle.digest: matching hashBucket's output is precisely the bug.
+ *
+ * Exported only so scripts/self-test-security.ts can assert the two hash
+ * spaces stay disjoint; nothing else should call it.
+ */
+export async function activationHash(env: Env, input: string): Promise<string> {
+  const secret = env.ACTIVATION_HASH_SECRET;
+  if (!secret) throw new Error("ACTIVATION_HASH_SECRET unset");
+  const key = await activationHmacKey(secret);
+  const sig = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(input));
+  return toHex128(sig);
+}
+
+/**
+ * The pre-2026-07-27 unsalted hash — byte-identical to lib/rate-limit.ts's
+ * hashBucket, which is exactly why it was replaced. MIGRATION ONLY: it exists
+ * so live records written before the keyed-hash cutover can still be found
+ * and retired (see readLegacyActivation). Never write a new key with it.
+ *
+ * Exported only for scripts/self-test-security.ts, which asserts it still
+ * matches hashBucket — that equality is what proves the read-through fallback
+ * actually lands on the old keys rather than silently missing them.
+ */
+export async function legacyActivationHash(input: string): Promise<string> {
+  const buf = new TextEncoder().encode(input);
+  return toHex128(await crypto.subtle.digest("SHA-256", buf));
+}
+
+interface LegacyActivation {
+  record: StoredActivation;
+  /** The legacy `activation:{lic}:{install}` key this came from. */
+  activationKey: string;
+  /** The matching legacy `activation-current:{lic}` key. */
+  currentKey: string;
+}
+
+/**
+ * Look up a pre-migration activation record under the legacy unsalted keys.
+ * Pure read — the caller re-stores the record under the keyed hash first and
+ * only then calls deleteLegacyActivation, so the binding is never briefly
+ * absent from KV. Returns null when there is nothing to migrate, which is the
+ * steady state once every active install has made one request post-deploy.
+ */
+async function readLegacyActivation(
+  env: Env,
+  licenseKey: string,
+  installName: string,
+): Promise<LegacyActivation | null> {
+  const legacyLicHash = await legacyActivationHash(licenseKey);
+  const legacyInstallHash = await legacyActivationHash(installName);
+  const activationKey = `${KV_ACTIVATION_PREFIX}${legacyLicHash}:${legacyInstallHash}`;
+  const record = (await env.STATSHELPR_KV.get(activationKey, "json")) as StoredActivation | null;
+  if (!record?.instanceId) return null;
+  return { record, activationKey, currentKey: `${KV_CURRENT_PREFIX}${legacyLicHash}` };
+}
+
+/** Drop both legacy keys once the record has been re-stored under the keyed
+ *  hash, completing the move. */
+async function deleteLegacyActivation(env: Env, legacy: LegacyActivation): Promise<void> {
+  await env.STATSHELPR_KV.delete(legacy.activationKey);
+  await env.STATSHELPR_KV.delete(legacy.currentKey);
 }

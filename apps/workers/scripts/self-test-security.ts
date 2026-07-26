@@ -3,6 +3,13 @@
  * lib/rate-limit.ts's options-driven bucketing + optimistic recheck, and
  * lib/kill-switch.ts's global ceiling.
  *
+ * Also covers lib/license-activation.ts's keyed activation hash (privacy fix,
+ * 2026-07-27): that its hash space stays DISJOINT from rate-limit.ts's
+ * hashBucket — the values that end up in lib/metrics-store.ts's daily
+ * `installHashes` sets — that it fails closed without its secret, and that
+ * activations written under the old unsalted hash still migrate instead of
+ * logging a paying customer out.
+ *
  * Used to also cover a signed hand-off token's sign/verify contract (the
  * primary fix for the old /api/interpret unbounded-LLM-cost hole) — that
  * module and its tests were removed when /api/interpret itself was retired
@@ -28,7 +35,12 @@
 
 import type { Context } from "hono";
 import { checkGlobalKillSwitch } from "../src/lib/kill-switch";
-import { checkAndIncrement, getClientIp } from "../src/lib/rate-limit";
+import {
+  activateForInstall,
+  activationHash,
+  legacyActivationHash,
+} from "../src/lib/license-activation";
+import { checkAndIncrement, getClientIp, hashBucket } from "../src/lib/rate-limit";
 import type { Env } from "../src/types";
 
 let pass = 0;
@@ -61,6 +73,12 @@ async function main() {
     async put(key: string, value: string): Promise<void> {
       this.store.set(key, value);
     }
+    async delete(key: string): Promise<void> {
+      this.store.delete(key);
+    }
+    has(key: string): boolean {
+      return this.store.has(key);
+    }
   }
 
   function fakeEnv(overrides: Partial<Env> = {}): Env {
@@ -74,6 +92,10 @@ async function main() {
       // each to stay a valid Env.
       R_RUNNER_URL: "https://fake-r-runner.example.com",
       R_RUNNER_SECRET: "fake-runner-secret",
+      // Keyed-hash secret for lib/license-activation.ts (privacy fix,
+      // 2026-07-27). Deliberately NOT equal to any other secret here — the
+      // hash-separation checks below would be meaningless if it were.
+      ACTIVATION_HASH_SECRET: "fake-activation-hash-secret",
       STATSHELPR_KV: new FakeKv() as unknown as Env["STATSHELPR_KV"],
       ...overrides,
     } as Env;
@@ -179,6 +201,129 @@ async function main() {
     await checkGlobalKillSwitch(env); // simulates the repair leg
     const third = await checkGlobalKillSwitch(env); // simulates the interpret leg
     check("global switch: every leg shares ONE combined counter", third.count === 3, JSON.stringify(third));
+  }
+
+  // ---------------------------------------------------------------------------
+  console.log("license-activation.ts (activation vs. metrics hash-space separation)");
+
+  {
+    // The bug this closes: activationHash and hashBucket were the SAME
+    // unsalted sha256(x).slice(0,32). Because lib/metrics-store.ts's daily
+    // `installHashes` sets are hashBucket values, anyone holding a raw
+    // license key (and therefore the buyer email on the `license:` record)
+    // could recompute that customer's install hash and read off which days
+    // they were active. The two spaces must not intersect.
+    const env = fakeEnv();
+    const installId = "3f9c1b7e-0000-4a11-9c2d-abcdefabcdef";
+
+    const keyed = await activationHash(env, installId);
+    const metrics = await hashBucket(installId);
+    check(
+      "same install id hashes DIFFERENTLY on the activation vs. metrics side",
+      keyed !== metrics,
+      `activation=${keyed} metrics=${metrics}`,
+    );
+
+    // Same check for a license key, the other input this module hashes.
+    const licKeyed = await activationHash(env, "LIC-ABC-123");
+    check(
+      "same license key hashes differently on the activation vs. metrics side",
+      licKeyed !== (await hashBucket("LIC-ABC-123")),
+      licKeyed,
+    );
+
+    check(
+      "activation hash is still a 128-bit hex string (KV key shape unchanged)",
+      /^[0-9a-f]{32}$/.test(keyed),
+      keyed,
+    );
+    check(
+      "activation hash is deterministic for a given secret",
+      (await activationHash(env, installId)) === keyed,
+    );
+    check(
+      "activation hash changes with the secret (it is genuinely keyed, not salted-in-name-only)",
+      (await activationHash(fakeEnv({ ACTIVATION_HASH_SECRET: "other-secret" }), installId)) !== keyed,
+    );
+
+    // The migration fallback only works if the legacy hash is still exactly
+    // what the old code wrote — i.e. still byte-identical to hashBucket. If
+    // this check ever fails, live pre-migration activations became
+    // unreachable and paying customers would be forced through LS /activate
+    // again (and could hit the at-limit path).
+    check(
+      "legacy migration hash still matches hashBucket exactly (old keys remain findable)",
+      (await legacyActivationHash(installId)) === metrics,
+      `${await legacyActivationHash(installId)} vs ${metrics}`,
+    );
+  }
+
+  {
+    // Fail-closed: no secret means no activation, NOT a silent fallback to
+    // the old unsalted hash (which would quietly re-open the hole above).
+    const env = fakeEnv({ LEMONSQUEEZY_API_KEY: "ls-key", ACTIVATION_HASH_SECRET: undefined });
+    const r = await activateForInstall(env, "LIC-ABC-123", "install-Z");
+    check(
+      "activation fails closed when ACTIVATION_HASH_SECRET is unset",
+      r.ok === false && /ACTIVATION_HASH_SECRET/.test(r.reason ?? ""),
+      JSON.stringify(r),
+    );
+  }
+
+  {
+    // Migration: a customer activated BEFORE the keyed-hash cutover has a
+    // live record under the legacy keys (400-day TTL). Their next request
+    // must succeed from KV alone — no LS /activate call (this fake env has
+    // no network, so any attempt to call LS would throw or return not-ok) —
+    // and must leave the record under the NEW keys with the legacy ones
+    // gone.
+    const kv = new FakeKv();
+    const env = fakeEnv({
+      LEMONSQUEEZY_API_KEY: "ls-key",
+      STATSHELPR_KV: kv as unknown as Env["STATSHELPR_KV"],
+    });
+    const licenseKey = "LIC-LEGACY-999";
+    const installId = "install-legacy-1";
+
+    const oldLic = await legacyActivationHash(licenseKey);
+    const oldInstall = await legacyActivationHash(installId);
+    const oldKey = `activation:${oldLic}:${oldInstall}`;
+    await kv.put(oldKey, JSON.stringify({ instanceId: "inst-legacy", licenseKeyId: 42, activatedAt: 1 }));
+    await kv.put(
+      `activation-current:${oldLic}`,
+      JSON.stringify({ instanceId: "inst-legacy", installIdHash: oldInstall, activatedAt: 1 }),
+    );
+
+    const r = await activateForInstall(env, licenseKey, installId);
+    check(
+      "pre-migration activation still succeeds after the hash change (no customer logged out)",
+      r.ok === true && r.activated === true,
+      JSON.stringify(r),
+    );
+
+    const newLic = await activationHash(env, licenseKey);
+    const newInstall = await activationHash(env, installId);
+    const migrated = (await kv.get(`activation:${newLic}:${newInstall}`, "json")) as {
+      instanceId?: string;
+    } | null;
+    check(
+      "migrated record is rewritten under the keyed hash, preserving the LS instance id",
+      migrated?.instanceId === "inst-legacy",
+      JSON.stringify(migrated),
+    );
+    check("legacy activation key is deleted after migration", !kv.has(oldKey));
+    check(
+      "legacy activation-current key is deleted after migration",
+      !kv.has(`activation-current:${oldLic}`),
+    );
+    check(
+      "activation-current is rewritten under the keyed hash too",
+      kv.has(`activation-current:${newLic}`),
+    );
+
+    // Second call is the steady state: pure keyed-hash cache hit.
+    const again = await activateForInstall(env, licenseKey, installId);
+    check("post-migration repeat activation is an idempotent cache hit", again.ok === true, JSON.stringify(again));
   }
 
   // ---------------------------------------------------------------------------
