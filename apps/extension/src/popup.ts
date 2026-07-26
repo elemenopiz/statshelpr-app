@@ -472,24 +472,16 @@ opacityLockEl?.addEventListener("click", (e) => {
 // opening the popup offline isn't shown the upsell.
 
 function setPlan(plan: "free" | "paid") {
+  // The card is visible in both states and swaps its contents (.plan-free vs
+  // .plan-paid) off its own data-plan. The copy on <body> is what shows the
+  // footer's cancel-subscription link, which lives outside the card.
   planCardEl.dataset["plan"] = plan;
-  // Paid hides the whole card and shows the header badge instead — the CSS
-  // keys off <body>, since the badge lives outside the card.
   document.body.dataset["plan"] = plan;
 }
 
 function setPlanNote(msg: string) {
   planNoteEl.textContent = msg;
   planNoteEl.style.display = msg ? "block" : "none";
-  syncPlanNoteFlag();
-}
-
-/** Paid users get no card — except when one of the two notes has something to
- *  say, in which case the card reappears carrying only that note. */
-function syncPlanNoteFlag() {
-  const shown = planNoteEl.style.display === "block" || deviceLimitNoteEl.style.display === "block";
-  if (shown) planCardEl.dataset["note"] = "on";
-  else delete planCardEl.dataset["note"];
 }
 
 /** Discreet mode (persisting a dimmed solve button) is a paid feature — but
@@ -646,7 +638,6 @@ async function refreshDeviceLimitState() {
 
 function setDeviceLimitBlocked(blocked: boolean) {
   deviceLimitNoteEl.style.display = blocked ? "block" : "none";
-  syncPlanNoteFlag();
   if (!blocked) setResetStatus("", "");
 }
 

@@ -198,19 +198,19 @@
         0%, 100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 0 var(--err-tint); }
         50% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 0 0 5px var(--err-tint); }
       }
-      /* paid state — the card collapses away entirely and the plan moves up
-         into the header as a badge (see .plan-badge), reclaiming ~110px. */
-      .plan-badge {
-        display: none;
-        align-items: center;
+      /* Paid state — the plan card KEEPS its box and simply swaps its contents
+         for a single centred "Unlimited". 581f360 collapsed this into a header
+         pill to reclaim ~110px; that was reverted by owner preference, so the
+         header badge is gone and this is the paid surface again. If you are
+         tempted to shrink it back into the header, don't — this is the
+         deliberate look. */
+      .plan-paid { display: none; align-items: center; justify-content: center; }
+      .plan-paid-word {
         font-family: var(--font-serif);
         font-style: italic;
-        font-size: 15px; line-height: 1;
         color: var(--blue);
-        background: var(--blue-tint);
-        border: 1px solid var(--blue-ring);
-        border-radius: 999px;
-        padding: 6px 13px 7px;
+        font-size: 1.15rem;
+        font-weight: 500;
       }
       /* Cancellation path — a quiet footer link sitting between "open tutorial"
          and the version stamp, inheriting .links a's colour and 11px scale.
@@ -229,17 +229,11 @@
         border-radius: 7px;
         padding: 7px 9px;
       }
-      /* state switching */
-      body[data-plan="paid"] .plan-badge { display: inline-flex; }
-      body[data-plan="paid"] .plan-card { display: none; }
-      /* ...unless a note needs saying (bad license, device limit) — then the
-         card comes back carrying only the note. */
-      body[data-plan="paid"] .plan-card[data-note="on"] { display: block; }
-      body[data-plan="paid"] .plan-card .plan-free { display: none; }
-      body[data-plan="paid"] .plan-card[data-note="on"] {
-        padding: 0; border: 0; background: none; box-shadow: none;
-      }
-      body[data-plan="paid"] .plan-card[data-note="on"] .plan-note { margin-top: 0; }
+      /* state switching — the card stays visible in every state; only its
+         contents swap. Keyed off .plan-card's own data-plan (set by popup.ts's
+         setPlan alongside the one on <body>, which drives .manage-sub). */
+      .plan-card[data-plan="paid"] .plan-free { display: none; }
+      .plan-card[data-plan="paid"] .plan-paid { display: flex; }
       .plan-card[data-plan="checking"] .plan-free .upgrade-cta { opacity: 0.75; }
 
       /* ------------------------------------------------- section base */
@@ -577,9 +571,6 @@
     <div class="header">
       <div class="logo">stats<em>helpr</em></div>
       <div class="header-right">
-        <!-- paid users get the plan as a header badge instead of the upsell
-             card below; popup.ts stamps data-plan on <body>. -->
-        <span id="plan-badge" class="plan-badge">Unlimited</span>
         <button id="theme-toggle" class="theme-toggle" type="button"
                 aria-label="Switch to dark theme" title="Switch theme">&#9788;</button>
         <span id="status-dot" class="dot">checking…</span>
@@ -606,6 +597,9 @@
           Go Unlimited &mdash; $15/mo <span class="arr">&rarr;</span>
         </a>
         <div class="plan-sub">Every solve, all semester &middot; cancel anytime</div>
+      </div>
+      <div class="plan-paid" id="plan-paid">
+        <span class="plan-paid-word">Unlimited</span>
       </div>
       <div class="plan-note" id="plan-note"></div>
       <!-- single-device limit: popup.ts toggles this on when
