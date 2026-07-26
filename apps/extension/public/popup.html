@@ -297,6 +297,10 @@
       }
       .status.ok { color: var(--ok); }
       .status.err { color: var(--err); }
+      /* min-height reserves a line so transient messages don't shift the
+         layout, but while empty that plus margin-top was leaving ~22px of
+         dead space above the R section. Same :empty idiom as .chip-list. */
+      .status:empty { display: none; }
 
       /* ---------------------------------------------------- CSV files */
       .dropzone {
@@ -404,6 +408,16 @@
         transition: border-color 0.15s, color 0.15s, background-color 0.15s;
       }
       .pkg-add-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-tint); }
+      /* Sub-group inside a merged <details>. Collapsing "R libraries" and
+         "R code" into one "R" section removed the header that used to
+         separate them, so restore the boundary with a rule instead of
+         spending a second disclosure header on it. */
+      .subgroup {
+        margin-top: 15px;
+        padding-top: 13px;
+        border-top: 1px solid var(--line-soft);
+      }
+      .subgroup > .pkg-hint:first-child { margin-top: 0; }
       .rcode-copy-btn {
         display: block;
         width: 100%;
@@ -649,9 +663,11 @@
           pre-installed set yet, so it may not run.
         </div>
 
-        <button id="rcode-copy" type="button" class="rcode-copy-btn" disabled>Copy R code for this quiz</button>
-        <div id="rcode-empty" class="pkg-hint">
-          No R code yet &mdash; solve a calculation question on this quiz first.
+        <div class="subgroup">
+          <button id="rcode-copy" type="button" class="rcode-copy-btn" disabled>Copy R code for this quiz</button>
+          <div id="rcode-empty" class="pkg-hint">
+            No R code yet &mdash; solve a calculation question on this quiz first.
+          </div>
         </div>
       </div>
     </details>
