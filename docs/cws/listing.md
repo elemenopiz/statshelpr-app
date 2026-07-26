@@ -12,7 +12,7 @@ descriptive ("works on Canvas quiz pages"), which is accepted nominative use.
 ## Summary (max 132 chars) — NOT a pasteable field
 The store title AND summary are pulled READ-ONLY "from package" (the manifest
 `name` and `description`) — the listing form has no editable summary box. So the
-public summary IS the manifest description. As of v1.1.1 that is:
+public summary IS the manifest description. As of v1.1.2 that is:
 > Stats quiz tutor — worked solutions with runnable R code, shown inline on your quiz questions.
 To change the summary, edit `apps/extension/public/manifest.json` `description`
 and re-upload — do NOT expect a summary field in the dashboard. ("Canvas" is
