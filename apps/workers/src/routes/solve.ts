@@ -10,7 +10,7 @@ import {
 } from "@statshelpr/solver-core/core";
 import { chatStream, type LlmChatUsage } from "@statshelpr/solver-core/core/providers";
 import { classifyError } from "@/lib/classify-error";
-import { costUsdForUsage } from "@/lib/cost";
+import { costUsdForUsage, IMAGE_VISION_MODEL, PRIMARY_TEXT_MODEL } from "@/lib/cost";
 import { summarizeCsv } from "@/lib/data-summary";
 import { KILL_SWITCH_MESSAGE, checkGlobalKillSwitch } from "@/lib/kill-switch";
 import { validateLicense } from "@/lib/license";
@@ -124,6 +124,25 @@ solve.post("/", async (c) => {
   if (!body.questionText && !(body.images && body.images.length > 0)) {
     return c.json({ error: "Provide questionText or images." }, 400);
   }
+
+  // Close the two cost-inflation doors the kill-switch sizing comment
+  // (lib/kill-switch.ts) flags as NOT covered by a call-COUNT ceiling
+  // (2026-07-29 capacity review):
+  //  - `body.model` is honored verbatim by solver-core's resolveModel (it
+  //    exists for eval/benchmark A/B runs against local builds) — on the
+  //    PUBLIC route that let any caller bill arbitrary models, including
+  //    Pro-class ones several times IMAGE_VISION_MODEL's rate, to our key.
+  //    The extension never sends it; here it may only name the two models
+  //    this service actually runs.
+  //  - Unbounded payload fields let a single call stuff far more than the
+  //    ~20k prompt tokens the $0.08/call worst-case math assumes (and giant
+  //    dataFiles burn Worker CPU in summarizeCsv before any truncation).
+  //    Caps are sized 4-10x above anything a real Canvas capture produces,
+  //    so legitimate solves never see them.
+  // Evals keep full model freedom — they call solver-core directly, not
+  // this route.
+  const invalid = validateSolveBody(body);
+  if (invalid) return c.json({ error: invalid }, 400);
 
   const dataFiles: DataFile[] = body.dataFiles ?? [];
   const dataContext = dataFiles.length
@@ -591,6 +610,77 @@ solve.post("/", async (c) => {
     headers: { ...sseHeaders(), "Access-Control-Allow-Origin": "*" },
   });
 });
+
+/** Per-field ceilings for the public route — see the call site's comment for
+ *  why these exist. Every number is far above real captures (a Canvas
+ *  question is <2k chars, screenshots run 100-500KB, STA 301 course CSVs are
+ *  a few hundred KB) but low enough to hold the worst-case per-call token
+ *  math the global ceiling's dollar bound assumes. Violations 400 with a
+ *  field-specific message rather than truncating silently — the only callers
+ *  who can hit them are hand-rolled requests, and a truncated solve would
+ *  just produce a confidently wrong answer. */
+const ALLOWED_MODELS = new Set([PRIMARY_TEXT_MODEL, IMAGE_VISION_MODEL]);
+const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+const MAX_QUESTION_CHARS = 8_000;
+const MAX_CHOICES = 30;
+const MAX_CHOICE_CHARS = 1_000;
+const MAX_BLANKS = 20;
+const MAX_BLANK_OPTIONS = 30;
+const MAX_BLANK_CHARS = 500;
+const MAX_IMAGES = 4;
+const MAX_IMAGE_B64_CHARS = 2_000_000; // ~1.5MB decoded per image
+const MAX_DATA_FILES = 4;
+const MAX_DATA_FILE_CHARS = 10_000_000; // 10MB per file
+const MAX_DATA_TOTAL_CHARS = 20_000_000; // 20MB across files
+const MAX_PACKAGES = 15;
+const MAX_PACKAGE_CHARS = 60;
+
+function validateSolveBody(body: SolveBody): string | null {
+  if (body.model && !ALLOWED_MODELS.has(body.model)) {
+    return "Unsupported model.";
+  }
+  if ((body.questionText?.length ?? 0) > MAX_QUESTION_CHARS) {
+    return "questionText too long.";
+  }
+  const choices = body.choices ?? [];
+  if (choices.length > MAX_CHOICES) return "Too many choices.";
+  for (const ch of choices) {
+    if ((ch.text?.length ?? 0) > MAX_CHOICE_CHARS || (ch.label?.length ?? 0) > 20) {
+      return "Choice too long.";
+    }
+  }
+  const blanks = body.blanks ?? [];
+  if (blanks.length > MAX_BLANKS) return "Too many blanks.";
+  for (const b of blanks) {
+    if ((b.label?.length ?? 0) > MAX_BLANK_CHARS) return "Blank label too long.";
+    if ((b.options?.length ?? 0) > MAX_BLANK_OPTIONS) return "Too many blank options.";
+    for (const opt of b.options ?? []) {
+      if (opt.length > MAX_BLANK_CHARS) return "Blank option too long.";
+    }
+  }
+  const images = body.images ?? [];
+  if (images.length > MAX_IMAGES) return "Too many images.";
+  for (const img of images) {
+    if (!ALLOWED_IMAGE_TYPES.has(img.mediaType)) return "Unsupported image type.";
+    if ((img.data?.length ?? 0) > MAX_IMAGE_B64_CHARS) return "Image too large.";
+  }
+  const files = body.dataFiles ?? [];
+  if (files.length > MAX_DATA_FILES) return "Too many data files.";
+  let totalDataChars = 0;
+  for (const f of files) {
+    if ((f.filename?.length ?? 0) > 200) return "Data filename too long.";
+    const len = f.content?.length ?? 0;
+    if (len > MAX_DATA_FILE_CHARS) return "Data file too large.";
+    totalDataChars += len;
+  }
+  if (totalDataChars > MAX_DATA_TOTAL_CHARS) return "Data files too large.";
+  const packages = body.packages ?? [];
+  if (packages.length > MAX_PACKAGES) return "Too many packages.";
+  for (const p of packages) {
+    if (p.length > MAX_PACKAGE_CHARS) return "Package name too long.";
+  }
+  return null;
+}
 
 function humanizeError(e: unknown): string {
   const obj = e as { status?: number; message?: string };
