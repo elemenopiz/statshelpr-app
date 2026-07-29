@@ -111,6 +111,18 @@ export interface Env {
    *  docs/cloud-run-r-migration.md §3). See lib/kill-switch.ts for the
    *  $/day sizing math behind the default (1000 if unset). */
   GLOBAL_DAILY_CALL_LIMIT?: string;
+  /** Global daily ceiling on ACTUAL Gemini dollars spent (2026-07-29
+   *  capacity review) — the direct answer to "what's the most a bad day can
+   *  cost me". Sits alongside GLOBAL_DAILY_CALL_LIMIT on the same
+   *  kill-switch check: calls cap volume, this caps dollars, and either one
+   *  tripping 503s the service for the rest of the UTC day. Accumulated
+   *  from the exact per-leg costUsd solve.ts already computes (lib/cost.ts
+   *  rates on real usage counts), so it holds no matter how an abuser
+   *  shapes payloads — cheap calls trip the call cap first, stuffed calls
+   *  trip this first. Worst-case daily spend ≈ the cap + a few dollars of
+   *  in-flight overshoot (calls that started before the trip). Default 25
+   *  if unset. See lib/kill-switch.ts. */
+  GLOBAL_DAILY_SPEND_LIMIT_USD?: string;
 
   // KV binding
   STATSHELPR_KV: KVNamespace;
