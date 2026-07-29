@@ -388,44 +388,49 @@ export interface ServerEventInput {
   };
 }
 
+/** Pure per-event mutation, shared by the single-event path below and the
+ *  per-request batch (flushMetricsBatch) — extracted so batching can't drift
+ *  from the one-event semantics. */
+function applyServerEvent(bucket: DailyMetricsBucket, input: ServerEventInput): void {
+  const r = bucket.server.routes[input.route];
+  r.attempts += 1;
+  if (input.success) r.successes += 1;
+  else {
+    r.errors += 1;
+    const cls = input.errorType || "unknown";
+    bucket.server.byErrorType[cls] = (bucket.server.byErrorType[cls] ?? 0) + 1;
+  }
+
+  const modelUsage = bucket.server.byModel[input.model] ?? { calls: 0, costUsd: 0 };
+  modelUsage.calls += 1;
+  modelUsage.costUsd += input.costUsd;
+  bucket.server.byModel[input.model] = modelUsage;
+
+  bucket.server.tokens.promptTokens += input.promptTokens;
+  bucket.server.tokens.completionTokens += input.completionTokens;
+  bucket.server.tokens.cachedTokens += input.cachedTokens;
+  bucket.server.costUsd += input.costUsd;
+  if (input.costMode) bucket.server.costUsdByMode[input.costMode] += input.costUsd;
+
+  if (input.completedQuestion) {
+    const { mode, confidence: conf } = input.completedQuestion;
+    bucket.server.modeSplit[mode] += 1;
+    if (conf !== undefined) {
+      // Per-path confidence: concept -> `confidence`, calc -> `confidenceCalc`
+      // (dashboard-v2 item 16) so low-confidence views cover both paths.
+      const target = mode === "calc" ? bucket.server.confidenceCalc : bucket.server.confidence;
+      target[conf] = (target[conf] ?? 0) + 1;
+    }
+  }
+
+  addToHistogram(bucket.server.latencyHistogram, LATENCY_BUCKET_BOUNDARIES_MS, input.serverLatencyMs);
+  addInstallHash(bucket, input.installHash);
+}
+
 export async function recordServerEvent(env: Env, input: ServerEventInput): Promise<void> {
   try {
     const bucket = await readBucket(env, todayUtc());
-
-    const r = bucket.server.routes[input.route];
-    r.attempts += 1;
-    if (input.success) r.successes += 1;
-    else {
-      r.errors += 1;
-      const cls = input.errorType || "unknown";
-      bucket.server.byErrorType[cls] = (bucket.server.byErrorType[cls] ?? 0) + 1;
-    }
-
-    const modelUsage = bucket.server.byModel[input.model] ?? { calls: 0, costUsd: 0 };
-    modelUsage.calls += 1;
-    modelUsage.costUsd += input.costUsd;
-    bucket.server.byModel[input.model] = modelUsage;
-
-    bucket.server.tokens.promptTokens += input.promptTokens;
-    bucket.server.tokens.completionTokens += input.completionTokens;
-    bucket.server.tokens.cachedTokens += input.cachedTokens;
-    bucket.server.costUsd += input.costUsd;
-    if (input.costMode) bucket.server.costUsdByMode[input.costMode] += input.costUsd;
-
-    if (input.completedQuestion) {
-      const { mode, confidence: conf } = input.completedQuestion;
-      bucket.server.modeSplit[mode] += 1;
-      if (conf !== undefined) {
-        // Per-path confidence: concept -> `confidence`, calc -> `confidenceCalc`
-        // (dashboard-v2 item 16) so low-confidence views cover both paths.
-        const target = mode === "calc" ? bucket.server.confidenceCalc : bucket.server.confidence;
-        target[conf] = (target[conf] ?? 0) + 1;
-      }
-    }
-
-    addToHistogram(bucket.server.latencyHistogram, LATENCY_BUCKET_BOUNDARIES_MS, input.serverLatencyMs);
-    addInstallHash(bucket, input.installHash);
-
+    applyServerEvent(bucket, input);
     await writeBucket(env, bucket);
   } catch {
     // Best-effort — metrics must never break or delay a solve.
@@ -450,25 +455,73 @@ export interface RRunnerEventInput {
 export async function recordRRunnerEvent(env: Env, input: RRunnerEventInput): Promise<void> {
   try {
     const bucket = await readBucket(env, todayUtc());
-    const rr = bucket.server.rRunner;
-    rr.requestCount += 1;
-    if (input.success) {
-      rr.successCount += 1;
-      if (input.coldStart) rr.coldStartCount += 1;
-      if (typeof input.durationMs === "number") {
-        addToHistogram(rr.latencyHistogram, LATENCY_BUCKET_BOUNDARIES_MS, input.durationMs);
-      }
-    } else {
-      rr.errorCount += 1;
-    }
+    applyRRunnerEvent(bucket, input);
     await writeBucket(env, bucket);
   } catch {
     // Best-effort — metrics must never break or delay a solve.
   }
 }
 
+/** Pure per-event mutation — see applyServerEvent's note. */
+function applyRRunnerEvent(bucket: DailyMetricsBucket, input: RRunnerEventInput): void {
+  const rr = bucket.server.rRunner;
+  rr.requestCount += 1;
+  if (input.success) {
+    rr.successCount += 1;
+    if (input.coldStart) rr.coldStartCount += 1;
+    if (typeof input.durationMs === "number") {
+      addToHistogram(rr.latencyHistogram, LATENCY_BUCKET_BOUNDARIES_MS, input.durationMs);
+    }
+  } else {
+    rr.errorCount += 1;
+  }
+}
+
 export function recordRRunnerEventInBackground(c: EnvContext, input: RRunnerEventInput): void {
   const p = recordRRunnerEvent(c.env, input);
+  try {
+    c.executionCtx.waitUntil(p);
+  } catch {
+    /* no ExecutionContext — promise is already running on its own */
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Per-request batching (2026-07-29 DO switch, part B)
+// ---------------------------------------------------------------------------
+
+/** Buffers every metrics event one /api/solve request produces so the whole
+ *  request costs ONE KV read-modify-write instead of one per event (a calc
+ *  solve used to do 4–6). Motivation: the account's KV free plan allows
+ *  1,000 writes/day total, and per-event writes made the shared daily bucket
+ *  the write-volume majority AND a same-key contention hotspot under
+ *  classroom bursts (writes to one key are limited to 1/sec). Batching also
+ *  shrinks the read-modify-write race window to one racy write per request
+ *  instead of several. Same silent-failure contract as every recorder here:
+ *  a lost flush costs one request's events, never the solve. */
+export interface MetricsBatch {
+  server: ServerEventInput[];
+  rRunner: RRunnerEventInput[];
+}
+
+export function createMetricsBatch(): MetricsBatch {
+  return { server: [], rRunner: [] };
+}
+
+export async function flushMetricsBatch(env: Env, batch: MetricsBatch): Promise<void> {
+  if (batch.server.length === 0 && batch.rRunner.length === 0) return;
+  try {
+    const bucket = await readBucket(env, todayUtc());
+    for (const ev of batch.server) applyServerEvent(bucket, ev);
+    for (const ev of batch.rRunner) applyRRunnerEvent(bucket, ev);
+    await writeBucket(env, bucket);
+  } catch {
+    // Best-effort — metrics must never break or delay a solve.
+  }
+}
+
+export function flushMetricsBatchInBackground(c: EnvContext, batch: MetricsBatch): void {
+  const p = flushMetricsBatch(c.env, batch);
   try {
     c.executionCtx.waitUntil(p);
   } catch {

@@ -96,6 +96,22 @@ GLOBAL_DAILY_SPEND_LIMIT_USD = "25"
 binding = "STATSHELPR_KV"
 id = "23d6ef6041854bec96fd277cb013e7e6"
 
+# CountersDO — every hot counter (per-install free cap, per-IP backstop,
+# global call + dollar ceilings) lives in this ONE SQLite-backed Durable
+# Object instead of KV (DO switch, 2026-07-29): the account's KV free plan
+# allows 1,000 writes/day total and 1 write/sec per key, both of which a
+# 30-student class session blows through; DOs are free-plan-included and
+# serialize access, making the counters exact. `new_sqlite_classes` (NOT
+# `new_classes`) is REQUIRED — the free plan only supports SQLite-backed
+# DOs. See apps/workers/src/lib/counters-do.ts for the full design.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["CountersDO"]
+
+[[durable_objects.bindings]]
+name = "COUNTERS_DO"
+class_name = "CountersDO"
+
 # Secrets set at deploy time (not committed):
 #   wrangler secret put GEMINI_API_KEY
 #   wrangler secret put LEMONSQUEEZY_API_KEY

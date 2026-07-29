@@ -126,4 +126,10 @@ export interface Env {
 
   // KV binding
   STATSHELPR_KV: KVNamespace;
+
+  /** SQLite-backed Durable Object holding every hot counter (per-install
+   *  free cap, per-IP backstop, global call + dollar ceilings) — see
+   *  lib/counters-do.ts's module doc for why these left KV (free-plan write
+   *  caps + same-key contention). One instance, idFromName("global"). */
+  COUNTERS_DO: DurableObjectNamespace;
 }

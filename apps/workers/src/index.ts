@@ -73,3 +73,7 @@ const scheduled: ExportedHandlerScheduledHandler<Env> = async (event, env, ctx) 
 // Switch from `export default app` to the object form so the worker exposes
 // both the (unchanged) Hono fetch handler and the new cron `scheduled` handler.
 export default { fetch: app.fetch, scheduled };
+
+// Durable Object classes must be exported from the worker's main module for
+// the runtime to instantiate them (wrangler.toml [[durable_objects.bindings]]).
+export { CountersDO } from "./lib/counters-do";

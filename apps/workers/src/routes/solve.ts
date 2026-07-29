@@ -10,23 +10,28 @@ import {
 } from "@statshelpr/solver-core/core";
 import { chatStream, type LlmChatUsage } from "@statshelpr/solver-core/core/providers";
 import { classifyError } from "@/lib/classify-error";
+import { doGate, type GateCheck } from "@/lib/counters-do";
 import { costUsdForUsage, IMAGE_VISION_MODEL, PRIMARY_TEXT_MODEL } from "@/lib/cost";
 import { summarizeCsv } from "@/lib/data-summary";
 import {
+  GLOBAL_CALLS_KEY,
+  GLOBAL_SPEND_KEY,
   KILL_SWITCH_MESSAGE,
   checkGlobalKillSwitch,
+  globalCallLimit,
+  globalSpendLimitUsd,
   recordGlobalSpendInBackground,
 } from "@/lib/kill-switch";
 import { validateLicense } from "@/lib/license";
 import { activateForInstall } from "@/lib/license-activation";
 import {
+  createMetricsBatch,
+  flushMetricsBatchInBackground,
   recordPaywallHitInBackground,
-  recordRRunnerEventInBackground,
-  recordServerEventInBackground,
 } from "@/lib/metrics-store";
 import { repairRCode } from "@/lib/r-repair";
 import { runRRemote, type RunRResult } from "@/lib/r-runner";
-import { checkAndIncrement, getClientIp, hashBucket } from "@/lib/rate-limit";
+import { getClientIp, hashBucket } from "@/lib/rate-limit";
 import { makeSseStream, sseHeaders } from "@/lib/sse";
 import {
   buildFollowupContent,
@@ -82,41 +87,12 @@ solve.post("/", async (c) => {
         403,
       );
     }
-  } else {
-    // Security-audit item C: per-IP backstop, checked BEFORE the per-install
-    // counter so a caller rotating install ids specifically to dodge their
-    // own cap (the install id is just a client-picked crypto.randomUUID(),
-    // see apps/extension/src/install-id.ts, with no server issuance) still
-    // gets caught here even though each fresh id starts its own bucket at 0.
-    // Deliberately NOT recorded as a paywall hit below — this is a network-
-    // level abuse signal, not an individual free user hitting their real
-    // cap, and folding it into that metric would misrepresent conversion
-    // data. 429, not 402: the extension only special-cases exactly 402 to
-    // sync its local per-install counter (apps/extension/src/content.ts),
-    // which doesn't apply here.
-    const ip = getClientIp(c);
-    const ipLimit = Number(c.env.IP_DAILY_LIMIT ?? "200") || 200;
-    const rlIp = await checkAndIncrement(c.env, ip, { limit: ipLimit, keyPrefix: "rl:ip:solve:" });
-    if (!rlIp.allowed) {
-      return c.json(
-        { error: "Too many requests from this network today. Try again later.", resetAt: rlIp.resetAt },
-        429,
-      );
-    }
-
-    const rl = await checkAndIncrement(c.env, installId || "anon");
-    if (!rl.allowed) {
-      // Paywall hit — the #1 leading indicator of conversion (item 7).
-      recordPaywallHitInBackground(c, installHash);
-      return c.json(
-        {
-          error: `Daily limit reached (${rl.count}/${rl.limit}). Upgrade for unlimited.`,
-          resetAt: rl.resetAt,
-        },
-        402,
-      );
-    }
   }
+  // Free-tier rate limiting (the per-IP backstop + the per-install daily
+  // cap) moved DOWN into the single combined CountersDO gate below (DO
+  // switch, 2026-07-29) — one round trip now covers IP + install + global
+  // count + global spend, in that order, with the same failure precedence
+  // and response codes the old sequential KV checks produced.
 
   let body: SolveBody;
   try {
@@ -160,26 +136,76 @@ solve.post("/", async (c) => {
   // (installHash is computed earlier, above the rate-limit check — item 7.)
   const model = resolveModel(body);
 
-  // Security-audit item D: global (not per-caller) daily volume ceiling.
-  // Placed HERE — after every per-caller auth/license/rate-limit gate and
-  // immediately before the Gemini stream — NOT at the top of the route, so
-  // only requests that will actually incur Gemini cost count toward the
-  // global ceiling. (A top-of-route check-and-increment let cheap rejected
-  // requests — bad/empty auth, over-IP-limit, malformed body — bump the
-  // global counter too, so ~GLOBAL_DAILY_CALL_LIMIT junk requests from a
-  // single IP could trip a service-wide 503 for the rest of the UTC day.
-  // The per-IP + per-install gates above now absorb that before we reach
-  // here.) Atomic check-and-increment; a trip 503s without starting the stream.
+  // Combined admission gate — ONE CountersDO round trip replacing what used
+  // to be three sequential KV counters (DO switch, 2026-07-29). Check order
+  // inside the gate preserves the old failure precedence exactly: per-IP
+  // backstop first (audit item C — catches install-id rotation; 429, not
+  // 402, and deliberately NOT a paywall hit: it's a network-level abuse
+  // signal, not a real user at their cap), then the per-install free cap
+  // (402 — the extension special-cases exactly 402 to sync its local
+  // counter), then the global call ceiling + real-dollar ceiling (503, audit
+  // item D). Earlier checks' increments persist when a later check rejects,
+  // matching the old sequential-calls behavior.
   //
-  // NOTE: this is the gate for the FIRST Gemini call only. A calc question
-  // may make up to two MORE Gemini calls inside this same request (an
-  // R-repair retry, then the interpret pass) — each of those is gated again,
-  // individually, right before it fires (see the repair-leg and interpret-leg
-  // kill-switch checks further down) so GLOBAL_DAILY_CALL_LIMIT still bounds
-  // total Gemini spend per-call, not per-request. See
+  // Placement AFTER body parse/validation keeps item D's property — only
+  // requests that will actually reach Gemini bump the global counter — and
+  // strengthens the per-caller gates a notch: junk requests (bad JSON,
+  // over-cap payloads) used to burn the caller's IP/install counters
+  // pre-parse; now they burn nothing.
+  //
+  // This gates the FIRST Gemini call only. A calc question may make up to
+  // two MORE Gemini calls inside this same request (an R-repair retry, then
+  // the interpret pass) — each is gated again individually right before it
+  // fires via checkGlobalKillSwitch (one small DO gate each), so the global
+  // ceilings still bound spend per-call, not per-request. See
   // docs/cloud-run-r-migration.md §3 and lib/kill-switch.ts.
-  const kill = await checkGlobalKillSwitch(c.env);
-  if (!kill.allowed) return c.json({ error: KILL_SWITCH_MESSAGE }, 503);
+  const gateChecks: GateCheck[] = [];
+  let ipIdx = -1;
+  let installIdx = -1;
+  if (lic.tier !== "paid") {
+    const ipHash = await hashBucket(getClientIp(c));
+    const ipLimit = Number(c.env.IP_DAILY_LIMIT ?? "200") || 200;
+    ipIdx = gateChecks.push({ key: `rl:ip:solve:${ipHash}`, limit: ipLimit }) - 1;
+    const freeLimit = Number(c.env.FREE_TIER_DAILY_LIMIT ?? "5") || 5;
+    installIdx = gateChecks.push({ key: `rl:${installHash}`, limit: freeLimit }) - 1;
+  }
+  gateChecks.push({ key: GLOBAL_CALLS_KEY, limit: globalCallLimit(c.env) });
+
+  const gate = await doGate(c.env, gateChecks, {
+    key: GLOBAL_SPEND_KEY,
+    limitUsd: globalSpendLimitUsd(c.env),
+  });
+  if (!gate.allowed) {
+    if (gate.failed === ipIdx) {
+      const r = gate.results[ipIdx];
+      return c.json(
+        { error: "Too many requests from this network today. Try again later.", resetAt: r?.resetAt },
+        429,
+      );
+    }
+    if (gate.failed === installIdx) {
+      // Paywall hit — the #1 leading indicator of conversion (item 7).
+      recordPaywallHitInBackground(c, installHash);
+      const r = gate.results[installIdx];
+      return c.json(
+        {
+          error: `Daily limit reached (${r?.count ?? "?"}/${r?.limit ?? "?"}). Upgrade for unlimited.`,
+          resetAt: r?.resetAt,
+        },
+        402,
+      );
+    }
+    // Global call ceiling or dollar ceiling — either way, service-wide stop.
+    return c.json({ error: KILL_SWITCH_MESSAGE }, 503);
+  }
+
+  // Every metrics event this request produces is buffered here and flushed
+  // as ONE KV write when the stream finishes (DO switch part B — a calc
+  // solve used to do 4–6 separate read-modify-write puts on the same daily
+  // bucket key; see lib/metrics-store.ts's MetricsBatch doc). The paywall
+  // path above keeps its immediate single-event write — it returns before
+  // this batch exists.
+  const metricsBatch = createMetricsBatch();
 
   const stream = makeSseStream(async (write) => {
     const startedAt = Date.now(); // wall time around the stream, for serverLatencyMs
@@ -252,7 +278,7 @@ solve.post("/", async (c) => {
 
       if (parsed.mode === "concept") {
         const blanks = deriveBlankAnswers(parsed.body, body.blanks);
-        recordServerEventInBackground(c, {
+        metricsBatch.server.push({
           route: "solve",
           success: true,
           model,
@@ -288,7 +314,7 @@ solve.post("/", async (c) => {
       // all three legs (first pass, optional repair, interpret) now run
       // inside this ONE /api/solve request instead of two separate ones —
       // see docs/cloud-run-r-migration.md §3.
-      recordServerEventInBackground(c, {
+      metricsBatch.server.push({
         route: "solve",
         success: true,
         model,
@@ -352,7 +378,7 @@ solve.post("/", async (c) => {
       // bail with a plain `if` check instead of threading exceptions through
       // the whole calc pipeline below.
       const recordRRunnerFailure = async (): Promise<void> => {
-        recordServerEventInBackground(c, {
+        metricsBatch.server.push({
           route: "solve",
           success: false,
           model,
@@ -364,7 +390,7 @@ solve.post("/", async (c) => {
           installHash,
           errorType: "r_runner",
         });
-        recordRRunnerEventInBackground(c, { success: false });
+        metricsBatch.rRunner.push({ success: false });
         await write({
           type: "error",
           message: "Couldn't run the R calculation — please try again.",
@@ -376,7 +402,7 @@ solve.post("/", async (c) => {
       const runRSafe = async (code: string): Promise<RunRResult | undefined> => {
         try {
           const result = await runRRemote(c.env, code, dataFiles);
-          recordRRunnerEventInBackground(c, {
+          metricsBatch.rRunner.push({
             success: true,
             durationMs: result.durationMs,
             coldStart: result.durationMs > R_RUNNER_COLD_START_THRESHOLD_MS,
@@ -426,7 +452,7 @@ solve.post("/", async (c) => {
           // docs/cloud-run-r-migration.md §3.
           const repairKill = await checkGlobalKillSwitch(c.env);
           if (!repairKill.allowed) {
-            recordServerEventInBackground(c, {
+            metricsBatch.server.push({
               route: "solve",
               success: false,
               model,
@@ -457,7 +483,7 @@ solve.post("/", async (c) => {
           // Repair leg's own metrics event. route:"solve" (a continuation of
           // the solve leg, not the interpret leg) and deliberately NO
           // completedQuestion — same reasoning as the first-pass event above.
-          recordServerEventInBackground(c, {
+          metricsBatch.server.push({
             route: "solve",
             success: true,
             model,
@@ -496,7 +522,7 @@ solve.post("/", async (c) => {
       // below, which also keeps route:"interpret" as its label.
       const interpretKill = await checkGlobalKillSwitch(c.env);
       if (!interpretKill.allowed) {
-        recordServerEventInBackground(c, {
+        metricsBatch.server.push({
           route: "interpret",
           success: false,
           model,
@@ -568,7 +594,7 @@ solve.post("/", async (c) => {
       // event above and the repair-leg event both deliberately omit
       // completedQuestion) — a calc question counts once, not two or three
       // times, across all the legs that now share a single request.
-      recordServerEventInBackground(c, {
+      metricsBatch.server.push({
         route: "interpret",
         success: true,
         model,
@@ -602,7 +628,7 @@ solve.post("/", async (c) => {
         },
       });
     } catch (e) {
-      recordServerEventInBackground(c, {
+      metricsBatch.server.push({
         route: "solve",
         success: false,
         model,
@@ -615,6 +641,10 @@ solve.post("/", async (c) => {
         errorType: classifyError(e),
       });
       await write({ type: "error", message: humanizeError(e) });
+    } finally {
+      // ONE bucket write for everything the request recorded, success or
+      // failure — runs after the catch above has pushed its error event.
+      flushMetricsBatchInBackground(c, metricsBatch);
     }
   });
 
