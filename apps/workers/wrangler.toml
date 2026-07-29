@@ -70,6 +70,16 @@ IP_DAILY_LIMIT = "200"
 # the prior 1000 would have tripped a service-wide 503 mid-second-section.
 # Raise again as real traffic grows past this.
 GLOBAL_DAILY_CALL_LIMIT = "2500"
+# Global daily ceiling on ACTUAL Gemini dollars (2026-07-29) — the hard
+# answer to "most a bad day can cost". Every solve leg reports its real
+# costUsd (lib/cost.ts rates on Gemini's returned usage) into the same
+# kill-switch gate; once the day's accumulated spend crosses this, further
+# Gemini calls 503 until the 24h window rolls, exactly like the call ceiling
+# above. The $200 adversarial figure above therefore no longer binds — the
+# worst day is ~this value plus single-digit dollars of in-flight overshoot.
+# 25 = ~5x a full 30-student class day (~$4–6), so organic use never trips
+# it; raise alongside real growth. See lib/kill-switch.ts.
+GLOBAL_DAILY_SPEND_LIMIT_USD = "25"
 
 # KV binding for licenses, rate limiting, feedback, LS webhook idempotency,
 # and clickwrap assent records (`assent:{installId}:{tosVersion}`, written by

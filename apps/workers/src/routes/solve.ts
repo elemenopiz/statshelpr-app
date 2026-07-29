@@ -12,7 +12,11 @@ import { chatStream, type LlmChatUsage } from "@statshelpr/solver-core/core/prov
 import { classifyError } from "@/lib/classify-error";
 import { costUsdForUsage, IMAGE_VISION_MODEL, PRIMARY_TEXT_MODEL } from "@/lib/cost";
 import { summarizeCsv } from "@/lib/data-summary";
-import { KILL_SWITCH_MESSAGE, checkGlobalKillSwitch } from "@/lib/kill-switch";
+import {
+  KILL_SWITCH_MESSAGE,
+  checkGlobalKillSwitch,
+  recordGlobalSpendInBackground,
+} from "@/lib/kill-switch";
 import { validateLicense } from "@/lib/license";
 import { activateForInstall } from "@/lib/license-activation";
 import {
@@ -240,6 +244,11 @@ solve.post("/", async (c) => {
         cachedTokens: usage?.cached_tokens ?? 0,
       };
       const costUsd = costUsdForUsage(model, usageTokens);
+      // Every leg reports its REAL cost into the global dollar ceiling the
+      // moment its usage is known — this (not the call count) is what makes
+      // GLOBAL_DAILY_SPEND_LIMIT_USD a hard bound on a bad day. See
+      // lib/kill-switch.ts.
+      recordGlobalSpendInBackground(c, costUsd);
 
       if (parsed.mode === "concept") {
         const blanks = deriveBlankAnswers(parsed.body, body.blanks);
@@ -443,6 +452,8 @@ solve.post("/", async (c) => {
             completionTokens: repair.usage?.completion_tokens ?? 0,
             cachedTokens: repair.usage?.cached_tokens ?? 0,
           };
+          const repairCostUsd = costUsdForUsage(model, repairUsageTokens);
+          recordGlobalSpendInBackground(c, repairCostUsd);
           // Repair leg's own metrics event. route:"solve" (a continuation of
           // the solve leg, not the interpret leg) and deliberately NO
           // completedQuestion — same reasoning as the first-pass event above.
@@ -451,7 +462,7 @@ solve.post("/", async (c) => {
             success: true,
             model,
             ...repairUsageTokens,
-            costUsd: costUsdForUsage(model, repairUsageTokens),
+            costUsd: repairCostUsd,
             serverLatencyMs: Date.now() - startedAt,
             installHash,
             costMode: "calc",
@@ -546,6 +557,8 @@ solve.post("/", async (c) => {
         completionTokens: finalUsage?.completion_tokens ?? 0,
         cachedTokens: finalUsage?.cached_tokens ?? 0,
       };
+      const interpretCostUsd = costUsdForUsage(model, finalUsageTokens);
+      recordGlobalSpendInBackground(c, interpretCostUsd);
 
       // Interpret leg's metrics — exactly what the old routes/interpret.ts
       // recorded. route:"interpret" is kept as the label even though the
@@ -560,7 +573,7 @@ solve.post("/", async (c) => {
         success: true,
         model,
         ...finalUsageTokens,
-        costUsd: costUsdForUsage(model, finalUsageTokens),
+        costUsd: interpretCostUsd,
         serverLatencyMs: Date.now() - startedAt,
         installHash,
         costMode: "calc",
@@ -679,6 +692,19 @@ function validateSolveBody(body: SolveBody): string | null {
   for (const p of packages) {
     if (p.length > MAX_PACKAGE_CHARS) return "Package name too long.";
   }
+  // Aggregate bound on the prompt-contributing text. The per-field caps
+  // above are individually generous, and blanks in particular multiply
+  // (20 blanks × 30 options × 500 chars ≈ 300k chars would pass them all) —
+  // this closes that product. 40k chars ≈ 10k tokens, far above any real
+  // Canvas question (<2k chars) and the exact input scale the kill-switch
+  // dollar math assumes.
+  let totalTextChars = body.questionText?.length ?? 0;
+  for (const ch of choices) totalTextChars += ch.text?.length ?? 0;
+  for (const b of blanks) {
+    totalTextChars += b.label?.length ?? 0;
+    for (const opt of b.options ?? []) totalTextChars += opt.length;
+  }
+  if (totalTextChars > 40_000) return "Question content too long.";
   return null;
 }
 
