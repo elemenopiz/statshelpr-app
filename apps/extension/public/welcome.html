@@ -15,121 +15,105 @@
   <body>
     <header>
       <div class="logo">stats<em>helpr</em></div>
-      <button class="skip-btn" id="skip-btn" type="button">Skip tour</button>
+      <div class="pin-note">
+        Don't see
+        <img src="icons/icon-32.png" alt="statshelpr" class="inline-icon" />
+        in your toolbar? Pin it from Chrome's puzzle-piece menu.
+      </div>
     </header>
 
     <main>
-      <section class="step" data-step="1">
-        <div class="step-pill">step 1 of 4</div>
-        <h1><em>Welcome</em> to statshelpr.</h1>
-        <p class="lede">
-          A tiny tutor inside Canvas. Click one button per question and we
-          work out the answer for you.
-        </p>
-        <p class="muted">
-          Nothing to configure — click
-          <img src="icons/icon-32.png" alt="statshelpr" class="inline-icon" />
-          in your Chrome toolbar (pin it from the puzzle-piece menu if you
-          don't see it).
-        </p>
-        <div class="nav-row">
-          <span></span>
-          <button class="next-btn" data-go="2" type="button">Continue →</button>
-        </div>
-      </section>
+      <h1>One click. <em>Answered.</em></h1>
+      <p class="lede">
+        statshelpr reads each Canvas question and enters the answer for you.
+      </p>
 
-      <section class="step hidden" data-step="2">
-        <div class="step-pill">step 2 of 4</div>
-        <h2>Click <em>solve</em>. Get the answer.</h2>
-        <p class="lede">
-          Open any Canvas quiz. A small
-          <span class="inline-btn">solve</span> button appears next to each
-          question.
-        </p>
-        <div class="demo-card">
-          <div class="demo-q-header">
-            Question 1
-            <span class="demo-btn">solve</span>
+      <div class="panels">
+        <section class="panel">
+          <div class="panel-head">
+            <span class="panel-num">1</span>
+            <h2>Hit <span class="inline-btn">solve</span></h2>
           </div>
-          <div class="demo-q-stem">
-            Which measure of center is most robust to outliers?
-          </div>
-          <div class="demo-choices">
-            <div class="demo-choice">A. mean</div>
-            <div class="demo-choice highlight">
-              <span class="check">✓</span> B. median
+          <div class="mock">
+            <div class="mock-head">
+              Question 1
+              <span class="try-row">
+                <span class="try-hint" id="try-hint">try it <i>→</i></span>
+                <button class="demo-btn" id="demo-solve" type="button">
+                  <span class="demo-spinner" aria-hidden="true"></span>
+                  <span id="demo-solve-label">solve</span>
+                </button>
+              </span>
             </div>
-            <div class="demo-choice">C. mode</div>
-            <div class="demo-choice">D. range</div>
+            <div class="mock-stem">
+              Which measure of center is most robust to outliers?
+            </div>
+            <div class="mock-choices">
+              <div class="mock-choice"><span class="check"></span>A. mean</div>
+              <div class="mock-choice" id="mock-answer">
+                <span class="check">✓</span>B. median
+              </div>
+              <div class="mock-choice"><span class="check"></span>C. mode</div>
+              <div class="mock-choice"><span class="check"></span>D. range</div>
+            </div>
           </div>
-        </div>
-        <p class="muted">
-          Click it → spinner → the correct choice is selected automatically.
-        </p>
-        <div class="nav-row">
-          <button class="back-btn" data-go="1" type="button">← Back</button>
-          <button class="next-btn" data-go="3" type="button">Continue →</button>
-        </div>
-      </section>
+          <p class="panel-note">Every question, on any Canvas quiz.</p>
+        </section>
 
-      <section class="step hidden" data-step="3">
-        <div class="step-pill">step 3 of 4</div>
-        <h2><em>Discreet mode</em>.</h2>
-        <p class="lede">
-          The button can fade — drag the slider and watch it happen:
-        </p>
-        <div class="demo-card">
-          <div class="demo-q-header">
-            Question 1
-            <span class="discreet-btn" id="discreet-demo-btn"
-              ><span class="discreet-btn-text" id="discreet-demo-text">solve</span></span
-            >
+        <section class="panel">
+          <div class="panel-head">
+            <span class="panel-num">2</span>
+            <h2>Fade it <em>out</em></h2>
           </div>
-          <div class="discreet-slider-row">
-            <span class="muted">Solve-button visibility</span>
-            <input
-              type="range"
-              id="discreet-slider"
-              class="discreet-slider"
-              min="0"
-              max="100"
-              value="100"
-            />
-            <span class="dim" id="discreet-slider-value">100%</span>
+          <div class="mock">
+            <div class="mock-head">
+              Question 1
+              <span class="discreet-btn" id="discreet-demo-btn"
+                ><span class="discreet-btn-text" id="discreet-demo-text"
+                  >solve</span
+                ></span
+              >
+            </div>
+            <div class="dial">
+              <div class="dial-top">
+                <span class="dial-label">
+                  <span class="dial-hint">
+                    <i class="arw l">←</i> drag me <i class="arw r">→</i>
+                  </span>
+                  <span class="dial-static">visibility</span>
+                </span>
+                <span class="dial-value"
+                  ><b id="discreet-slider-value">100</b><i>%</i></span
+                >
+              </div>
+              <input
+                type="range"
+                id="discreet-slider"
+                class="discreet-slider"
+                min="0"
+                max="100"
+                value="100"
+                aria-label="Solve-button visibility"
+              />
+              <div class="dial-caption" id="dial-caption">impossible to miss</div>
+            </div>
           </div>
-        </div>
-        <p class="muted">
-          On real quiz pages, this is set from the extension popup.
-        </p>
-        <div class="nav-row">
-          <button class="back-btn" data-go="2" type="button">← Back</button>
-          <button class="next-btn" data-go="4" type="button">Continue →</button>
-        </div>
-      </section>
+          <p class="panel-note">Set it for real in the popup, anytime.</p>
+        </section>
+      </div>
 
-      <section class="step hidden" data-step="4">
-        <div class="step-pill">step 4 of 4</div>
-        <h2>You're <em>set</em>.</h2>
-        <ul class="tips">
-          <li><span class="tip-tag spin"></span> thinking (5–10s)</li>
-          <li><span class="tip-tag ok">✓</span> answered for you</li>
-          <li><b>CSV needed?</b> Drop it in the popup, once per course.</li>
-        </ul>
-        <p class="muted">
-          Re-open this guide anytime from the extension popup.
-        </p>
-        <div class="nav-row">
-          <button class="back-btn" data-go="3" type="button">← Back</button>
-          <button class="next-btn done" id="finish-btn" type="button">
-            Open Canvas →
-          </button>
-        </div>
-      </section>
+      <ul class="facts">
+        <li><span class="fact-tag spin"></span> thinks for 5–10 seconds</li>
+        <li><span class="fact-tag ok">✓</span> then fills in the answer</li>
+        <li>
+          <span class="fact-tag csv">csv</span> data question? drop the file in
+          the popup
+        </li>
+      </ul>
+
     </main>
 
-    <footer>
-      <span class="muted">statshelpr · made for stats students</span>
-    </footer>
+    <footer>statshelpr · reopen this guide anytime from the popup</footer>
 
     <script src="welcome.js"></script>
   </body>

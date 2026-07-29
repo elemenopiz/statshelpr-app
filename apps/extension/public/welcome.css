@@ -2,6 +2,10 @@
    statshelpr onboarding — "worked paper" design system, matching
    statshelpr.com and the extension popup: paper + ink + one ultramarine
    accent · Newsreader / Public Sans / IBM Plex Mono.
+
+   One page, two panels: what the button does, and how to hide it. The
+   second panel is the only interactive thing here, so it is deliberately
+   loud — big hint, big readout, oversized thumb.
    ===================================================================== */
 :root {
   --paper: #FAF9F5;
@@ -22,7 +26,6 @@
   --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Consolas, monospace;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --shadow-card: 0 1px 2px rgba(29,28,23,0.05), 0 8px 28px rgba(29,28,23,0.07);
-  --shadow-pop: 0 2px 4px rgba(29,28,23,0.06), 0 20px 48px rgba(29,28,23,0.12);
   --r-sm: 8px;
   --r-md: 12px;
   --r-lg: 18px;
@@ -54,7 +57,8 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 36px;
+  gap: 20px;
+  padding: 16px 36px;
   border-bottom: 1px solid var(--line-soft);
   background: rgba(250, 249, 245, 0.82);
   -webkit-backdrop-filter: blur(14px) saturate(1.3);
@@ -69,222 +73,231 @@ header {
   font-size: 1.4rem;
   font-weight: 500;
   letter-spacing: -0.01em;
+  flex-shrink: 0;
 }
 .logo em { color: var(--blue); font-style: italic; }
 
-.skip-btn {
-  background: transparent;
-  border: 1px solid var(--line);
-  color: var(--ink-2);
-  padding: 7px 15px;
-  border-radius: var(--r-sm);
-  cursor: pointer;
-  font-family: var(--font-body);
+.pin-note {
   font-size: 0.82rem;
-  font-weight: 500;
-  transition: border-color 0.2s, background-color 0.2s, color 0.2s;
+  color: var(--ink-3);
+  text-align: right;
 }
-.skip-btn:hover { border-color: var(--ink-3); background: rgba(29,28,23,0.03); }
+
+.inline-icon {
+  width: 19px;
+  height: 19px;
+  border-radius: 5px;
+  /* the icon's own paper-cream background otherwise blends straight into
+     the surface it sits on */
+  border: 1.5px solid rgba(29, 28, 23, 0.4);
+  vertical-align: -4px;
+  margin: 0 1px;
+}
 
 main {
   flex: 1;
-  max-width: 660px;
+  max-width: 980px;
   width: 100%;
   margin: 0 auto;
-  padding: 56px 28px 48px;
-  display: flex;
-  flex-direction: column;
+  padding: 30px 28px 26px;
 }
 
-.step.hidden { display: none; }
-
-.step-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--blue-tint);
-  color: var(--blue);
-  padding: 5px 13px;
-  border-radius: 999px;
-  font-size: 0.68rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  font-family: var(--font-mono);
-  margin-bottom: 22px;
-  width: fit-content;
-}
-
-h1, h2 {
+h1 {
   font-family: var(--font-display);
   font-weight: 500;
   letter-spacing: -0.02em;
-  line-height: 1.08;
-  margin-bottom: 18px;
-  color: var(--ink);
+  line-height: 1.05;
+  font-size: clamp(2.1rem, 4.6vw, 2.7rem);
+  margin-bottom: 10px;
 }
-h1 em, h2 em { color: var(--blue); font-style: italic; }
-h1 { font-size: clamp(2.1rem, 4.6vw, 2.85rem); }
-h2 { font-size: clamp(1.7rem, 3.6vw, 2.15rem); }
+h1 em { color: var(--blue); font-style: italic; }
 
 .lede {
-  font-size: 1.03rem;
-  line-height: 1.65;
+  font-size: 1.08rem;
   color: var(--ink-2);
-  margin-bottom: 16px;
-  max-width: 54ch;
+  max-width: 60ch;
+  margin-bottom: 24px;
 }
 
-.muted {
-  color: var(--ink-3);
-  font-size: 0.885rem;
-  line-height: 1.6;
-  margin-bottom: 8px;
+/* ---- the two panels ------------------------------------------------ */
+
+.panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
 }
-.muted em { color: var(--blue); font-style: italic; font-family: var(--font-display); }
+/* both cards run to the same baseline; the shorter one lets its dial take
+   up the slack rather than leaving the pair ragged */
+.panel { display: flex; flex-direction: column; }
+.panel .mock { flex: 1; display: flex; flex-direction: column; }
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 12px;
+}
+.panel-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 25px;
+  height: 25px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--blue-tint);
+  color: var(--blue);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.panel-head h2 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.5rem;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
+}
+.panel-head h2 em { color: var(--blue); font-style: italic; }
+
+.panel-note {
+  color: var(--ink-3);
+  font-size: 0.85rem;
+  margin-top: 11px;
+}
 
 .inline-btn {
   display: inline-block;
   background: var(--blue);
   color: #fff;
-  padding: 1.5px 9px;
-  border-radius: 5px;
-  font-size: 0.78em;
+  padding: 1px 10px;
+  border-radius: 6px;
+  font-family: var(--font-body);
+  font-size: 0.68em;
   font-weight: 600;
-  vertical-align: middle;
-  letter-spacing: 0.01em;
+  vertical-align: 3px;
 }
 
-.inline-icon {
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
-  /* the icon's own paper-cream background otherwise blends straight into
-     the page background it sits on */
-  border: 1.5px solid rgba(29, 28, 23, 0.4);
-  vertical-align: middle;
-  margin: 0 1px;
-}
+/* ---- the fake quiz card shared by both panels ----------------------- */
 
-.demo-card {
+.mock {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-card);
-  padding: 20px 22px;
-  margin: 22px 0;
+  padding: 16px 18px;
 }
-.demo-q-header {
+.mock-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.92rem;
-  font-weight: 600;
-  color: var(--ink);
-  margin-bottom: 13px;
-}
-.demo-btn {
-  /* Mirrors the real on-page button (see panel.css): white fill, thick
-     blue outline, blue label, rounded rectangle rather than a pill. */
-  background: #fff;
-  color: var(--blue);
-  border: 1.75px solid var(--blue);
-  padding: 3px 11px;
-  border-radius: 6px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-.demo-q-stem {
+  gap: 12px;
   font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.mock-stem {
+  font-size: 0.89rem;
   color: var(--ink);
-  margin-bottom: 13px;
-  padding-bottom: 13px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
   border-bottom: 1px dashed var(--line);
 }
-.demo-choices {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.demo-choice {
-  font-size: 0.86rem;
+.mock-choices { display: flex; flex-direction: column; gap: 5px; }
+.mock-choice {
+  font-size: 0.85rem;
   color: var(--ink-2);
   padding: 6px 10px;
   border-radius: 8px;
   border: 1px solid transparent;
+  transition: background-color 0.3s var(--ease-out),
+              border-color 0.3s var(--ease-out), color 0.3s var(--ease-out);
 }
-.demo-choice.highlight {
+/* .picked is put on by welcome.ts once the demo solve finishes */
+.mock-choice.picked {
   color: var(--ink);
   border-color: rgba(39, 66, 200, 0.3);
   background: var(--blue-tint);
 }
-.demo-choice .check {
+/* every row reserves the tick's width so the labels stay aligned and
+   nothing shifts sideways when the answer lands */
+.mock-choice .check {
+  display: inline-block;
+  width: 1.1em;
   color: var(--blue);
-  margin-right: 5px;
   font-weight: 700;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: opacity 0.3s var(--ease-out), transform 0.3s var(--ease-out);
 }
+.mock-choice.picked .check { opacity: 1; transform: scale(1); }
 
-.discreet-slider-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 4px;
-}
-.discreet-slider-row .muted { margin-bottom: 0; white-space: nowrap; }
-.discreet-slider-row .dim {
-  font-family: var(--font-mono);
-  font-size: 0.78rem;
-  color: var(--ink-3);
-  width: 3.2em;
-  text-align: right;
-  flex-shrink: 0;
-}
-.discreet-slider {
-  flex: 1;
-  -webkit-appearance: none;
-  appearance: none;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--line-soft);
-  outline: none;
-  cursor: pointer;
-  accent-color: var(--blue);
-}
-.discreet-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 15px;
-  height: 15px;
-  border-radius: 50%;
-  background: var(--blue);
-  border: 2px solid var(--card);
-  box-shadow: 0 0 0 1px rgba(39, 66, 200, 0.35);
-  cursor: pointer;
-}
-.discreet-slider::-moz-range-thumb {
-  width: 15px;
-  height: 15px;
-  border-radius: 50%;
-  background: var(--blue);
-  border: 2px solid var(--card);
-  box-shadow: 0 0 0 1px rgba(39, 66, 200, 0.35);
-  cursor: pointer;
-}
-/* Mirrors the real on-page button (see panel.css): white fill, blue
-   outline, blue label, rounded rectangle. The outline (border + fill) and
-   the "solve" label fade independently, driven by one slider — see
-   welcome.ts. A plain opacity on the outer element would drag the label
-   down with it, so each part gets its own inline-styled property instead. */
-.discreet-btn {
+/* Mirrors the real on-page button (see panel.css): white fill, thick blue
+   outline, blue label, rounded rectangle rather than a pill. */
+.demo-btn, .discreet-btn {
   display: inline-flex;
   align-items: center;
+  flex-shrink: 0;
+  background: #fff;
+  border: 1.75px solid var(--blue);
   padding: 3px 11px;
   border-radius: 6px;
-  border: 1.75px solid var(--blue);
-  background: #fff;
-  transition: border-color 0.1s linear, background-color 0.1s linear;
 }
+.demo-btn {
+  gap: 5px;
+  justify-content: center;
+  /* held steady so "solve" → "thinking" → "done" doesn't jog the header */
+  min-width: 82px;
+  font-family: var(--font-body);
+  color: var(--blue);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s, background-color 0.2s;
+  /* pulses until first use, so it reads as a control rather than a picture */
+  animation: ring 2.6s var(--ease-out) infinite;
+}
+.demo-btn:hover { background: var(--blue-tint); }
+.demo-btn.used { animation: none; }
+.demo-btn.thinking { cursor: progress; }
+.demo-btn.done { color: var(--ok); border-color: var(--ok); }
+.demo-btn.done:hover { background: rgba(11, 122, 75, 0.07); }
+@keyframes ring {
+  0%        { box-shadow: 0 0 0 0 rgba(39, 66, 200, 0.4); }
+  40%, 100% { box-shadow: 0 0 0 11px rgba(39, 66, 200, 0); }
+}
+
+.demo-spinner {
+  display: none;
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border: 2px solid rgba(39, 66, 200, 0.25);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+.demo-btn.thinking .demo-spinner { display: block; }
+
+.try-row { display: flex; align-items: center; gap: 9px; }
+.try-hint {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 1rem;
+  color: var(--blue);
+  white-space: nowrap;
+  transition: opacity 0.35s var(--ease-out);
+}
+.try-hint i { font-style: normal; display: inline-block; animation: nudge 1.3s ease-in-out infinite alternate-reverse; }
+/* once they've clicked it, the prompt has done its job */
+.try-hint.gone { opacity: 0; }
+
+/* The outline (border + fill) and the "solve" label fade independently,
+   driven by one slider — see welcome.ts. A plain opacity on the outer
+   element would drag the label down with it, so each part gets its own
+   inline-styled property instead. */
+.discreet-btn { transition: border-color 0.1s linear, background-color 0.1s linear; }
 .discreet-btn-text {
   color: var(--blue);
   font-size: 0.7rem;
@@ -293,36 +306,132 @@ h2 { font-size: clamp(1.7rem, 3.6vw, 2.15rem); }
   transition: opacity 0.1s linear;
 }
 
-.tips {
-  list-style: none;
+/* ---- the slider: the one interactive thing on the page -------------- */
+
+.dial {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 13px;
-  margin: 20px 0;
+  justify-content: center;
+  margin-top: 16px;
+  padding: 16px 18px;
+  border-radius: var(--r-md);
+  background: var(--blue-tint);
+  border: 1px solid var(--blue-tint-2);
 }
-.tips li {
+.dial-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+/* "drag me" and the plain label occupy one cell and crossfade, so the
+   readout keeps a label once the prompt has done its job */
+.dial-label { display: grid; }
+.dial-label > * {
+  grid-area: 1 / 1;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 1.15rem;
+  white-space: nowrap;
+  transition: opacity 0.35s var(--ease-out);
+}
+.dial-hint { color: var(--blue); }
+.dial-static { color: var(--ink-3); opacity: 0; }
+.dial.touched .dial-hint { opacity: 0; }
+.dial.touched .dial-static { opacity: 1; }
+.dial-hint .arw {
+  font-style: normal;
+  display: inline-block;
+  animation: nudge 1.3s ease-in-out infinite;
+}
+.dial-hint .arw.r { animation-direction: alternate-reverse; }
+@keyframes nudge {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(-4px); }
+}
+
+.dial-value {
+  font-family: var(--font-mono);
+  color: var(--ink);
+  white-space: nowrap;
+}
+.dial-value b { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; }
+.dial-value i { font-style: normal; font-size: 0.95rem; color: var(--ink-3); }
+
+.discreet-slider {
+  display: block;
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 9px;
+  border-radius: 5px;
+  background: var(--line);
+  outline: none;
+  cursor: grab;
+}
+.discreet-slider:active { cursor: grabbing; }
+.discreet-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--blue);
+  border: 3px solid var(--card);
+  box-shadow: 0 2px 6px rgba(28, 49, 162, 0.4), 0 0 0 1px rgba(39, 66, 200, 0.35);
+  cursor: grab;
+  transition: transform 0.15s var(--ease-out);
+}
+.discreet-slider:hover::-webkit-slider-thumb { transform: scale(1.12); }
+.discreet-slider:active::-webkit-slider-thumb { transform: scale(1.04); }
+
+.dial-caption {
+  margin-top: 9px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--blue);
+}
+
+/* ---- the three facts ------------------------------------------------ */
+
+.facts {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 26px;
+  margin: 22px 0 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-soft);
+}
+.facts li {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-size: 0.93rem;
-  color: var(--ink);
+  gap: 10px;
+  font-size: 0.9rem;
+  color: var(--ink-2);
 }
-.tip-tag {
+.fact-tag {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 22px;
+  width: 28px;
+  height: 21px;
+  flex-shrink: 0;
   background: var(--blue);
   color: #fff;
   border-radius: 6px;
-  font-size: 0.7rem;
+  font-size: 0.62rem;
   font-weight: 600;
-  flex-shrink: 0;
+  letter-spacing: 0.04em;
 }
-.tip-tag.ok { background: var(--ok); }
-.tip-tag.spin { position: relative; background: var(--blue-tint); }
-.tip-tag.spin::after {
+.fact-tag.ok { background: var(--ok); font-size: 0.72rem; }
+.fact-tag.csv { font-family: var(--font-mono); }
+.fact-tag.spin { position: relative; background: var(--blue-tint); }
+.fact-tag.spin::after {
   content: "";
   position: absolute;
   width: 11px;
@@ -334,51 +443,19 @@ h2 { font-size: clamp(1.7rem, 3.6vw, 2.15rem); }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.nav-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 34px;
-  padding-top: 22px;
-  border-top: 1px solid var(--line-soft);
-}
-
-.back-btn, .next-btn {
-  font-family: var(--font-body);
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 600;
-  border-radius: var(--r-sm);
-  transition: background-color 0.2s, border-color 0.2s, color 0.2s,
-              transform 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out);
-}
-.back-btn {
-  background: none;
-  border: none;
-  color: var(--ink-2);
-  padding: 8px 0;
-}
-.back-btn:hover { color: var(--ink); }
-.next-btn {
-  background: var(--blue);
-  color: #fff;
-  border: 1px solid transparent;
-  padding: 10px 22px;
-  box-shadow: 0 1px 2px rgba(28,49,162,0.35), inset 0 1px 0 rgba(255,255,255,0.14);
-}
-.next-btn:hover {
-  background: var(--blue-deep);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(39,66,200,0.28), inset 0 1px 0 rgba(255,255,255,0.14);
-}
-.next-btn:active { transform: translateY(0); }
-
 footer {
-  padding: 20px 36px;
+  padding: 14px 36px;
   border-top: 1px solid var(--line-soft);
   text-align: center;
   font-size: 0.8rem;
   color: var(--ink-3);
+}
+
+@media (max-width: 880px) {
+  .panels { grid-template-columns: 1fr; gap: 30px; }
+  header { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .pin-note { text-align: left; }
+  main { padding-top: 34px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -386,4 +463,8 @@ footer {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+  /* attention-getters are decoration; drop them rather than run them at the
+     clamped duration, which would whirl the spinners into a blur */
+  .demo-btn, .demo-spinner, .fact-tag.spin::after,
+  .try-hint i, .dial-hint .arw { animation: none !important; }
 }
