@@ -27,7 +27,48 @@ library(plumber)
 # model"), so this header is the ONLY access gate. Fails CLOSED: an unset/empty
 # R_RUNNER_SECRET denies every request, rather than accidentally letting through
 # a request whose header also happens to be empty/missing.
-RUNNER_SECRET <- Sys.getenv("R_RUNNER_SECRET")
+#
+# SECURITY -- the secret is stored ONLY as a SHA-256 digest, and the plaintext
+# is dropped from the process environment immediately (see README.md "Sandbox
+# model"). Both steps matter, because the scripts this service runs are written
+# by an LLM from attacker-controllable text: apps/workers/src/routes/solve.ts
+# accepts an arbitrary `questionText` over a public, license-optional endpoint,
+# feeds the model's output here verbatim, and returns our stdout to that same
+# caller as `result.rOutput`. Any script must therefore be assumed hostile and
+# actively hunting for credentials, with a channel to print what it finds.
+#
+# This service only ever VERIFIES the secret -- it never has to send it
+# anywhere (the Worker is the one that presents it) -- so a digest is
+# sufficient, and it is the only form worth keeping in memory here.
+#
+# An earlier revision reasoned that a plaintext RUNNER_SECRET was already
+# unreachable because plumber runs this file's top level in an environment that
+# is a SIBLING of each script's `new.env(parent = globalenv())`, not an
+# ancestor. True, but it covers only one of the two ways a script can reach a
+# value it cannot name lexically:
+#   1. Sys.getenv("R_RUNNER_SECRET") reads the OS process environment and
+#      ignores R's lexical scoping entirely. Closed by the Sys.unsetenv below.
+#   2. R's call-stack reflection -- environment(sys.function(n)) on a CALLING
+#      frame -- reaches this file's environment without resolving any name
+#      lexically. NOT closed by scoping, and not closable by it. Closed here by
+#      making the reachable value a digest: an attacker who walks the stack
+#      gets a SHA-256 hash they cannot present as a header and cannot invert.
+# Storing the plaintext would leave (2) wide open no matter where it is bound.
+.secret_digest <- local({
+  plaintext <- Sys.getenv("R_RUNNER_SECRET")
+  # Preserve the fail-closed contract: with no secret configured there is no
+  # digest, and digest_matches() below denies every request.
+  if (!nzchar(plaintext)) NULL else openssl::sha256(charToRaw(plaintext))
+})
+Sys.unsetenv("R_RUNNER_SECRET")
+
+# Constant-time-ish comparison of two fixed-length digests. Comparing hashes
+# rather than plaintexts also removes any length/prefix signal a naive
+# identical() on the raw secrets would leak.
+digest_matches <- function(supplied) {
+  if (is.null(.secret_digest) || !is.character(supplied) || length(supplied) != 1L) return(FALSE)
+  identical(openssl::sha256(charToRaw(supplied)), .secret_digest)
+}
 
 # --- Request size -------------------------------------------------------------
 # plumber.maxRequestSize defaults to 0, which plumber's own docs define as
@@ -145,7 +186,9 @@ run_r_code <- function(code) {
 #* @filter auth
 function(req, res) {
   supplied <- req$HTTP_X_RUNNER_SECRET
-  authorized <- !is.null(supplied) && nzchar(RUNNER_SECRET) && identical(supplied, RUNNER_SECRET)
+  # digest_matches() folds in the old nzchar(RUNNER_SECRET) fail-closed check:
+  # an unset secret leaves .secret_digest NULL, which never matches.
+  authorized <- !is.null(supplied) && digest_matches(supplied)
   if (!authorized) {
     res$status <- 403
     return(list(error = "forbidden"))

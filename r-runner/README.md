@@ -38,6 +38,47 @@ wildcard, which is invalid regex syntax) — that broke every request, not
 just malformed ones. `@parser text` avoids both: no premature JSON
 validation, and no wildcard-regex content-type matching.
 
+## Sandbox model
+
+**Assume every script this service runs is hostile.** Not because the model is
+malicious, but because of where its input comes from: `POST /api/solve` on the
+Worker accepts a free-form `questionText` (the only check is that it is
+non-empty — see `apps/workers/src/routes/solve.ts`), a license key is optional
+there (`lib/license.ts` returns `ok: true, tier: "free"` for an absent key), and
+whatever the model writes is executed here verbatim with its stdout returned to
+that same caller as `result.rOutput`. So an anonymous stranger with `curl` can
+submit text, have R code generated from it, run it here, and read the output.
+The extension's Canvas scraping is a client-side convenience, not a boundary.
+
+Filtering the R for dangerous constructs is NOT the defense and should not be
+attempted — R has far too many ways to spell the same operation (`do.call`,
+parse-then-evaluate, backtick lookup, `base::` qualification), and the whole
+point of the product is to run arbitrary statistical code. The boundary is what
+the container HOLDS and what its identity CAN DO:
+
+1. **No usable credential in the process.** `R_RUNNER_SECRET` is reduced to a
+   SHA-256 digest at startup and the plaintext is dropped from the process
+   environment (see the auth block in `plumber.R` for both leak paths this
+   closes and why lexical scoping alone does not close them).
+2. **No privileged identity.** The service runs as a dedicated service account
+   with no IAM role bindings, so the metadata-server token a script can always
+   mint is worth nothing — see the `--service-account` note under "Deploy".
+
+Known and accepted, because they are bounded by the two properties above:
+
+* Scripts have outbound network access (Cloud Run default). With no privileged
+  identity and no secret in memory, that buys an attacker a slow, rate-limited
+  proxy and nothing else.
+* Scripts run in the server process, so a script calling `quit()` ends that
+  container early and one that attaches a package leaves it attached for the
+  next request in the same warm container. Both were true before this hardening
+  and neither exposes data across users (each request still gets a fresh
+  `new.env()` and a fresh `tempfile()` workdir). Running each script in a
+  throwaway child session via `callr` closes both and was prototyped and
+  measured; it costs roughly +0.8s per request on a warm container, because a
+  fresh session must re-attach mosaic/tidyverse every time instead of once.
+  Deliberately not adopted — revisit if crash isolation becomes worth that.
+
 ## Auth model
 
 This service is deployed `--allow-unauthenticated` at the Cloud Run/IAM
@@ -66,12 +107,36 @@ gcloud run deploy statshelpr-r-runner \
   --source . \
   --region us-central1 \
   --allow-unauthenticated \
+  --service-account statshelpr-r-runner@PROJECT_ID.iam.gserviceaccount.com \
   --concurrency 1 \
   --cpu 1 --memory 2Gi \
   --min-instances 0 --max-instances 50 \
   --timeout 30s \
   --set-env-vars "R_RUNNER_SECRET=$(openssl rand -hex 32)"
 ```
+
+**`--service-account` is REQUIRED — do not omit it.** Omitting it runs this
+service as the project's DEFAULT COMPUTE service account, which conventionally
+carries `roles/editor` on the whole project. This container executes
+model-authored R code (see "Sandbox model" below), and any code running here
+can read the GCP metadata server to mint an OAuth token for whatever identity
+the service runs as:
+
+```
+http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
+```
+
+With the default account that token is broad project access — enough to create
+billable resources. Create a dedicated account with NO role bindings at all
+(this service calls no Google APIs, so it needs none):
+
+```bash
+gcloud iam service-accounts create statshelpr-r-runner \
+  --display-name="statshelpr R runner (intentionally no IAM roles)"
+```
+
+Grant it nothing. If a future change makes this service need a Google API,
+grant that one narrow role here rather than reaching for the default account.
 
 This corrects the migration doc's `--no-allow-unauthenticated` to
 `--allow-unauthenticated` per "Auth model" above — everything else matches
