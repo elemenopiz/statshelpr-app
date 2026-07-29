@@ -34,7 +34,7 @@
  */
 
 import type { Context } from "hono";
-import { checkGlobalKillSwitch } from "../src/lib/kill-switch";
+import { checkGlobalKillSwitch, GLOBAL_SPEND_KEY } from "../src/lib/kill-switch";
 import {
   activateForInstall,
   activationHash,
@@ -81,7 +81,77 @@ async function main() {
     }
   }
 
-  function fakeEnv(overrides: Partial<Env> = {}): Env {
+  // ---------------------------------------------------------------------------
+  // In-memory fake of the CountersDO fetch contract (DO switch, 2026-07-29) —
+  // lib/kill-switch.ts's checkGlobalKillSwitch now gates through
+  // lib/counters-do.ts's doGate instead of KV, so the kill-switch checks
+  // below need a namespace whose stub answers the {op:"gate"} /
+  // {op:"addSpend"} JSON ops with the same in-order/stop-at-first-failure
+  // semantics the real SQLite-backed class implements. Tsx runs outside the
+  // workers runtime, so this replicates the row semantics over a Map — the
+  // REAL class's behavior is exercised end-to-end by the wrangler-dev curl
+  // checks and prod verification, not by this file.
+  // ---------------------------------------------------------------------------
+  class FakeCountersNamespace {
+    private rows = new Map<string, { count: number; resetAt: number }>();
+    idFromName(_name: string): unknown {
+      return "fake-id";
+    }
+    get(_id: unknown): { fetch: (url: string, init?: { body?: string }) => Promise<Response> } {
+      return {
+        fetch: async (_url, init) => {
+          const body = JSON.parse(init?.body ?? "{}") as {
+            op: string;
+            checks?: { key: string; limit: number }[];
+            spend?: { key: string; limitUsd: number };
+            key?: string;
+            usd?: number;
+          };
+          const now = Date.now();
+          const touch = (key: string) => {
+            const row = this.rows.get(key);
+            if (!row || row.resetAt < now) return { count: 0, resetAt: now + 86_400_000 };
+            return row;
+          };
+          if (body.op === "gate") {
+            const results: { count: number; limit: number; resetAt: number }[] = [];
+            for (let i = 0; i < (body.checks ?? []).length; i++) {
+              const check = body.checks![i]!;
+              const cur = touch(check.key);
+              if (cur.count >= check.limit) {
+                results.push({ count: cur.count, limit: check.limit, resetAt: cur.resetAt });
+                return Response.json({ allowed: false, failed: i, results });
+              }
+              const next = { count: cur.count + 1, resetAt: cur.resetAt };
+              this.rows.set(check.key, next);
+              results.push({ count: next.count, limit: check.limit, resetAt: next.resetAt });
+            }
+            if (body.spend) {
+              const spendRow = touch(body.spend.key);
+              if (spendRow.count >= body.spend.limitUsd) {
+                return Response.json({ allowed: false, failed: "spend", results, spendUsd: spendRow.count });
+              }
+              return Response.json({ allowed: true, results, spendUsd: spendRow.count });
+            }
+            return Response.json({ allowed: true, results });
+          }
+          if (body.op === "addSpend") {
+            const cur = touch(body.key!);
+            this.rows.set(body.key!, { count: cur.count + (body.usd ?? 0), resetAt: cur.resetAt });
+            return Response.json({ ok: true });
+          }
+          return Response.json({ error: "unknown op" }, { status: 400 });
+        },
+      };
+    }
+    /** Test hook: seed the spend row directly (the worker-side addSpend path
+     *  is fire-and-forget via waitUntil, awkward to await from here). */
+    seedSpend(key: string, usd: number): void {
+      this.rows.set(key, { count: usd, resetAt: Date.now() + 86_400_000 });
+    }
+  }
+
+  function fakeEnv(overrides: Partial<Env> = {}): Env & { COUNTERS_DO: FakeCountersNamespace } {
     return {
       GEMINI_API_KEY: "test-key",
       LLM_PROVIDER: "gemini",
@@ -97,8 +167,9 @@ async function main() {
       // hash-separation checks below would be meaningless if it were.
       ACTIVATION_HASH_SECRET: "fake-activation-hash-secret",
       STATSHELPR_KV: new FakeKv() as unknown as Env["STATSHELPR_KV"],
+      COUNTERS_DO: new FakeCountersNamespace() as unknown as Env["COUNTERS_DO"],
       ...overrides,
-    } as Env;
+    } as Env & { COUNTERS_DO: FakeCountersNamespace };
   }
 
   function fakeContext(headers: Record<string, string>): Context<{ Bindings: Env }> {
@@ -201,6 +272,22 @@ async function main() {
     await checkGlobalKillSwitch(env); // simulates the repair leg
     const third = await checkGlobalKillSwitch(env); // simulates the interpret leg
     check("global switch: every leg shares ONE combined counter", third.count === 3, JSON.stringify(third));
+  }
+  {
+    // Dollar ceiling (DO switch, 2026-07-29): once the day's accumulated
+    // REAL spend crosses GLOBAL_DAILY_SPEND_LIMIT_USD, the gate refuses even
+    // with the call count far under its own ceiling. Spend is seeded via the
+    // fake's test hook — the production write path (doAddSpendInBackground)
+    // is fire-and-forget behind waitUntil, so a direct seed keeps this check
+    // deterministic.
+    const env = fakeEnv({ GLOBAL_DAILY_CALL_LIMIT: "100", GLOBAL_DAILY_SPEND_LIMIT_USD: "5" });
+    env.COUNTERS_DO.seedSpend(GLOBAL_SPEND_KEY, 6);
+    const r = await checkGlobalKillSwitch(env);
+    check(
+      "global switch: dollar ceiling refuses independently of the call count",
+      r.allowed === false,
+      JSON.stringify(r),
+    );
   }
 
   // ---------------------------------------------------------------------------

@@ -83,103 +83,85 @@
 
 import type { Context } from "hono";
 import type { Env } from "../types";
-import { checkAndIncrement, type RateLimitResult } from "./rate-limit";
+import type { RateLimitResult } from "./rate-limit";
+import { doGate, doAddSpendInBackground } from "./counters-do";
 
-const KV_PREFIX = "ks:";
-const GLOBAL_BUCKET_ID = "global";
 const DEFAULT_LIMIT = 1000;
 
 // --- dollar ceiling (2026-07-29 capacity review) ---------------------------
 // The call-count ceiling above bounds VOLUME, but its dollar meaning depends
 // on a pessimistic per-call cost assumption ($0.08 — see the sizing comment
-// above). This second, independent record bounds the ACTUAL dollars: solve.ts
+// above). This second, independent bound caps the ACTUAL dollars: solve.ts
 // reports each Gemini leg's real costUsd (lib/cost.ts rates on the usage
-// counts Gemini returned) into `ks$:spend`, and checkGlobalKillSwitch refuses
-// further calls once the day's accumulated spend crosses
+// counts Gemini returned) into the spend row, and checkGlobalKillSwitch
+// refuses further calls once the day's accumulated spend crosses
 // GLOBAL_DAILY_SPEND_LIMIT_USD. Between the two, an abuser can't win either
 // way: many cheap calls trip the count first, few stuffed calls trip this
 // first — so the worst possible day costs ~the spend cap plus in-flight
 // overshoot (calls already streaming when the trip lands; bounded by
-// concurrency × worst per-call cost, single-digit dollars), instead of
-// "whatever the per-call pessimism times the call cap works out to".
+// concurrency × worst per-call cost, single-digit dollars).
 //
-// Same 24h-rolling-window/TTL pattern as rate-limit.ts's StoredCount, and the
-// same no-CAS caveats: concurrent spend adds can race (lost adds = slight
-// undercount, i.e. the trip lands marginally late, never early) and the put
-// fails OPEN via the same contention rationale as rate-limit.ts's
-// putCountFailOpen — a burst-second's lost write may not cost the caller
-// anything, sustained spend still lands at ≥1 write/sec.
-const SPEND_KV_KEY = "ks$:spend";
+// STORAGE MOVED (DO switch, same day): both the call counter and the spend
+// row now live in lib/counters-do.ts's CountersDO — serialized, exact, no
+// KV write-cap or same-key-contention exposure. The old KV records
+// (`ks:<hash>`, `ks$:spend`) simply age out via their TTLs; nothing migrates
+// (a daily counter's history isn't worth carrying across a storage move —
+// worst case the ceilings restart mid-day once, on deploy day). The key
+// STRINGS are kept for continuity in the DO's table.
+export const GLOBAL_CALLS_KEY = "ks:global";
+export const GLOBAL_SPEND_KEY = "ks$:spend";
 const DEFAULT_SPEND_LIMIT_USD = 25;
-
-interface StoredSpend {
-  usd: number;
-  resetAt: number;
-}
 
 export const KILL_SWITCH_MESSAGE =
   "statshelpr is temporarily over its daily request volume ceiling. Please try again later.";
 
-/** Checks AND increments the global daily counter in one call — mirrors
- *  lib/rate-limit.ts's per-caller buckets: an "allowed" result has already
- *  been counted, so the caller should call this once per GEMINI CALL, not
- *  once per REQUEST (routes/solve.ts calls this up to three times for a
- *  single calc question — see the module doc above), immediately before
+export function globalCallLimit(env: Env): number {
+  return Number(env.GLOBAL_DAILY_CALL_LIMIT ?? String(DEFAULT_LIMIT)) || DEFAULT_LIMIT;
+}
+
+export function globalSpendLimitUsd(env: Env): number {
+  return (
+    Number(env.GLOBAL_DAILY_SPEND_LIMIT_USD ?? String(DEFAULT_SPEND_LIMIT_USD)) ||
+    DEFAULT_SPEND_LIMIT_USD
+  );
+}
+
+/** Checks AND increments the global daily counter in one call — an "allowed"
+ *  result has already been counted, so the caller should call this once per
+ *  GEMINI CALL, not once per REQUEST (routes/solve.ts calls this before the
+ *  repair and interpret legs — see the module doc above), immediately before
  *  doing that call's Gemini-bound work, and 503 immediately on `!allowed`
  *  without incrementing anything else or making the call. Also refuses when
  *  the day's accumulated REAL spend (recordGlobalSpendInBackground below)
- *  has crossed the dollar ceiling — one gate, two independent bounds. */
+ *  has crossed the dollar ceiling — one gate, two independent bounds.
+ *
+ *  (The FIRST leg's check no longer comes through here: routes/solve.ts
+ *  folds it into its single combined doGate call together with the per-IP
+ *  and per-install checks, using the same GLOBAL_CALLS_KEY/GLOBAL_SPEND_KEY
+ *  rows — one DO round trip instead of three sequential KV gates.) */
 export async function checkGlobalKillSwitch(env: Env): Promise<RateLimitResult> {
-  const limit = Number(env.GLOBAL_DAILY_CALL_LIMIT ?? String(DEFAULT_LIMIT)) || DEFAULT_LIMIT;
-  const result = await checkAndIncrement(env, GLOBAL_BUCKET_ID, { limit, keyPrefix: KV_PREFIX });
-  if (!result.allowed) return result;
-
-  const spendLimit =
-    Number(env.GLOBAL_DAILY_SPEND_LIMIT_USD ?? String(DEFAULT_SPEND_LIMIT_USD)) ||
-    DEFAULT_SPEND_LIMIT_USD;
-  try {
-    const spend = (await env.STATSHELPR_KV.get(SPEND_KV_KEY, "json")) as StoredSpend | null;
-    if (spend && spend.resetAt > Date.now() && spend.usd >= spendLimit) {
-      return { ...result, allowed: false };
-    }
-  } catch {
-    // KV read failure — fall through on the count decision alone rather than
-    // 500 the solve; the count ceiling still bounds the day.
-  }
-  return result;
+  const limit = globalCallLimit(env);
+  const gate = await doGate(env, [{ key: GLOBAL_CALLS_KEY, limit }], {
+    key: GLOBAL_SPEND_KEY,
+    limitUsd: globalSpendLimitUsd(env),
+  });
+  const r = gate.results[0];
+  return {
+    allowed: gate.allowed,
+    count: r?.count ?? 0,
+    limit,
+    resetAt: r?.resetAt ?? Date.now() + 86_400_000,
+  };
 }
 
-/** Adds one Gemini leg's real cost to the day's global spend record.
- *  Fire-and-forget from solve.ts right after each leg's usage arrives —
- *  never throws, never blocks the stream (same waitUntil pattern as
- *  lib/metrics-store.ts's recorders). Read-modify-write without CAS: see the
- *  module comment above for why a racy or dropped add is acceptable here. */
+/** Adds one Gemini leg's real cost to the day's global spend row in the
+ *  CountersDO. Fire-and-forget from solve.ts right after each leg's usage
+ *  arrives — never throws, never blocks the stream. Exact within the DO
+ *  (serialized), best-effort across the wire: a lost add only delays the
+ *  trip by that call's cost; never surfaces to the caller. */
 export function recordGlobalSpendInBackground(
   c: Context<{ Bindings: Env }>,
   costUsd: number,
 ): void {
-  if (!(costUsd > 0)) return;
-  const p = addGlobalSpend(c.env, costUsd);
-  try {
-    c.executionCtx.waitUntil(p);
-  } catch {
-    // No executionCtx (tests/local edge cases) — the promise still runs.
-  }
-}
-
-async function addGlobalSpend(env: Env, costUsd: number): Promise<void> {
-  try {
-    const now = Date.now();
-    const raw = (await env.STATSHELPR_KV.get(SPEND_KV_KEY, "json")) as StoredSpend | null;
-    const fresh = !raw || raw.resetAt < now;
-    const resetAt = fresh ? now + 86_400_000 : raw.resetAt;
-    const usd = (fresh ? 0 : raw.usd) + costUsd;
-    const ttlSec = Math.max(60, Math.ceil((resetAt - now) / 1000));
-    await env.STATSHELPR_KV.put(SPEND_KV_KEY, JSON.stringify({ usd, resetAt }), {
-      expirationTtl: ttlSec + 60,
-    });
-  } catch {
-    // Same-key write contention or transient KV failure — a lost add only
-    // delays the trip by that call's cost; never surfaces to the caller.
-  }
+  doAddSpendInBackground(c, GLOBAL_SPEND_KEY, costUsd);
 }
