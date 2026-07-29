@@ -60,11 +60,16 @@ IP_DAILY_LIMIT = "200"
 # still bounds worst-case spend the same way it did when solve and interpret
 # were separate requests. At the pessimistic per-call cost assumed in
 # lib/kill-switch.ts ($0.08 — worst-case model/token mix, not typical
-# traffic), 1000 calls/day bounds worst-case exposure at ~$80/day.
-# Comfortably above the documented current volume
-# ("single-digit-to-low-hundreds of requests/day" pre-launch, see
-# lib/metrics-store.ts) — raise as real traffic grows past this.
-GLOBAL_DAILY_CALL_LIMIT = "1000"
+# traffic), 2500 calls/day bounds worst-case ADVERSARIAL exposure at ~$200/day
+# — reaching that requires a deliberate attacker maxing token cost per call
+# across 13+ rotating IPs (IP_DAILY_LIMIT bounds each one); the same 2500
+# calls of ORGANIC flash-lite traffic costs ~$15–25. Sized for the launch
+# target (2026-07-29 capacity review): one 30-student class session solving a
+# ~10-question calc-heavy quiz burns 600–900 calls (~$4–6 real cost), so 2500
+# covers a full section plus a second one the same UTC day with headroom —
+# the prior 1000 would have tripped a service-wide 503 mid-second-section.
+# Raise again as real traffic grows past this.
+GLOBAL_DAILY_CALL_LIMIT = "2500"
 
 # KV binding for licenses, rate limiting, feedback, LS webhook idempotency,
 # and clickwrap assent records (`assent:{installId}:{tosVersion}`, written by
