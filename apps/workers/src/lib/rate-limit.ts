@@ -119,9 +119,7 @@ export async function checkAndIncrement(
   // increment (that path below IS recheck-guarded).
   if (!raw || raw.resetAt < now) {
     const resetAt = now + 86_400_000;
-    await env.STATSHELPR_KV.put(key, JSON.stringify({ count: 1, resetAt }), {
-      expirationTtl: 86_400 + 60,
-    });
+    await putCountFailOpen(env, key, { count: 1, resetAt }, 86_400 + 60);
     return { allowed: true, count: 1, limit, resetAt };
   }
 
@@ -162,8 +160,45 @@ export async function checkAndIncrement(
 
   const newCount = latest.count + 1;
   const ttlSec = Math.max(60, Math.ceil((latest.resetAt - now) / 1000));
-  await env.STATSHELPR_KV.put(key, JSON.stringify({ count: newCount, resetAt: latest.resetAt }), {
-    expirationTtl: ttlSec,
-  });
+  await putCountFailOpen(env, key, { count: newCount, resetAt: latest.resetAt }, ttlSec);
   return { allowed: true, count: newCount, limit, resetAt: latest.resetAt };
+}
+
+/**
+ * KV put that swallows write failures instead of throwing (2026-07-29
+ * capacity review, 30-simultaneous-users scenario). Workers KV allows only
+ * ONE write per second to the SAME key — excess puts reject with a 429 — and
+ * two of this module's counters are by design shared hot keys that a
+ * classroom-sized burst WILL contend on: the kill switch's single global
+ * bucket (lib/kill-switch.ts, incremented 1–3× per solve by every caller)
+ * and the per-IP backstop (one bucket for a whole campus NAT). Before this
+ * guard, the losing writes threw straight through routes/solve.ts's
+ * route-level awaits (no app.onError in index.ts) and became bare 500s for
+ * every student who lost the race.
+ *
+ * Failing OPEN is the right side to land on for these counters: the
+ * enforcement decision was already made from the reads above (an over-limit
+ * caller was rejected before any write was attempted — that path is
+ * untouched), so a dropped increment only lets the count lag by the few
+ * requests that raced in the same second. That's the same bounded undercount
+ * the optimistic-recheck comment above already accepts from KV's missing
+ * CAS, and the counter still advances at ≥1/sec under sustained load —
+ * 86,400 potential increments/day dwarfs every configured ceiling, so caps
+ * still trip on real volume. The alternative (fail closed) would turn one
+ * second of write contention into user-visible errors, i.e. the counter
+ * protecting the service by taking it down. Durable Objects remain the
+ * exact-counting fix if it's ever worth it (see the recheck comment above).
+ */
+async function putCountFailOpen(
+  env: Env,
+  key: string,
+  value: StoredCount,
+  ttlSec: number,
+): Promise<void> {
+  try {
+    await env.STATSHELPR_KV.put(key, JSON.stringify(value), { expirationTtl: ttlSec });
+  } catch {
+    // Same-key write contention (or any transient KV write failure) — count
+    // lags slightly; never the caller's problem.
+  }
 }
