@@ -1,3 +1,4 @@
+import { fetchWithRetry, type RetryEvent } from "./retry";
 import type {
   LlmChatMessage,
   LlmChatRequest,
@@ -176,6 +177,23 @@ function modelPath(req: LlmChatRequest): string {
   return `models/${req.model ?? DEFAULT_MODEL}`;
 }
 
+/** Adapts `req.retry`'s caller-facing hooks (LlmRetryHooks, types.ts) to
+ *  retry.ts's fetchWithRetry options. Every field is optional and every
+ *  default (max retries, wall-clock cap, backoff base, connect timeout) is
+ *  retry.ts's own — this only forwards the two observational callbacks, kept
+ *  as a separate helper so `chat()` and `chatStream()` build the same shape
+ *  identically. */
+function retryOptsFor(req: LlmChatRequest) {
+  const hooks = req.retry;
+  if (!hooks) return undefined;
+  return {
+    onRetry: hooks.onRetry
+      ? (e: RetryEvent) => hooks.onRetry?.({ attempt: e.attempt, delayMs: e.delayMs, status: e.status })
+      : undefined,
+    onWaiting: hooks.onWaiting,
+  };
+}
+
 async function rejectIfBad(res: Response): Promise<void> {
   if (res.ok) return;
   const text = await res.text();
@@ -205,7 +223,10 @@ function extractTextFromParts(parts?: GeminiPart[]): string {
 async function chat(apiKey: string, req: LlmChatRequest): Promise<LlmChatResult> {
   const body = buildRequestBody(req);
   const url = `${GEMINI_BASE_URL}/${modelPath(req)}:generateContent`;
-  const res = await fetch(url, fetchInit(body, apiKey));
+  // fetchWithRetry transparently absorbs 429/5xx/network errors with backoff
+  // (see retry.ts) — a non-streaming call has no "mid-stream" concept, so the
+  // whole request is eligible for retry, not just a connection phase.
+  const res = await fetchWithRetry(url, fetchInit(body, apiKey), retryOptsFor(req));
   await rejectIfBad(res);
 
   const json = (await res.json()) as {
@@ -229,7 +250,15 @@ async function* chatStream(
 ): AsyncGenerator<LlmStreamDelta> {
   const body = buildRequestBody(req);
   const url = `${GEMINI_BASE_URL}/${modelPath(req)}:streamGenerateContent?alt=sse`;
-  const res = await fetch(url, fetchInit(body, apiKey));
+  // Retry covers ONLY the initial connection/status — fetchWithRetry resolves
+  // once with a single final Response (retryable statuses are retried
+  // internally; see retry.ts), and everything below this point is the
+  // existing byte-reading loop, unchanged and un-retried. Once the reader
+  // below has yielded even one delta, we're committed to this stream: a mid-
+  // stream drop surfaces as a normal thrown error from `reader.read()`, same
+  // as before this change — retrying THAT would risk duplicate output, which
+  // is worse than a clean failure.
+  const res = await fetchWithRetry(url, fetchInit(body, apiKey), retryOptsFor(req));
   await rejectIfBad(res);
   if (!res.body) throw new Error("Empty Gemini stream body");
 

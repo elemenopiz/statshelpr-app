@@ -229,6 +229,22 @@ solve.post("/", async (c) => {
         messages: [{ role: "user", content: userContent }],
         maxTokens: MAX_TOKENS_FIRST,
         thinking: { type: "enabled" },
+        // A 429/5xx/network hiccup here retries transparently inside
+        // chatStream (core/providers/retry.ts) — this leg has no heartbeat
+        // of its own (unlike the R/repair block below), so a long backoff
+        // wait would otherwise go SSE-silent long enough to trip the
+        // extension's 30s idle-abort watchdog (content.ts's
+        // SSE_IDLE_TIMEOUT_MS). Re-emit the same "phase" event already sent
+        // above — an existing, already-ignored-by-the-UI event shape, not a
+        // new one — every ~10s a retry is waiting, same cadence as the
+        // R-pipeline heartbeat below.
+        retry: {
+          onWaiting: () => {
+            write({ type: "phase", label: "Thinking…" }).catch(() => {
+              // Stream already closing/closed — nothing else to do here.
+            });
+          },
+        },
       })) {
         // Usage arrives on the final chunk, which has no `text` — capture it
         // before the text-only `continue` below would otherwise skip it.
@@ -472,6 +488,13 @@ solve.post("/", async (c) => {
             return undefined;
           }
 
+          // repairRCode routes through providers' chat(), so a 429/5xx/network
+          // hiccup here retries transparently too (core/providers/retry.ts) —
+          // no retry.onWaiting hook needed at this call site specifically: it
+          // runs inside runCalcPipeline(), which the `heartbeat` interval
+          // above already blankets with a "Computing…" phase tick every 10s
+          // for exactly this "don't go SSE-silent too long" reason, so a
+          // second heartbeat here would just be a redundant duplicate.
           const repair = await repairRCode(apiKey, model, system, questionPrompt, rCode, result);
           const repairUsageTokens = {
             promptTokens: repair.usage?.prompt_tokens ?? 0,
@@ -561,6 +584,18 @@ solve.post("/", async (c) => {
         temperature: 0.6,
         maxTokens: MAX_TOKENS_SECOND,
         thinking: { type: "disabled" },
+        // Same rationale as the first-pass leg above: this call sits after
+        // the R-pipeline's heartbeat has already been cleared (its `finally`
+        // ran once runCalcPipeline() returned), so a retry-backoff wait here
+        // would otherwise be unheartbeated. Reuse the "Finalizing…" phase
+        // label already written just above.
+        retry: {
+          onWaiting: () => {
+            write({ type: "phase", label: "Finalizing…" }).catch(() => {
+              // Stream already closing/closed — nothing else to do here.
+            });
+          },
+        },
       })) {
         // Usage arrives on the final chunk, which has no `text` — capture it
         // before the text-only `continue` below would otherwise skip it.
