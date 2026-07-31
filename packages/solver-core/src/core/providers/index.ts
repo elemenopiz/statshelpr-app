@@ -2,6 +2,19 @@ import { geminiProvider, DEFAULT_MODEL as GEMINI_DEFAULT_MODEL, IMAGE_MODEL as G
 import type { LlmChatRequest } from "./types";
 
 export { GEMINI_BASE_URL, geminiProvider } from "./gemini";
+// Retry/backoff helper every provider's chat()/chatStream() wraps its fetch()
+// in (see gemini.ts) — re-exported here so it's reachable via this package's
+// existing "./core/providers" export path instead of adding a new one, and so
+// it's directly unit-testable (apps/workers/scripts/self-test-retry.ts).
+export {
+  fetchWithRetry,
+  parseDurationHeaderMs,
+  parseRetryAfterMs,
+  retryDelayFromHeaders,
+  RETRYABLE_STATUSES,
+  type FetchWithRetryOptions,
+  type RetryEvent,
+} from "./retry";
 
 export const defaultLlmProvider = geminiProvider;
 export const DEFAULT_MODEL: string = GEMINI_DEFAULT_MODEL;
@@ -27,6 +40,7 @@ export type {
   LlmContentPart,
   LlmImagePart,
   LlmProvider,
+  LlmRetryHooks,
   LlmStreamDelta,
   LlmTextPart,
   LlmThinkingOptions,

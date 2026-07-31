@@ -17,6 +17,19 @@ export interface LlmThinkingOptions {
   keep?: "all";
 }
 
+/** Optional hooks into a provider's built-in transient-failure retry (see
+ *  core/providers/retry.ts). Every provider retries 429/5xx/network errors on
+ *  its own even when this is omitted — these hooks are purely observational,
+ *  for a caller that wants to react to a retry happening (e.g. solve.ts
+ *  emitting an SSE "still working" heartbeat during a long backoff wait so
+ *  the connection doesn't look idle — see retry.ts's `onWaiting` doc). */
+export interface LlmRetryHooks {
+  /** Fires once right before each retry's backoff sleep begins. */
+  onRetry?: (info: { attempt: number; delayMs: number; status?: number }) => void;
+  /** Fires every ~10s while a single backoff sleep is still in progress. */
+  onWaiting?: () => void;
+}
+
 export interface LlmChatRequest {
   model?: string;
   system: string;
@@ -26,6 +39,8 @@ export interface LlmChatRequest {
   cacheKey?: string | null;
   /** Defaults to disabled. Enable for harder first-pass reasoning. */
   thinking?: LlmThinkingOptions;
+  /** See LlmRetryHooks. Optional; omit for silent automatic retry. */
+  retry?: LlmRetryHooks;
 }
 
 export interface LlmChatUsage {
