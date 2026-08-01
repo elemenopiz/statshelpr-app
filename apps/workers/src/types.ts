@@ -5,6 +5,11 @@
 export interface Env {
   // Secrets (set via `wrangler secret put`)
   GEMINI_API_KEY: string;
+  /** Only needed while testing the Luna (gpt-5.6-luna) stub provider —
+   *  routes/solve.ts picks this over GEMINI_API_KEY when resolveModel
+   *  returns a `gpt-*` model. Unset means Luna solves 500 with a clear
+   *  "not configured" error; the Gemini path is unaffected. */
+  OPENAI_API_KEY?: string;
   LEMONSQUEEZY_API_KEY?: string;
   LEMONSQUEEZY_WEBHOOK_SECRET?: string;
   LEMONSQUEEZY_STORE_ID?: string;

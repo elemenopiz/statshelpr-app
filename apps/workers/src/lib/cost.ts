@@ -32,6 +32,18 @@
  * source above, so — per "use pessimistic COGS assumptions" — its cached-token
  * rate is conservatively set equal to its full input rate (assume ZERO
  * caching discount) rather than guessing at an implicit-cache rate.
+ *
+ * Luna (`gpt-5.6-luna`, LUNA_MODEL) rates are the post-2026-07-30 OpenAI
+ * price cut — $0.20/M input, $1.20/M output, ~$0.02/M cached input —
+ * supplied directly by the project owner on 2026-08-01, NOT independently
+ * re-verified against a second source the way the two Gemini rows above
+ * were. Re-check https://openai.com/api/pricing before making any margin
+ * decisions off this number. Separately: OpenAI bills reasoning tokens at
+ * the output rate and its `usage.output_tokens` already includes them (see
+ * solver-core's providers/openai.ts mapUsage), and `input_tokens` is
+ * inclusive of cached tokens the same way Gemini's `promptTokenCount` is —
+ * so `costUsdForUsage`'s existing cached-subtraction math below is already
+ * correct for Luna as-is, no formula change needed.
  */
 
 export interface ModelRate {
@@ -53,9 +65,17 @@ export const PRIMARY_TEXT_MODEL = "gemini-3.5-flash-lite";
  *  IMAGE_MODEL. Kept in sync manually for the same reason as above. */
 export const IMAGE_VISION_MODEL = "gemini-3.6-flash";
 
+/** Stub OpenAI model — mirrors solver-core's providers/openai.ts LUNA_MODEL,
+ *  kept as a plain string (not imported) for the same dependency-free
+ *  reason as the two constants above. Luna is natively multimodal — text
+ *  AND image solves both cost at this one rate, so unlike Gemini there's no
+ *  separate vision row for it below. */
+export const LUNA_MODEL = "gpt-5.6-luna";
+
 export const MODEL_RATES: Readonly<Record<string, ModelRate>> = {
   [PRIMARY_TEXT_MODEL]: { inputPer1M: 0.3, outputPer1M: 2.5, cachedInputPer1M: 0.3 },
   [IMAGE_VISION_MODEL]: { inputPer1M: 1.5, outputPer1M: 7.5, cachedInputPer1M: 0.15 },
+  [LUNA_MODEL]: { inputPer1M: 0.2, outputPer1M: 1.2, cachedInputPer1M: 0.02 },
 };
 
 /**

@@ -12,6 +12,7 @@ health.get("/", (c) =>
     version: "1.0.0",
     provider: "gemini",
     geminiConfigured: Boolean(c.env.GEMINI_API_KEY),
+    openaiConfigured: Boolean(c.env.OPENAI_API_KEY),
     lemonsqueezyConfigured: Boolean(c.env.LEMONSQUEEZY_API_KEY),
     time: new Date().toISOString(),
   }),

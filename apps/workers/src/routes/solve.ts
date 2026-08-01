@@ -8,10 +8,10 @@ import {
   extractRCode,
   parseResponse,
 } from "@statshelpr/solver-core/core";
-import { chatStream, type LlmChatUsage } from "@statshelpr/solver-core/core/providers";
+import { chatStream, isLunaModel, type LlmChatUsage } from "@statshelpr/solver-core/core/providers";
 import { classifyError } from "@/lib/classify-error";
 import { doGate, type GateCheck } from "@/lib/counters-do";
-import { costUsdForUsage, IMAGE_VISION_MODEL, PRIMARY_TEXT_MODEL } from "@/lib/cost";
+import { costUsdForUsage, IMAGE_VISION_MODEL, LUNA_MODEL, PRIMARY_TEXT_MODEL } from "@/lib/cost";
 import { summarizeCsv } from "@/lib/data-summary";
 import {
   GLOBAL_CALLS_KEY,
@@ -136,6 +136,15 @@ solve.post("/", async (c) => {
   // (installHash is computed earlier, above the rate-limit check — item 7.)
   const model = resolveModel(body);
 
+  // Model-string routing: solver-core's chatStream sends `gpt-*` models to
+  // the OpenAI Luna provider (providers/index.ts providerForModel), so the
+  // key must match the provider. Gemini stays the default; the Luna stub is
+  // opt-in via body.model and 500s cleanly (plain JSON, before the SSE
+  // stream starts — same contract as the GEMINI_API_KEY check above) when
+  // its key isn't configured.
+  const solveApiKey = isLunaModel(model) ? c.env.OPENAI_API_KEY : apiKey;
+  if (!solveApiKey) return c.json({ error: "OPENAI_API_KEY not configured" }, 500);
+
   // Combined admission gate — ONE CountersDO round trip replacing what used
   // to be three sequential KV counters (DO switch, 2026-07-29). Check order
   // inside the gate preserves the old failure precedence exactly: per-IP
@@ -223,7 +232,7 @@ solve.post("/", async (c) => {
       let userVisibleSent = "";
       let usage: LlmChatUsage | undefined;
 
-      for await (const delta of chatStream(apiKey, {
+      for await (const delta of chatStream(solveApiKey, {
         model,
         system,
         messages: [{ role: "user", content: userContent }],
@@ -495,7 +504,7 @@ solve.post("/", async (c) => {
           // above already blankets with a "Computing…" phase tick every 10s
           // for exactly this "don't go SSE-silent too long" reason, so a
           // second heartbeat here would just be a redundant duplicate.
-          const repair = await repairRCode(apiKey, model, system, questionPrompt, rCode, result);
+          const repair = await repairRCode(solveApiKey, model, system, questionPrompt, rCode, result);
           const repairUsageTokens = {
             promptTokens: repair.usage?.prompt_tokens ?? 0,
             completionTokens: repair.usage?.completion_tokens ?? 0,
@@ -573,7 +582,7 @@ solve.post("/", async (c) => {
       let fbuf = "";
       let fSent = "";
       let finalUsage: LlmChatUsage | undefined;
-      for await (const delta of chatStream(apiKey, {
+      for await (const delta of chatStream(solveApiKey, {
         model,
         system,
         messages: [
@@ -697,7 +706,10 @@ solve.post("/", async (c) => {
  *  field-specific message rather than truncating silently — the only callers
  *  who can hit them are hand-rolled requests, and a truncated solve would
  *  just produce a confidently wrong answer. */
-const ALLOWED_MODELS = new Set([PRIMARY_TEXT_MODEL, IMAGE_VISION_MODEL]);
+// LUNA_MODEL is allowlisted for stub testing only — it's priced in
+// lib/cost.ts (cheaper than IMAGE_VISION_MODEL on both axes), so it doesn't
+// reopen the arbitrary-model cost-inflation door this set exists to close.
+const ALLOWED_MODELS = new Set([PRIMARY_TEXT_MODEL, IMAGE_VISION_MODEL, LUNA_MODEL]);
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 const MAX_QUESTION_CHARS = 8_000;
 const MAX_CHOICES = 30;
