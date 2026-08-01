@@ -22,8 +22,12 @@ export function GET() {
     {
       ok: true,
       version: "0.2.0",
-      provider: "gemini",
-      geminiConfigured: Boolean(process.env["GEMINI_API_KEY"]),
+      provider: "openai",
+      openaiConfigured: Boolean(process.env["OPENAI_API_KEY"]),
+      // Back-compat alias — shipped extension popups light "AI tutor ready"
+      // off this field; mirrors the ACTIVE provider key (see the workers
+      // health route for the same pattern).
+      geminiConfigured: Boolean(process.env["OPENAI_API_KEY"]),
       sandboxConfigured: Boolean(process.env["R_SANDBOX_SNAPSHOT_ID"]),
       lemonsqueezyConfigured: Boolean(process.env["LEMONSQUEEZY_API_KEY"]),
       time: new Date().toISOString(),

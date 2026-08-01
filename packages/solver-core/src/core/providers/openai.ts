@@ -11,22 +11,23 @@ import type {
 } from "./types";
 
 /**
- * OpenAI GPT-5.6 Luna provider (Responses API). STUB SCAFFOLD — compiles and
- * follows the documented request/response shapes, but has not been exercised
- * against the live API yet; toggle on for testing only.
+ * OpenAI GPT-5.6 Luna — THE solver provider (Responses API). Every solve
+ * call routes here (core/providers/index.ts); gemini.ts remains on disk for
+ * reference only and is imported by nothing. NOTE: still stub-grade — the
+ * request/response shapes follow the docs but have not been exercised
+ * against the live API yet.
  *
  * Uses `POST /v1/responses` on `api.openai.com`. Supports:
  *   - non-streaming requests
  *   - SSE streaming (`stream: true`, yields text deltas)
  *   - system prompt via `instructions`
- *   - reasoning via `reasoning.effort` (Luna's equivalent of Gemini's
- *     thinkingLevel — reasoning tokens are billed at the OUTPUT rate and
- *     arrive inside `usage.output_tokens`, see mapUsage)
+ *   - reasoning via `reasoning.effort` (reasoning tokens are billed at the
+ *     OUTPUT rate and arrive inside `usage.output_tokens`, see mapUsage)
  *   - implicit prompt caching (server-side — no client action needed;
  *     discounted tokens surface as `input_tokens_details.cached_tokens`)
- *   - native vision: Luna reads images in the SAME model, so unlike Gemini
- *     there is no separate IMAGE_MODEL here (see solver/settings.ts
- *     resolveModel, which skips the text→vision switch for Luna)
+ *   - native vision: Luna reads images in the SAME model — there is no
+ *     separate image/vision model anywhere in the solve path (see
+ *     solver/settings.ts resolveModel)
  *
  * Auth: bearer token on the `Authorization` header.
  *
@@ -36,26 +37,19 @@ import type {
 
 export const OPENAI_BASE_URL = "https://api.openai.com/v1";
 
-// Same `globalThis` reach-through as gemini.ts: `process.env` only exists
-// under Node/Next, Workers routes read secrets from `c.env` instead, and this
-// package is imported by both runtimes (see gemini.ts for the full rationale).
+// `process.env` only exists under Node/Next; Workers routes read secrets
+// from Hono's `c.env` binding instead (see apps/workers/src/types.ts), and
+// this package is imported by both runtimes — so reach through `globalThis`
+// with a local cast rather than referencing `process` directly. Type-checks
+// and runs safely with or without an ambient `process` (no `@types/node`
+// dependency needed here), falling back to the hardcoded default when absent.
 const env: Record<string, string | undefined> =
   (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
     ?.env ?? {};
 
-// Overridable via OPENAI_MODEL for eval A/B runs, mirroring GEMINI_MODEL.
+// Overridable via OPENAI_MODEL so the eval harness can A/B model versions
+// without code edits. This is the ONLY solver model — text and vision alike.
 export const LUNA_MODEL = env["OPENAI_MODEL"] ?? "gpt-5.6-luna";
-
-/**
- * Whether a model id belongs to this provider. Used by providerForModel()
- * (providers/index.ts) to route chat/chatStream calls, by resolveModel()
- * (solver/settings.ts) to skip the Gemini text→vision model switch — Luna is
- * natively multimodal, one model for text and images — and by the Workers
- * solve route to pick OPENAI_API_KEY over GEMINI_API_KEY.
- */
-export function isLunaModel(model: string): boolean {
-  return model.startsWith("gpt-");
-}
 
 // Responses API content parts: user-side text/images are "input_*", assistant
 // turns echo back as "output_text".

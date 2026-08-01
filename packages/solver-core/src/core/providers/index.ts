@@ -1,11 +1,9 @@
-import { geminiProvider, DEFAULT_MODEL as GEMINI_DEFAULT_MODEL, IMAGE_MODEL as GEMINI_IMAGE_MODEL } from "./gemini";
-import { isLunaModel, openaiProvider } from "./openai";
-import type { LlmChatRequest, LlmProvider } from "./types";
+import { LUNA_MODEL, openaiProvider } from "./openai";
+import type { LlmChatRequest } from "./types";
 
-export { GEMINI_BASE_URL, geminiProvider } from "./gemini";
-export { OPENAI_BASE_URL, openaiProvider, LUNA_MODEL, isLunaModel } from "./openai";
-// Retry/backoff helper every provider's chat()/chatStream() wraps its fetch()
-// in (see gemini.ts) — re-exported here so it's reachable via this package's
+export { OPENAI_BASE_URL, openaiProvider, LUNA_MODEL } from "./openai";
+// Retry/backoff helper the provider's chat()/chatStream() wraps its fetch()
+// in (see openai.ts) — re-exported here so it's reachable via this package's
 // existing "./core/providers" export path instead of adding a new one, and so
 // it's directly unit-testable (apps/workers/scripts/self-test-retry.ts).
 export {
@@ -18,40 +16,25 @@ export {
   type RetryEvent,
 } from "./retry";
 
-// Same `globalThis` reach-through as gemini.ts/openai.ts — `process.env`
-// only exists under Node/Next; Workers have no such global.
-const env: Record<string, string | undefined> =
-  (globalThis as { process?: { env?: Record<string, string | undefined> } }).process
-    ?.env ?? {};
-
-export const defaultLlmProvider = geminiProvider;
-// SOLVER_MODEL=gpt-5.6-luna toggles Luna as the default solver model in Node
-// runtimes (eval harness) — providerForModel below routes on the model string,
-// so flipping the default flips the provider too. Workers can't read
-// process.env at module scope, so there the toggle is a per-request
-// `body.model` instead (see routes/solve.ts).
-export const DEFAULT_MODEL: string = env["SOLVER_MODEL"] ?? GEMINI_DEFAULT_MODEL;
-export const IMAGE_MODEL: string = GEMINI_IMAGE_MODEL;
-
-/** Model-string routing keeps the provider toggle in one place: a `gpt-*`
- *  model (per-request `body.model`, or SOLVER_MODEL above) sends the whole
- *  call to the OpenAI Luna provider; everything else stays on Gemini. */
-export function providerForModel(model: string | undefined): LlmProvider {
-  return model && isLunaModel(model) ? openaiProvider : geminiProvider;
-}
+// OpenAI Luna is THE provider — there is no routing layer and no fallback.
+// gemini.ts stays on disk for reference only; nothing imports it. (Removing
+// this file's old providerForModel() branching was deliberate: one provider,
+// one model, one pricing row — see apps/workers/src/lib/cost.ts.)
+export const defaultLlmProvider = openaiProvider;
+// Luna handles text AND vision in this one model, so unlike the old Gemini
+// setup there is no separate IMAGE_MODEL. Overridable via OPENAI_MODEL (see
+// openai.ts) for eval A/B runs.
+export const DEFAULT_MODEL: string = LUNA_MODEL;
 
 export function chat(apiKey: string, req: LlmChatRequest) {
-  return providerForModel(req.model).chat(apiKey, req);
+  return defaultLlmProvider.chat(apiKey, req);
 }
 
 export function chatStream(apiKey: string, req: LlmChatRequest) {
-  return providerForModel(req.model).chatStream(apiKey, req);
+  return defaultLlmProvider.chatStream(apiKey, req);
 }
 
 export function imagePart(data: string, mediaType: string) {
-  // No routing needed — both providers return the identical OpenAI-shaped
-  // `image_url` part (LlmImagePart IS the OpenAI shape; Gemini translates it
-  // internally when building its request body).
   return defaultLlmProvider.imagePart(data, mediaType);
 }
 

@@ -153,8 +153,8 @@ async function main() {
 
   function fakeEnv(overrides: Partial<Env> = {}): Env & { COUNTERS_DO: FakeCountersNamespace } {
     return {
-      GEMINI_API_KEY: "test-key",
-      LLM_PROVIDER: "gemini",
+      OPENAI_API_KEY: "test-key",
+      LLM_PROVIDER: "openai",
       FREE_TIER_DAILY_LIMIT: "5",
       // Required fields added by the Cloud Run R-execution migration (see
       // docs/cloud-run-r-migration.md §3) — not exercised by any check in

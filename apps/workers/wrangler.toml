@@ -5,7 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 
 # Runtime env vars (non-secret). Secrets set via `wrangler secret put NAME`.
 [vars]
-LLM_PROVIDER = "gemini"
+LLM_PROVIDER = "openai"
 FREE_TIER_DAILY_LIMIT = "5"
 LEMONSQUEEZY_STORE_ID = "300628"
 LEMONSQUEEZY_VARIANT_ID = "1929562"
@@ -113,7 +113,9 @@ name = "COUNTERS_DO"
 class_name = "CountersDO"
 
 # Secrets set at deploy time (not committed):
-#   wrangler secret put GEMINI_API_KEY
+#   wrangler secret put OPENAI_API_KEY               (THE solver key — required;
+#                                                     GEMINI_API_KEY is retired and
+#                                                     unread; delete it whenever convenient)
 #   wrangler secret put LEMONSQUEEZY_API_KEY
 #   wrangler secret put LEMONSQUEEZY_WEBHOOK_SECRET
 #   wrangler secret put LEMONSQUEEZY_STORE_ID       (optional; enforces store match)
