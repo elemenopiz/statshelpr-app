@@ -118,10 +118,13 @@ export interface Env {
    *  crypto.randomUUID(), see apps/extension/src/install-id.ts, with no
    *  server issuance, so it resets for free). Only applied to free-tier
    *  callers, same as the per-install counter — paid licenses stay
-   *  unlimited. Default 200 if unset. (Used to also gate the now-deleted
-   *  /api/interpret route independently — see docs/cloud-run-r-migration.md
-   *  §3; the interpret pass is an internal leg of /api/solve now, already
-   *  covered by this same per-IP check on the one request.) */
+   *  unlimited. Default 1000 if unset (raised from 200, owner directive
+   *  2026-08-04 — campus-WiFi NAT sharing made the old cap indistinguishable
+   *  from abuse; see wrangler.toml's comment for the full sizing math). (Used
+   *  to also gate the now-deleted /api/interpret route independently — see
+   *  docs/cloud-run-r-migration.md §3; the interpret pass is an internal leg
+   *  of /api/solve now, already covered by this same per-IP check on the one
+   *  request.) */
   IP_DAILY_LIMIT?: string;
   /** Global (not per-user) daily ceiling on every Gemini call this Worker
    *  makes (security-audit item D) — the real backstop: hard-stops the
@@ -133,18 +136,30 @@ export interface Env {
    *  docs/cloud-run-r-migration.md §3). See lib/kill-switch.ts for the
    *  $/day sizing math behind the default (1000 if unset). */
   GLOBAL_DAILY_CALL_LIMIT?: string;
-  /** Global daily ceiling on ACTUAL Gemini dollars spent (2026-07-29
-   *  capacity review) — the direct answer to "what's the most a bad day can
-   *  cost me". Sits alongside GLOBAL_DAILY_CALL_LIMIT on the same
+  /** Global daily ceiling on ACTUAL Gemini/Luna dollars spent (2026-07-29
+   *  capacity review) — sits alongside GLOBAL_DAILY_CALL_LIMIT on the same
    *  kill-switch check: calls cap volume, this caps dollars, and either one
    *  tripping 503s the service for the rest of the UTC day. Accumulated
    *  from the exact per-leg costUsd solve.ts already computes (lib/cost.ts
    *  rates on real usage counts), so it holds no matter how an abuser
    *  shapes payloads — cheap calls trip the call cap first, stuffed calls
-   *  trip this first. Worst-case daily spend ≈ the cap + a few dollars of
-   *  in-flight overshoot (calls that started before the trip). Default 25
-   *  if unset. See lib/kill-switch.ts. */
+   *  trip this first.
+   *
+   *  As of 2026-08-04 (owner directive: "shouldn't be a thing, should
+   *  scale") this value is only the FLOOR of a subscriber-scaled effective
+   *  ceiling — `max(this, activeSubscribers × PER_SUB_DAILY_SPEND_USD)`,
+   *  computed once/day by the scheduled cron and persisted where the hot
+   *  gate can read it with zero extra subrequests. Default 25 if unset (the
+   *  floor's own default — unchanged, this is exactly today's ceiling at 0
+   *  subscribers). See lib/kill-switch.ts's computeEffectiveSpendLimitUsd
+   *  and wrangler.toml's comment on this var for the full formula/staleness
+   *  writeup. */
   GLOBAL_DAILY_SPEND_LIMIT_USD?: string;
+  /** Per-active-subscriber daily dollar allowance feeding the effective
+   *  spend ceiling formula documented on GLOBAL_DAILY_SPEND_LIMIT_USD above.
+   *  Default 2 (USD) if unset. See wrangler.toml's comment on this var for
+   *  the sizing rationale. */
+  PER_SUB_DAILY_SPEND_USD?: string;
 
   // KV binding
   STATSHELPR_KV: KVNamespace;

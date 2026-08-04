@@ -88,7 +88,7 @@
 import type { Context } from "hono";
 import type { Env } from "../types";
 import type { RateLimitResult } from "./rate-limit";
-import { doGate, doAddSpendInBackground } from "./counters-do";
+import { doGate, doAddSpendInBackground, doSetConfig, type IncrItem } from "./counters-do";
 
 const DEFAULT_LIMIT = 1000;
 
@@ -123,11 +123,92 @@ export function globalCallLimit(env: Env): number {
   return Number(env.GLOBAL_DAILY_CALL_LIMIT ?? String(DEFAULT_LIMIT)) || DEFAULT_LIMIT;
 }
 
+/** The FLOOR of the effective spend ceiling — see the "subscriber-scaled
+ *  global spend ceiling" section below for the full formula. This function's
+ *  name/signature are unchanged (existing callers, including
+ *  checkGlobalKillSwitch below, are still correct passing this straight
+ *  through as GateSpend.limitUsd) — it's the MEANING that changed: this is
+ *  no longer necessarily the enforced ceiling by itself, only its lower
+ *  bound. At 0 active subscribers (or whenever the cron-computed value is
+ *  missing/stale/corrupt) the effective ceiling IS this value, so existing
+ *  behavior is byte-identical until there's a paying base to scale from. */
 export function globalSpendLimitUsd(env: Env): number {
   return (
     Number(env.GLOBAL_DAILY_SPEND_LIMIT_USD ?? String(DEFAULT_SPEND_LIMIT_USD)) ||
     DEFAULT_SPEND_LIMIT_USD
   );
+}
+
+// --- subscriber-scaled global spend ceiling (owner directive, 2026-08-04:
+// "shouldn't be a thing, should scale") ---------------------------------
+//
+// globalSpendLimitUsd above is now only the FLOOR of the ceiling actually
+// enforced. The full formula:
+//
+//   effective ceiling = max(globalSpendLimitUsd(env), activeSubscribers × perSubDailySpendUsd(env))
+//
+// computeEffectiveSpendLimitUsd evaluates this PURE arithmetic (no I/O — see
+// its own doc for why that's deliberate). persistEffectiveSpendLimit wraps
+// it with the actual write: called ONCE/DAY from src/index.ts's scheduled
+// cron (never the request path — activeSubscribers comes from
+// lib/metrics-load.ts's countActiveSubscribers, an O(subscriber-count) KV
+// scan too expensive to repeat per-solve), it persists the computed number
+// into the SAME CountersDO instance the hot gate already round-trips for
+// its other counters, via counters-do.ts's setConfig op.
+//
+// The READ side lives entirely inside CountersDO.resolveSpendLimit (see
+// that file): checkGlobalKillSwitch below and routes/solve.ts's own inline
+// doGate call both pass `cfgKey: GLOBAL_SPEND_LIMIT_CFG_KEY` alongside the
+// FLOOR as `limitUsd` — the DO resolves `max(limitUsd, freshConfigRow)`
+// internally, as part of the SAME fetch those call sites already make. Zero
+// extra subrequests on the hot path.
+//
+// Staleness / fail-safe: SPEND_LIMIT_STALENESS_MS (48h — one full missed
+// cron tick of slack past the normal 24h cadence) is how long a persisted
+// value stays "fresh" before CountersDO.resolveSpendLimit stops trusting it
+// and silently falls back to the floor alone. Missing (never computed —
+// e.g. brand new deploy before the first cron tick), stale (cron broken for
+// >48h), or corrupt (setConfig already refuses to persist a
+// non-finite/non-positive value, but this is defense in depth) all collapse
+// to the SAME safe outcome: the floor. The ceiling can therefore never end
+// up missing, corrupt, or unlimited — only "at least the floor" — matching
+// the existing hard-breaker's own "never unlimited" contract.
+const DEFAULT_PER_SUB_DAILY_SPEND_USD = 2;
+export const GLOBAL_SPEND_LIMIT_CFG_KEY = "ks$:spendLimit:cfg";
+export const SPEND_LIMIT_STALENESS_MS = 2 * 86_400_000; // 48h
+
+export function perSubDailySpendUsd(env: Env): number {
+  return (
+    Number(env.PER_SUB_DAILY_SPEND_USD ?? String(DEFAULT_PER_SUB_DAILY_SPEND_USD)) ||
+    DEFAULT_PER_SUB_DAILY_SPEND_USD
+  );
+}
+
+/** Pure formula — no Env I/O beyond reading the two already-synchronous env
+ *  vars above, no DO/KV access — so scripts/self-test-security.ts can
+ *  exercise the arithmetic (including the floor/scaled crossover) directly,
+ *  the same testability reasoning lib/metrics-store.ts's applyServerEvent
+ *  etc. already follow. Negative/garbage subscriber counts (should never
+ *  happen — countActiveSubscribers only ever counts real KV records — but
+ *  this is cheap insurance) are floored at 0 rather than allowed to pull the
+ *  ceiling below the floor. */
+export function computeEffectiveSpendLimitUsd(env: Env, activeSubscribers: number): number {
+  const floor = globalSpendLimitUsd(env);
+  const scaled = Math.max(0, activeSubscribers) * perSubDailySpendUsd(env);
+  return Math.max(floor, scaled);
+}
+
+/** Computes AND persists the effective ceiling — the one function
+ *  src/index.ts's scheduled cron actually calls, once/day. See the section
+ *  doc above for the full read/write flow. Never throws (doSetConfig's own
+ *  contract): a failed persist just means CountersDO.resolveSpendLimit keeps
+ *  using whatever was there before (or the floor, if this has never once
+ *  succeeded) until tomorrow's tick. Returns the computed value so the cron
+ *  can log it. */
+export async function persistEffectiveSpendLimit(env: Env, activeSubscribers: number): Promise<number> {
+  const value = computeEffectiveSpendLimitUsd(env, activeSubscribers);
+  await doSetConfig(env, GLOBAL_SPEND_LIMIT_CFG_KEY, value, SPEND_LIMIT_STALENESS_MS);
+  return value;
 }
 
 /** Checks AND increments the global daily counter in one call — an "allowed"
@@ -148,6 +229,10 @@ export async function checkGlobalKillSwitch(env: Env): Promise<RateLimitResult> 
   const gate = await doGate(env, [{ key: GLOBAL_CALLS_KEY, limit }], {
     key: GLOBAL_SPEND_KEY,
     limitUsd: globalSpendLimitUsd(env),
+    // Subscriber-scaled ceiling override (2026-08-04) — see the section doc
+    // above. CountersDO resolves max(limitUsd, this cfg row) internally, in
+    // the SAME fetch, so this adds no extra subrequest here either.
+    cfgKey: GLOBAL_SPEND_LIMIT_CFG_KEY,
   });
   const r = gate.results[0];
   return {
@@ -168,4 +253,105 @@ export function recordGlobalSpendInBackground(
   costUsd: number,
 ): void {
   doAddSpendInBackground(c, GLOBAL_SPEND_KEY, costUsd);
+}
+
+// =============================================================================
+// --- paid-tier soft cap (owner directive, 2026-08-04) -----------------------
+// =============================================================================
+// Distinct in kind from every breaker above: this NEVER blocks a paid solve.
+// Paid stays genuinely unlimited (see routes/solve.ts's
+// `if (lic.tier !== "paid")` gate — the hard per-IP/per-install caps skip
+// paid callers entirely, unchanged by this section). This exists purely as
+// a fair-use throttle for the rare paid install that's WAY outside normal
+// usage: past a generous daily or monthly threshold, each solve gets a
+// short server-side delay (PAID_SOFT_THROTTLE_DELAY_MS) instead of an
+// instant answer — silent to the ~100% of paying users who never come close.
+//
+// Metering is exact (CountersDO, serialized) but the counting itself is
+// NEVER blocking or fail-closed — see doGate's fail-open contract
+// (counters-do.ts): a counters outage just means this request isn't
+// throttled (decidePaidSoftThrottle below sees a fabricated {count: 0} and
+// returns throttle: false), same fail-open stance as the hard breakers'
+// own DO calls one section up.
+//
+// Thresholds are deliberately generous relative to the documented heavy-user
+// assumption (AVG_SOLVES_PER_USER_PER_MONTH = 110, wrangler.toml): 100/day
+// is most of a full heavy-use MONTH in one day, and 600/month is ~5.5x that
+// same monthly assumption while still keeping the margin floor the owner
+// asked for (600 x ~$0.017/solve ~= $10.20, under the $15/mo price). Both
+// are one-line tunable HERE — deliberately plain TS constants, not
+// wrangler.toml vars, per the brief: these are product/fair-use judgment
+// calls to revisit in code review, not infra ceilings the owner needs to
+// redeploy-tune independently of that review.
+export const PAID_DAILY_SOFT_THRESHOLD = 100;
+export const PAID_MONTHLY_SOFT_THRESHOLD = 600;
+export const PAID_SOFT_THROTTLE_DELAY_MS = 15_000;
+
+function paidDailyKey(installHash: string): string {
+  return `paid:d:${installHash}`;
+}
+function paidMonthlyKey(installHash: string): string {
+  return `paid:m:${installHash}`;
+}
+
+/** Start of the NEXT UTC calendar month, in ms — Date.UTC rolls month=12
+ *  over into January of the following year on its own, so this needs no
+ *  manual year-wrap handling. Used as the monthly counter's `resetAtIfFresh`
+ *  (see IncrItem's doc in counters-do.ts): a calendar-month window, not a
+ *  rolling 30-day one, per the brief ("Monthly window = calendar month
+ *  UTC"). */
+function startOfNextUtcMonthMs(now: number): number {
+  const d = new Date(now);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1, 0, 0, 0, 0);
+}
+
+export interface PaidSoftCapIncrItems {
+  daily: IncrItem;
+  monthly: IncrItem;
+}
+
+/** Builds the two `incr` items routes/solve.ts folds into its existing
+ *  combined doGate call for a paid solve (see that call site) — one MORE DO
+ *  round trip would also satisfy the brief's "counted per SOLVE REQUEST,
+ *  metered in CountersDO" requirement, but riding the SAME fetch the gate
+ *  already makes is strictly cheaper and this codebase's established
+ *  pattern (see doGate's own module doc: "ONE CountersDO round trip
+ *  replacing what used to be three sequential KV counters"). Keyed on the
+ *  install hash — the SAME hashBucket(installId) solve.ts already computes
+ *  for the free-tier per-install counter — under a DISJOINT key prefix
+ *  (`paid:d:`/`paid:m:` vs. free tier's `rl:`) so a free-tier and paid-tier
+ *  count for the same physical install never share a row even if the
+ *  install later upgrades. */
+export function buildPaidSoftCapIncrItems(installHash: string): PaidSoftCapIncrItems {
+  const now = Date.now();
+  return {
+    daily: { key: paidDailyKey(installHash), resetAtIfFresh: now + 86_400_000 },
+    monthly: { key: paidMonthlyKey(installHash), resetAtIfFresh: startOfNextUtcMonthMs(now) },
+  };
+}
+
+export interface PaidSoftCapDecision {
+  throttle: boolean;
+  reason?: "daily" | "monthly";
+}
+
+/** Pure decision function — given the two POST-INCREMENT counts from the
+ *  SAME doGate round trip solve.ts already makes (buildPaidSoftCapIncrItems
+ *  above), decides whether THIS request should be throttled and which
+ *  threshold caused it. Daily is checked first (matches the free-tier
+ *  gate's own IP-before-install precedence convention in routes/solve.ts) —
+ *  a request past BOTH thresholds in the same call reports "daily", not
+ *  "monthly"; the monthly counter still incremented correctly regardless,
+ *  this only affects which single reason gets recorded.
+ *
+ *  "Past it" = strictly greater than the threshold: the 100th daily solve
+ *  is normal, un-throttled service, and the 101st is the first throttled
+ *  one (matches "100 solves/day" reading as an allowance, not a trigger
+ *  value). No Env/DO dependency — exported standalone so
+ *  scripts/self-test-security.ts can exercise the arithmetic directly,
+ *  same testability precedent as computeEffectiveSpendLimitUsd above. */
+export function decidePaidSoftThrottle(dailyCount: number, monthlyCount: number): PaidSoftCapDecision {
+  if (dailyCount > PAID_DAILY_SOFT_THRESHOLD) return { throttle: true, reason: "daily" };
+  if (monthlyCount > PAID_MONTHLY_SOFT_THRESHOLD) return { throttle: true, reason: "monthly" };
+  return { throttle: false };
 }

@@ -20,8 +20,12 @@ import { summarizeCsv } from "@/lib/data-summary";
 import {
   GLOBAL_CALLS_KEY,
   GLOBAL_SPEND_KEY,
+  GLOBAL_SPEND_LIMIT_CFG_KEY,
   KILL_SWITCH_MESSAGE,
+  PAID_SOFT_THROTTLE_DELAY_MS,
+  buildPaidSoftCapIncrItems,
   checkGlobalKillSwitch,
+  decidePaidSoftThrottle,
   globalCallLimit,
   globalSpendLimitUsd,
   recordGlobalSpendInBackground,
@@ -189,19 +193,38 @@ solve.post("/", async (c) => {
   const gateChecks: GateCheck[] = [];
   let ipIdx = -1;
   let installIdx = -1;
+  // CHANGE 3 (owner directive, 2026-08-04): paid solves are still never
+  // blocked here (see the `if (lic.tier !== "paid")` gate below, unchanged)
+  // — but they ARE exactly counted, so a rare paid install way outside
+  // normal usage can be gently throttled (not rejected) past a generous
+  // daily/monthly threshold. `paidSoftCap` rides the SAME doGate round trip
+  // below via its `incr` param — zero extra DO fetches for this. See
+  // lib/kill-switch.ts's buildPaidSoftCapIncrItems/decidePaidSoftThrottle.
+  let paidSoftCap: ReturnType<typeof buildPaidSoftCapIncrItems> | undefined;
   if (lic.tier !== "paid") {
     const ipHash = await hashBucket(getClientIp(c));
-    const ipLimit = Number(c.env.IP_DAILY_LIMIT ?? "200") || 200;
+    const ipLimit = Number(c.env.IP_DAILY_LIMIT ?? "1000") || 1000;
     ipIdx = gateChecks.push({ key: `rl:ip:solve:${ipHash}`, limit: ipLimit }) - 1;
     const freeLimit = Number(c.env.FREE_TIER_DAILY_LIMIT ?? "5") || 5;
     installIdx = gateChecks.push({ key: `rl:${installHash}`, limit: freeLimit }) - 1;
+  } else {
+    paidSoftCap = buildPaidSoftCapIncrItems(installHash);
   }
   gateChecks.push({ key: GLOBAL_CALLS_KEY, limit: globalCallLimit(c.env) });
 
-  const gate = await doGate(c.env, gateChecks, {
-    key: GLOBAL_SPEND_KEY,
-    limitUsd: globalSpendLimitUsd(c.env),
-  });
+  const gate = await doGate(
+    c.env,
+    gateChecks,
+    {
+      key: GLOBAL_SPEND_KEY,
+      limitUsd: globalSpendLimitUsd(c.env),
+      // Subscriber-scaled ceiling override (CHANGE 2) — CountersDO resolves
+      // max(limitUsd, this cfg row) internally, in the SAME fetch. See
+      // lib/kill-switch.ts's computeEffectiveSpendLimitUsd section doc.
+      cfgKey: GLOBAL_SPEND_LIMIT_CFG_KEY,
+    },
+    paidSoftCap ? [paidSoftCap.daily, paidSoftCap.monthly] : undefined,
+  );
   if (!gate.allowed) {
     if (gate.failed === ipIdx) {
       const r = gate.results[ipIdx];
@@ -226,6 +249,19 @@ solve.post("/", async (c) => {
     return c.json({ error: KILL_SWITCH_MESSAGE }, 503);
   }
 
+  // CHANGE 3 continued: decide the soft-throttle outcome from THIS SAME gate
+  // call's incrResults (order matches buildPaidSoftCapIncrItems: [daily,
+  // monthly]) — a fail-open doGate response (DO outage) fabricates zeroed
+  // counts here, which decidePaidSoftThrottle correctly reads as "don't
+  // throttle" (see that function's fail-open doc in lib/kill-switch.ts).
+  // The delay itself is applied later, inside the SSE stream (so a polite
+  // phase note can accompany it) — see makeSseStream's callback below.
+  let paidThrottleReason: "daily" | "monthly" | undefined;
+  if (paidSoftCap) {
+    const [dailyRes, monthlyRes] = gate.incrResults ?? [];
+    paidThrottleReason = decidePaidSoftThrottle(dailyRes?.count ?? 0, monthlyRes?.count ?? 0).reason;
+  }
+
   // Every metrics event this request produces is buffered here and flushed
   // as ONE KV write when the stream finishes (DO switch part B — a calc
   // solve used to do 4–6 separate read-modify-write puts on the same daily
@@ -233,6 +269,10 @@ solve.post("/", async (c) => {
   // path above keeps its immediate single-event write — it returns before
   // this batch exists.
   const metricsBatch = createMetricsBatch();
+  // CHANGE 3: rides this SAME batch/flush too — zero new KV writes for the
+  // paid-tier soft-throttle counter (see lib/metrics-store.ts's
+  // paidThrottleHits doc).
+  if (paidThrottleReason) metricsBatch.paidThrottle = paidThrottleReason;
   // Rides this SAME batch/flush — zero new independent KV writes for host
   // telemetry (see hostBucketKey's computation above).
   metricsBatch.hostHash = hostBucketKey;
@@ -268,6 +308,25 @@ solve.post("/", async (c) => {
   const stream = makeSseStream(async (write) => {
     const startedAt = Date.now(); // wall time around the stream, for serverLatencyMs
     try {
+      // CHANGE 3 (owner directive, 2026-08-04): the paid-tier soft-cap delay
+      // lives HERE (inside the open SSE stream), not before it, so a polite
+      // note can ride the existing `{type:"phase", label}` shape — the SAME
+      // shape already used for heartbeats/retries elsewhere in this file —
+      // rather than inventing a new pinned event. A phase write right before
+      // AND right after the sleep keeps the connection well under the
+      // extension's 30s SSE idle-abort watchdog (content.ts's
+      // SSE_IDLE_TIMEOUT_MS): PAID_SOFT_THROTTLE_DELAY_MS (15s) is half that
+      // budget. Deliberately placed AFTER `startedAt` is captured, so a
+      // throttled request's own serverLatencyMs honestly reflects the full
+      // wall time this request actually took, delay included.
+      if (paidThrottleReason) {
+        await write({
+          type: "phase",
+          label: "High usage today — pausing briefly to keep things fair for everyone…",
+        });
+        await new Promise((resolve) => setTimeout(resolve, PAID_SOFT_THROTTLE_DELAY_MS));
+      }
+
       const hasBlanks = (body.blanks?.length ?? 0) >= 2;
       // PINNED MODEL-OUTPUT-CONTRACT CHANGE (course-topic branch): `courseProfile`
       // swaps course-specific guidance for `body.courseProfile === "generic"`

@@ -16,9 +16,10 @@ import { telemetry } from "./routes/telemetry";
 import { assent } from "./routes/assent";
 import { dashboard } from "./routes/dashboard";
 
-import { loadMetrics } from "./lib/metrics-load";
+import { countActiveSubscribers, loadMetrics } from "./lib/metrics-load";
 import { readSnapshot, utcDateKey, writeDailySnapshot } from "./lib/metrics-snapshot";
 import { evaluateAlerts, sendAlerts } from "./lib/alerts";
+import { persistEffectiveSpendLimit } from "./lib/kill-switch";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -45,12 +46,15 @@ app.route("/dashboard", dashboard);
 app.notFound((c) => c.json({ error: "Not found" }, 404));
 
 /**
- * Cron handler (wrangler.toml [triggers] crons — daily 08:00 UTC). Two
+ * Cron handler (wrangler.toml [triggers] crons — daily 08:00 UTC). Three
  * independent steps: (1) roll up today's compact KPI snapshot so trends
- * outlive the raw buckets' TTL, and (2) evaluate threshold alerts against the
- * latest metrics + yesterday's snapshot and email them via Resend. Each step
- * is wrapped so a failure in one never blocks the other and never escapes the
- * worker (a thrown scheduled handler would surface as a failed cron invocation).
+ * outlive the raw buckets' TTL, (2) evaluate threshold alerts against the
+ * latest metrics + yesterday's snapshot and email them via Resend, and (3)
+ * recompute + persist the subscriber-scaled global spend ceiling (owner
+ * directive, 2026-08-04 — lib/kill-switch.ts's computeEffectiveSpendLimitUsd).
+ * Each step is wrapped so a failure in one never blocks the others and never
+ * escapes the worker (a thrown scheduled handler would surface as a failed
+ * cron invocation).
  */
 const scheduled: ExportedHandlerScheduledHandler<Env> = async (event, env, ctx) => {
   // 1) Daily snapshot rollup.
@@ -67,6 +71,24 @@ const scheduled: ExportedHandlerScheduledHandler<Env> = async (event, env, ctx) 
     await sendAlerts(env, evaluateAlerts(metrics, prev));
   } catch (e) {
     console.error("scheduled: alert evaluation failed:", (e as Error).message);
+  }
+
+  // 3) Subscriber-scaled global spend ceiling (owner directive, 2026-08-04
+  // — see wrangler.toml's GLOBAL_DAILY_SPEND_LIMIT_USD comment and
+  // lib/kill-switch.ts's computeEffectiveSpendLimitUsd for the full formula
+  // and staleness/fail-safe writeup). countActiveSubscribers is an
+  // O(subscriber-count) KV list+get scan — deliberately run here, once/day,
+  // never on the hot /api/solve gate path. persistEffectiveSpendLimit writes
+  // the result into the SAME CountersDO instance the gate already
+  // round-trips, so enforcing it costs zero extra subrequests there.
+  try {
+    const activeSubscribers = await countActiveSubscribers(env);
+    const ceiling = await persistEffectiveSpendLimit(env, activeSubscribers);
+    console.log(
+      `scheduled: effective global spend ceiling recomputed: $${ceiling}/day (${activeSubscribers} active subscribers)`,
+    );
+  } catch (e) {
+    console.error("scheduled: spend-ceiling recompute failed:", (e as Error).message);
   }
 };
 

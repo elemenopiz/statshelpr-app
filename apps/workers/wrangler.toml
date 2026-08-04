@@ -41,14 +41,27 @@ R_RUNNER_URL = "https://statshelpr-r-runner-964221203874.us-central1.run.app"
 # Per-IP daily cap, applied on top of the per-install counter on /api/solve —
 # a backstop against trivial install-id rotation (the install id is just a
 # client-picked crypto.randomUUID(), see apps/extension/src/install-id.ts,
-# with no server issuance, so it resets for free). Sized to be generous for
-# shared-NAT campus WiFi (200 solve calls/day from one IP ~= 40 distinct free
-# users each maxing out their own 5/day cap, or many more if most don't)
-# while still bounding a single-IP install-id-rotation script to a small,
-# known fraction (well under half) of the global ceiling below. Only applied
-# to free-tier callers — paid licenses stay unlimited, same as the
-# per-install counter.
-IP_DAILY_LIMIT = "200"
+# with no server issuance, so it resets for free). Only applied to free-tier
+# callers — paid licenses stay unlimited, same as the per-install counter
+# (enforced in code, not just here — see routes/solve.ts's
+# `if (lic.tier !== "paid")` gate wrapping both the per-IP and per-install
+# checks below).
+#
+# RAISED 200 -> 1000 (owner directive, 2026-08-04): the paying core is UT
+# Austin students, who routinely share ONE campus NAT IP — 200/day made
+# ordinary campus-WiFi contention indistinguishable from abuse. 1000 solve
+# calls/day from one IP ~= 200 distinct free users each maxing out their own
+# 5/day cap (1000 / 5 = 200), i.e. two full lecture halls, or many more if
+# most don't max out — sized so campus-WiFi contention is no longer
+# plausible to hit. Tradeoff (accepted; explained to the owner separately):
+# this also raises how much of the global daily call ceiling
+# (GLOBAL_DAILY_CALL_LIMIT, 2500 today) a single install-id-rotation script
+# confined to one IP could burn through — 1000/2500 = 40% now, vs 8% at the
+# old 200 cap (so ~3 rotating IPs, not 13+, could now exhaust the global
+# ceiling alone). Still bounded either way — the global call ceiling and its
+# own dollar backstop (GLOBAL_DAILY_SPEND_LIMIT_USD below) remain the real
+# stop. Raise the global ceiling in step if this margin ever feels too thin.
+IP_DAILY_LIMIT = "1000"
 # Global (NOT per-user) daily ceiling on every LLM provider call this Worker
 # makes (Luna primary or Gemini fallback — lib/llm.ts),
 # checked before EACH ONE individually regardless of caller/tier — the real
@@ -63,24 +76,67 @@ IP_DAILY_LIMIT = "200"
 # lib/kill-switch.ts ($0.08 — worst-case model/token mix, not typical
 # traffic), 2500 calls/day bounds worst-case ADVERSARIAL exposure at ~$200/day
 # — reaching that requires a deliberate attacker maxing token cost per call
-# across 13+ rotating IPs (IP_DAILY_LIMIT bounds each one); the same 2500
-# calls of ORGANIC flash-lite traffic costs ~$15–25. Sized for the launch
+# across at least 3 rotating IPs (IP_DAILY_LIMIT bounds each one at 1000 —
+# raised from 200 on 2026-08-04, so this used to require 13+ IPs; see
+# IP_DAILY_LIMIT's own comment below for that tradeoff write-up); the same
+# 2500 calls of ORGANIC flash-lite traffic costs ~$15–25. Sized for the launch
 # target (2026-07-29 capacity review): one 30-student class session solving a
 # ~10-question calc-heavy quiz burns 600–900 calls (~$4–6 real cost), so 2500
 # covers a full section plus a second one the same UTC day with headroom —
 # the prior 1000 would have tripped a service-wide 503 mid-second-section.
 # Raise again as real traffic grows past this.
 GLOBAL_DAILY_CALL_LIMIT = "2500"
-# Global daily ceiling on ACTUAL Gemini dollars (2026-07-29) — the hard
-# answer to "most a bad day can cost". Every solve leg reports its real
-# costUsd (lib/cost.ts rates on Gemini's returned usage) into the same
-# kill-switch gate; once the day's accumulated spend crosses this, further
-# Gemini calls 503 until the 24h window rolls, exactly like the call ceiling
-# above. The $200 adversarial figure above therefore no longer binds — the
-# worst day is ~this value plus single-digit dollars of in-flight overshoot.
-# 25 = ~5x a full 30-student class day (~$4–6), so organic use never trips
-# it; raise alongside real growth. See lib/kill-switch.ts.
+# Global daily ceiling on ACTUAL Gemini/Luna dollars (2026-07-29). Every
+# solve leg reports its real costUsd (lib/cost.ts rates on the provider's
+# returned usage) into the same kill-switch gate; once the day's accumulated
+# spend crosses the ENFORCED ceiling, further calls 503 until the 24h window
+# rolls, exactly like the call ceiling above.
+#
+# GLOBAL_DAILY_SPEND_LIMIT_USD IS NOW ONLY THE FLOOR of a subscriber-scaled
+# ceiling (owner directive, 2026-08-04: "shouldn't be a thing, should
+# scale") — it is never the whole story on its own past a handful of paying
+# subscribers:
+#
+#   effective ceiling = max(GLOBAL_DAILY_SPEND_LIMIT_USD, activeSubscribers × PER_SUB_DAILY_SPEND_USD)
+#
+# At 0 subscribers this is exactly today's $25/day — unchanged, and the
+# floor never goes away (the breaker can scale UP with revenue, never OFF).
+# At 100 subscribers: 100 × $2 = $200/day. PER_SUB_DAILY_SPEND_USD = $2 is
+# sized as a big cushion, not a real per-user cost estimate: a heavy paid
+# user's own WHOLE MONTH of usage costs ~110 solves x ~$0.017/solve ≈ $1.87
+# (AVG_SOLVES_PER_USER_PER_MONTH above) — averaged over a month that's
+# ~$0.06/day/subscriber of actual expected cost, so $2/day/subscriber of
+# ALLOWANCE is roughly a 30x cushion above real usage, not a tight budget.
+#
+# activeSubscribers is counted from the `sub:` KV keyspace
+# (lib/metrics-load.ts's countActiveSubscribers) ONCE PER DAY by the 08:00
+# UTC cron below ([triggers]) — NOT on the request path. That scan is an
+# O(subscriber-count) KV list+get walk, cheap once/day but too expensive to
+# repeat on every solve. The cron persists the computed ceiling into the
+# SAME CountersDO the hot gate already round-trips for its other counters
+# (lib/counters-do.ts's setConfig / resolveSpendLimit), so enforcing the
+# scaled ceiling costs ZERO extra subrequests over today's existing gate
+# call. Staleness/fail-safe: up to ~24h lag on a brand-new subscriber
+# joining is expected and fine (the floor already covers that gap on its
+# own); if the cron hasn't written a fresh value in over 48h (a broken cron,
+# not routine lag), the gate silently falls back to this floor — the
+# ceiling can never end up missing, corrupt, or unlimited, only "at least
+# the floor". See lib/kill-switch.ts's computeEffectiveSpendLimitUsd /
+# persistEffectiveSpendLimit (writer, cron-only) and CountersDO's
+# resolveSpendLimit (reader, hot path) for the exact logic.
+#
+# Worst-case daily spend at whatever the effective ceiling resolves to on a
+# given day is still ~that ceiling plus single-digit dollars of in-flight
+# overshoot (calls that started just before the trip) — same shape as
+# before this change, just against a number that grows with the paying
+# base instead of standing still. See lib/kill-switch.ts.
 GLOBAL_DAILY_SPEND_LIMIT_USD = "25"
+# Per-active-subscriber daily dollar allowance feeding the formula in the
+# comment above GLOBAL_DAILY_SPEND_LIMIT_USD. Default $2/day/subscriber if
+# unset — see that comment for the sizing rationale (~30x real per-user
+# cost). One-line tunable as real subscriber COGS data comes in; no code
+# change needed to reprice it.
+PER_SUB_DAILY_SPEND_USD = "2"
 
 # KV binding for licenses, rate limiting, feedback, LS webhook idempotency,
 # and clickwrap assent records (`assent:{installId}:{tosVersion}`, written by
