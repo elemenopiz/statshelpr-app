@@ -10,8 +10,11 @@ this README covers only how to build, deploy, and operate this service.
 ```
 POST /runR
   header: X-Runner-Secret: <secret>
-  body:   { "code": "<R script>", "files": [ { "filename": "...", "content": "..." }, ... ] }
-  ->      { "stdout": "...", "stderr": "...", "exitCode": 0 | 1, "durationMs": <int> }
+  body:   { "code": "<R script>", "files": [ { "filename": "...", "content": "..." }, ... ],
+            "packages": ["pkg1", "pkg2", ...] }   -- OPTIONAL, see "On-demand package installs" below
+  ->      { "stdout": "...", "stderr": "...", "exitCode": 0 | 1, "durationMs": <int>,
+            "installedPackages": [...], "installFailed": [...] }  -- last two ONLY present when
+                                                                       the request had a `packages` field
 
 GET /health
   -> { "ok": true }   (no secret required)
@@ -111,9 +114,24 @@ gcloud run deploy statshelpr-r-runner \
   --concurrency 1 \
   --cpu 1 --memory 2Gi \
   --min-instances 0 --max-instances 50 \
-  --timeout 30s \
+  --timeout 180s \
   --set-env-vars "R_RUNNER_SECRET=$(openssl rand -hex 32)"
 ```
+
+**`--timeout 180s`** (raised from 30s) — required for "On-demand package
+installs" below: a binary package install can take 5-30s each, and that time
+comes ON TOP OF script execution within the SAME request, so the old 30s
+ceiling left no room for both. 180s is NOT this service's new normal
+latency — it is only the worst-case backstop for a customized request naming
+packages the runner doesn't already have; the default preset (no `packages`
+field, see that section) never approaches it, and even a packages-request
+that installs nothing new returns as fast as it always did. Sized as
+install budget (<=90s, `INSTALL_BUDGET_SECS` in `plumber.R`) + script
+execution's own pre-existing, still-unbounded-at-the-R-level budget
+(implicitly capped by whatever's left of this outer Cloud Run timeout,
+exactly as it always was against the old 30s ceiling) + a margin for
+request/response overhead — see "On-demand package installs" for the full
+budget breakdown.
 
 **`--service-account` is REQUIRED — do not omit it.** Omitting it runs this
 service as the project's DEFAULT COMPUTE service account, which conventionally
@@ -159,6 +177,99 @@ tidyverse plus mosaic/moderndive/infer loaded is memory-heavy. The doc notes
 `1Gi` may suffice; treat that as untested until it's been through a real
 load test (a few concurrent classes' worth of quiz-solve bursts), not as a
 default to switch to blind.
+
+## On-demand package installs
+
+A customized picker selection (the extension's library picker,
+`apps/extension/src/r-packages.ts`) can name an R package that isn't baked
+into this image's fixed catalog (the `install.packages()` line in
+`Dockerfile`). Rather than failing outright, `POST /runR`'s optional
+`packages` field lets `plumber.R` install what's missing on demand, before
+running the script.
+
+**The default preset is untouched.** A request with no `packages` field —
+every UT student who has never opened the picker — never enters this code
+path at all: not "installs nothing", the relevant block in `plumber.R`'s
+`/runR` handler is gated behind `if (!is.null(body$packages))` and is not
+even evaluated, so the response body for that path has no
+`installedPackages`/`installFailed` keys and is byte-identical to before
+this feature existed (confirmed against a real local `plumber::pr_run()`
+instance — see "What was actually verified" below).
+
+**Validation (defense in depth, re-checked at every layer independently):**
+the extension's picker validates on save; the Worker's
+`routes/solve.ts#validateSolveBody` caps the request at 15 names / 60 chars
+each before it ever reaches this service; `plumber.R`'s
+`validate_package_names()` re-validates AGAIN against
+`^[A-Za-z][A-Za-z0-9.]{0,40}$` (same grammar as
+`apps/workers/src/lib/metrics-store.ts`'s `MISSING_R_PACKAGE_NAME_RE`) and
+silently drops anything that doesn't match — a malformed name never fails
+the request, it just never gets installed (and the script will hit R's own
+"there is no package called ..." error for it, same as today).
+
+**Missing-package detection + caps:**
+1. Of the validated names, `missing_package_names()` checks which are not
+   already loadable via `requireNamespace()` — either not in the image's
+   catalog, or (on a warm container) already installed by an earlier
+   request. Packages already present cost nothing.
+2. If more than 10 are missing, NONE are installed and the script proceeds
+   as-is — it will fail with R's normal missing-package error for whichever
+   it actually `library()`s/`require()`s, which `routes/solve.ts`'s
+   `extractMissingRPackageNames` already parses into the EXISTING
+   `missingRPackages` telemetry. This cap exists to bound worst-case latency
+   for a request naming many packages at once, not to add a new failure
+   mode — the failure it falls back to already existed before this feature.
+3. Otherwise, each missing package installs in its own child `Rscript`
+   process, sharing one **90-second** wall-clock budget
+   (`INSTALL_BUDGET_SECS` in `plumber.R`) across however many are being
+   installed. A per-package failure or the shared budget running out both
+   log one line (`[r-runner-install] package=<name> outcome=<installed|
+   failed|timeout|budget-exhausted>`) to stderr (captured by Cloud Run
+   logging) and move on to the next package / to script execution — never a
+   hung or crashed request. Installed packages are added to a dedicated,
+   writable library directory prepended via `.libPaths()`, ahead of the
+   image's read-only system catalog.
+4. `/runR`'s response gains `installedPackages`/`installFailed` (string
+   arrays, only present when the request had a `packages` field) so the
+   Worker can record which names actually became available.
+
+**Why a real (OS-level) timeout, not R's `setTimeLimit()`:** confirmed
+directly against a real R session while building this — `setTimeLimit()`
+only interrupts evaluation at R-level bytecode steps; it did NOT stop a
+blocked `Sys.sleep()` call, but DID stop a pure R-level loop. Since
+`install.packages()` spends nearly all its time in exactly the kind of
+blocking C-level network I/O `setTimeLimit()` cannot see, it would silently
+fail to bound a stalled download. Each install instead runs in a child
+`Rscript` process via `system2(..., timeout = <remaining budget>)`, which
+the OS kills after that many seconds regardless of what it's blocked on —
+confirmed: a `system2(timeout = 1)` call wrapping a 3-second `sleep`
+returned control at ~1.0s with status `124`, not 3s.
+
+**Binary-only, official repo only, no exceptions.** `Dockerfile` points this
+image's default repos at Posit Package Manager's (P3M) binary CRAN mirror
+for the image's Linux codename (resolved from `/etc/os-release` at build
+time) — precompiled binaries install in seconds; a source build could take
+minutes and blow the install budget, and would need compiler toolchains
+this hardening has no reason to assume are still wanted at runtime. This
+image NEVER installs from `remotes`/GitHub/an arbitrary URL, at build time
+or run time — P3M's CRAN-compatible endpoint is the only repo configured,
+anywhere in this image.
+
+**Memory tradeoff:** Cloud Run's writable filesystem is RAM-backed (see
+"Memory" above), so every byte a runtime install writes is a byte off the
+same `2Gi` budget the already-loaded tidyverse/mosaic/moderndive/infer stack
+draws from. Fine for a handful of small on-demand packages on top of that;
+worth revisiting if usage ever pushes many/large packages onto one warm
+container.
+
+**Egress note:** this feature does not change the runner's network posture.
+Model-authored scripts already had outbound network access before this
+feature existed (see "Sandbox model" above); a locked-down `repos` option
+plus "never remotes/GitHub/URL" is an APPLICATION-level control on what
+THIS FILE'S OWN CODE installs from, not a network-level allowlist. A real
+egress allowlist would need a VPC connector (~$8-15/mo) and is deliberately
+DEFERRED — out of scope for the free-tier-conscious posture this service
+currently runs under; revisit if that tradeoff ever changes.
 
 ## Cold starts
 
@@ -257,6 +368,38 @@ inside a container). Given that, verification went well beyond reading:
   the same live server.
 - `rocker/tidyverse`'s published tags were checked via Docker Hub's API.
 
+**On-demand package installs (this feature, same "verify against real R"
+bar):** the same local R (4.5.2) plus a real local `plumber::pr_run()`
+instance (not just `parse()`/reading) were used again here.
+`validate_package_names()`/`missing_package_names()` were run directly with
+~20 assertions (non-string entries, regex-invalid names including shell
+metacharacters/path-traversal/backticks, duplicates, the 41-char boundary,
+the 15-name cap). The install-phase control flow (shared-budget deadline
+math, per-package timeout, structured logging, installed-vs-failed split)
+was exercised end-to-end with a real `system2()`/child-`Rscript` harness
+standing in for `install.packages()` — including a deliberately-hung child
+(`Sys.sleep(30)` inside a 3s budget) that was confirmed KILLED at the budget
+boundary rather than run to completion, the specific hang this design exists
+to make impossible. `setTimeLimit()` was confirmed NOT to interrupt a
+blocked system call (only R-level evaluation) — the reason this uses
+`system2(timeout=)` instead. `--vanilla` was confirmed to skip
+`Rprofile.site` (via `--no-site-file`) using a real site-file + `R_PROFILE`
+env var test, which is why the child install process uses an explicit
+`--no-save --no-restore --no-init-file --no-environ` flag set instead. The
+generated Dockerfile `Rprofile.site` content (P3M repos URL +
+`HTTPUserAgent`) was loaded as a real site profile and confirmed both
+options resolve as intended. Finally, the full modified `plumber.R` was
+loaded via a real `plumber::pr("plumber.R")` (module-level code executes,
+endpoints register) and then run as a real local HTTP server, hit with
+`curl` for: no `packages` field (response has no `installedPackages`/
+`installFailed` keys at all — the byte-identical default-preset guarantee),
+all-invalid-grammar names (silently dropped), an already-installed package
+(no-op), a syntactically-valid but not-installed package (clean `failed`
+outcome, no hang), a installed+missing mix, and 11 missing names (the >10
+cap correctly skips installing anything). All of the above ran without
+network access — P3M's actual binary-serving behavior against a real
+`rocker/tidyverse` container is NOT verified (see below).
+
 Specifically still open until the first real `gcloud run deploy`:
 
 - The Docker **build** itself: that `rocker/tidyverse:4.4.3` actually builds
@@ -267,6 +410,16 @@ Specifically still open until the first real `gcloud run deploy`:
   (unpinned, so potentially newer than the one tested here — the `@parser
   none` bug found above is exactly the kind of thing worth a quick smoke
   test against after any `plumber` version bump).
+- **On-demand installs specifically:** whether `rocker/tidyverse:4.4.3`
+  already points at P3M by default (this Dockerfile's new Rprofile.site
+  lines take effect regardless, but confirming the base image's OWN default
+  would tell you whether they're redundant-but-harmless or load-bearing);
+  that the resolved `VERSION_CODENAME` for this exact tag is one P3M
+  actually serves binaries for; real install latency for a binary package
+  against P3M from a Cloud Run container specifically (network path/latency
+  will differ from any local test); and whether `system2(..., timeout=)`'s
+  process-group SIGKILL behaves identically inside Cloud Run's container
+  runtime as it did in this local, non-containerized test.
 - The exact byte-for-byte stdout formatting native R produces for real
   `evals/solve-fixtures-calc/`-style scripts, compared against
   `scripts/webr-eval-server.cjs`'s WebR output (`docs/cloud-run-r-migration.md`

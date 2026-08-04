@@ -117,6 +117,32 @@ else
   fail "data-file case" "$status" "$body"
 fi
 
+# -- on-demand package install case ------------------------------------------
+# Exercises the `packages` field (r-runner/plumber.R's install_missing_packages)
+# end to end against the REAL deployed image: "pwr" is a small, dependency-
+# light, binary-available CRAN package deliberately NOT in the baked-in
+# catalog (Dockerfile), so a fresh container should need to install it here.
+# Asserts on ACTUAL SCRIPT BEHAVIOR (does code that needs the package run
+# successfully?) rather than on installedPackages/installFailed bookkeeping,
+# so this passes whether the runner installed it fresh THIS request or it was
+# already resident from an earlier request on the same warm container (see
+# README.md's "known limitations" -- package state persists on warm
+# containers). The power value is loosely pattern-matched (a decimal between
+# 0 and 1) rather than an exact number, since this deliberately runs against
+# whatever pwr/R version the deployed image actually resolves, not a version
+# pinned in this repo.
+echo
+echo "-- on-demand package install (pwr, not in the baked-in catalog) --"
+pkg_code='library(pwr); r <- pwr.t.test(d = 0.5, n = 20, sig.level = 0.05, type = "two.sample"); cat("POWER_RESULT:", round(r$power, 4))'
+json=$(printf '{"code":"%s","files":[],"packages":["pwr"]}' "$(json_escape "$pkg_code")")
+status=$(post_json "/runR" "$json" "$R_RUNNER_SECRET")
+body=$(cat "$BODY_FILE")
+if [ "$status" = "200" ] && printf '%s' "$body" | grep -Eq 'POWER_RESULT:[[:space:]]*0\.[0-9]+'; then
+  pass "on-demand install case -> 200, pwr loaded and computed a power value"
+else
+  fail "on-demand install case" "$status" "$body"
+fi
+
 # -- error case -------------------------------------------------------------
 echo
 echo "-- R error --"

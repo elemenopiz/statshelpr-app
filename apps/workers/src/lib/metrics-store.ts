@@ -38,6 +38,7 @@ const KV_PREFIX = "metrics:";
 const BUCKET_TTL_SEC = 70 * 86_400;
 const INSTALL_HASH_CAP = 5000; // per-day cap; see addInstallHash
 const MISSING_R_PACKAGE_CAP = 20; // per-day DISTINCT-name cap; see addMissingRPackage
+const RUNTIME_INSTALLED_R_PACKAGE_CAP = 20; // per-day DISTINCT-name cap; see addRuntimeInstalledRPackage
 
 /** Valid R package name grammar (letters/digits/dots, starting with a
  *  letter, capped at 41 chars via the quantifier itself) — mirrors apps/
@@ -59,6 +60,21 @@ const HOST_HASH_CAP = 50; // per-day cap on distinct hostHashCounts keys; see ad
  *  writer (routes/solve.ts) and the reader/labeler (dashboard-render.ts)
  *  can't drift on the literal. */
 export const HOST_HASH_OTHER = "other";
+
+/** Same grammar as MISSING_R_PACKAGE_NAME_RE, kept as its own constant
+ *  rather than shared — this repo's established pattern for R package name
+ *  validation is one dedicated regex PER trust boundary/input channel (the
+ *  picker's isValidPackageName, solver-core's sanitizePackageNames, this
+ *  file's MISSING_R_PACKAGE_NAME_RE all independently duplicate the same
+ *  grammar rather than importing a shared constant), so this field's
+ *  sanitize path stays fully self-contained and editable without touching
+ *  the unrelated missingRPackages path. Untrusted source: r-runner/
+ *  plumber.R's install_missing_packages() names a package "installed" only
+ *  after its OWN requireNamespace() check passes, but that JSON travels
+ *  through the Worker's HTTP client (lib/r-runner.ts) same as any other
+ *  response field — never trust it without re-checking here, same stance
+ *  as addMissingRPackage's doc below. */
+const RUNTIME_INSTALLED_R_PACKAGE_NAME_RE = /^[A-Za-z][A-Za-z0-9.]{0,40}$/;
 
 export interface RouteCounters {
   attempts: number;
@@ -262,6 +278,21 @@ export interface DailyMetricsBucket {
      *  other free-form key in this bucket (dashboard-render.ts's
      *  renderBarList already does via escapeHtml). */
     missingRPackages: Record<string, number>;
+    /** Counts of distinct R package names successfully installed ON DEMAND
+     *  by r-runner/plumber.R's install_missing_packages, for a customized
+     *  user's `packages` selection naming something not baked into the
+     *  image (Dockerfile) — parsed from the runner's own `installedPackages`
+     *  response field (routes/solve.ts's runRSafe, via
+     *  result.installedPackages -> applyRRunnerEvent below). The success-
+     *  side counterpart to `missingRPackages` above: that field is "which
+     *  packages users need that we DON'T have"; this one is "which packages
+     *  the on-demand install path actually delivered." Keys are untrusted
+     *  (this file's own doc on RUNTIME_INSTALLED_R_PACKAGE_NAME_RE explains
+     *  why) — every key is gated through that regex and the set is capped
+     *  at RUNTIME_INSTALLED_R_PACKAGE_CAP distinct names/day (see
+     *  addRuntimeInstalledRPackage) before ever reaching this record. Still
+     *  escape on render like every other free-form key in this bucket. */
+    runtimeInstalledRPackages: Record<string, number>;
   };
   client: {
     byQuestionType: Record<string, number>;
@@ -361,6 +392,7 @@ export function emptyBucket(date: string): DailyMetricsBucket {
       latencyHistogram: emptyHistogram(),
       rRunner: { requestCount: 0, successCount: 0, errorCount: 0, coldStartCount: 0, latencyHistogram: emptyHistogram() },
       missingRPackages: {},
+      runtimeInstalledRPackages: {},
     },
     client: {
       byQuestionType: {},
@@ -452,6 +484,7 @@ export function normalizeBucket(raw: unknown, date: string): DailyMetricsBucket 
         latencyHistogram: okHist(s.rRunner?.latencyHistogram, empty.server.rRunner.latencyHistogram.length),
       },
       missingRPackages: okCountRecord(s.missingRPackages),
+      runtimeInstalledRPackages: okCountRecord(s.runtimeInstalledRPackages),
     },
     client: {
       byQuestionType: typeof cl.byQuestionType === "object" && cl.byQuestionType ? { ...cl.byQuestionType } : {},
@@ -569,6 +602,21 @@ export function addHostHash(bucket: DailyMetricsBucket, key: string | undefined)
   }
   if (Object.keys(bucket.hostHashCounts).length >= HOST_HASH_CAP) return; // cap reached for the day
   bucket.hostHashCounts[key] = 1;
+}
+
+/** Sanitize + merge one candidate runtime-installed R package name into the
+ *  day's bucket — mirrors addMissingRPackage above EXACTLY (same grammar
+ *  shape, same cap-then-keep-incrementing-existing-names tradeoff), just
+ *  against RUNTIME_INSTALLED_R_PACKAGE_NAME_RE/RUNTIME_INSTALLED_R_PACKAGE_CAP
+ *  and bucket.server.runtimeInstalledRPackages instead of the missing-
+ *  package field's own regex/cap/record. See that field's doc on
+ *  DailyMetricsBucket for what this is evidence of. */
+function addRuntimeInstalledRPackage(bucket: DailyMetricsBucket, name: string): void {
+  if (!RUNTIME_INSTALLED_R_PACKAGE_NAME_RE.test(name)) return;
+  const rec = bucket.server.runtimeInstalledRPackages;
+  const existing = rec[name];
+  if (existing === undefined && Object.keys(rec).length >= RUNTIME_INSTALLED_R_PACKAGE_CAP) return; // cap reached for the day
+  rec[name] = (existing ?? 0) + 1;
 }
 
 export interface ServerEventInput {
@@ -702,6 +750,15 @@ export interface RRunnerEventInput {
    *  is false (a failed runRRemote call throws before any RunRResult/output
    *  exists to extract from — see recordRRunnerFailure in routes/solve.ts). */
   missingPackages?: string[];
+  /** Distinct package names r-runner/plumber.R's install_missing_packages
+   *  successfully installed on demand THIS call (routes/solve.ts's
+   *  runRSafe, via result.installedPackages) — only ever non-empty when the
+   *  request carried a `packages` field. Raw candidates only, same
+   *  "sanitize at the write boundary" split as missingPackages above —
+   *  applyRRunnerEvent's addRuntimeInstalledRPackage call is what actually
+   *  grammar-checks + caps before anything is persisted. Ignored when
+   *  success is false, same reasoning as missingPackages. */
+  installedPackages?: string[];
 }
 
 /** Records one Cloud Run R-execution service call (success or failure),
@@ -732,6 +789,9 @@ export function applyRRunnerEvent(bucket: DailyMetricsBucket, input: RRunnerEven
     }
     if (input.missingPackages) {
       for (const name of input.missingPackages) addMissingRPackage(bucket, name);
+    }
+    if (input.installedPackages) {
+      for (const name of input.installedPackages) addRuntimeInstalledRPackage(bucket, name);
     }
   } else {
     rr.errorCount += 1;
