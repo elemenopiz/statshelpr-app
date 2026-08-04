@@ -341,6 +341,16 @@ export interface DailyMetricsBucket {
   paywallHits: number;
   /** Daily subscription-lifecycle flow counts (dashboard-v2 item 6). */
   revenue: RevenueFlowCounts;
+  /** Count of PAID solve requests throttled by the soft cap (owner
+   *  directive, 2026-08-04) — NOT blocked, just delayed
+   *  (PAID_SOFT_THROTTLE_DELAY_MS, see lib/kill-switch.ts), split by which
+   *  threshold tripped (see decidePaidSoftThrottle's daily-checked-first
+   *  precedence). Rides the SAME MetricsBatch every /api/solve request
+   *  already produces (MetricsBatch.paidThrottle, applied by
+   *  applyPaidThrottle below) — zero new KV puts. Purely observational: no
+   *  dashboard card reads this yet (a concurrent branch owns dashboard
+   *  surfaces) — this only makes the data available for one later. */
+  paidThrottleHits: { daily: number; monthly: number };
 }
 
 function emptyRouteCounters(): RouteCounters {
@@ -405,6 +415,7 @@ export function emptyBucket(date: string): DailyMetricsBucket {
     hostHashCounts: {},
     paywallHits: 0,
     revenue: emptyRevenue(),
+    paidThrottleHits: { daily: 0, monthly: 0 },
   };
 }
 
@@ -499,6 +510,7 @@ export function normalizeBucket(raw: unknown, date: string): DailyMetricsBucket 
     hostHashCounts: okCountRecord(r.hostHashCounts),
     paywallHits: typeof r.paywallHits === "number" ? r.paywallHits : 0,
     revenue: { ...empty.revenue, ...r.revenue },
+    paidThrottleHits: { ...empty.paidThrottleHits, ...r.paidThrottleHits },
   };
 }
 
@@ -856,6 +868,14 @@ export interface MetricsBatch {
    *  `hostHashCounts` field doc above. */
   hostHash?: string;
   requestFacts?: RequestFacts;
+  /** Set when THIS request's paid-tier soft-cap throttle fired (owner
+   *  directive, 2026-08-04 — see lib/kill-switch.ts's decidePaidSoftThrottle)
+   *  — "daily" | "monthly" names WHICH threshold tripped. Applied once at
+   *  flush via applyPaidThrottle below, same "once per request" batching as
+   *  requestFacts — rides the SAME single end-of-request bucket write, zero
+   *  new KV puts. Undefined for every free-tier request and every paid
+   *  request that stayed under both thresholds (the overwhelming majority). */
+  paidThrottle?: "daily" | "monthly";
 }
 
 export function createMetricsBatch(): MetricsBatch {
@@ -905,12 +925,21 @@ export function applyRequestFacts(bucket: DailyMetricsBucket, facts: RequestFact
   addRequestedPackages(bucket, facts.requestedPackages);
 }
 
+/** Pure per-batch mutation for MetricsBatch.paidThrottle (owner directive,
+ *  2026-08-04) — same "exported so self-test-metrics.ts can exercise it
+ *  directly without a fake Env/KV" reasoning as applyServerEvent/
+ *  applyRequestFacts above. */
+export function applyPaidThrottle(bucket: DailyMetricsBucket, reason: "daily" | "monthly"): void {
+  bucket.paidThrottleHits[reason] += 1;
+}
+
 export async function flushMetricsBatch(env: Env, batch: MetricsBatch): Promise<void> {
   if (
     batch.server.length === 0 &&
     batch.rRunner.length === 0 &&
     batch.hostHash === undefined &&
-    !batch.requestFacts
+    !batch.requestFacts &&
+    !batch.paidThrottle
   ) {
     return;
   }
@@ -920,6 +949,7 @@ export async function flushMetricsBatch(env: Env, batch: MetricsBatch): Promise<
     for (const ev of batch.rRunner) applyRRunnerEvent(bucket, ev);
     addHostHash(bucket, batch.hostHash);
     if (batch.requestFacts) applyRequestFacts(bucket, batch.requestFacts);
+    if (batch.paidThrottle) applyPaidThrottle(bucket, batch.paidThrottle);
     await writeBucket(env, bucket);
   } catch {
     // Best-effort — metrics must never break or delay a solve.
