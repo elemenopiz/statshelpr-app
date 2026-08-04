@@ -162,7 +162,7 @@ gcloud run deploy statshelpr-r-runner \
   --concurrency 1 \
   --cpu 1 --memory 2Gi \
   --min-instances 0 --max-instances 50 \
-  --timeout 30s \
+  --timeout 180s \
   --set-env-vars "R_RUNNER_SECRET=$(openssl rand -hex 32)"
 ```
 
@@ -176,8 +176,13 @@ Grab the service URL it prints (`https://statshelpr-r-runner-xxxx.run.app`).
 - `--min-instances 0`: scales to **zero** when idle → **$0** at rest. To kill cold-start latency
   during a known quiz window, set `--min-instances 2` (small always-on cost, see §5).
 - `--max-instances 50`: cap the blast radius. Raise if real bursts exceed it.
-- `--timeout 30s`: a runaway R script can't hang forever (this is the server-side answer to the
-  "no R timeout" bug from the audit).
+- `--timeout 180s`: a runaway R script still can't hang forever (this is the server-side answer to
+  the "no R timeout" bug from the audit) — raised from the original 30s when on-demand R package
+  installs landed (runtime-install branch): a request carrying a `packages` field may spend up to
+  90s installing missing packages from the binary CRAN mirror before the script even runs, so the
+  outer ceiling needs the headroom. Requests without `packages` (the UT-default path) still give up
+  Worker-side at 30s exactly as before — see r-runner/README.md's "On-demand package installs"
+  section for the full budget breakdown.
 - `--no-allow-unauthenticated` + the secret header: defense in depth so only our Worker calls it.
 
 > **Fast-prototype alternative:** containerize `scripts/webr-eval-server.cjs` instead (Node base +
@@ -208,7 +213,10 @@ export async function runRRemote(env: Env, rCode: string, files: DataFile[]): Pr
     method: "POST",
     headers: { "Content-Type": "application/json", "X-Runner-Secret": env.R_RUNNER_SECRET },
     body: JSON.stringify({ code: wrapped, files }),
-    signal: AbortSignal.timeout(30_000),           // never hang a solve
+    // Historical snippet — today's r-runner.ts picks the timeout per request:
+    // 30s (TIMEOUT_MS) without a `packages` field, 180s (INSTALL_TIMEOUT_MS)
+    // with one, covering the ≤90s on-demand install budget. Never hang a solve.
+    signal: AbortSignal.timeout(30_000),
   });
   if (!res.ok) throw new Error(`R runner ${res.status}: ${await res.text()}`);
   return (await res.json()) as RunRResult;
