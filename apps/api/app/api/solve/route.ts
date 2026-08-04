@@ -155,7 +155,19 @@ async function solveStreaming({
 
       if (mode === "concept") {
         const cleaned = buf.replace(/^\s*\[(CONCEPT|RCODE|CALC)\]\s*\n?/i, "");
-        const display = cleaned.replace(/\n?CONFIDENCE:\s*\w+\s*$/i, "");
+        // course-topic: TOPIC now streams in as a THIRD trailing line, after
+        // CONFIDENCE (see solver-core's TOPIC_INSTRUCTION_LINE). Strip it
+        // FIRST — while it's (partially or fully) trailing — so CONFIDENCE
+        // becomes the new trailing line again and the second replace below
+        // still hides it exactly as it always has. Without this, once TOPIC
+        // starts streaming in, the CONFIDENCE regex would stop matching
+        // (CONFIDENCE is no longer at the string's end) and both lines would
+        // flash into `display` for one chunk. Nothing currently exercises
+        // this stream:true path (run-evals.ts always sends stream:false), so
+        // this is latent — same fix as the worker's routes/solve.ts copy.
+        const display = cleaned
+          .replace(/\n?TOPIC:\s*\w*\s*$/i, "")
+          .replace(/\n?CONFIDENCE:\s*\w+\s*$/i, "");
         const newSlice = display.slice(userVisibleSent.length);
         if (newSlice) {
           userVisibleSent = display;
@@ -243,7 +255,11 @@ async function solveStreaming({
       if (!delta.text) continue;
       fbuf += delta.text;
       const cleaned = fbuf.replace(/^\s*\[(CONCEPT|RCODE|CALC)\]\s*\n?/i, "");
-      const display = cleaned.replace(/\n?CONFIDENCE:\s*\w+\s*$/i, "");
+      // course-topic: same TOPIC-before-CONFIDENCE stripping order as the
+      // first-pass loop above — see that site's comment for why.
+      const display = cleaned
+        .replace(/\n?TOPIC:\s*\w*\s*$/i, "")
+        .replace(/\n?CONFIDENCE:\s*\w+\s*$/i, "");
       const newSlice = display.slice(fSent.length);
       if (newSlice) {
         fSent = display;
