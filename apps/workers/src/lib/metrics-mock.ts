@@ -1,5 +1,5 @@
 import type { DailyPoint, MetricsResponse, WriteBackTypeStat } from "./metrics-aggregate";
-import type { ModelUsage, WriteBackOutcomeCounts } from "./metrics-store";
+import type { ModelUsage, ProviderCounts, WriteBackOutcomeCounts } from "./metrics-store";
 import { GEMINI_TEXT_MODEL, IMAGE_VISION_MODEL, PRIMARY_TEXT_MODEL } from "./cost";
 import { UTEXAS_HOST_HASH } from "./dashboard-render";
 import { LATENCY_BUCKET_BOUNDARIES_MS, percentileFromHistogram } from "./histogram";
@@ -457,21 +457,13 @@ const TEXT_MODEL_COST_USD = Number((TEXT_CALLS * TEXT_COST_PER_CALL).toFixed(2))
 // always sum to exactly TOTAL_COST_USD.
 const IMAGE_MODEL_COST_USD = Number((TOTAL_COST_USD - TEXT_MODEL_COST_USD).toFixed(2));
 
-// Gemini-fallback demo data (gemini-fallback work) — a small slice of the
-// TEXT bucket represents calls where Luna failed and Gemini's text model
-// (GEMINI_TEXT_MODEL) served instead, the new Fallback-rate tile's signal.
-// Carved OUT of TEXT_CALLS/TEXT_MODEL_COST_USD below (not added on top), so
-// MODELS_USED's rows keep summing to exactly API_CALLS/TOTAL_COST_USD —
-// same "assign the remainder" reconciliation IMAGE_MODEL_COST_USD uses
-// above. Kept under 1% of text calls so this slice alone reads healthy.
-// NOTE: IMAGE_MODEL_ID's bucket below is ALSO one of "the Gemini models"
-// economics.fallbackRatePct sums (lib/cost.ts's IMAGE_VISION_MODEL is both
-// the fallback vision model AND the legacy pre-Luna vision-model id — see
-// that constant's own doc) — this mock's ~18% image-call share is inherited
-// pre-Luna-migration demo data, unrelated to this addition, so the overall
-// Fallback rate tile will read elevated (RED) in the demo even though this
-// slice alone is small. Flagged here rather than silently reshaped, since
-// fixing that legacy shape is a separate concern from wiring up the tile.
+// A small slice of the TEXT bucket represents calls where Luna failed and
+// Gemini's text model (GEMINI_TEXT_MODEL) served instead — feeds the "Cost
+// by model" card. Carved OUT of TEXT_CALLS/TEXT_MODEL_COST_USD below (not
+// added on top), so MODELS_USED's rows keep summing to exactly
+// API_CALLS/TOTAL_COST_USD — same "assign the remainder" reconciliation
+// IMAGE_MODEL_COST_USD uses above. Kept under 1% of text calls so this
+// slice alone reads healthy.
 const FALLBACK_TEXT_CALLS = Math.max(1, Math.round(TEXT_CALLS * 0.004)); // ~0.4% of text calls
 const FALLBACK_TEXT_COST_USD = round6(FALLBACK_TEXT_CALLS * TEXT_COST_PER_CALL * 1.5); // Gemini text costs more/call than Luna
 const LUNA_TEXT_CALLS = TEXT_CALLS - FALLBACK_TEXT_CALLS;
@@ -482,8 +474,42 @@ const MODELS_USED: Record<string, ModelUsage> = {
   [GEMINI_TEXT_MODEL]: { calls: FALLBACK_TEXT_CALLS, costUsd: FALLBACK_TEXT_COST_USD },
   [IMAGE_MODEL_ID]: { calls: IMAGE_CALLS, costUsd: IMAGE_MODEL_COST_USD },
 };
-const FALLBACK_CALLS = FALLBACK_TEXT_CALLS + IMAGE_CALLS; // both "the Gemini models" — see economics.fallbackCalls' doc
-const FALLBACK_RATE_PCT = round2((FALLBACK_CALLS / API_CALLS) * 100);
+
+// byProvider (fallback-signal work) — EXPLICIT provider-attribution demo
+// data for the Fallback-rate tile, modeled independently of the id-keyed
+// MODELS_USED breakdown above. The tile used to INFER a fallback by
+// checking for a Gemini model id in MODELS_USED, which — on top of being
+// wrong on real historical data (see metrics-aggregate.ts's
+// fallbackRatePct doc) — produced a pre-existing DEMO quirk: it also
+// counted every IMAGE_MODEL_ID call (~18% of API_CALLS here) as
+// "fallback", so this tile read RED in the demo even though the intended
+// signal (FALLBACK_TEXT_CALLS, <1%) was healthy. Explicit attribution has
+// no such ambiguity — IMAGE_CALLS is deliberately excluded here, not
+// folded in.
+//
+// gemini reuses FALLBACK_TEXT_CALLS (not a fresh number): in production
+// both this counter and GEMINI_TEXT_MODEL's MODELS_USED row are set from
+// the SAME servedBy value at the point a leg completes (routes/solve.ts),
+// so a reader cross-checking "Cost by model" against "Fallback rate" sees
+// consistent counts, same as the real dashboard would. luna is everything
+// else this window has provider attribution for — every SUCCESSFUL call
+// (API_CALLS - ERRORS_TOTAL): applyServerEvent only ever sets `provider`
+// on the same push sites that set `success: true` (see
+// ServerEventInput.provider's doc), so in real data byProvider's total
+// always equals apiCalls - errorsTotal exactly, and this mock mirrors that.
+const PROVIDER_ATTRIBUTED_CALLS = API_CALLS - ERRORS_TOTAL;
+const BY_PROVIDER_POPULATED: ProviderCounts = {
+  luna: PROVIDER_ATTRIBUTED_CALLS - FALLBACK_TEXT_CALLS,
+  gemini: FALLBACK_TEXT_CALLS,
+};
+// The tile's OTHER rendering path — a window with NO byProvider data at
+// all, exactly what every pre-cutover historical bucket normalizes to
+// (metrics-store.ts's normalizeBucket). The live `/dashboard?demo=1` route
+// always uses BY_PROVIDER_POPULATED above (demo models "well past
+// cutover"); this is reached via
+// buildMockMetrics({ fallbackDataAvailable: false }) so both of the tile's
+// states can be exercised and reviewed offline.
+const BY_PROVIDER_EMPTY: ProviderCounts = { luna: 0, gemini: 0 };
 
 // Revenue (items 6 & 9) — point-in-time active subs (from the `sub:` KV scan
 // in prod). MRR = active × price. Real blended margin reconciles COGS vs
@@ -495,9 +521,27 @@ const DAU = 58;
 const WAU = 241;
 const MAU = 612;
 
+export interface BuildMockMetricsOpts {
+  /** Which of the Fallback-rate tile's two rendering states this payload
+   *  exercises (see dashboard-render.ts's fallbackRateTileDisplay). Default
+   *  `true` — matches the live `/dashboard?demo=1` route, which always
+   *  calls buildMockMetrics() with no args and should keep showing the
+   *  realistic "well past cutover, healthy fallback rate" state. Pass
+   *  `false` to get the OTHER state every pre-cutover historical bucket is
+   *  actually in — zero byProvider data, which the tile must render as an
+   *  explicit "no data yet", not 0% or 100%. */
+  fallbackDataAvailable?: boolean;
+}
+
 /** Build the mock payload fresh on each call so `generatedAt` reflects "now"
  * (everything else is deterministic/seeded). */
-export function buildMockMetrics(): MetricsResponse {
+export function buildMockMetrics(opts: BuildMockMetricsOpts = {}): MetricsResponse {
+  const fallbackDataAvailable = opts.fallbackDataAvailable ?? true;
+  const byProvider = fallbackDataAvailable ? BY_PROVIDER_POPULATED : BY_PROVIDER_EMPTY;
+  const fallbackServedCalls = byProvider.luna + byProvider.gemini;
+  const fallbackCalls = byProvider.gemini;
+  const fallbackRatePct = fallbackServedCalls > 0 ? round2((fallbackCalls / fallbackServedCalls) * 100) : null;
+
   return {
     generatedAt: Date.now(),
     range: { days: RANGE_DAYS },
@@ -618,8 +662,9 @@ export function buildMockMetrics(): MetricsResponse {
       imageCalls: IMAGE_CALLS,
       imageCallSharePct: round2((IMAGE_CALLS / API_CALLS) * 100),
       imageCostSharePct: round2((IMAGE_MODEL_COST_USD / TOTAL_COST_USD) * 100),
-      fallbackCalls: FALLBACK_CALLS,
-      fallbackRatePct: FALLBACK_RATE_PCT,
+      byProvider,
+      fallbackCalls,
+      fallbackRatePct,
       tier: {
         solvesFree: SOLVES_FREE,
         solvesPaid: SOLVES_PAID,

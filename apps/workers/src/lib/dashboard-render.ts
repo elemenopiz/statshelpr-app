@@ -1896,6 +1896,50 @@ function renderTierSplitCard(tier: EconomicsMetrics["tier"], days: number): stri
     )}">${escapeHtml(fmtPctValue(tier.freeCostSharePct))}</span></p>`);
 }
 
+// ---------------------------------------------------------------------------
+// Fallback rate tile (fallback-signal work) — factored out of
+// renderEconomicsSection into its own pure function specifically so
+// scripts/self-test-metrics.ts can assert the rendering DECISION (which
+// value/tone/caption a given economics payload produces) directly, without
+// standing up a full renderDashboardPage() call and scraping HTML.
+//
+// economics.fallbackRatePct is `null` EXACTLY when this window's byProvider
+// data (lib/metrics-store.ts) is entirely empty — every contributing bucket
+// predates the fallback-signal rollout (see metrics-aggregate.ts's
+// fallbackRatePct doc). That state MUST read as explicitly unknown on the
+// dashboard: never 0% (reads as "checked, nothing failed over" — false,
+// nothing was ever instrumented) and never ~100% (the failure mode of the
+// OLD id-inference version of this tile on that exact same historical data,
+// since pre-cutover buckets are full of Gemini ids that were never
+// fallbacks). See EconomicsMetrics.fallbackRatePct's own doc for the full
+// history of why this field exists in this shape.
+// ---------------------------------------------------------------------------
+
+/** Pure rendering decision for the "Fallback rate" stat tile — returns plain
+ *  (unescaped) strings, exactly like every other renderStatTile `value`/
+ *  `caption` producer in this file; renderStatTile itself is what runs them
+ *  through escapeHtml before they reach the page, so this stays consistent
+ *  with that contract without duplicating it here. Exported (not just
+ *  inlined into renderEconomicsSection) so self-test-metrics.ts can assert
+ *  this decision directly, without standing up a full renderDashboardPage()
+ *  call and scraping HTML. */
+export function fallbackRateTileDisplay(
+  economics: Pick<EconomicsMetrics, "fallbackRatePct" | "fallbackCalls">,
+): { value: string; tone: Tone; caption: string } {
+  if (economics.fallbackRatePct === null) {
+    return {
+      value: "—",
+      tone: "ink",
+      caption: "No data yet — pre-cutover history predates per-call provider tracking",
+    };
+  }
+  return {
+    value: fmtPctValue(economics.fallbackRatePct),
+    tone: toneLowerBetter(economics.fallbackRatePct, 1, 5),
+    caption: `${fmtInt(economics.fallbackCalls)} calls · Luna failed → Gemini served`,
+  };
+}
+
 function renderEconomicsSection(
   economics: EconomicsMetrics,
   revenue: RevenueMetrics,
@@ -2049,9 +2093,7 @@ function renderEconomicsSection(
     }),
     renderStatTile({
       label: "Fallback rate",
-      value: fmtPctValue(economics.fallbackRatePct),
-      tone: toneLowerBetter(economics.fallbackRatePct, 1, 5),
-      caption: `${fmtInt(economics.fallbackCalls)} calls · Luna failed → Gemini served`,
+      ...fallbackRateTileDisplay(economics),
     }),
     renderStatTile({
       label: "Real blended margin",
