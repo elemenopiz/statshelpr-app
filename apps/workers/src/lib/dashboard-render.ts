@@ -1586,7 +1586,26 @@ function renderRRunnerSection(rRunner: RRunnerMetrics): string {
     }`,
   );
 
-  const inner = `${tiles}<div class="stack">${histCard}${missingPackagesCard}</div>`;
+  // The success-side counterpart to the card above: packages a customized
+  // user's `packages` selection named that WEREN'T in the missing-package
+  // dead end above, because r-runner/plumber.R's install_missing_packages
+  // installed them on demand instead (P3M binary repo, <=90s shared budget
+  // — see r-runner/README.md's "On-demand package installs"). Names are
+  // already sanitized + capped at write time
+  // (lib/metrics-store.ts's addRuntimeInstalledRPackage) — still
+  // escapeHtml'd here like every other free-form label via renderBarList.
+  const installedPackageEntries: BarListEntry[] = Object.entries(rRunner.runtimeInstalledRPackages)
+    .map(([label, value]) => ({ label, value, tone: "green" as Tone }))
+    .sort((a, b) => b.value - a.value);
+  const installedPackagesCard = renderCard(
+    `<p class="statLabel">Runtime-installed R packages</p><p class="statCaption" style="margin: 0 0 0.4rem">Packages a customized preset named that weren't pre-installed, and were installed on demand instead of just failing.</p>${
+      installedPackageEntries.length > 0
+        ? renderBarList(installedPackageEntries)
+        : `<p class="caption">None installed on demand in range.</p>`
+    }`,
+  );
+
+  const inner = `${tiles}<div class="stack">${histCard}${missingPackagesCard}${installedPackagesCard}</div>`;
   return renderSection("R-Runner Health", "Cloud Run R-execution service — volume, latency, cold starts", inner);
 }
 

@@ -288,6 +288,176 @@ console.log("metrics-store.ts (missingRPackages: normalize + apply)");
 }
 
 // ---------------------------------------------------------------------------
+console.log("metrics-store.ts (runtimeInstalledRPackages: normalize + apply)");
+// Mirrors the missingRPackages block above EXACTLY -- same grammar, same
+// per-day distinct-name cap pattern, same sanitize-at-the-write-boundary
+// split -- just for the on-demand-install success signal instead of the
+// missing-package gap signal. See DailyMetricsBucket.server's
+// runtimeInstalledRPackages doc for how the two relate.
+
+{
+  // normalizeBucket: a bucket written by an OLDER schema version (before
+  // runtimeInstalledRPackages existed) must backfill to {}, not throw/return
+  // undefined.
+  const legacyRaw = { date: "2026-08-01", server: { rRunner: { requestCount: 3 } }, client: {} };
+  const normalized = normalizeBucket(legacyRaw, "2026-08-01");
+  check(
+    "normalizeBucket backfills missing runtimeInstalledRPackages to {} on an old-schema bucket",
+    typeof normalized.server.runtimeInstalledRPackages === "object" &&
+      Object.keys(normalized.server.runtimeInstalledRPackages).length === 0,
+    JSON.stringify(normalized.server.runtimeInstalledRPackages),
+  );
+}
+
+{
+  // normalizeBucket: a well-formed record passes through untouched.
+  const raw = { date: "2026-08-01", server: { runtimeInstalledRPackages: { pwr: 4, janitor: 2 } }, client: {} };
+  const normalized = normalizeBucket(raw, "2026-08-01");
+  check(
+    "normalizeBucket passes through a well-formed runtimeInstalledRPackages record",
+    normalized.server.runtimeInstalledRPackages["pwr"] === 4 &&
+      normalized.server.runtimeInstalledRPackages["janitor"] === 2,
+    JSON.stringify(normalized.server.runtimeInstalledRPackages),
+  );
+}
+
+{
+  // normalizeBucket: malformed (non-object) input degrades to {}, matching
+  // okCountRecord's guard for every other Record<string, number> field.
+  const raw = { date: "2026-08-01", server: { runtimeInstalledRPackages: "not an object" }, client: {} };
+  const normalized = normalizeBucket(raw, "2026-08-01");
+  check(
+    "normalizeBucket degrades a malformed runtimeInstalledRPackages to {}, not a throw",
+    Object.keys(normalized.server.runtimeInstalledRPackages).length === 0,
+    JSON.stringify(normalized.server.runtimeInstalledRPackages),
+  );
+}
+
+{
+  // applyRRunnerEvent: a valid package name is recorded, and repeat
+  // occurrences of the SAME name across separate calls increment rather
+  // than being treated as a second distinct entry.
+  const bucket = emptyBucket("2026-08-01");
+  applyRRunnerEvent(bucket, { success: true, durationMs: 1200, installedPackages: ["pwr"] });
+  applyRRunnerEvent(bucket, { success: true, durationMs: 900, installedPackages: ["pwr", "janitor"] });
+  check(
+    "applyRRunnerEvent counts repeat occurrences of the same name",
+    bucket.server.runtimeInstalledRPackages["pwr"] === 2,
+    JSON.stringify(bucket.server.runtimeInstalledRPackages),
+  );
+  check(
+    "applyRRunnerEvent records a second distinct valid name",
+    bucket.server.runtimeInstalledRPackages["janitor"] === 1,
+    JSON.stringify(bucket.server.runtimeInstalledRPackages),
+  );
+  check(
+    "applyRRunnerEvent still drives rRunner.requestCount/successCount as before",
+    bucket.server.rRunner.requestCount === 2 && bucket.server.rRunner.successCount === 2,
+  );
+}
+
+{
+  // applyRRunnerEvent: names violating the R package grammar
+  // (^[A-Za-z][A-Za-z0-9.]{0,40}$) are dropped outright -- same
+  // security-critical sanitize path as missingRPackages, independently
+  // re-checked here since installedPackages arrives via a different
+  // channel (the runner's own JSON response, not R's error text).
+  const bucket = emptyBucket("2026-08-01");
+  applyRRunnerEvent(bucket, {
+    success: true,
+    installedPackages: [
+      "gemini-9.9-ultra-pro", // hyphens -- the exact junk-model-row shape
+      "123abc", // must start with a letter
+      "", // empty
+      "a".repeat(42), // one past the 41-char bound
+      "<script>alert(1)</script>",
+      "rm -rf /",
+    ],
+  });
+  check(
+    "applyRRunnerEvent drops every grammar-invalid candidate name",
+    Object.keys(bucket.server.runtimeInstalledRPackages).length === 0,
+    JSON.stringify(bucket.server.runtimeInstalledRPackages),
+  );
+}
+
+{
+  // applyRRunnerEvent: a name right AT the 41-char bound (1 letter + 40
+  // letters/digits/dots) is accepted -- the boundary the {0,40} quantifier
+  // pins.
+  const bucket = emptyBucket("2026-08-01");
+  const name41 = "a".repeat(41);
+  applyRRunnerEvent(bucket, { success: true, installedPackages: [name41] });
+  check(
+    "applyRRunnerEvent accepts a name exactly at the 41-char bound",
+    bucket.server.runtimeInstalledRPackages[name41] === 1,
+  );
+}
+
+{
+  // applyRRunnerEvent: the per-day DISTINCT-name cap (20) blocks brand-new
+  // names once reached, but an existing name keeps incrementing past it.
+  const bucket = emptyBucket("2026-08-01");
+  for (let i = 0; i < 25; i++) {
+    applyRRunnerEvent(bucket, { success: true, installedPackages: [`pkg${i}`] });
+  }
+  const distinctCount = Object.keys(bucket.server.runtimeInstalledRPackages).length;
+  check("applyRRunnerEvent caps distinct names at 20/day", distinctCount === 20, `got ${distinctCount}`);
+  check(
+    "applyRRunnerEvent keeps the first-seen 20 distinct names, dropping the rest",
+    bucket.server.runtimeInstalledRPackages["pkg0"] === 1 &&
+      bucket.server.runtimeInstalledRPackages["pkg19"] === 1 &&
+      bucket.server.runtimeInstalledRPackages["pkg20"] === undefined,
+    JSON.stringify(bucket.server.runtimeInstalledRPackages),
+  );
+
+  // A 26th event for an ALREADY-recorded name still increments -- the cap
+  // only blocks brand-new keys, never repeat occurrences of existing ones.
+  applyRRunnerEvent(bucket, { success: true, installedPackages: ["pkg5"] });
+  check(
+    "applyRRunnerEvent still increments an existing name after the cap is reached",
+    bucket.server.runtimeInstalledRPackages["pkg5"] === 2,
+    `got ${bucket.server.runtimeInstalledRPackages["pkg5"]}`,
+  );
+}
+
+{
+  // applyRRunnerEvent: installedPackages on a FAILURE event is ignored --
+  // matches missingPackages' own failure-event handling above (and
+  // routes/solve.ts's recordRRunnerFailure, which never has a RunRResult to
+  // read installedPackages from).
+  const bucket = emptyBucket("2026-08-01");
+  applyRRunnerEvent(bucket, { success: false, installedPackages: ["pwr"] });
+  check(
+    "applyRRunnerEvent ignores installedPackages when success is false",
+    Object.keys(bucket.server.runtimeInstalledRPackages).length === 0,
+    JSON.stringify(bucket.server.runtimeInstalledRPackages),
+  );
+  check("applyRRunnerEvent still counts the failure in rRunner.errorCount", bucket.server.rRunner.errorCount === 1);
+}
+
+{
+  // applyRRunnerEvent: missingPackages and installedPackages are independent
+  // fields on the SAME event -- a call can report both at once (e.g. 12
+  // requested, 3 installed, the rest still missing for whatever reason) and
+  // each lands in its own record without cross-contamination.
+  const bucket = emptyBucket("2026-08-01");
+  applyRRunnerEvent(bucket, {
+    success: true,
+    missingPackages: ["car"],
+    installedPackages: ["pwr"],
+  });
+  check(
+    "applyRRunnerEvent keeps missingRPackages and runtimeInstalledRPackages independent",
+    bucket.server.missingRPackages["car"] === 1 &&
+      bucket.server.missingRPackages["pwr"] === undefined &&
+      bucket.server.runtimeInstalledRPackages["pwr"] === 1 &&
+      bucket.server.runtimeInstalledRPackages["car"] === undefined,
+    JSON.stringify({ missing: bucket.server.missingRPackages, installed: bucket.server.runtimeInstalledRPackages }),
+  );
+}
+
+// ---------------------------------------------------------------------------
 console.log("metrics-aggregate.ts (30-day aggregation over mock buckets)");
 
 function mockBucket(
@@ -493,6 +663,7 @@ console.log("metrics-aggregate.ts (dashboard-v2 enriched fields)");
       confidenceCalc: { High: 3, Med: 1, Low: 1, "": 0 },
       byErrorType: { quota: 2, upstream: 1 },
       missingRPackages: { car: 2, psych: 1 },
+      runtimeInstalledRPackages: { pwr: 3, janitor: 1 },
       tokens: { promptTokens: 1_000_000, completionTokens: 200_000, cachedTokens: 400_000 },
       costUsd: 0.5,
       costUsdByMode: { concept: 0.25, calc: 0.25 },
@@ -541,6 +712,13 @@ console.log("metrics-aggregate.ts (dashboard-v2 enriched fields)");
     "rRunner.missingRPackages passes through per-package counts",
     result.rRunner.missingRPackages["car"] === 2 && result.rRunner.missingRPackages["psych"] === 1,
     JSON.stringify(result.rRunner.missingRPackages),
+  );
+
+  // Same merge for the success-side counterpart.
+  check(
+    "rRunner.runtimeInstalledRPackages passes through per-package counts",
+    result.rRunner.runtimeInstalledRPackages["pwr"] === 3 && result.rRunner.runtimeInstalledRPackages["janitor"] === 1,
+    JSON.stringify(result.rRunner.runtimeInstalledRPackages),
   );
 
   // item 16: calc-path confidence, kept separate from concept confidence

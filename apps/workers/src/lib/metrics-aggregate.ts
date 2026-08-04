@@ -131,6 +131,13 @@ export interface MetricsResponse {
      *  The evidence-based "which packages do users actually need" signal —
      *  see the dashboard's "Missing R packages requested" card. */
     missingRPackages: Record<string, number>;
+    /** Distinct R package names successfully installed ON DEMAND by
+     *  r-runner/plumber.R's install_missing_packages, summed across the
+     *  range — already sanitized + capped at write time
+     *  (lib/metrics-store.ts's addRuntimeInstalledRPackage), so this is a
+     *  plain merge too. The success-side counterpart to missingRPackages —
+     *  see the dashboard's "Runtime-installed R packages" card. */
+    runtimeInstalledRPackages: Record<string, number>;
   };
   economics: {
     model: string;
@@ -286,6 +293,7 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
   let rRunnerSuccessCount = 0;
   let rRunnerColdStartCount = 0;
   const rRunnerMissingPackages: Record<string, number> = {};
+  const rRunnerInstalledPackages: Record<string, number> = {};
   const dailyByDate = new Map<string, DailyPoint>();
   const mauSet = new Set<string>();
 
@@ -361,6 +369,9 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
     rRunnerColdStartCount += b.server.rRunner.coldStartCount;
     for (const [name, n] of Object.entries(b.server.missingRPackages)) {
       rRunnerMissingPackages[name] = (rRunnerMissingPackages[name] ?? 0) + n;
+    }
+    for (const [name, n] of Object.entries(b.server.runtimeInstalledRPackages)) {
+      rRunnerInstalledPackages[name] = (rRunnerInstalledPackages[name] ?? 0) + n;
     }
 
     for (const h of b.installHashes) mauSet.add(h);
@@ -499,6 +510,7 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
       latencyHistogram: rRunnerHist,
       coldStartRatePct: roundPct(rRunnerColdStartRatePct),
       missingRPackages: rRunnerMissingPackages,
+      runtimeInstalledRPackages: rRunnerInstalledPackages,
     },
     economics: {
       model: PRIMARY_TEXT_MODEL,

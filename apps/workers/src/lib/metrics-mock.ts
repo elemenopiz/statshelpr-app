@@ -261,6 +261,17 @@ const R_RUNNER_MISSING_PACKAGES: Record<string, number> = {
   pwr: 1,
 };
 
+// Runtime-installed R packages (the success-side counterpart above) — a
+// plausible handful of small, binary-available packages a customized preset
+// named and the on-demand install path (r-runner/plumber.R's
+// install_missing_packages) actually delivered, so the demo dashboard's
+// "Runtime-installed R packages" card shows something illustrative too.
+const R_RUNNER_INSTALLED_PACKAGES: Record<string, number> = {
+  pwr: 6,
+  janitor: 4,
+  rstatix: 2,
+};
+
 // Cloud Run infra (R-runner health tracking phase 2) — a modest month-to-date
 // burn well under the free tier, plus a cold-start p50/p95 a bit tighter than
 // the R-runner section's inferred (durationMs > 8000) heuristic above, since
@@ -393,6 +404,7 @@ export function buildMockMetrics(): MetricsResponse {
       latencyHistogram: R_RUNNER_LATENCY_HISTOGRAM,
       coldStartRatePct: round2((R_RUNNER_COLD_START_COUNT / Math.max(1, R_RUNNER_SUCCESS_COUNT)) * 100),
       missingRPackages: R_RUNNER_MISSING_PACKAGES,
+      runtimeInstalledRPackages: R_RUNNER_INSTALLED_PACKAGES,
     },
     cloudRun: {
       available: true,
