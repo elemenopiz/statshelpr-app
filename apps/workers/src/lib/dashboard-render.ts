@@ -29,7 +29,7 @@ import {
   shortModelLabel,
 } from "./dashboard-format";
 import { LATENCY_BUCKET_BOUNDARIES_MS } from "./histogram";
-import { IMAGE_VISION_MODEL } from "./cost";
+import { IMAGE_VISION_MODEL, MODEL_RATES } from "./cost";
 
 type Tone = "blue" | "green" | "red" | "amber" | "ink";
 
@@ -1650,19 +1650,25 @@ function renderEconomicsSection(
   days: number,
 ): string {
   const modelsUsedEntries = economics.modelsUsed ? Object.entries(economics.modelsUsed) : [];
-  // Only the legacy vision id may ever be presented as OUR image model.
-  // Anything else that isn't the headline text model came in through a
+  // Only ids this product actually prices (the headline text model, the
+  // legacy vision id, and MODEL_RATES rows — i.e. the Gemini fallback pair)
+  // may be presented as OUR models. Anything else came in through a
   // `body.model` override (eval runs — or, pre-whitelist, junk like the
   // 2026-07-29 `gemini-9.9-ultra-pro` probe) and must never be dressed up
   // as a product model, so those ids render verbatim under an explicit
   // "unrecognized" label instead of through shortModelLabel's prettifier.
   const hasLegacyVision = modelsUsedEntries.some(([id]) => id === IMAGE_VISION_MODEL);
-  const unrecognizedIds = modelsUsedEntries
+  const otherIds = modelsUsedEntries
     .map(([id]) => id)
     .filter((id) => id !== economics.model && id !== IMAGE_VISION_MODEL);
+  const ratedOtherIds = otherIds.filter((id) => id in MODEL_RATES);
+  const unrecognizedIds = otherIds.filter((id) => !(id in MODEL_RATES));
   const rateModelBits = [
     `text: ${shortModelLabel(economics.model)}`,
     ...(hasLegacyVision ? [`images (legacy vision model): ${shortModelLabel(IMAGE_VISION_MODEL)}`] : []),
+    ...(ratedOtherIds.length
+      ? [`fallback-served: ${ratedOtherIds.map((id) => shortModelLabel(id)).join(", ")}`]
+      : []),
     ...(unrecognizedIds.length ? [`unrecognized model ids: ${unrecognizedIds.join(", ")}`] : []),
   ].join(" · ");
   const rateCaption = `${rateModelBits} — ${
@@ -1690,7 +1696,7 @@ function renderEconomicsSection(
               .map(
                 ([id, usage]) => `<tr>
                   <td class="mono">${escapeHtml(
-                    id === economics.model || id === IMAGE_VISION_MODEL
+                    id === economics.model || id === IMAGE_VISION_MODEL || id in MODEL_RATES
                       ? shortModelLabel(id)
                       : `${id} (unrecognized)`,
                   )}</td>
