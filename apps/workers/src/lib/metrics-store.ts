@@ -130,11 +130,15 @@ export interface DailyMetricsBucket {
      *  leg's cost lands in `calc` so avgCostPerCalcQuestionUsd reflects the
      *  true pipeline cost. */
     costUsdByMode: { concept: number; calc: number };
-    /** Per-model call count + cost, keyed on the exact model id
-     *  `resolveModel(body)` returned for that call (see lib/cost.ts —
-     *  gemini-3.5-flash-lite for text, gemini-3.6-flash for image
-     *  questions). Each event is costed at ITS OWN model's rate, never a
-     *  blended rate — this is the audit trail for that split. */
+    /** Per-model call count + cost, keyed on the exact model id that
+     *  actually served the call — normally `resolveModel(body)`'s Luna id,
+     *  but a leg that fell back to Gemini (gemini-fallback work, lib/llm.ts)
+     *  keys under GEMINI_TEXT_MODEL/IMAGE_VISION_MODEL (lib/cost.ts)
+     *  instead. Each event is costed at ITS OWN model's rate, never a
+     *  blended rate — this is the audit trail for that split, AND (a
+     *  non-Luna row appearing here at all) the content-free signal that
+     *  fallback fired — see GET /api/metrics' economics.modelsUsed and the
+     *  /dashboard "Cost by model" card, both fed straight from this field. */
     byModel: Record<string, ModelUsage>;
     latencyHistogram: number[];
     /** Cloud Run R-execution service health (R-runner health tracking phase
@@ -360,7 +364,17 @@ export interface ServerEventInput {
    *  as the label so dashboard cost-by-route continuity holds. */
   route: "solve" | "interpret";
   success: boolean;
-  /** Exact model id this call used (resolveModel(body) — text vs image). */
+  /** Exact model id that actually served this call — Luna's resolveModel(body)
+   *  id normally, or the Gemini fallback model (lib/llm.ts's ServedBy.model)
+   *  when Luna failed and Gemini answered instead. NEVER a raw/unvalidated
+   *  client string either way: routes/solve.ts's ALLOWED_MODELS gate rejects
+   *  any body.model other than Luna's before this event is ever constructed,
+   *  and the Gemini id (when used) is always one of two server-side
+   *  constants selected by a boolean (has an image or not) — see
+   *  routes/solve.ts's `geminiModel` and lib/llm.ts's top-of-file SECURITY
+   *  note. On a FAILURE event (success: false) this is the request-level
+   *  resolved model, not a specific attempt's, since a fully-failed request
+   *  has no single call left to attribute it to. */
   model: string;
   promptTokens: number;
   completionTokens: number;
