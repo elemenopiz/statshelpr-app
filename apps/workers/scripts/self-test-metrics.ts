@@ -13,7 +13,15 @@
  * Exit code is 0 if every check passes, 1 otherwise (CI-friendly).
  */
 
-import { costUsdForUsage, DEFAULT_RATE, IMAGE_VISION_MODEL, MODEL_RATES, PRIMARY_TEXT_MODEL, rateForModel } from "../src/lib/cost";
+import {
+  costUsdForUsage,
+  DEFAULT_RATE,
+  GEMINI_TEXT_MODEL,
+  IMAGE_VISION_MODEL,
+  MODEL_RATES,
+  PRIMARY_TEXT_MODEL,
+  rateForModel,
+} from "../src/lib/cost";
 import {
   addToHistogram,
   emptyHistogram,
@@ -23,9 +31,11 @@ import {
 import { aggregateMetrics } from "../src/lib/metrics-aggregate";
 import {
   addHostHash,
+  addInstallSolveCount,
   applyRequestFacts,
   applyRRunnerEvent,
   applyServerEvent,
+  applyTierAttribution,
   emptyBucket,
   HOST_HASH_OTHER,
   normalizeBucket,
@@ -854,17 +864,26 @@ console.log("metrics-store.ts (course-topic: byTopic/byCourseProfile/behavioral 
 
 {
   // applyRequestFacts — the batch-level, once-per-request counters (Part 3 +
-  // preset-package telemetry).
+  // preset-package telemetry + tier-split work's tier/installHash).
   const bucket = emptyBucket("2026-08-04");
-  const facts1: RequestFacts = { courseProfile: "sta301", imageAttached: true, rPackagesCustomized: false };
+  const facts1: RequestFacts = {
+    courseProfile: "sta301",
+    imageAttached: true,
+    rPackagesCustomized: false,
+    tier: "paid",
+    installHash: "h1",
+  };
   const facts2: RequestFacts = {
     courseProfile: "generic",
     imageAttached: false,
     rPackagesCustomized: true,
     requestedPackages: ["car", "lme4", "tidyverse"],
+    tier: "free",
+    installHash: "h2",
   };
-  // Old-client request: no rPackagesCustomized field sent at all.
-  const facts3: RequestFacts = { courseProfile: "sta301", imageAttached: false };
+  // Old-client request: no rPackagesCustomized field sent at all. Same
+  // installHash as facts1 (h1) — an install's SECOND request in the day.
+  const facts3: RequestFacts = { courseProfile: "sta301", imageAttached: false, tier: "paid", installHash: "h1" };
 
   applyRequestFacts(bucket, facts1);
   applyRequestFacts(bucket, facts2);
@@ -892,6 +911,16 @@ console.log("metrics-store.ts (course-topic: byTopic/byCourseProfile/behavioral 
       bucket.server.byRequestedPackage["tidyverse"] === 1,
     JSON.stringify(bucket.server.byRequestedPackage),
   );
+  check(
+    "solvesByTier tallies free vs paid, once per request (facts1+facts3 paid, facts2 free)",
+    bucket.server.solvesByTier.paid === 2 && bucket.server.solvesByTier.free === 1,
+    JSON.stringify(bucket.server.solvesByTier),
+  );
+  check(
+    "installSolveCounts increments per request, h1's second request (facts3) adds to the SAME key",
+    bucket.installSolveCounts["h1"] === 2 && bucket.installSolveCounts["h2"] === 1,
+    JSON.stringify(bucket.installSolveCounts),
+  );
 }
 
 {
@@ -902,6 +931,8 @@ console.log("metrics-store.ts (course-topic: byTopic/byCourseProfile/behavioral 
     courseProfile: "sta301",
     imageAttached: false,
     requestedPackages: ["car", "not a valid name", "-badstart", "a".repeat(50), "MASS"],
+    tier: "free",
+    installHash: "px",
   });
   check(
     "grammar-invalid package names (spaces, bad leading char, too long) never become keys",
@@ -920,9 +951,21 @@ console.log("metrics-store.ts (course-topic: byTopic/byCourseProfile/behavioral 
   // REQUESTED_PACKAGE_CAP (20) distinct names should ever get a key; the 2
   // that are already present (car, MASS) keep incrementing past the cap.
   for (let i = 0; i < 25; i++) {
-    applyRequestFacts(bucket, { courseProfile: "sta301", imageAttached: false, requestedPackages: [`pkg${i}`] });
+    applyRequestFacts(bucket, {
+      courseProfile: "sta301",
+      imageAttached: false,
+      requestedPackages: [`pkg${i}`],
+      tier: "free",
+      installHash: "px",
+    });
   }
-  applyRequestFacts(bucket, { courseProfile: "sta301", imageAttached: false, requestedPackages: ["car"] }); // already-present key
+  applyRequestFacts(bucket, {
+    courseProfile: "sta301",
+    imageAttached: false,
+    requestedPackages: ["car"],
+    tier: "free",
+    installHash: "px",
+  }); // already-present key
   const distinctCount = Object.keys(bucket.server.byRequestedPackage).length;
   check(
     "distinct byRequestedPackage keys never exceed REQUESTED_PACKAGE_CAP (20), even across many requests",
@@ -1001,6 +1044,362 @@ console.log("metrics-store.ts (course-topic: byTopic/byCourseProfile/behavioral 
       normalized.server.rPackagesCustomized.customized === 0 &&
       JSON.stringify(normalized.server.byRequestedPackage) === "{}",
     JSON.stringify(normalized.server),
+  );
+}
+
+// ---------------------------------------------------------------------------
+console.log("metrics-store.ts (tier split: solvesByTier/costUsdByTier/byTopicByTier via applyTierAttribution)");
+
+{
+  // applyTierAttribution — the per-flush cost/topic cross-reference (see its
+  // doc comment): sums a request's WHOLE server-events array into
+  // costUsdByTier, and attributes the completing event's topic (if any) to
+  // byTopicByTier, both keyed on the SAME tier the request's RequestFacts
+  // carried. Exercised directly (no KV mock needed), same testability
+  // precedent as applyServerEvent/applyRequestFacts above.
+  const bucket = emptyBucket("2026-08-04");
+  const baseEvent: Omit<ServerEventInput, "completedQuestion" | "costUsd" | "route"> = {
+    success: true,
+    model: PRIMARY_TEXT_MODEL,
+    promptTokens: 100,
+    completionTokens: 50,
+    cachedTokens: 0,
+    serverLatencyMs: 900,
+    installHash: "h1",
+  };
+  // A calc-shaped request: first pass (no completedQuestion) + interpret leg
+  // (completedQuestion set) — TWO events, ONE request, tier "paid".
+  const paidEvents: ServerEventInput[] = [
+    { ...baseEvent, route: "solve", costUsd: 0.01 },
+    { ...baseEvent, route: "interpret", costUsd: 0.02, completedQuestion: { mode: "calc", topic: "bootstrap" } },
+  ];
+  applyTierAttribution(bucket, "paid", paidEvents);
+
+  // A concept-shaped request: one event, tier "free".
+  const freeEvents: ServerEventInput[] = [
+    { ...baseEvent, route: "solve", costUsd: 0.005, completedQuestion: { mode: "concept", topic: "probability" } },
+  ];
+  applyTierAttribution(bucket, "free", freeEvents);
+
+  check(
+    "costUsdByTier sums EVERY event in the request's batch, not just the completing one",
+    approxEqual(bucket.server.costUsdByTier.paid, 0.03, 1e-9),
+    `got ${bucket.server.costUsdByTier.paid}`,
+  );
+  check(
+    "costUsdByTier free leg",
+    approxEqual(bucket.server.costUsdByTier.free, 0.005, 1e-9),
+    `got ${bucket.server.costUsdByTier.free}`,
+  );
+  check(
+    "byTopicByTier attributes the completing event's topic to its request's tier",
+    bucket.server.byTopicByTier.paid["bootstrap"] === 1 && bucket.server.byTopicByTier.free["probability"] === 1,
+    JSON.stringify(bucket.server.byTopicByTier),
+  );
+  check(
+    "byTopicByTier never double-counts a non-completing leg (the first pass had no completedQuestion)",
+    bucket.server.byTopicByTier.paid["probability"] === undefined &&
+      Object.values(bucket.server.byTopicByTier.paid).reduce((s, v) => s + v, 0) === 1,
+    JSON.stringify(bucket.server.byTopicByTier.paid),
+  );
+  check(
+    "applyTierAttribution never touches byTopic itself (that's applyServerEvent's job)",
+    Object.keys(bucket.server.byTopic).length === 0,
+  );
+}
+
+{
+  // A string outside the taxonomy collapses to "other" in byTopicByTier too
+  // — same safeTopicKey re-validation applyServerEvent's byTopic uses.
+  const bucket = emptyBucket("2026-08-04");
+  const ev: ServerEventInput = {
+    route: "interpret",
+    success: true,
+    model: PRIMARY_TEXT_MODEL,
+    promptTokens: 10,
+    completionTokens: 5,
+    cachedTokens: 0,
+    costUsd: 0.001,
+    serverLatencyMs: 500,
+    installHash: "h9",
+    completedQuestion: { mode: "calc", topic: "some-made-up-topic" },
+  };
+  applyTierAttribution(bucket, "free", [ev]);
+  check(
+    "byTopicByTier whitelists an unrecognized topic string down to 'other'",
+    bucket.server.byTopicByTier.free["other"] === 1 &&
+      bucket.server.byTopicByTier.free["some-made-up-topic"] === undefined,
+    JSON.stringify(bucket.server.byTopicByTier.free),
+  );
+}
+
+{
+  // flushMetricsBatch-shaped round trip: applyRequestFacts (once, for
+  // solvesByTier/installSolveCounts) + applyTierAttribution (for
+  // costUsdByTier/byTopicByTier), called in the SAME order flushMetricsBatch
+  // uses — verifies the request-level fact and the per-event cross-reference
+  // stay reconciled the way a real request would produce them.
+  const bucket = emptyBucket("2026-08-04");
+  const facts: RequestFacts = { courseProfile: "sta301", imageAttached: false, tier: "paid", installHash: "h5" };
+  const events: ServerEventInput[] = [
+    {
+      route: "solve",
+      success: true,
+      model: PRIMARY_TEXT_MODEL,
+      promptTokens: 200,
+      completionTokens: 80,
+      cachedTokens: 0,
+      costUsd: 0.012,
+      serverLatencyMs: 1100,
+      installHash: "h5",
+      completedQuestion: { mode: "concept", topic: "clt" },
+    },
+  ];
+  applyRequestFacts(bucket, facts);
+  applyTierAttribution(bucket, facts.tier, events);
+
+  check("solvesByTier + costUsdByTier reconcile from the same request", bucket.server.solvesByTier.paid === 1);
+  check(
+    "costUsdByTier matches the request's total cost",
+    approxEqual(bucket.server.costUsdByTier.paid, 0.012, 1e-9),
+  );
+  check("byTopicByTier.paid picked up the completed topic", bucket.server.byTopicByTier.paid["clt"] === 1);
+  check("installSolveCounts picked up the SAME request's installHash", bucket.installSolveCounts["h5"] === 1);
+}
+
+// ---------------------------------------------------------------------------
+console.log("metrics-store.ts (installSolveCounts — cap enforcement + normalize round-trip)");
+
+{
+  // cap enforcement: mirrors addHostHash's suite EXACTLY (see that suite
+  // further down) — the 201st distinct key is dropped; an EXISTING key
+  // keeps incrementing past the cap (a heavy user must never freeze).
+  const b = emptyBucket("2026-08-04");
+  for (let i = 0; i < 220; i++) addInstallSolveCount(b, `install-${i}`);
+  check(
+    "installSolveCounts caps at 200 distinct keys/day",
+    Object.keys(b.installSolveCounts).length === 200,
+    `got ${Object.keys(b.installSolveCounts).length}`,
+  );
+  check(
+    "the first 200 keys were kept (insertion order)",
+    b.installSolveCounts["install-0"] === 1 && b.installSolveCounts["install-199"] === 1,
+  );
+  check(
+    "the 201st+ keys were dropped",
+    b.installSolveCounts["install-200"] === undefined && b.installSolveCounts["install-219"] === undefined,
+  );
+
+  addInstallSolveCount(b, "install-0"); // an EXISTING key, added before the cap was hit
+  check(
+    "an existing key still increments past the cap",
+    b.installSolveCounts["install-0"] === 2,
+    `got ${b.installSolveCounts["install-0"]}`,
+  );
+
+  addInstallSolveCount(b, "install-999"); // a brand-new key after the cap is already full
+  check("a brand-new key past the cap is dropped, not added", b.installSolveCounts["install-999"] === undefined);
+  check("cap stays at exactly 200 keys after both calls above", Object.keys(b.installSolveCounts).length === 200);
+}
+
+{
+  // empty-string hash is a safe no-op — defensive; every real caller always
+  // supplies a real hashBucket() digest.
+  const b = emptyBucket("2026-08-04");
+  addInstallSolveCount(b, "");
+  check("addInstallSolveCount('') is a no-op", Object.keys(b.installSolveCounts).length === 0);
+}
+
+{
+  // normalize round-trip: counts survive a JSON-serialize -> normalizeBucket
+  // pass unchanged (simulates a real KV get/put cycle).
+  const b = emptyBucket("2026-08-04");
+  addInstallSolveCount(b, "h1");
+  addInstallSolveCount(b, "h1");
+  addInstallSolveCount(b, "h2");
+  const roundTripped = normalizeBucket(JSON.parse(JSON.stringify(b)), "2026-08-04");
+  check(
+    "installSolveCounts normalize round-trip preserves per-key counts",
+    roundTripped.installSolveCounts["h1"] === 2 && roundTripped.installSolveCounts["h2"] === 1,
+    JSON.stringify(roundTripped.installSolveCounts),
+  );
+}
+
+{
+  // a bucket written by an OLDER schema version (predates this field
+  // entirely) must default to {}, not throw or return undefined.
+  const legacy = normalizeBucket({ date: "2026-08-04" }, "2026-08-04");
+  check(
+    "normalizeBucket defaults a missing installSolveCounts to {} (pre-existing bucket)",
+    typeof legacy.installSolveCounts === "object" && Object.keys(legacy.installSolveCounts).length === 0,
+  );
+}
+
+{
+  // corrupt/non-object installSolveCounts (KV corruption, or a bad manual
+  // edit) must also default to {}, matching okCountRecord's contract for
+  // every other Record<string, number> field in this bucket.
+  const corrupt = normalizeBucket({ date: "2026-08-04", installSolveCounts: "not-an-object" }, "2026-08-04");
+  check(
+    "normalizeBucket defaults a corrupt installSolveCounts to {}",
+    Object.keys(corrupt.installSolveCounts).length === 0,
+  );
+}
+
+{
+  // solvesByTier/costUsdByTier/byTopicByTier: normalizeBucket backfills all
+  // three when reading a pre-tier-split bucket (fields absent entirely) —
+  // same "pre-branch bucket" contract as the course-topic suite above.
+  const preTierRaw = JSON.parse(JSON.stringify(emptyBucket("2026-08-02")));
+  delete preTierRaw.server.solvesByTier;
+  delete preTierRaw.server.costUsdByTier;
+  delete preTierRaw.server.byTopicByTier;
+  const normalized = normalizeBucket(preTierRaw, "2026-08-02");
+  check(
+    "normalizeBucket backfills solvesByTier/costUsdByTier/byTopicByTier when reading a pre-tier-split bucket",
+    normalized.server.solvesByTier.free === 0 &&
+      normalized.server.solvesByTier.paid === 0 &&
+      normalized.server.costUsdByTier.free === 0 &&
+      normalized.server.costUsdByTier.paid === 0 &&
+      JSON.stringify(normalized.server.byTopicByTier) === '{"free":{},"paid":{}}',
+    JSON.stringify(normalized.server),
+  );
+}
+
+{
+  // byTopicByTier with only ONE leg present (a malformed/partial write) —
+  // must still normalize both legs independently rather than throwing or
+  // losing the leg that WAS present.
+  const partial = normalizeBucket(
+    { date: "2026-08-04", server: { byTopicByTier: { paid: { bootstrap: 3 } } } },
+    "2026-08-04",
+  );
+  check(
+    "normalizeBucket handles byTopicByTier with only one leg present",
+    partial.server.byTopicByTier.paid["bootstrap"] === 3 &&
+      typeof partial.server.byTopicByTier.free === "object" &&
+      Object.keys(partial.server.byTopicByTier.free).length === 0,
+    JSON.stringify(partial.server.byTopicByTier),
+  );
+}
+
+// ---------------------------------------------------------------------------
+console.log("metrics-aggregate.ts (tier split + fallback rate + top-consumer aggregation)");
+
+{
+  const day0 = emptyBucket("2026-08-04");
+  day0.server.solvesByTier = { free: 6, paid: 14 };
+  day0.server.costUsdByTier = { free: 0.03, paid: 0.09 };
+  day0.server.byTopicByTier = { free: { probability: 4, bootstrap: 2 }, paid: { bootstrap: 9, clt: 5 } };
+  day0.server.byModel = {
+    [PRIMARY_TEXT_MODEL]: { calls: 30, costUsd: 0.1 },
+    [GEMINI_TEXT_MODEL]: { calls: 2, costUsd: 0.006 },
+  };
+  day0.server.routes = {
+    solve: { attempts: 30, successes: 29, errors: 1 },
+    interpret: { attempts: 12, successes: 12, errors: 0 },
+  };
+  day0.installSolveCounts = { instA: 5, instB: 20 };
+
+  const day1 = emptyBucket("2026-08-03");
+  day1.server.solvesByTier = { free: 3, paid: 9 };
+  day1.server.costUsdByTier = { free: 0.02, paid: 0.06 };
+  day1.server.byTopicByTier = { free: { probability: 1 }, paid: { bootstrap: 3 } };
+  day1.server.byModel = {
+    [PRIMARY_TEXT_MODEL]: { calls: 18, costUsd: 0.08 },
+    [IMAGE_VISION_MODEL]: { calls: 4, costUsd: 0.02 },
+  };
+  day1.server.routes = {
+    solve: { attempts: 18, successes: 18, errors: 0 },
+    interpret: { attempts: 8, successes: 8, errors: 0 },
+  };
+  day1.installSolveCounts = { instA: 40, instC: 2 }; // instA repeats across days -> must SUM, not dedupe like installHashes
+
+  const result = aggregateMetrics({
+    now: Date.now(),
+    days: 2,
+    dates: ["2026-08-04", "2026-08-03"],
+    buckets: [day0, day1],
+    priceMonthlyUsd: 15,
+    assumedSolvesPerUserPerMonth: 90,
+  });
+
+  check(
+    "economics.tier.solvesFree/solvesPaid sum across days",
+    result.economics.tier.solvesFree === 9 && result.economics.tier.solvesPaid === 23,
+    JSON.stringify(result.economics.tier),
+  );
+  check(
+    "economics.tier.costFreeUsd/costPaidUsd sum across days",
+    approxEqual(result.economics.tier.costFreeUsd, 0.05, 1e-6) &&
+      approxEqual(result.economics.tier.costPaidUsd, 0.15, 1e-6),
+    JSON.stringify(result.economics.tier),
+  );
+  check(
+    "economics.tier.freeCostSharePct = costFree/(costFree+costPaid)*100",
+    approxEqual(result.economics.tier.freeCostSharePct, 25, 1e-6),
+    `got ${result.economics.tier.freeCostSharePct}`,
+  );
+  check(
+    "courseContext.byTopicByTier merges per-tier per-topic across days",
+    result.courseContext.byTopicByTier.free["probability"] === 5 &&
+      result.courseContext.byTopicByTier.paid["bootstrap"] === 12 &&
+      result.courseContext.byTopicByTier.paid["clt"] === 5,
+    JSON.stringify(result.courseContext.byTopicByTier),
+  );
+  check(
+    "volume.byInstallSolveCount SUMS an install's count across days (not dedup like installHashes)",
+    result.volume.byInstallSolveCount["instA"] === 45 &&
+      result.volume.byInstallSolveCount["instB"] === 20 &&
+      result.volume.byInstallSolveCount["instC"] === 2,
+    JSON.stringify(result.volume.byInstallSolveCount),
+  );
+  check(
+    "volume.maxSolvesByOneInstall picks the highest SUMMED count",
+    result.volume.maxSolvesByOneInstall === 45,
+    `got ${result.volume.maxSolvesByOneInstall}`,
+  );
+
+  const expectedFallbackCalls = 2 + 4; // day0's GEMINI_TEXT_MODEL + day1's IMAGE_VISION_MODEL
+  const expectedApiCalls = 30 + 12 + 18 + 8;
+  check(
+    "economics.fallbackCalls sums BOTH Gemini model ids across days",
+    result.economics.fallbackCalls === expectedFallbackCalls,
+    `got ${result.economics.fallbackCalls}, want ${expectedFallbackCalls}`,
+  );
+  check(
+    "economics.fallbackRatePct = fallbackCalls/apiCalls*100",
+    approxEqual(result.economics.fallbackRatePct, (expectedFallbackCalls / expectedApiCalls) * 100, 1e-2),
+    `got ${result.economics.fallbackRatePct}`,
+  );
+}
+
+{
+  // All-empty buckets: every new ratio must degrade to 0, never NaN — same
+  // "empty range" contract the pre-existing 30-day-aggregation suite already
+  // covers for the rest of this response shape.
+  const result = aggregateMetrics({
+    now: Date.now(),
+    days: 1,
+    dates: ["2026-08-04"],
+    buckets: [emptyBucket("2026-08-04")],
+    priceMonthlyUsd: 15,
+    assumedSolvesPerUserPerMonth: 90,
+  });
+  check("empty range: economics.tier.freeCostSharePct is 0, not NaN", result.economics.tier.freeCostSharePct === 0);
+  check("empty range: economics.fallbackRatePct is 0, not NaN", result.economics.fallbackRatePct === 0);
+  check("empty range: volume.maxSolvesByOneInstall is 0", result.volume.maxSolvesByOneInstall === 0);
+  check(
+    "empty range: economics.tier solves/cost all 0",
+    result.economics.tier.solvesFree === 0 &&
+      result.economics.tier.solvesPaid === 0 &&
+      result.economics.tier.costFreeUsd === 0 &&
+      result.economics.tier.costPaidUsd === 0,
+  );
+  check(
+    "empty range: courseContext.byTopicByTier is empty on both legs",
+    Object.keys(result.courseContext.byTopicByTier.free).length === 0 &&
+      Object.keys(result.courseContext.byTopicByTier.paid).length === 0,
   );
 }
 

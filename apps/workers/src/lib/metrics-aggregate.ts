@@ -21,7 +21,7 @@ import {
   mergeHistogramInto,
   percentileFromHistogram,
 } from "./histogram";
-import { IMAGE_VISION_MODEL, PRIMARY_TEXT_MODEL, rateForModel } from "./cost";
+import { GEMINI_TEXT_MODEL, IMAGE_VISION_MODEL, PRIMARY_TEXT_MODEL, rateForModel } from "./cost";
 
 /** One day of the enriched time series (dashboard-v2 items 10 & 12). Every
  *  field is a per-DAY value so the renderer can draw trend lines / sparklines
@@ -81,6 +81,19 @@ export interface MetricsResponse {
      *  doc. dashboard-render.ts is the only place a hash is ever labeled with
      *  a readable school name. */
     byHostHash: Record<string, number>;
+    /** Per-install solve counts, summed across the window (top-consumer /
+     *  fair-use evidence gate — "does ANY user approach the contemplated
+     *  600/mo fair-use line before enforcement gets built?"). Keys are
+     *  opaque hashBucket() digests, same privacy stance as byHostHash —
+     *  never a raw install id. Capped server-side at 200 distinct hashes/
+     *  day (lib/metrics-store.ts's INSTALL_SOLVE_COUNT_CAP) before ever
+     *  reaching this record. dashboard-render.ts renders only hash
+     *  PREFIXES (never a full hash) for its "Top consumers" table. */
+    byInstallSolveCount: Record<string, number>;
+    /** Highest single-install solve count in the window — the headline
+     *  fair-use-evidence number. 0 when there's no install-solve data in
+     *  range (e.g. every bucket predates this field). */
+    maxSolvesByOneInstall: number;
   };
   quality: {
     solveSuccessRate: number;
@@ -179,6 +192,36 @@ export interface MetricsResponse {
     imageCalls: number;
     imageCallSharePct: number;
     imageCostSharePct: number;
+    /** Calls served by a Gemini FALLBACK model (lib/cost.ts's
+     *  GEMINI_TEXT_MODEL/IMAGE_VISION_MODEL — "the Gemini models"), summed
+     *  directly from modelsUsed — a pure derived view, not a new counter,
+     *  so it's always consistent with the "Cost by model" card. Luna is
+     *  primary (lib/llm.ts); a non-zero count here means Luna failed and
+     *  Gemini served instead (gemini-fallback work). NOTE: IMAGE_VISION_MODEL
+     *  is also the LEGACY pre-Luna-migration vision-model id (see that
+     *  constant's own doc in lib/cost.ts), so a bucket containing pre-
+     *  migration days will over-count this — accurate going forward. */
+    fallbackCalls: number;
+    /** fallbackCalls / apiCalls * 100, 0 when apiCalls is 0. Operational
+     *  health signal for the dashboard's Fallback rate tile — green at 0,
+     *  amber >1%, red >5% (dashboard-render.ts). */
+    fallbackRatePct: number;
+    /** Free-vs-paid split (owner's #1 dashboard ask) — solves + cost by
+     *  entitlement tier, feeding the paid-abuse/COGS decision. Reconciles
+     *  exactly to volume.questionsAnswered / totalCostUsd when every
+     *  contributing bucket's requests set requestFacts (see
+     *  lib/metrics-store.ts's solvesByTier/costUsdByTier doc). */
+    tier: {
+      solvesFree: number;
+      solvesPaid: number;
+      costFreeUsd: number;
+      costPaidUsd: number;
+      /** costFreeUsd / (costFreeUsd + costPaidUsd) * 100 — the free-tier
+       *  COGS bleed share; 0 when there's no spend yet in either leg.
+       *  Directly margin-relevant: every point here is COGS spent on a
+       *  non-paying user. */
+      freeCostSharePct: number;
+    };
   };
   /** Real revenue (items 6 & 9). Point-in-time `activeSubscribers`/`mrrUsd`
    *  come from the `sub:` KV keyspace via metrics-load.ts (passed in as
@@ -221,6 +264,10 @@ export interface MetricsResponse {
      *  same shape/spirit as volume.byQuestionType, just keyed by
      *  solver-core's TOPICS taxonomy instead of DOM-scraped question shape. */
     byTopic: Record<string, number>;
+    /** byTopic split by entitlement tier — tier annotation for "does the
+     *  free tier skew toward different topics than paid?" See
+     *  lib/metrics-store.ts's byTopicByTier doc. */
+    byTopicByTier: { free: Record<string, number>; paid: Record<string, number> };
     byCourseProfile: CourseProfileCounts;
     imageAttachment: ImageAttachmentCounts;
     rPackagesCustomized: RPackagesCustomizedCounts;
@@ -304,10 +351,12 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
   let paywallHits30d = 0;
   const byQuestionType: Record<string, number> = {};
   const byHostHash: Record<string, number> = {};
+  const byInstallSolveCount: Record<string, number> = {};
   const confidence: ConfidenceCounts = { High: 0, Med: 0, Low: 0, "": 0 };
   const confidenceCalc: ConfidenceCounts = { High: 0, Med: 0, Low: 0, "": 0 };
   const byErrorType: Record<string, number> = {};
   const byTopic: Record<string, number> = {};
+  const byTopicByTier = { free: {} as Record<string, number>, paid: {} as Record<string, number> };
   const byCourseProfile: CourseProfileCounts = { sta301: 0, generic: 0 };
   const imageAttachment: ImageAttachmentCounts = { withImages: 0, withoutImages: 0 };
   const rPackagesCustomized: RPackagesCustomizedCounts = { customized: 0, default: 0 };
@@ -321,6 +370,8 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
   const revenueFlow = { created: 0, cancelled: 0, paymentFailed: 0 };
   let totalCostUsd = 0;
   const costUsdByMode = { concept: 0, calc: 0 };
+  const solvesByTier = { free: 0, paid: 0 };
+  const costUsdByTier = { free: 0, paid: 0 };
   const serverHist = emptyHistogram();
   const clientHist = emptyHistogram();
   const rRunnerHist = emptyHistogram();
@@ -360,6 +411,9 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
     for (const [k, v] of Object.entries(b.hostHashCounts)) {
       byHostHash[k] = (byHostHash[k] ?? 0) + v;
     }
+    for (const [k, v] of Object.entries(b.installSolveCounts)) {
+      byInstallSolveCount[k] = (byInstallSolveCount[k] ?? 0) + v;
+    }
     (Object.keys(confidence) as Array<keyof ConfidenceCounts>).forEach((k) => {
       confidence[k] += b.server.confidence[k] ?? 0;
       confidenceCalc[k] += b.server.confidenceCalc[k] ?? 0;
@@ -369,6 +423,12 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
     }
     for (const [topic, n] of Object.entries(b.server.byTopic)) {
       byTopic[topic] = (byTopic[topic] ?? 0) + n;
+    }
+    for (const [topic, n] of Object.entries(b.server.byTopicByTier.free)) {
+      byTopicByTier.free[topic] = (byTopicByTier.free[topic] ?? 0) + n;
+    }
+    for (const [topic, n] of Object.entries(b.server.byTopicByTier.paid)) {
+      byTopicByTier.paid[topic] = (byTopicByTier.paid[topic] ?? 0) + n;
     }
     byCourseProfile.sta301 += b.server.byCourseProfile.sta301;
     byCourseProfile.generic += b.server.byCourseProfile.generic;
@@ -408,6 +468,10 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
     totalCostUsd += b.server.costUsd;
     costUsdByMode.concept += b.server.costUsdByMode.concept;
     costUsdByMode.calc += b.server.costUsdByMode.calc;
+    solvesByTier.free += b.server.solvesByTier.free;
+    solvesByTier.paid += b.server.solvesByTier.paid;
+    costUsdByTier.free += b.server.costUsdByTier.free;
+    costUsdByTier.paid += b.server.costUsdByTier.paid;
     revenueFlow.created += b.revenue.created;
     revenueFlow.cancelled += b.revenue.cancelled;
     revenueFlow.paymentFailed += b.revenue.paymentFailed;
@@ -513,6 +577,21 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
   const imageCallSharePct = apiCalls > 0 ? (imageUsage.calls / apiCalls) * 100 : 0;
   const imageCostSharePct = totalCostUsd > 0 ? (imageUsage.costUsd / totalCostUsd) * 100 : 0;
 
+  // --- fallback rate (gemini-fallback work): calls served by EITHER Gemini
+  // model ("the Gemini models" per lib/cost.ts) vs total calls — a non-zero
+  // rate means Luna failed and Gemini answered instead. Pure derived view
+  // over modelsUsed, no new counter (imageUsage is reused from above). ---
+  const geminiTextUsage = modelsUsed[GEMINI_TEXT_MODEL] ?? { calls: 0, costUsd: 0 };
+  const fallbackCalls = geminiTextUsage.calls + imageUsage.calls;
+  const fallbackRatePct = apiCalls > 0 ? (fallbackCalls / apiCalls) * 100 : 0;
+
+  // --- tier split (owner's #1 dashboard ask): free-vs-paid solves + COGS ---
+  const tierCostTotal = costUsdByTier.free + costUsdByTier.paid;
+  const freeCostSharePct = tierCostTotal > 0 ? roundPct((costUsdByTier.free / tierCostTotal) * 100) : 0;
+
+  // --- top-consumer visibility (fair-use evidence gate) ---
+  const maxSolvesByOneInstall = Object.values(byInstallSolveCount).reduce((m, v) => Math.max(m, v), 0);
+
   // --- items 6 & 9: real revenue (activeSubscribers passed in from KV scan) ---
   const mrrUsd = activeSubscribers * priceMonthlyUsd;
   const netNewSubs30d = revenueFlow.created - revenueFlow.cancelled;
@@ -529,7 +608,19 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
     generatedAt: now,
     range: { days },
     comparison: { prevRangeDays: 0, deltaPct: {} },
-    volume: { questionsAnswered, apiCalls, byQuestionType, dau, wau, mau, newInstalls: 0, daily, byHostHash },
+    volume: {
+      questionsAnswered,
+      apiCalls,
+      byQuestionType,
+      dau,
+      wau,
+      mau,
+      newInstalls: 0,
+      daily,
+      byHostHash,
+      byInstallSolveCount,
+      maxSolvesByOneInstall,
+    },
     quality: {
       solveSuccessRate: roundRate(solveSuccessRate),
       writeBackSuccessRate: roundRate(writeBackSuccessRate),
@@ -580,6 +671,15 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
       imageCalls: imageUsage.calls,
       imageCallSharePct: roundPct(imageCallSharePct),
       imageCostSharePct: roundPct(imageCostSharePct),
+      fallbackCalls,
+      fallbackRatePct: roundPct(fallbackRatePct),
+      tier: {
+        solvesFree: solvesByTier.free,
+        solvesPaid: solvesByTier.paid,
+        costFreeUsd: roundMoney(costUsdByTier.free),
+        costPaidUsd: roundMoney(costUsdByTier.paid),
+        freeCostSharePct,
+      },
     },
     revenue: {
       activeSubscribers,
@@ -607,6 +707,7 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
     },
     courseContext: {
       byTopic,
+      byTopicByTier,
       byCourseProfile,
       imageAttachment,
       rPackagesCustomized,

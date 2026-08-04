@@ -52,6 +52,11 @@ const RUNTIME_INSTALLED_R_PACKAGE_CAP = 20; // per-day DISTINCT-name cap; see ad
  *  input channel. */
 const MISSING_R_PACKAGE_NAME_RE = /^[A-Za-z][A-Za-z0-9.]{0,40}$/;
 const HOST_HASH_CAP = 50; // per-day cap on distinct hostHashCounts keys; see addHostHash
+// Sized like HOST_HASH_CAP but larger (per-INSTALL, not per-school, so more
+// distinct keys/day are expected) — see addInstallSolveCount and the
+// installSolveCounts field doc below for the growth-bound math (200 entries
+// x ~70 bytes/entry is negligible against a single KV value's ceiling).
+const INSTALL_SOLVE_COUNT_CAP = 200; // per-day cap on distinct installSolveCounts keys
 
 /** Fixed non-key literal for `hostHashCounts` — every request whose Origin
  *  didn't match the accepted Canvas-host shape (lib/rate-limit.ts's
@@ -207,6 +212,14 @@ export interface DailyMetricsBucket {
      *  can become a Record key here gets re-validated at the point it's
      *  written, not just trusted from upstream typing). */
     byTopic: Record<string, number>;
+    /** byTopic (see that field's doc above), split by entitlement tier —
+     *  "does the free tier skew toward different topics than paid?" Same
+     *  safeTopicKey whitelist and once-per-completed-question cardinality
+     *  as byTopic; populated by applyTierAttribution (see that function's
+     *  doc) from the SAME completedQuestion.topic byTopic itself reads,
+     *  cross-referenced against the completing event's request tier
+     *  instead of threading `tier` onto ServerEventInput. */
+    byTopicByTier: { free: Record<string, number>; paid: Record<string, number> };
     /** course-topic Part 3a — see CourseProfileCounts. */
     byCourseProfile: CourseProfileCounts;
     /** course-topic Part 3b — see ImageAttachmentCounts. */
@@ -223,6 +236,28 @@ export interface DailyMetricsBucket {
      *  counter (a different branch/concern; keep the field names apart so
      *  the branches merge cleanly). */
     byRequestedPackage: Record<string, number>;
+    /** Solve-request counts by entitlement tier (free vs paid) — the
+     *  owner's #1 dashboard ask, feeding the paid-abuse/COGS decision (how
+     *  much request volume comes from users who aren't paying). Tier comes
+     *  from the license already resolved at the admission gate
+     *  (routes/solve.ts's `lic.tier`), threaded through
+     *  MetricsBatch.requestFacts.tier and incremented ONCE per REQUEST by
+     *  applyRequestFacts — same cardinality as byCourseProfile, NOT once
+     *  per solve-route LEG, so a calc question's repair retry never
+     *  double-counts. */
+    solvesByTier: { free: number; paid: number };
+    /** costUsd (see that field's doc below) split by the SAME per-request
+     *  tier. Every event in a request's MetricsBatch (first pass + optional
+     *  repair + interpret) is costed at its own model's rate already; this
+     *  attributes that request's FULL spend to whichever tier the caller
+     *  was. Computed once per flush by applyTierAttribution from the
+     *  batch's server events + requestFacts.tier — NOT by threading `tier`
+     *  onto ServerEventInput itself, since a request's tier can't change
+     *  leg-to-leg (unlike costMode, which genuinely does vary within a
+     *  request). Invariant: free+paid === costUsd for any bucket where
+     *  every contributing request set requestFacts (true for all solve.ts
+     *  traffic since fc35aa5). */
+    costUsdByTier: { free: number; paid: number };
     tokens: { promptTokens: number; completionTokens: number; cachedTokens: number };
     /** Grand total of every event's costUsd, success or error (errors cost
      *  ~0 anyway since there's no usage to bill). */
@@ -335,6 +370,26 @@ export interface DailyMetricsBucket {
    *  as "unknown (<first 8 hex chars>)" — this field never holds a readable
    *  school name. */
   hostHashCounts: Record<string, number>;
+  /** Per-install solve counts for the day (top-consumer / fair-use evidence
+   *  gate — "does ANY single user approach the contemplated 600/mo fair-use
+   *  line before enforcement gets built?"). Keyed by the SAME hashBucket()
+   *  digest as installHashes/hostHashCounts above (lib/rate-limit.ts) —
+   *  never a raw install id. Incremented ONCE per REQUEST
+   *  (applyRequestFacts, via RequestFacts.installHash), same cardinality as
+   *  solvesByTier, so a calc question's repair/interpret legs never inflate
+   *  one install's count past its real request volume. Capped at
+   *  INSTALL_SOLVE_COUNT_CAP (200) distinct hashes/day via
+   *  addInstallSolveCount — mirrors addHostHash's cap pattern exactly (an
+   *  already-present key keeps incrementing past the cap; only a brand-new
+   *  key past the cap is dropped), same "acceptable undercount at current
+   *  scale" tradeoff as every other capped Record in this module. Growth
+   *  bound: 200 entries x ~70 bytes/entry (a 64-hex-char SHA-256 key plus a
+   *  small count number, JSON-encoded) is ~14KB even fully populated —
+   *  negligible next to a single KV value's 25MB ceiling and the rest of
+   *  this bucket. dashboard-render.ts renders only hash PREFIXES (never a
+   *  full hash, never a readable identity) for the "Top consumers" table,
+   *  same privacy stance as hostHashCounts. */
+  installSolveCounts: Record<string, number>;
   /** Count of free-tier solves rejected at the daily cap (the HTTP 402 in
    *  solve.ts) — the paywall-hit event, the #1 leading indicator of
    *  conversion (dashboard-v2 item 7). Written by recordPaywallHit. */
@@ -381,10 +436,13 @@ export function emptyBucket(date: string): DailyMetricsBucket {
       confidenceCalc: emptyConfidence(),
       byErrorType: {},
       byTopic: {},
+      byTopicByTier: { free: {}, paid: {} },
       byCourseProfile: emptyCourseProfile(),
       imageAttachment: emptyImageAttachment(),
       rPackagesCustomized: emptyRPackagesCustomized(),
       byRequestedPackage: {},
+      solvesByTier: { free: 0, paid: 0 },
+      costUsdByTier: { free: 0, paid: 0 },
       tokens: { promptTokens: 0, completionTokens: 0, cachedTokens: 0 },
       costUsd: 0,
       costUsdByMode: { concept: 0, calc: 0 },
@@ -403,6 +461,7 @@ export function emptyBucket(date: string): DailyMetricsBucket {
     },
     installHashes: [],
     hostHashCounts: {},
+    installSolveCounts: {},
     paywallHits: 0,
     revenue: emptyRevenue(),
   };
@@ -442,6 +501,16 @@ export function normalizeBucket(raw: unknown, date: string): DailyMetricsBucket 
     return out;
   };
 
+  /** Coerce an unknown blob into { free: Record<string,number>; paid: ... }
+   *  (byTopicByTier) — same defensive-backfill contract as okCountRecord,
+   *  just applied to both tier legs independently so a bucket missing ONE
+   *  leg (or the whole field) still normalizes to safe empty Records rather
+   *  than throwing. */
+  const okTierSplit = (v: unknown): { free: Record<string, number>; paid: Record<string, number> } => {
+    const o = (v && typeof v === "object" ? v : {}) as { free?: unknown; paid?: unknown };
+    return { free: okCountRecord(o.free), paid: okCountRecord(o.paid) };
+  };
+
   /** Coerce an unknown blob into Record<string, WriteBackOutcomeCounts>. */
   const okWriteBackByType = (v: unknown): Record<string, WriteBackOutcomeCounts> => {
     if (!v || typeof v !== "object") return {};
@@ -469,10 +538,13 @@ export function normalizeBucket(raw: unknown, date: string): DailyMetricsBucket 
       confidenceCalc: { ...empty.server.confidenceCalc, ...s.confidenceCalc },
       byErrorType: okCountRecord(s.byErrorType),
       byTopic: okCountRecord(s.byTopic),
+      byTopicByTier: okTierSplit(s.byTopicByTier),
       byCourseProfile: { ...empty.server.byCourseProfile, ...s.byCourseProfile },
       imageAttachment: { ...empty.server.imageAttachment, ...s.imageAttachment },
       rPackagesCustomized: { ...empty.server.rPackagesCustomized, ...s.rPackagesCustomized },
       byRequestedPackage: okCountRecord(s.byRequestedPackage),
+      solvesByTier: { ...empty.server.solvesByTier, ...s.solvesByTier },
+      costUsdByTier: { ...empty.server.costUsdByTier, ...s.costUsdByTier },
       tokens: { ...empty.server.tokens, ...s.tokens },
       costUsd: typeof s.costUsd === "number" ? s.costUsd : 0,
       costUsdByMode: { ...empty.server.costUsdByMode, ...s.costUsdByMode },
@@ -497,6 +569,7 @@ export function normalizeBucket(raw: unknown, date: string): DailyMetricsBucket 
       ? r.installHashes.filter((h: unknown) => typeof h === "string")
       : [],
     hostHashCounts: okCountRecord(r.hostHashCounts),
+    installSolveCounts: okCountRecord(r.installSolveCounts),
     paywallHits: typeof r.paywallHits === "number" ? r.paywallHits : 0,
     revenue: { ...empty.revenue, ...r.revenue },
   };
@@ -602,6 +675,26 @@ export function addHostHash(bucket: DailyMetricsBucket, key: string | undefined)
   }
   if (Object.keys(bucket.hostHashCounts).length >= HOST_HASH_CAP) return; // cap reached for the day
   bucket.hostHashCounts[key] = 1;
+}
+
+/** Mirrors addHostHash's per-day cap pattern EXACTLY (increment an
+ *  already-present key past the cap; drop a brand-new key once
+ *  INSTALL_SOLVE_COUNT_CAP distinct hashes exist for the day) — see that
+ *  function's doc for the full rationale. Called once per solve.ts request
+ *  (applyRequestFacts, alongside solvesByTier) so a calc question's
+ *  repair/interpret legs never inflate one install's count past its real
+ *  request volume — the top-consumer / fair-use evidence gate (see
+ *  installSolveCounts' doc on DailyMetricsBucket above). Exported (like
+ *  addHostHash) so scripts/self-test-metrics.ts can exercise the cap
+ *  without a KV binding. */
+export function addInstallSolveCount(bucket: DailyMetricsBucket, hash: string): void {
+  if (!hash) return;
+  if (bucket.installSolveCounts[hash] !== undefined) {
+    bucket.installSolveCounts[hash] += 1;
+    return;
+  }
+  if (Object.keys(bucket.installSolveCounts).length >= INSTALL_SOLVE_COUNT_CAP) return; // cap reached for the day
+  bucket.installSolveCounts[hash] = 1;
 }
 
 /** Sanitize + merge one candidate runtime-installed R package name into the
@@ -843,6 +936,22 @@ export interface RequestFacts {
    *  addRequestedPackages before any name becomes a KV key (never trust the
    *  client, same rule as everywhere else in this file). */
   requestedPackages?: string[];
+  /** Entitlement tier from the license already resolved at the admission
+   *  gate (routes/solve.ts's `lic.tier`, defensively normalized to "free"
+   *  when absent/unrecognized — see lib/license.ts's LicenseCheck.tier).
+   *  Required (unlike the optional fields above) so a new call site can't
+   *  silently drop tier attribution and skew solvesByTier/costUsdByTier/
+   *  byTopicByTier. Feeds the owner's #1 dashboard ask — the paid-abuse/
+   *  COGS split (see solvesByTier's doc on DailyMetricsBucket). */
+  tier: "free" | "paid";
+  /** This request's install hash — the SAME hashBucket() digest already
+   *  threaded through every ServerEventInput.installHash for DAU/WAU (see
+   *  addInstallHash). Recorded here too, once per request, specifically for
+   *  installSolveCounts (top-consumer / fair-use evidence gate): that
+   *  counter must count REQUESTS, not LEGS — a calc question's repair retry
+   *  pushes a second ServerEventInput but is still ONE solve attempt from
+   *  the install's perspective. */
+  installHash: string;
 }
 
 export interface MetricsBatch {
@@ -903,6 +1012,35 @@ export function applyRequestFacts(bucket: DailyMetricsBucket, facts: RequestFact
     else bucket.server.rPackagesCustomized.default += 1;
   }
   addRequestedPackages(bucket, facts.requestedPackages);
+  bucket.server.solvesByTier[facts.tier] += 1;
+  addInstallSolveCount(bucket, facts.installHash);
+}
+
+/** Attributes one request's TOTAL spend and completed-question topic (if
+ *  any) to the tier recorded in that SAME request's RequestFacts —
+ *  costUsdByTier/byTopicByTier's write boundary (see those fields' docs on
+ *  DailyMetricsBucket above). `serverEvents` is the request's own
+ *  MetricsBatch.server array (every leg the request pushed — first pass,
+ *  optional repair, interpret); tier is constant across all of them (a
+ *  caller's entitlement can't change mid-request), so summing the whole
+ *  array is lossless and keeps `tier` out of ServerEventInput entirely —
+ *  see RequestFacts.tier's doc for why this is a request-level fact, not a
+ *  per-event one, unlike costMode. Called from flushMetricsBatch, the one
+ *  place both a request's server events and its requestFacts are in scope
+ *  together. Exported for scripts/self-test-metrics.ts, same testability
+ *  precedent as applyServerEvent/applyRequestFacts above. */
+export function applyTierAttribution(
+  bucket: DailyMetricsBucket,
+  tier: "free" | "paid",
+  serverEvents: readonly ServerEventInput[],
+): void {
+  for (const ev of serverEvents) {
+    bucket.server.costUsdByTier[tier] += ev.costUsd;
+    if (ev.completedQuestion?.topic !== undefined) {
+      const key = safeTopicKey(ev.completedQuestion.topic);
+      bucket.server.byTopicByTier[tier][key] = (bucket.server.byTopicByTier[tier][key] ?? 0) + 1;
+    }
+  }
 }
 
 export async function flushMetricsBatch(env: Env, batch: MetricsBatch): Promise<void> {
@@ -919,7 +1057,14 @@ export async function flushMetricsBatch(env: Env, batch: MetricsBatch): Promise<
     for (const ev of batch.server) applyServerEvent(bucket, ev);
     for (const ev of batch.rRunner) applyRRunnerEvent(bucket, ev);
     addHostHash(bucket, batch.hostHash);
-    if (batch.requestFacts) applyRequestFacts(bucket, batch.requestFacts);
+    if (batch.requestFacts) {
+      applyRequestFacts(bucket, batch.requestFacts);
+      // See applyTierAttribution's doc: this is what turns the request-level
+      // requestFacts.tier fact into the per-EVENT cost/topic split, using the
+      // SAME batch.server array applyServerEvent already folded into
+      // bucket.server.costUsd/byTopic one loop earlier in this same flush.
+      applyTierAttribution(bucket, batch.requestFacts.tier, batch.server);
+    }
     await writeBucket(env, bucket);
   } catch {
     // Best-effort — metrics must never break or delay a solve.

@@ -254,6 +254,15 @@ solve.post("/", async (c) => {
       ? { rPackagesCustomized: body.rPackagesCustomized }
       : {}),
     ...(body.packages && body.packages.length ? { requestedPackages: body.packages } : {}),
+    // Free-vs-paid split (owner's #1 dashboard ask) + top-consumer/fair-use
+    // evidence — both from state already resolved above (the license gate,
+    // `lic`, and installHash), never re-derived from anything client-
+    // supplied. `lic.tier` is optional in its type but always populated for
+    // an ok:true result in practice (lib/license.ts); default defensively
+    // to "free" rather than trust that invariant blindly. See
+    // lib/metrics-store.ts's RequestFacts.tier/installHash docs.
+    tier: lic.tier === "paid" ? "paid" : "free",
+    installHash,
   };
 
   const stream = makeSseStream(async (write) => {
