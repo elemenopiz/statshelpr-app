@@ -27,6 +27,7 @@
 import type { Context } from "hono";
 import type { Env } from "../types";
 import { addToHistogram, emptyHistogram, LATENCY_BUCKET_BOUNDARIES_MS } from "./histogram";
+import { isTopic } from "@statshelpr/solver-core/core";
 
 const KV_PREFIX = "metrics:";
 // Sized for the 2×window lookback metrics-load.ts now reads (a 30-day window
@@ -71,6 +72,43 @@ export interface RevenueFlowCounts {
   created: number;
   cancelled: number;
   paymentFailed: number;
+}
+
+// ===========================================================================
+// === course-topic branch: course-context + behavioral counters =============
+// Content-free (counts + validated enum/package-name keys only — never
+// question/answer text, never a preset's user-chosen NAME) request-level
+// signals, added alongside the topic taxonomy below. All four ride the SAME
+// MetricsBatch every /api/solve request already produces (see
+// MetricsBatch.requestFacts and applyRequestFacts further down) — zero new
+// independent KV puts, matching this account's KV free-plan write budget
+// (1,000/day).
+// ===========================================================================
+
+/** Part 3a — which course-content profile the request's prompt used. Keys
+ *  match solver-core's SolveBody.courseProfile semantics exactly: "sta301" is
+ *  the (much more common) OMITTED case, never a raw client string. */
+export interface CourseProfileCounts {
+  sta301: number;
+  generic: number;
+}
+
+/** Part 3b — whether the solve request had at least one image attached.
+ *  Derived from the EXISTING `body.images` field (always sent already); no
+ *  new wire field needed for this one. */
+export interface ImageAttachmentCounts {
+  withImages: number;
+  withoutImages: number;
+}
+
+/** Part 3c — whether the active R-preset was something other than the
+ *  built-in UT STA 301 preset (see apps/extension/src/r-packages.ts). Read
+ *  from the request's own `rPackagesCustomized` boolean; a request from an
+ *  extension build that doesn't send the field yet counts toward NEITHER key
+ *  (see applyRequestFacts) rather than being forced into "default". */
+export interface RPackagesCustomizedCounts {
+  customized: number;
+  default: number;
 }
 
 // ===========================================================================
@@ -119,6 +157,34 @@ export interface DailyMetricsBucket {
      *  ("quota"|"auth"|"rate_limit"|"timeout"|"bad_input"|"upstream"|
      *  "unknown"). Open Record so a new class never needs a schema bump. */
     byErrorType: Record<string, number>;
+    /** course-topic: completed-question counts by the model's self-reported
+     *  TOPIC tag (solver-core's TOPICS taxonomy + "unknown"), recorded at the
+     *  SAME point completedQuestion/modeSplit increments (concept: first-pass
+     *  success; calc: interpret-leg success) — same once-per-question
+     *  invariant as modeSplit, so a calc question's repair leg never
+     *  double-counts a topic. Whitelisted before storage — see
+     *  applyServerEvent's safeTopicKey; invalid strings become "other", never
+     *  a raw key (this repo had a client-string-poisoning incident once —
+     *  see routes/telemetry.ts's VALID_FAILURES doc — so every string that
+     *  can become a Record key here gets re-validated at the point it's
+     *  written, not just trusted from upstream typing). */
+    byTopic: Record<string, number>;
+    /** course-topic Part 3a — see CourseProfileCounts. */
+    byCourseProfile: CourseProfileCounts;
+    /** course-topic Part 3b — see ImageAttachmentCounts. */
+    imageAttachment: ImageAttachmentCounts;
+    /** course-topic Part 3c — see RPackagesCustomizedCounts. */
+    rPackagesCustomized: RPackagesCustomizedCounts;
+    /** course-topic (preset redesign) — validated R package NAMES requested
+     *  via the extension's preset picker (`body.packages`), server-side
+     *  grammar-revalidated (never trust the client) before becoming a Record
+     *  key — see addRequestedPackages. Capped at REQUESTED_PACKAGE_CAP
+     *  distinct names/day (same pattern as addInstallHash's INSTALL_HASH_CAP
+     *  below). This is the owner's "promote a popular preset to official"
+     *  evidence — distinct from the r-runner section's missing-package
+     *  counter (a different branch/concern; keep the field names apart so
+     *  the branches merge cleanly). */
+    byRequestedPackage: Record<string, number>;
     tokens: { promptTokens: number; completionTokens: number; cachedTokens: number };
     /** Grand total of every event's costUsd, success or error (errors cost
      *  ~0 anyway since there's no usage to bill). */
@@ -205,6 +271,18 @@ function emptyRevenue(): RevenueFlowCounts {
   return { created: 0, cancelled: 0, paymentFailed: 0 };
 }
 
+function emptyCourseProfile(): CourseProfileCounts {
+  return { sta301: 0, generic: 0 };
+}
+
+function emptyImageAttachment(): ImageAttachmentCounts {
+  return { withImages: 0, withoutImages: 0 };
+}
+
+function emptyRPackagesCustomized(): RPackagesCustomizedCounts {
+  return { customized: 0, default: 0 };
+}
+
 export function emptyBucket(date: string): DailyMetricsBucket {
   return {
     date,
@@ -214,6 +292,11 @@ export function emptyBucket(date: string): DailyMetricsBucket {
       confidence: emptyConfidence(),
       confidenceCalc: emptyConfidence(),
       byErrorType: {},
+      byTopic: {},
+      byCourseProfile: emptyCourseProfile(),
+      imageAttachment: emptyImageAttachment(),
+      rPackagesCustomized: emptyRPackagesCustomized(),
+      byRequestedPackage: {},
       tokens: { promptTokens: 0, completionTokens: 0, cachedTokens: 0 },
       costUsd: 0,
       costUsdByMode: { concept: 0, calc: 0 },
@@ -294,6 +377,11 @@ export function normalizeBucket(raw: unknown, date: string): DailyMetricsBucket 
       confidence: { ...empty.server.confidence, ...s.confidence },
       confidenceCalc: { ...empty.server.confidenceCalc, ...s.confidenceCalc },
       byErrorType: okCountRecord(s.byErrorType),
+      byTopic: okCountRecord(s.byTopic),
+      byCourseProfile: { ...empty.server.byCourseProfile, ...s.byCourseProfile },
+      imageAttachment: { ...empty.server.imageAttachment, ...s.imageAttachment },
+      rPackagesCustomized: { ...empty.server.rPackagesCustomized, ...s.rPackagesCustomized },
+      byRequestedPackage: okCountRecord(s.byRequestedPackage),
       tokens: { ...empty.server.tokens, ...s.tokens },
       costUsd: typeof s.costUsd === "number" ? s.costUsd : 0,
       costUsdByMode: { ...empty.server.costUsdByMode, ...s.costUsdByMode },
@@ -355,6 +443,25 @@ export async function readBucketsForRange(env: Env, dates: string[]): Promise<Da
   return Promise.all(dates.map((d) => readBucket(env, d)));
 }
 
+/** Whitelist a topic string right before it can become a `byTopic` Record
+ *  key — the storage-layer half of the "never trust upstream typing alone"
+ *  rule (routes/telemetry.ts's VALID_FAILURES is the other example of this
+ *  pattern in this codebase). parse-response.ts already guarantees `topic`
+ *  is one of solver-core's TOPICS members or the literal string "unknown"
+ *  (never an arbitrary model/client string) by the time it reaches here, but
+ *  this function doesn't lean on that guarantee — it re-validates
+ *  independently, so a future version-skew bug upstream can't smuggle an
+ *  unbounded string into a KV bucket key.
+ *
+ *  "unknown" is accepted as its OWN legitimate key (not collapsed into
+ *  "other") — it's a fixed literal, not client-controlled, and keeping it
+ *  distinct is the whole point: it answers "how often did the model just not
+ *  produce a TOPIC line at all" separately from "the model said `other`". */
+function safeTopicKey(topic: string): string {
+  if (topic === "unknown") return "unknown";
+  return isTopic(topic) ? topic : "other";
+}
+
 function addInstallHash(bucket: DailyMetricsBucket, hash: string): void {
   if (!hash) return;
   if (bucket.installHashes.includes(hash)) return;
@@ -407,13 +514,25 @@ export interface ServerEventInput {
      *  from routes/solve.ts under route:"interpret") should pass its parsed
      *  calc confidence here. */
     confidence?: "High" | "Med" | "Low" | "";
+    /** course-topic: the model's self-reported TOPIC tag for THIS completed
+     *  question (parseResponse's `.topic` — solver-core's TOPICS taxonomy, or
+     *  "unknown"). Same per-path timing as `confidence`: concept path passes
+     *  the first pass's topic, calc path passes the INTERPRET leg's topic
+     *  (its own re-assessment after seeing the R output, not the first
+     *  pass's RCODE-generation-time guess). Whitelisted server-side before
+     *  becoming a Record key — see applyServerEvent's safeTopicKey. */
+    topic?: string;
   };
 }
 
 /** Pure per-event mutation, shared by the single-event path below and the
  *  per-request batch (flushMetricsBatch) — extracted so batching can't drift
- *  from the one-event semantics. */
-function applyServerEvent(bucket: DailyMetricsBucket, input: ServerEventInput): void {
+ *  from the one-event semantics. Exported (alongside applyRequestFacts below)
+ *  specifically so scripts/self-test-metrics.ts can exercise the byTopic
+ *  whitelist (safeTopicKey) directly against a plain bucket, with no KV mock
+ *  needed — same "export the pure mutation for testability" precedent as
+ *  emptyBucket/normalizeBucket/aggregateMetrics elsewhere in this module. */
+export function applyServerEvent(bucket: DailyMetricsBucket, input: ServerEventInput): void {
   const r = bucket.server.routes[input.route];
   r.attempts += 1;
   if (input.success) r.successes += 1;
@@ -435,13 +554,17 @@ function applyServerEvent(bucket: DailyMetricsBucket, input: ServerEventInput): 
   if (input.costMode) bucket.server.costUsdByMode[input.costMode] += input.costUsd;
 
   if (input.completedQuestion) {
-    const { mode, confidence: conf } = input.completedQuestion;
+    const { mode, confidence: conf, topic } = input.completedQuestion;
     bucket.server.modeSplit[mode] += 1;
     if (conf !== undefined) {
       // Per-path confidence: concept -> `confidence`, calc -> `confidenceCalc`
       // (dashboard-v2 item 16) so low-confidence views cover both paths.
       const target = mode === "calc" ? bucket.server.confidenceCalc : bucket.server.confidence;
       target[conf] = (target[conf] ?? 0) + 1;
+    }
+    if (topic !== undefined) {
+      const key = safeTopicKey(topic);
+      bucket.server.byTopic[key] = (bucket.server.byTopic[key] ?? 0) + 1;
     }
   }
 
@@ -521,21 +644,91 @@ export function recordRRunnerEventInBackground(c: EnvContext, input: RRunnerEven
  *  shrinks the read-modify-write race window to one racy write per request
  *  instead of several. Same silent-failure contract as every recorder here:
  *  a lost flush costs one request's events, never the solve. */
+/** course-topic Part 3 + preset-package telemetry: request-LEVEL facts that
+ *  are known up-front from `body` (unlike `topic`, which needs a model
+ *  response) — courseProfile/imageAttached/rPackagesCustomized/
+ *  requestedPackages. Set ONCE per solve.ts request (right after
+ *  createMetricsBatch(), before any leg runs) rather than attached to every
+ *  per-leg ServerEventInput, specifically so a calc question's first-pass +
+ *  optional repair + interpret legs — which can push up to 3 separate
+ *  ServerEventInput events for ONE request — don't triple-count a single
+ *  request's facts. Recorded regardless of whether the request ultimately
+ *  succeeds (unlike `completedQuestion`'s topic, which needs a successful
+ *  parse) — "how many requests asked for `car`" is meaningful even for a
+ *  request that later failed. */
+export interface RequestFacts {
+  courseProfile: "sta301" | "generic";
+  imageAttached: boolean;
+  /** Undefined when the extension build didn't send `rPackagesCustomized` at
+   *  all (pre-course-topic installs) — left uncounted rather than forced into
+   *  "default", so old-client traffic doesn't silently skew the ratio. */
+  rPackagesCustomized?: boolean;
+  /** Raw `body.packages` as sent — grammar-revalidated server-side in
+   *  addRequestedPackages before any name becomes a KV key (never trust the
+   *  client, same rule as everywhere else in this file). */
+  requestedPackages?: string[];
+}
+
 export interface MetricsBatch {
   server: ServerEventInput[];
   rRunner: RRunnerEventInput[];
+  requestFacts?: RequestFacts;
 }
 
 export function createMetricsBatch(): MetricsBatch {
   return { server: [], rRunner: [] };
 }
 
+/** Per-day cap on DISTINCT package-name keys in byRequestedPackage — same
+ *  "cap distinct entries, keep incrementing ones already present" pattern as
+ *  addInstallHash's INSTALL_HASH_CAP above, just a far smaller number since
+ *  this is a curated-ish namespace (real R package names), not a per-user
+ *  hash space. */
+const REQUESTED_PACKAGE_CAP = 20;
+
+/** Same grammar the extension's popup validates client-side
+ *  (apps/extension/src/r-packages.ts's isValidPackageName) — re-checked here
+ *  independently because this is a NEW use of `body.packages` (metrics
+ *  storage, not prompt-building) and "never trust the client" applies to
+ *  every KV-key-producing path separately, not just the ones that existed
+ *  before this branch. */
+const REQUESTED_PACKAGE_NAME_RE = /^[A-Za-z][A-Za-z0-9.]{0,40}$/;
+
+function addRequestedPackages(bucket: DailyMetricsBucket, packages: readonly string[] | undefined): void {
+  if (!packages) return;
+  for (const raw of packages) {
+    if (typeof raw !== "string" || !REQUESTED_PACKAGE_NAME_RE.test(raw)) continue;
+    const existing = bucket.server.byRequestedPackage[raw];
+    if (existing === undefined && Object.keys(bucket.server.byRequestedPackage).length >= REQUESTED_PACKAGE_CAP) {
+      continue; // cap reached for the day — further NEW distinct names silently dropped
+    }
+    bucket.server.byRequestedPackage[raw] = (existing ?? 0) + 1;
+  }
+}
+
+/** Pure per-batch mutation for RequestFacts — see the interface doc above for
+ *  why these are batch-level (once per request) rather than per-event.
+ *  Exported for the same self-test-metrics.ts testability reason as
+ *  applyServerEvent above (covers the requested-package grammar
+ *  re-validation + REQUESTED_PACKAGE_CAP directly). */
+export function applyRequestFacts(bucket: DailyMetricsBucket, facts: RequestFacts): void {
+  bucket.server.byCourseProfile[facts.courseProfile] += 1;
+  if (facts.imageAttached) bucket.server.imageAttachment.withImages += 1;
+  else bucket.server.imageAttachment.withoutImages += 1;
+  if (facts.rPackagesCustomized !== undefined) {
+    if (facts.rPackagesCustomized) bucket.server.rPackagesCustomized.customized += 1;
+    else bucket.server.rPackagesCustomized.default += 1;
+  }
+  addRequestedPackages(bucket, facts.requestedPackages);
+}
+
 export async function flushMetricsBatch(env: Env, batch: MetricsBatch): Promise<void> {
-  if (batch.server.length === 0 && batch.rRunner.length === 0) return;
+  if (batch.server.length === 0 && batch.rRunner.length === 0 && !batch.requestFacts) return;
   try {
     const bucket = await readBucket(env, todayUtc());
     for (const ev of batch.server) applyServerEvent(bucket, ev);
     for (const ev of batch.rRunner) applyRRunnerEvent(bucket, ev);
+    if (batch.requestFacts) applyRequestFacts(bucket, batch.requestFacts);
     await writeBucket(env, bucket);
   } catch {
     // Best-effort — metrics must never break or delay a solve.
