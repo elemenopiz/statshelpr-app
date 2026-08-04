@@ -18,7 +18,8 @@
  * file's doc comment for the exact residual race window), just with no
  * per-caller scope to hash: everyone shares the one "global" bucket.
  *
- * Checked in routes/solve.ts before EACH Gemini call it makes, individually —
+ * Checked in routes/solve.ts before EACH LLM provider call it makes (Luna
+ * primary or the Gemini fallback leg — see lib/llm.ts), individually —
  * not once per request. A concept question makes one (the first pass, right
  * after the per-caller auth/license/rate-limit gates and immediately before
  * the Gemini stream). A calc question can make up to three, each gated here
@@ -28,7 +29,7 @@
  * docs/cloud-run-r-migration.md §3 — that route is gone; both are now
  * internal continuations of the one /api/solve request, but the PER-CALL
  * checkpoint is preserved so the global ceiling still bounds worst-case
- * Gemini spend the same way it did when solve and interpret were separate
+ * provider spend the same way it did when solve and interpret were separate
  * requests). Checking before each call rather than once per request means
  * only work that will actually incur Gemini cost counts toward the ceiling.
  * It deliberately is NOT at the very top of the route: a top-of-route
@@ -40,7 +41,10 @@
  *
  * *** CEILING SIZING — re-check before trusting, same spirit as lib/cost.ts's
  * pricing-source disclaimer ***
- * Default GLOBAL_DAILY_CALL_LIMIT = 1000 (every Gemini call/day, across all
+ * Default GLOBAL_DAILY_CALL_LIMIT = 1000 (every provider call/day — Luna or
+ * Gemini-fallback; the $0.08/call pessimistic bound below still holds
+ * post-Luna-swap because the priciest path is the Gemini IMAGE fallback at
+ * ~$0.075/call — across all
  * legs of /api/solve — see the per-call checkpoints above; NOT 1000
  * questions/day, since a calc question can now consume up to 3 calls against
  * this ceiling instead of 2 — the R-repair leg is a new addition this

@@ -49,7 +49,8 @@ R_RUNNER_URL = "https://statshelpr-r-runner-964221203874.us-central1.run.app"
 # to free-tier callers — paid licenses stay unlimited, same as the
 # per-install counter.
 IP_DAILY_LIMIT = "200"
-# Global (NOT per-user) daily ceiling on every Gemini call this Worker makes,
+# Global (NOT per-user) daily ceiling on every LLM provider call this Worker
+# makes (Luna primary or Gemini fallback — lib/llm.ts),
 # checked before EACH ONE individually regardless of caller/tier — the real
 # volume/cost backstop the audit flagged as missing (previously: only a
 # daily 08:00 UTC alert EMAIL after the fact, nothing in the request path
