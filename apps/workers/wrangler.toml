@@ -113,9 +113,23 @@ name = "COUNTERS_DO"
 class_name = "CountersDO"
 
 # Secrets set at deploy time (not committed):
-#   wrangler secret put OPENAI_API_KEY               (THE solver key — required;
-#                                                     GEMINI_API_KEY is retired and
-#                                                     unread; delete it whenever convenient)
+#   wrangler secret put OPENAI_API_KEY               (THE PRIMARY solver key — every solve
+#                                                     leg tries Luna on this key first.
+#                                                     *** REQUIRED — MUST BE SET BEFORE
+#                                                     DEPLOY ***; GEMINI_API_KEY alone is a
+#                                                     degraded fallback-only mode, not a
+#                                                     substitute for shipping without this.)
+#   wrangler secret put GEMINI_API_KEY               (THE FALLBACK solver key, gemini-fallback
+#                                                     work — apps/workers/src/lib/llm.ts
+#                                                     automatically retries a failed Luna call
+#                                                     on this key (5xx/timeout/429/quota/auth
+#                                                     failure, or OPENAI_API_KEY missing) and
+#                                                     serves its result. STRONGLY RECOMMENDED
+#                                                     but not fail-closed: unset means a Luna
+#                                                     outage surfaces as a normal solve error
+#                                                     instead of degrading to a slower/pricier
+#                                                     answer. Was retired/unread after the
+#                                                     fc35aa5 Luna swap; re-wired here.)
 #   wrangler secret put LEMONSQUEEZY_API_KEY
 #   wrangler secret put LEMONSQUEEZY_WEBHOOK_SECRET
 #   wrangler secret put LEMONSQUEEZY_STORE_ID       (optional; enforces store match)

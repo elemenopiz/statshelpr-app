@@ -2,7 +2,7 @@
  * Re-prompt the model with an R run's stdout/stderr when it exited non-zero,
  * asking for repaired runnable R code. Ported from
  * apps/api/lib/solver/r-repair.ts (read-only reference, not imported — see
- * docs/cloud-run-r-migration.md §0/§3.2) with two Worker-specific changes:
+ * docs/cloud-run-r-migration.md §0/§3.2) with three Worker-specific changes:
  *
  *   1. Takes the resolved `model` as a parameter instead of importing the
  *      `MODEL` constant — routes/solve.ts already computed
@@ -12,32 +12,40 @@
  *      default text model.
  *   2. Returns `{ code, usage }` instead of just `code` — the caller
  *      (routes/solve.ts) needs the repair call's own token usage to record
- *      its own metrics event (a repair round-trip is a real, separate Gemini
+ *      its own metrics event (a repair round-trip is a real, separate LLM
  *      call and must be counted/costed on its own, not folded silently into
  *      the first pass's numbers).
+ *   3. (gemini-fallback work) Routes through lib/llm.ts's chatWithFallback
+ *      instead of calling a provider's chat() directly, so a repair call
+ *      falls back to Gemini exactly like the first-pass/interpret legs —
+ *      returns `servedBy` too, since a repair call can independently end up
+ *      served by either provider.
  *
  * The prompt text itself is byte-identical to the apps/api version.
  */
 
 import { extractRCode, parseResponse } from "@statshelpr/solver-core/core";
-import { chat, type LlmChatUsage } from "@statshelpr/solver-core/core/providers";
+import type { LlmChatUsage } from "@statshelpr/solver-core/core/providers";
 import { MAX_TOKENS_FIRST } from "@statshelpr/solver-core/solver";
+import { chatWithFallback, type FallbackEnv, type FallbackOpts, type ServedBy } from "./llm";
 import type { RunRResult } from "./r-runner";
 
 export interface RepairResult {
   code: string | undefined;
   usage: LlmChatUsage | undefined;
+  servedBy: ServedBy;
 }
 
 export async function repairRCode(
-  apiKey: string,
+  env: FallbackEnv,
   model: string,
   system: string,
   questionPrompt: string,
   rCode: string,
   runResult: RunRResult,
+  fallback: Pick<FallbackOpts, "geminiModel" | "authorizeFallback">,
 ): Promise<RepairResult> {
-  const repair = await chat(apiKey, {
+  const { result: repair, servedBy } = await chatWithFallback(env, {
     model,
     system,
     messages: [
@@ -72,8 +80,8 @@ export async function repairRCode(
     // buildRequestBody comment). Kept only for parity with the apps/api
     // original; harmless no-op here.
     cacheKey: null,
-  });
+  }, fallback);
   const parsed = parseResponse(repair.text);
   const candidate = extractRCode(parsed.body);
-  return { code: candidate || undefined, usage: repair.usage };
+  return { code: candidate || undefined, usage: repair.usage, servedBy };
 }

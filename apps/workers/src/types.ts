@@ -4,14 +4,29 @@
  */
 export interface Env {
   // Secrets (set via `wrangler secret put`)
-  /** THE solver key — every solve leg (first pass, R-repair, interpret) is a
-   *  Luna (gpt-5.6-luna) call billed to this key. Unset means /api/solve
-   *  fails closed with a clear "not configured" 500, same contract as
-   *  R_RUNNER_SECRET below — *** MUST BE SET BEFORE DEPLOY ***.
-   *  (GEMINI_API_KEY is retired from this interface; the wrangler secret may
-   *  still exist in the deployment but nothing reads it anymore — safe to
-   *  `wrangler secret delete GEMINI_API_KEY` whenever convenient.) */
+  /** THE PRIMARY solver key — every solve leg (first pass, R-repair,
+   *  interpret) tries a Luna (gpt-5.6-luna) call billed to this key FIRST
+   *  (see lib/llm.ts). Unset means every leg skips straight to the
+   *  GEMINI_API_KEY fallback below instead of attempting Luna at all; if
+   *  THAT is also unset, /api/solve fails closed with a clear "not
+   *  configured" 500, same contract as R_RUNNER_SECRET below —
+   *  *** MUST BE SET BEFORE DEPLOY (GEMINI_API_KEY alone is a degraded-mode
+   *  fallback, not a substitute for shipping without Luna configured) ***. */
   OPENAI_API_KEY: string;
+  /** THE FALLBACK solver key (gemini-fallback work) — lib/llm.ts's
+   *  chatWithFallback()/chatStreamWithFallback() reach for this automatically
+   *  when the Luna attempt ultimately fails (5xx/timeout/429/quota after
+   *  retry.ts's own retries are exhausted, an OpenAI auth/bad-request error,
+   *  or OPENAI_API_KEY being unset/empty) — see that file's shouldFallback().
+   *  Optional: unset means no fallback is available and a failed Luna call
+   *  surfaces as a normal solve error, exactly like pre-fallback behavior.
+   *  Strongly recommended in production so a Luna outage degrades to a
+   *  slower/pricier answer instead of a hard failure. Billed calls made on
+   *  this key are costed/attributed under their OWN Gemini model id (see
+   *  lib/cost.ts's MODEL_RATES) — never blended into Luna's numbers — so
+   *  GET /api/metrics' `economics.modelsUsed` / the /dashboard "Cost by
+   *  model" card is also how the owner sees fallback firing. */
+  GEMINI_API_KEY?: string;
   LEMONSQUEEZY_API_KEY?: string;
   LEMONSQUEEZY_WEBHOOK_SECRET?: string;
   LEMONSQUEEZY_STORE_ID?: string;

@@ -8,7 +8,11 @@ import {
   extractRCode,
   parseResponse,
 } from "@statshelpr/solver-core/core";
-import { chatStream, type LlmChatUsage } from "@statshelpr/solver-core/core/providers";
+import {
+  GEMINI_DEFAULT_MODEL,
+  GEMINI_IMAGE_MODEL,
+  type LlmChatUsage,
+} from "@statshelpr/solver-core/core/providers";
 import { classifyError } from "@/lib/classify-error";
 import { doGate, type GateCheck } from "@/lib/counters-do";
 import { costUsdForUsage, LUNA_MODEL } from "@/lib/cost";
@@ -24,6 +28,7 @@ import {
 } from "@/lib/kill-switch";
 import { validateLicense } from "@/lib/license";
 import { activateForInstall } from "@/lib/license-activation";
+import { chatStreamWithFallback, FallbackGateRejectedError } from "@/lib/llm";
 import {
   createMetricsBatch,
   flushMetricsBatchInBackground,
@@ -55,8 +60,14 @@ solve.use("*", cors({
 }));
 
 solve.post("/", async (c) => {
-  const apiKey = c.env.OPENAI_API_KEY;
-  if (!apiKey) return c.json({ error: "OPENAI_API_KEY not configured" }, 500);
+  // Luna (OPENAI_API_KEY) is primary; Gemini (GEMINI_API_KEY) is the
+  // automatic server-side fallback (lib/llm.ts) when Luna's own retry policy
+  // is exhausted. Only fail closed here when NEITHER is configured — a
+  // solo-key deploy (either key alone) is a valid, if degraded, operating
+  // mode. Per-leg key resolution happens inside lib/llm.ts, not here.
+  if (!c.env.OPENAI_API_KEY && !c.env.GEMINI_API_KEY) {
+    return c.json({ error: "No LLM provider configured (OPENAI_API_KEY/GEMINI_API_KEY)" }, 500);
+  }
 
   const auth = c.req.header("authorization") ?? "";
   const licenseKey = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
@@ -216,6 +227,39 @@ solve.post("/", async (c) => {
       const questionPrompt = buildQuestionPrompt(body);
       const userContent = buildUserContent(questionPrompt, body.images);
 
+      // Which Gemini model a fallback for THIS request would use, computed
+      // ONCE and reused for every leg (first pass, repair, interpret) — same
+      // "one model decision for the whole request" precedent the pre-fc35aa5
+      // code used for `model` itself (see lib/r-repair.ts's doc comment).
+      // ALWAYS one of these two server-side constants, NEVER influenced by
+      // `body.model` or any other request field — `hasImage` is a boolean
+      // derived from array length, not a passthrough string (2026-07-28
+      // whitelist-bypass-incident hardening; see lib/llm.ts's top-of-file
+      // SECURITY note and ALLOWED_MODELS below, which independently already
+      // rejects any `body.model` other than LUNA_MODEL before this point).
+      const geminiModel = hasImage ? GEMINI_IMAGE_MODEL : GEMINI_DEFAULT_MODEL;
+
+      // Authorizes a Gemini fallback call — passed to every
+      // chatStreamWithFallback/repairRCode call below as
+      // `authorizeFallback`. A Luna failure means Gemini is about to make a
+      // SECOND, NEW outbound paid-API call for this leg, so it must be gated
+      // exactly like the repair/interpret legs already gate their own FIRST
+      // attempt via checkGlobalKillSwitch — otherwise a forced-Luna-failure
+      // attack (e.g. spamming until Luna 429s on every request) could route
+      // one full extra real provider call per request through the fallback
+      // leg while only ever spending ONE unit of GLOBAL_DAILY_CALL_LIMIT
+      // (2026-07-28 whitelist-bypass-incident hardening — see lib/llm.ts's
+      // authorizeFallback doc for the full rationale). Logs only a closed
+      // error-class string (classifyError) — never the raw error message or
+      // any request content — to wrangler tail for operator visibility.
+      const gateFallback = async (lunaError: unknown): Promise<boolean> => {
+        const gate = await checkGlobalKillSwitch(c.env);
+        console.warn(
+          `[llm-fallback] luna failed (${classifyError(lunaError)}) — gemini gate ${gate.allowed ? "allowed" : "REFUSED"}`,
+        );
+        return gate.allowed;
+      };
+
       await write({ type: "phase", label: "Thinking…" });
 
       let buf = "";
@@ -223,7 +267,7 @@ solve.post("/", async (c) => {
       let userVisibleSent = "";
       let usage: LlmChatUsage | undefined;
 
-      for await (const delta of chatStream(apiKey, {
+      const firstPass = chatStreamWithFallback(c.env, {
         model,
         system,
         messages: [{ role: "user", content: userContent }],
@@ -245,7 +289,9 @@ solve.post("/", async (c) => {
             });
           },
         },
-      })) {
+      }, { geminiModel, authorizeFallback: gateFallback });
+
+      for await (const delta of firstPass.stream) {
         // Usage arrives on the final chunk, which has no `text` — capture it
         // before the text-only `continue` below would otherwise skip it.
         if (delta.usage) usage = delta.usage;
@@ -279,13 +325,23 @@ solve.post("/", async (c) => {
         }
       }
 
+      // Read AFTER the stream is fully drained (the loop above just
+      // finished) — reflects whichever provider actually answered, Luna or a
+      // Gemini fallback (see lib/llm.ts's chatStreamWithFallback doc).
+      const firstPassServedBy = firstPass.servedBy();
       const parsed = parseResponse(buf);
       const usageTokens = {
         promptTokens: usage?.prompt_tokens ?? 0,
         completionTokens: usage?.completion_tokens ?? 0,
         cachedTokens: usage?.cached_tokens ?? 0,
       };
-      const costUsd = costUsdForUsage(model, usageTokens);
+      // Costed/attributed to the model that ACTUALLY served, not the model
+      // originally requested — a fallback-served event must land in its OWN
+      // Gemini row in lib/cost.ts's MODEL_RATES / GET /api/metrics'
+      // economics.modelsUsed, never blended into Luna's numbers (this is
+      // also the content-free signal the owner sees fallback firing from —
+      // see lib/llm.ts's top-of-file doc).
+      const costUsd = costUsdForUsage(firstPassServedBy.model, usageTokens);
       // Every leg reports its REAL cost into the global dollar ceiling the
       // moment its usage is known — this (not the call count) is what makes
       // GLOBAL_DAILY_SPEND_LIMIT_USD a hard bound on a bad day. See
@@ -297,7 +353,7 @@ solve.post("/", async (c) => {
         metricsBatch.server.push({
           route: "solve",
           success: true,
-          model,
+          model: firstPassServedBy.model,
           ...usageTokens,
           costUsd,
           serverLatencyMs: Date.now() - startedAt,
@@ -333,7 +389,7 @@ solve.post("/", async (c) => {
       metricsBatch.server.push({
         route: "solve",
         success: true,
-        model,
+        model: firstPassServedBy.model,
         ...usageTokens,
         costUsd,
         serverLatencyMs: Date.now() - startedAt,
@@ -488,28 +544,40 @@ solve.post("/", async (c) => {
             return undefined;
           }
 
-          // repairRCode routes through providers' chat(), so a 429/5xx/network
-          // hiccup here retries transparently too (core/providers/retry.ts) —
-          // no retry.onWaiting hook needed at this call site specifically: it
-          // runs inside runCalcPipeline(), which the `heartbeat` interval
-          // above already blankets with a "Computing…" phase tick every 10s
-          // for exactly this "don't go SSE-silent too long" reason, so a
-          // second heartbeat here would just be a redundant duplicate.
-          const repair = await repairRCode(apiKey, model, system, questionPrompt, rCode, result);
+          // repairRCode routes through lib/llm.ts's chatWithFallback (Luna
+          // first, Gemini on failure — see that file), which itself wraps
+          // each provider's fetch() in the transparent retry/backoff layer
+          // (core/providers/retry.ts) — no retry.onWaiting hook needed at
+          // this call site specifically: it runs inside runCalcPipeline(),
+          // which the `heartbeat` interval above already blankets with a
+          // "Computing…" phase tick every 10s for exactly this "don't go
+          // SSE-silent too long" reason, so a second heartbeat here would
+          // just be a redundant duplicate. `authorizeFallback: gateFallback`
+          // re-gates the repair leg's OWN fallback attempt independently of
+          // the repairKill check just above (that one gates the Luna
+          // attempt; this one gates the Gemini attempt IF Luna fails) — see
+          // lib/llm.ts's authorizeFallback doc.
+          const repair = await repairRCode(c.env, model, system, questionPrompt, rCode, result, {
+            geminiModel,
+            authorizeFallback: gateFallback,
+          });
           const repairUsageTokens = {
             promptTokens: repair.usage?.prompt_tokens ?? 0,
             completionTokens: repair.usage?.completion_tokens ?? 0,
             cachedTokens: repair.usage?.cached_tokens ?? 0,
           };
-          const repairCostUsd = costUsdForUsage(model, repairUsageTokens);
+          const repairCostUsd = costUsdForUsage(repair.servedBy.model, repairUsageTokens);
           recordGlobalSpendInBackground(c, repairCostUsd);
           // Repair leg's own metrics event. route:"solve" (a continuation of
           // the solve leg, not the interpret leg) and deliberately NO
           // completedQuestion — same reasoning as the first-pass event above.
+          // model: the ACTUAL serving model (Luna or a Gemini fallback),
+          // never the originally-requested one — see firstPassServedBy's
+          // comment above.
           metricsBatch.server.push({
             route: "solve",
             success: true,
-            model,
+            model: repair.servedBy.model,
             ...repairUsageTokens,
             costUsd: repairCostUsd,
             serverLatencyMs: Date.now() - startedAt,
@@ -573,7 +641,7 @@ solve.post("/", async (c) => {
       let fbuf = "";
       let fSent = "";
       let finalUsage: LlmChatUsage | undefined;
-      for await (const delta of chatStream(apiKey, {
+      const interpret = chatStreamWithFallback(c.env, {
         model,
         system,
         messages: [
@@ -596,7 +664,9 @@ solve.post("/", async (c) => {
             });
           },
         },
-      })) {
+      }, { geminiModel, authorizeFallback: gateFallback });
+
+      for await (const delta of interpret.stream) {
         // Usage arrives on the final chunk, which has no `text` — capture it
         // before the text-only `continue` below would otherwise skip it.
         if (delta.usage) finalUsage = delta.usage;
@@ -611,6 +681,9 @@ solve.post("/", async (c) => {
         }
       }
 
+      // See firstPassServedBy's comment above — the actual serving model,
+      // read only after the stream is fully drained.
+      const interpretServedBy = interpret.servedBy();
       const finalParsed = parseResponse(fbuf);
       const finalBlanks = deriveBlankAnswers(finalParsed.body, body.blanks);
       const finalUsageTokens = {
@@ -618,7 +691,7 @@ solve.post("/", async (c) => {
         completionTokens: finalUsage?.completion_tokens ?? 0,
         cachedTokens: finalUsage?.cached_tokens ?? 0,
       };
-      const interpretCostUsd = costUsdForUsage(model, finalUsageTokens);
+      const interpretCostUsd = costUsdForUsage(interpretServedBy.model, finalUsageTokens);
       recordGlobalSpendInBackground(c, interpretCostUsd);
 
       // Interpret leg's metrics — exactly what the old routes/interpret.ts
@@ -632,7 +705,7 @@ solve.post("/", async (c) => {
       metricsBatch.server.push({
         route: "interpret",
         success: true,
-        model,
+        model: interpretServedBy.model,
         ...finalUsageTokens,
         costUsd: interpretCostUsd,
         serverLatencyMs: Date.now() - startedAt,
@@ -663,6 +736,18 @@ solve.post("/", async (c) => {
         },
       });
     } catch (e) {
+      // A refused fallback (global kill-switch tripped between the primary
+      // attempt and the fallback attempt — see lib/llm.ts's
+      // FallbackGateRejectedError) is a service-wide capacity condition, not
+      // an upstream provider error — classifyError()/humanizeError() would
+      // otherwise describe it as an opaque "Unknown error" since it carries
+      // no HTTP status. Recorded exactly like the repair/interpret legs'
+      // OWN pre-check rejections just above (errorType "quota",
+      // KILL_SWITCH_MESSAGE). `model` stays the resolved, ALLOWED_MODELS-
+      // validated request-level model (never a raw client string, and never
+      // a per-attempt servedBy — by the time an error reaches here there is
+      // no single call to attribute it to).
+      const gateRejected = e instanceof FallbackGateRejectedError;
       metricsBatch.server.push({
         route: "solve",
         success: false,
@@ -673,9 +758,9 @@ solve.post("/", async (c) => {
         costUsd: 0,
         serverLatencyMs: Date.now() - startedAt,
         installHash,
-        errorType: classifyError(e),
+        errorType: gateRejected ? "quota" : classifyError(e),
       });
-      await write({ type: "error", message: humanizeError(e) });
+      await write({ type: "error", message: gateRejected ? KILL_SWITCH_MESSAGE : humanizeError(e) });
     } finally {
       // ONE bucket write for everything the request recorded, success or
       // failure — runs after the catch above has pushed its error event.
@@ -776,15 +861,22 @@ function validateSolveBody(body: SolveBody): string | null {
   return null;
 }
 
+/** Provider-neutral on purpose (gemini-fallback work): this fires for
+ *  whichever provider's error reaches the outer catch last — Luna alone
+ *  (no GEMINI_API_KEY configured), or Gemini's own failure after a Luna
+ *  fallback — so a message naming one specific provider would be actively
+ *  wrong roughly half the time. Previously hardcoded "Gemini" unconditionally
+ *  even for Luna failures (pre-existing bug from the fc35aa5 provider swap,
+ *  fixed here rather than left for the fallback work to inherit). */
 function humanizeError(e: unknown): string {
   const obj = e as { status?: number; message?: string };
   const msg = obj?.message ?? "Unknown error";
   if (/credit balance|insufficient|quota|resource exhausted/i.test(msg))
-    return "Gemini quota exhausted — check billing at aistudio.google.com.";
+    return "The AI tutor is temporarily over its usage quota — please try again shortly.";
   if (obj?.status === 401 || obj?.status === 403)
-    return "Gemini API key invalid, revoked, or missing permissions.";
+    return "The AI tutor's API key is invalid, revoked, or missing permissions.";
   if (obj?.status === 429)
-    return "Rate limited by Gemini — wait a moment and retry.";
+    return "The AI tutor is rate-limited right now — wait a moment and retry.";
   return msg;
 }
 
