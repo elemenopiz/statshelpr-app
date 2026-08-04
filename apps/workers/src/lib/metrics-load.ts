@@ -146,8 +146,15 @@ export async function loadMetrics(env: Env, days: number = METRICS_RANGE_DAYS): 
 
 /** Live active-subscriber count from the `sub:` KV keyspace (item 6). Follows
  *  the list cursor so it doesn't stop at the first KV page. Records that fail
- *  to parse are skipped rather than aborting the whole scan. */
-async function countActiveSubscribers(env: Env): Promise<number> {
+ *  to parse are skipped rather than aborting the whole scan.
+ *
+ *  Exported (2026-08-04, owner directive) so src/index.ts's scheduled cron
+ *  can reuse this SAME scan once/day to feed
+ *  lib/kill-switch.ts's subscriber-scaled global spend ceiling
+ *  (computeEffectiveSpendLimitUsd/persistEffectiveSpendLimit) — this is an
+ *  O(subscriber-count) KV list+get walk, fine once/day, NOT something the
+ *  per-solve hot path should ever call directly. */
+export async function countActiveSubscribers(env: Env): Promise<number> {
   let count = 0;
   let cursor: string | undefined = undefined;
 
