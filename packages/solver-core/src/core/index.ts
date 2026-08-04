@@ -1,5 +1,5 @@
 export { STATS_REFERENCE } from "./stats-reference";
-export { buildSystemPrompt, type SystemPromptOptions } from "./system-prompt";
+export { buildSystemPrompt, type CourseProfile, type SystemPromptOptions } from "./system-prompt";
 export {
   parseResponse,
   extractRCode,
@@ -7,6 +7,7 @@ export {
   type Mode,
   type ParsedResponse,
 } from "./parse-response";
+export { TOPICS, isTopic, type Topic } from "./topics";
 export {
   buildDataContext,
   type DataframeSummary,

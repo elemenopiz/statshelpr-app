@@ -1,3 +1,8 @@
+/** The UT Austin STA 301 default reference block — unchanged export, still the
+ *  historical default any existing importer gets. `buildStatsReference` below
+ *  is what buildSystemPrompt actually calls; it swaps ONLY the one course-
+ *  branded line (the de Moivre jargon flag) for the "generic" course profile
+ *  and returns this exact string untouched otherwise. */
 export const STATS_REFERENCE = `
 --- STATISTICS REFERENCE (DSGI Textbook) ---
 
@@ -234,3 +239,32 @@ R CODE PATTERNS:
 
 --- END STATISTICS REFERENCE ---
 `;
+
+/** The exact STA301 line being swapped, and its "generic" replacement — pulled
+ *  out as named constants (rather than inlined in the .replace() call below)
+ *  so the golden test in packages/solver-core/scripts/self-test-prompt.ts can
+ *  import and assert against them directly instead of re-deriving the swap by
+ *  hand. Only the course-branded parenthetical changes; the SE formula and its
+ *  interpretation guidance — genuinely course-agnostic content — stay intact
+ *  either way. */
+export const DE_MOIVRE_LINE_STA301 =
+  `  - "De Moivre's equation" (this course's term) = SE of the MEAN = σ/√n. It is a function of n (number of data points averaged) and σ (variability of a single data point). It concerns MEANS — a CI "using de Moivre's equation" is a CI for a population mean from a sample mean, NOT a proportion.`;
+
+export const DE_MOIVRE_LINE_GENERIC =
+  `  - "De Moivre's equation" (a term some courses use) = SE of the MEAN = σ/√n. It is a function of n (number of data points averaged) and σ (variability of a single data point). It concerns MEANS — a CI "using de Moivre's equation" is a CI for a population mean from a sample mean, NOT a proportion.`;
+
+/**
+ * Course-profile-aware reference block. "generic" (a student outside UT Austin
+ * STA 301) gets the identical reference text EXCEPT the de Moivre line's
+ * "(this course's term)" flag, which wrongly implies THEIR course uses that
+ * name — swapped for a course-neutral "(a term some courses use)" framing.
+ * Everything else (the SE formulas, CLT guidance, every other section) is
+ * genuinely course-agnostic and stays byte-identical.
+ *
+ * undefined/"sta301" -> STATS_REFERENCE verbatim (byte-identical to the
+ * pre-course-topic prompt — see the golden test).
+ */
+export function buildStatsReference(courseProfile?: "generic"): string {
+  if (courseProfile !== "generic") return STATS_REFERENCE;
+  return STATS_REFERENCE.replace(DE_MOIVRE_LINE_STA301, DE_MOIVRE_LINE_GENERIC);
+}
