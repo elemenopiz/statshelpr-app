@@ -1,9 +1,12 @@
 import {
-  RPKG_STORAGE_KEY,
-  MAX_R_PACKAGES,
-  isValidPackageName,
+  UT_PRESET_ID,
   isInstalled,
-  loadRPackages,
+  loadPresetsState,
+  resolveActivePreset,
+  createPreset,
+  deletePreset,
+  setActivePresetId,
+  type PresetsState,
 } from "./r-packages";
 import { getInstallId } from "./install-id";
 import { startClaiming, tryClaimLicense } from "./claim-license";
@@ -806,91 +809,155 @@ function flashStatus(msg: string, kind: "ok" | "err") {
 }
 
 // =============================================================================
-// R libraries picker (folded; steers the tutor's package choice server-side)
+// Course preset picker (course-topic branch — replaces the old flat
+// per-package chip picker entirely)
 // =============================================================================
 //
-// The chosen list is POSTed with each solve (see content.ts) and shapes which
-// R packages the tutor's generated code reaches for. Defaults are the intro-
-// stats core and are fully REMOVABLE — a user in another course clears them and
-// adds their own. Only packages pre-installed on the runner actually run, so a
-// typed-in one outside INSTALLED_CATALOG is kept but flagged (dashed chip).
+// The active preset's package list is POSTed with each solve (see
+// content.ts) and shapes which R packages the tutor's generated code reaches
+// for; for a preset explicitly marked as NOT based on UT STA 301, the solve
+// also carries `courseProfile: "generic"`, swapping the tutor's course
+// conventions too — see r-packages.ts's resolveActivePreset for the exact
+// derivation table. "UT Austin STA 301" is a reserved, always-first, never-
+// deletable entry — selecting it (the default; nothing here has to be
+// touched) sends a solve request byte-identical to before this feature
+// existed. A preset's NAME is free text shown ONLY in this UI — see
+// r-packages.ts's module doc for the privacy contract; it never leaves the
+// device.
 
-const rpkgChipsEl = document.getElementById("rpkg-chips") as HTMLDivElement;
-const rpkgInput = document.getElementById("rpkg-input") as HTMLInputElement;
-const rpkgAddBtn = document.getElementById("rpkg-add") as HTMLButtonElement;
-const rpkgEmptyEl = document.getElementById("rpkg-empty") as HTMLDivElement;
+const presetSelectEl = document.getElementById("preset-select") as HTMLSelectElement;
+const presetPkgChipsEl = document.getElementById("preset-pkg-chips") as HTMLDivElement;
+const presetPkgEmptyEl = document.getElementById("preset-pkg-empty") as HTMLDivElement;
+const presetNewBtn = document.getElementById("preset-new-btn") as HTMLButtonElement;
+const presetDeleteBtn = document.getElementById("preset-delete-btn") as HTMLButtonElement;
+const presetCreateForm = document.getElementById("preset-create-form") as HTMLDivElement;
+const presetNameInput = document.getElementById("preset-name-input") as HTMLInputElement;
+const presetBasedOnUtCheckbox = document.getElementById("preset-based-on-ut") as HTMLInputElement;
+const presetPkgsInput = document.getElementById("preset-pkgs-input") as HTMLInputElement;
+const presetCreateSaveBtn = document.getElementById("preset-create-save") as HTMLButtonElement;
+const presetCreateCancelBtn = document.getElementById("preset-create-cancel") as HTMLButtonElement;
+const presetCreateStatusEl = document.getElementById("preset-create-status") as HTMLDivElement;
 
-let rPackages: string[] = [];
+let presetsState: PresetsState = { presets: [], activePresetId: UT_PRESET_ID };
 
-void loadRPackages().then(({ list }) => {
-  rPackages = list;
-  renderRPackages();
+void loadPresetsState().then((s) => {
+  presetsState = s;
+  renderPresetSelect();
+  renderActivePresetChips();
 });
 
-rpkgAddBtn.addEventListener("click", () => void addRPackagesFromInput());
-rpkgInput.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    void addRPackagesFromInput();
+function renderPresetSelect(): void {
+  // The UT Austin STA 301 <option> is HARD-CODED in popup.html (not built
+  // here) specifically so it's already selected on first paint, before
+  // chrome.storage even resolves — a UT student must never see an empty
+  // dropdown, even for one frame. This function therefore only ever manages
+  // the options AFTER it: strip everything from index 1 onward and rebuild
+  // from presetsState, but NEVER touch/remove options[0].
+  while (presetSelectEl.options.length > 1) {
+    presetSelectEl.remove(1);
   }
-});
+  for (const p of presetsState.presets) {
+    const opt = document.createElement("option");
+    opt.value = p.id;
+    opt.textContent = p.name || "(untitled preset)";
+    presetSelectEl.appendChild(opt);
+  }
+  // A stale reference (the active preset was deleted elsewhere) falls back to
+  // the UT option automatically: setting .value to an id with no matching
+  // <option> leaves the select showing its first entry, which IS UT_PRESET_ID.
+  presetSelectEl.value = presetsState.activePresetId;
+  presetDeleteBtn.style.display = presetsState.activePresetId === UT_PRESET_ID ? "none" : "";
+}
 
-function renderRPackages() {
-  while (rpkgChipsEl.firstChild) rpkgChipsEl.removeChild(rpkgChipsEl.firstChild);
-  rpkgEmptyEl.style.display = rPackages.length === 0 ? "" : "none";
-  for (const pkg of rPackages) {
+function renderActivePresetChips(): void {
+  while (presetPkgChipsEl.firstChild) presetPkgChipsEl.removeChild(presetPkgChipsEl.firstChild);
+  const resolved = resolveActivePreset(presetsState.presets, presetsState.activePresetId);
+  presetPkgEmptyEl.style.display = resolved.list.length === 0 ? "" : "none";
+  for (const pkg of resolved.list) {
     const installed = isInstalled(pkg);
     const chip = document.createElement("span");
     chip.className = installed ? "chip" : "chip unknown";
     if (!installed) chip.title = "Not pre-installed on the server yet — may not run.";
-    const label = document.createElement("span");
-    label.textContent = pkg;
-    const rm = document.createElement("button");
-    rm.className = "rm";
-    rm.textContent = "×";
-    rm.title = `remove ${pkg}`;
-    rm.setAttribute("aria-label", `remove ${pkg}`);
-    rm.addEventListener("click", () => {
-      rPackages = rPackages.filter((p) => p !== pkg);
-      void saveRPackages();
-      renderRPackages();
-    });
-    chip.appendChild(label);
-    chip.appendChild(rm);
-    rpkgChipsEl.appendChild(chip);
+    chip.textContent = pkg;
+    presetPkgChipsEl.appendChild(chip);
   }
 }
 
-async function addRPackagesFromInput() {
-  // Split on commas/whitespace so pasting a list ("car, lme4 psych") in one go
-  // works, not just a single name.
-  const candidates = rpkgInput.value
-    .split(/[,\s]+/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
-  rpkgInput.value = "";
-  if (candidates.length === 0) return;
+presetSelectEl.addEventListener("change", () => {
+  const id = presetSelectEl.value;
+  presetsState = { ...presetsState, activePresetId: id };
+  renderPresetSelect();
+  renderActivePresetChips();
+  void setActivePresetId(id);
+});
 
-  let changed = false;
-  for (const pkg of candidates) {
-    if (!isValidPackageName(pkg)) continue; // silently drop junk tokens
-    if (rPackages.includes(pkg)) continue; // case-sensitive: MASS != mass
-    if (rPackages.length >= MAX_R_PACKAGES) break;
-    rPackages.push(pkg);
-    changed = true;
+presetNewBtn.addEventListener("click", () => {
+  presetNameInput.value = "";
+  presetPkgsInput.value = "";
+  // "default ON when duplicating, OFF for from-scratch": this control is
+  // reached via the preset SELECT, so "duplicating" means the currently
+  // active/visible preset is UT STA 301 — the common on-ramp for a first
+  // custom preset. If a different (already-custom) preset is active, default
+  // to OFF instead, since there's no single obvious course to inherit from.
+  presetBasedOnUtCheckbox.checked = presetsState.activePresetId === UT_PRESET_ID;
+  setCreateStatus("", "");
+  presetCreateForm.style.display = "block";
+  presetNameInput.focus();
+});
+
+presetCreateCancelBtn.addEventListener("click", () => {
+  presetCreateForm.style.display = "none";
+});
+
+presetCreateSaveBtn.addEventListener("click", () => void saveNewPreset());
+presetNameInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    void saveNewPreset();
   }
-  if (changed) {
-    await saveRPackages();
-    renderRPackages();
+});
+presetPkgsInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    void saveNewPreset();
   }
+});
+
+async function saveNewPreset(): Promise<void> {
+  const name = presetNameInput.value.trim();
+  if (!name) {
+    setCreateStatus("Give the preset a name.", "err");
+    return;
+  }
+  const { presets, preset } = await createPreset(
+    presetsState.presets,
+    name,
+    presetPkgsInput.value,
+    presetBasedOnUtCheckbox.checked,
+  );
+  presetsState = { presets, activePresetId: preset.id };
+  presetCreateForm.style.display = "none";
+  renderPresetSelect();
+  renderActivePresetChips();
 }
 
-async function saveRPackages() {
-  try {
-    await chrome.storage.sync.set({ [RPKG_STORAGE_KEY]: rPackages });
-  } catch {
-    /* file:// preview — selection just won't persist */
-  }
+presetDeleteBtn.addEventListener("click", () => void deleteActivePreset());
+
+async function deleteActivePreset(): Promise<void> {
+  const { presets, activePresetId } = await deletePreset(
+    presetsState.presets,
+    presetsState.activePresetId,
+    presetsState.activePresetId,
+  );
+  presetsState = { presets, activePresetId };
+  renderPresetSelect();
+  renderActivePresetChips();
+}
+
+function setCreateStatus(msg: string, kind: "ok" | "err" | ""): void {
+  presetCreateStatusEl.textContent = msg;
+  presetCreateStatusEl.className = `status${kind ? ` ${kind}` : ""}`;
+  presetCreateStatusEl.style.display = msg ? "block" : "none";
 }
 
 // =============================================================================

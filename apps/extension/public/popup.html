@@ -409,16 +409,60 @@
         transition: border-color 0.15s, color 0.15s, background-color 0.15s;
       }
       .pkg-add-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-tint); }
-      /* Sub-group inside a merged <details>. Collapsing "R libraries" and
-         "R code" into one "R" section removed the header that used to
-         separate them, so restore the boundary with a rule instead of
-         spending a second disclosure header on it. */
+      /* Course preset picker (replaces the old flat package chip picker).
+         The select + "+ New preset" sit in one compact row — no full-width
+         button dominating the card; "+ New preset"/"Delete preset" read as
+         secondary text actions, matching .links a's weight below. */
+      .preset-select-row { display: flex; align-items: center; gap: 8px; }
+      select#preset-select {
+        flex: 1;
+        min-width: 0;
+        padding: 7px 10px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        font-size: 12px;
+        color: var(--ink);
+        font-family: inherit;
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+      select#preset-select:focus {
+        outline: none;
+        border-color: var(--blue);
+        box-shadow: 0 0 0 3px var(--blue-ring);
+      }
+      .preset-link-btn {
+        flex: none;
+        background: none;
+        border: none;
+        padding: 4px 2px;
+        font-size: 11px; font-weight: 600;
+        color: var(--ink-2);
+        white-space: nowrap;
+        transition: color 0.15s;
+      }
+      .preset-link-btn:hover { color: var(--blue); }
+      /* Delete sits on its own line below the chips (not next to the
+         select), so it never competes visually with "+ New preset". */
+      button.preset-delete-btn { display: block; margin-top: 6px; }
+      .preset-create-form {
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px dashed var(--line);
+      }
+      .preset-create-form label { margin-top: 8px; }
+      .preset-create-form label:first-child { margin-top: 0; }
+      .preset-create-row { display: flex; gap: 8px; margin-top: 4px; }
+      .preset-create-row .btn-solid { flex: 1; }
+      .preset-create-row .pkg-add-btn { flex: none; }
+      /* Sub-group inside a merged <details>. Separates "copy R code" from
+         the course-preset block below it with a rule instead of a second
+         disclosure header. */
       .subgroup {
         margin-top: 15px;
         padding-top: 13px;
         border-top: 1px solid var(--line-soft);
       }
-      .subgroup > .pkg-hint:first-child { margin-top: 0; }
       .rcode-copy-btn {
         display: block;
         width: 100%;
@@ -645,29 +689,64 @@
     </div>
     <div id="status" class="status" role="status"></div>
 
+    <!-- Course preset picker. Replaces the old flat per-package chip picker
+         (course-topic branch). The preset selected here is the WHOLE
+         "default = UT STA 301, opt-out = an explicit preset" mechanism —
+         see r-packages.ts's resolveActivePreset doc comment for the exact
+         derivation. "UT Austin STA 301" is a reserved, non-deletable, always-
+         first <option>, HARD-CODED here (not built by popup.ts) so it's
+         selected from the very first paint — a UT student must see their
+         course already chosen with zero action and zero flash-of-empty, even
+         before chrome.storage resolves. popup.ts only ever APPENDS custom
+         presets after this option; it never rebuilds/removes it. A preset's
+         NAME is free text stored/shown locally only — it is never sent
+         anywhere; only its validated package list and the derived
+         course-profile flag travel with a solve. -->
     <details id="rlibs-details">
       <summary><span class="chev"></span>R</summary>
       <div class="settings-body">
-        <div id="rpkg-chips" class="chip-list"></div>
-        <div class="pkg-add-row">
-          <input type="text" id="rpkg-input" placeholder="add a library, e.g. car"
-                 autocomplete="off" autocapitalize="off" spellcheck="false"
-                 aria-label="Add an R library" />
-          <button id="rpkg-add" type="button" class="pkg-add-btn">Add</button>
-        </div>
-        <div id="rpkg-empty" class="pkg-hint" style="display: none">
-          No libraries selected &mdash; the tutor will use base R only.
-        </div>
-        <div class="pkg-hint">
-          Steers which R packages the tutor uses. A
-          <span style="color: var(--warn)">dashed</span> one isn't pre-installed,
-          so it may not run.
+        <button id="rcode-copy" type="button" class="rcode-copy-btn" disabled>Copy R code for this quiz</button>
+        <div id="rcode-empty" class="pkg-hint">
+          No R code yet &mdash; solve a calculation question on this quiz first.
         </div>
 
         <div class="subgroup">
-          <button id="rcode-copy" type="button" class="rcode-copy-btn" disabled>Copy R code for this quiz</button>
-          <div id="rcode-empty" class="pkg-hint">
-            No R code yet &mdash; solve a calculation question on this quiz first.
+          <label for="preset-select"
+                 title="Steers which R packages — and, for a non-UT preset, which course conventions — the tutor uses.">Course preset</label>
+          <div class="preset-select-row">
+            <select id="preset-select" aria-label="Course preset">
+              <option value="ut-sta301" selected>UT Austin STA 301</option>
+            </select>
+            <button id="preset-new-btn" type="button" class="preset-link-btn">+ New preset</button>
+          </div>
+
+          <div id="preset-pkg-chips" class="chip-list"></div>
+          <div id="preset-pkg-empty" class="pkg-hint" style="display: none">
+            Base R only &mdash; no packages in this preset.
+          </div>
+          <button id="preset-delete-btn" type="button" class="preset-link-btn preset-delete-btn" style="display: none">Delete preset</button>
+
+          <div id="preset-create-form" class="preset-create-form" style="display: none">
+            <label for="preset-name-input">Preset name</label>
+            <input type="text" id="preset-name-input" placeholder="e.g. STA 371G"
+                   autocomplete="off" spellcheck="false" maxlength="60" />
+            <label class="check-row" for="preset-based-on-ut" style="margin: 8px 0">
+              <input type="checkbox" id="preset-based-on-ut" checked />
+              <span>Base on UT STA 301 (keep its course conventions)</span>
+            </label>
+            <label for="preset-pkgs-input">Packages</label>
+            <input type="text" id="preset-pkgs-input" placeholder="e.g. car, lme4"
+                   autocomplete="off" autocapitalize="off" spellcheck="false"
+                   aria-label="Preset R packages" />
+            <!-- Reworded for the runtime-install work landing in the same
+                 release batch (separate branch — see r-packages.ts's module
+                 doc; this popup does not implement fetching itself). -->
+            <div class="pkg-hint">Not pre-installed &mdash; fetched automatically on first use; that first solve may take longer.</div>
+            <div class="preset-create-row">
+              <button id="preset-create-save" type="button" class="btn-solid">Create preset</button>
+              <button id="preset-create-cancel" type="button" class="pkg-add-btn">Cancel</button>
+            </div>
+            <div id="preset-create-status" class="status" style="display: none"></div>
           </div>
         </div>
       </div>

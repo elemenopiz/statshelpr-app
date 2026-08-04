@@ -413,11 +413,18 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
     options: b.options.map((o) => o.text),
   }));
   const apiDataFiles = dataFiles.map((f) => ({ filename: f.filename, content: f.content }));
-  // R libraries the user picked in the popup — steers which packages the tutor
-  // reaches for server-side (see solver-core buildSystemPrompt rPackages). Only
-  // sent once the user has actually customized the picker; left untouched, we
-  // omit it so the server keeps its historical default wording (no drift).
-  const { list: rPackages, customized: rPackagesCustomized } = await loadRPackages();
+  // Active course preset from the popup (course-topic branch) — steers which
+  // R packages the tutor reaches for server-side (solver-core buildSystemPrompt
+  // rPackages) and, for a non-UT preset, which course conventions it uses
+  // (courseProfile). `customized` is false ONLY for the untouched UT STA 301
+  // default, in which case BOTH `packages` and `courseProfile` are omitted
+  // below so the request stays byte-identical to before this feature existed
+  // — see r-packages.ts's resolveActivePreset for the full derivation table.
+  const {
+    list: rPackages,
+    customized: rPackagesCustomized,
+    courseProfile,
+  } = await loadRPackages();
 
   const solveCtrl = new AbortController();
   const solveIdle = armIdleAbort(solveCtrl, SSE_IDLE_TIMEOUT_MS);
@@ -439,6 +446,17 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
         images: scraped.images,
         dataFiles: apiDataFiles,
         ...(rPackagesCustomized ? { packages: rPackages } : {}),
+        ...(courseProfile ? { courseProfile } : {}),
+        // Content-free behavioral telemetry (never read by the prompt
+        // builder) — sent unconditionally, including `false` for the
+        // untouched default, so the worker can measure the adoption rate
+        // itself. This is the ONLY new key an untouched UT STA 301 install's
+        // request gains; `packages`/`courseProfile` stay omitted exactly as
+        // above, so the PROMPT the model receives is still byte-identical
+        // (see packages/solver-core/scripts/self-test-prompt.ts's golden
+        // test) even though the wire body isn't literally byte-for-byte
+        // anymore.
+        rPackagesCustomized,
       }),
       signal: solveCtrl.signal,
     });
