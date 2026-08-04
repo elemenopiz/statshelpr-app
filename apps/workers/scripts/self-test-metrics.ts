@@ -21,7 +21,15 @@ import {
   percentileFromHistogram,
 } from "../src/lib/histogram";
 import { aggregateMetrics } from "../src/lib/metrics-aggregate";
-import { emptyBucket, type DailyMetricsBucket } from "../src/lib/metrics-store";
+import {
+  applyRequestFacts,
+  applyServerEvent,
+  emptyBucket,
+  normalizeBucket,
+  type DailyMetricsBucket,
+  type RequestFacts,
+  type ServerEventInput,
+} from "../src/lib/metrics-store";
 import { classifyError } from "../src/lib/classify-error";
 import { computeCohorts, type CohortDay } from "../src/lib/cohort";
 
@@ -460,6 +468,203 @@ console.log("metrics-aggregate.ts (dashboard-v2 enriched fields)");
   check("no activeSubscribers: realGrossMarginPct null", result.revenue.realGrossMarginPct === null);
   check("no activeSubscribers: cogsPerActiveUserUsd null", result.revenue.cogsPerActiveUserUsd === null);
   check("no paywall hits: paywallToUpgradeRatePct null", result.funnel.paywallToUpgradeRatePct === null);
+}
+
+// ---------------------------------------------------------------------------
+console.log("metrics-store.ts (course-topic: byTopic/byCourseProfile/behavioral counters)");
+
+{
+  // applyServerEvent's byTopic whitelist (safeTopicKey) — exercised directly
+  // against a fresh bucket, no KV mock needed (see applyServerEvent's export
+  // doc comment). Covers: a real taxonomy member, the parser's "unknown"
+  // fallback (must stay its OWN distinct key, not merged into "other"), and a
+  // string that is neither (the defense-in-depth case the client-string-
+  // poisoning incident this comment references was about — see
+  // routes/telemetry.ts's VALID_FAILURES doc).
+  const bucket = emptyBucket("2026-08-04");
+  const baseEvent: Omit<ServerEventInput, "completedQuestion"> = {
+    route: "solve",
+    success: true,
+    model: PRIMARY_TEXT_MODEL,
+    promptTokens: 100,
+    completionTokens: 50,
+    cachedTokens: 0,
+    costUsd: 0.001,
+    serverLatencyMs: 900,
+    installHash: "h1",
+  };
+  applyServerEvent(bucket, { ...baseEvent, completedQuestion: { mode: "concept", topic: "bootstrap" } });
+  applyServerEvent(bucket, { ...baseEvent, completedQuestion: { mode: "concept", topic: "bootstrap" } });
+  applyServerEvent(bucket, { ...baseEvent, completedQuestion: { mode: "concept", topic: "unknown" } });
+  applyServerEvent(bucket, {
+    ...baseEvent,
+    completedQuestion: { mode: "concept", topic: "some-made-up-topic-that-does-not-exist" },
+  });
+
+  check("a real taxonomy member increments its OWN key", bucket.server.byTopic["bootstrap"] === 2, JSON.stringify(bucket.server.byTopic));
+  check(
+    "'unknown' (the parser's missing/invalid-line fallback) is kept as its OWN distinct key, not merged into 'other'",
+    bucket.server.byTopic["unknown"] === 1,
+    JSON.stringify(bucket.server.byTopic),
+  );
+  check(
+    "a string that is neither a taxonomy member nor 'unknown' collapses to 'other' — NEVER becomes its own raw key",
+    bucket.server.byTopic["other"] === 1 && bucket.server.byTopic["some-made-up-topic-that-does-not-exist"] === undefined,
+    JSON.stringify(bucket.server.byTopic),
+  );
+  check("modeSplit still increments once per completedQuestion event, same as before this branch", bucket.server.modeSplit.concept === 4);
+}
+
+{
+  // applyRequestFacts — the batch-level, once-per-request counters (Part 3 +
+  // preset-package telemetry).
+  const bucket = emptyBucket("2026-08-04");
+  const facts1: RequestFacts = { courseProfile: "sta301", imageAttached: true, rPackagesCustomized: false };
+  const facts2: RequestFacts = {
+    courseProfile: "generic",
+    imageAttached: false,
+    rPackagesCustomized: true,
+    requestedPackages: ["car", "lme4", "tidyverse"],
+  };
+  // Old-client request: no rPackagesCustomized field sent at all.
+  const facts3: RequestFacts = { courseProfile: "sta301", imageAttached: false };
+
+  applyRequestFacts(bucket, facts1);
+  applyRequestFacts(bucket, facts2);
+  applyRequestFacts(bucket, facts3);
+
+  check(
+    "byCourseProfile tallies sta301 vs generic",
+    bucket.server.byCourseProfile.sta301 === 2 && bucket.server.byCourseProfile.generic === 1,
+    JSON.stringify(bucket.server.byCourseProfile),
+  );
+  check(
+    "imageAttachment tallies withImages vs withoutImages",
+    bucket.server.imageAttachment.withImages === 1 && bucket.server.imageAttachment.withoutImages === 2,
+    JSON.stringify(bucket.server.imageAttachment),
+  );
+  check(
+    "rPackagesCustomized: an old-client request with the field absent counts toward NEITHER bucket",
+    bucket.server.rPackagesCustomized.customized === 1 && bucket.server.rPackagesCustomized.default === 1,
+    JSON.stringify(bucket.server.rPackagesCustomized),
+  );
+  check(
+    "byRequestedPackage records every valid package name from facts2",
+    bucket.server.byRequestedPackage["car"] === 1 &&
+      bucket.server.byRequestedPackage["lme4"] === 1 &&
+      bucket.server.byRequestedPackage["tidyverse"] === 1,
+    JSON.stringify(bucket.server.byRequestedPackage),
+  );
+}
+
+{
+  // byRequestedPackage: server-side grammar re-validation (never trust the
+  // client) + the REQUESTED_PACKAGE_CAP distinct-name ceiling.
+  const bucket = emptyBucket("2026-08-04");
+  applyRequestFacts(bucket, {
+    courseProfile: "sta301",
+    imageAttached: false,
+    requestedPackages: ["car", "not a valid name", "-badstart", "a".repeat(50), "MASS"],
+  });
+  check(
+    "grammar-invalid package names (spaces, bad leading char, too long) never become keys",
+    bucket.server.byRequestedPackage["not a valid name"] === undefined &&
+      bucket.server.byRequestedPackage["-badstart"] === undefined &&
+      bucket.server.byRequestedPackage["a".repeat(50)] === undefined,
+    JSON.stringify(bucket.server.byRequestedPackage),
+  );
+  check(
+    "grammar-valid names (including a real capitalized package like MASS) DO become keys",
+    bucket.server.byRequestedPackage["car"] === 1 && bucket.server.byRequestedPackage["MASS"] === 1,
+    JSON.stringify(bucket.server.byRequestedPackage),
+  );
+
+  // Push 25 distinct valid names across separate requests — only the first
+  // REQUESTED_PACKAGE_CAP (20) distinct names should ever get a key; the 2
+  // that are already present (car, MASS) keep incrementing past the cap.
+  for (let i = 0; i < 25; i++) {
+    applyRequestFacts(bucket, { courseProfile: "sta301", imageAttached: false, requestedPackages: [`pkg${i}`] });
+  }
+  applyRequestFacts(bucket, { courseProfile: "sta301", imageAttached: false, requestedPackages: ["car"] }); // already-present key
+  const distinctCount = Object.keys(bucket.server.byRequestedPackage).length;
+  check(
+    "distinct byRequestedPackage keys never exceed REQUESTED_PACKAGE_CAP (20), even across many requests",
+    distinctCount <= 20,
+    `got ${distinctCount} distinct keys: ${JSON.stringify(Object.keys(bucket.server.byRequestedPackage))}`,
+  );
+  check(
+    "a key already under the cap keeps incrementing after the cap is reached",
+    bucket.server.byRequestedPackage["car"] === 2,
+    `got ${bucket.server.byRequestedPackage["car"]}`,
+  );
+}
+
+{
+  // metrics-aggregate.ts: byTopic/byCourseProfile/imageAttachment/
+  // rPackagesCustomized/byRequestedPackage all sum correctly across days, and
+  // normalizeBucket backfills them when reading an OLDER bucket that predates
+  // this branch (no course-topic fields in the raw JSON at all).
+  const day0 = emptyBucket("2026-08-04");
+  day0.server.byTopic = { bootstrap: 3, unknown: 1 };
+  day0.server.byCourseProfile = { sta301: 4, generic: 0 };
+  day0.server.imageAttachment = { withImages: 1, withoutImages: 3 };
+  day0.server.rPackagesCustomized = { customized: 1, default: 3 };
+  day0.server.byRequestedPackage = { tidyverse: 2 };
+
+  const day1 = emptyBucket("2026-08-03"); // pre-course-topic bucket: fields stay at emptyBucket's zero defaults
+
+  const result = aggregateMetrics({
+    now: Date.now(),
+    days: 2,
+    dates: ["2026-08-04", "2026-08-03"],
+    buckets: [day0, day1],
+    priceMonthlyUsd: 15,
+    assumedSolvesPerUserPerMonth: 90,
+  });
+
+  check(
+    "courseContext.byTopic sums across days",
+    result.courseContext.byTopic["bootstrap"] === 3 && result.courseContext.byTopic["unknown"] === 1,
+    JSON.stringify(result.courseContext.byTopic),
+  );
+  check(
+    "courseContext.byCourseProfile sums across days",
+    result.courseContext.byCourseProfile.sta301 === 4 && result.courseContext.byCourseProfile.generic === 0,
+    JSON.stringify(result.courseContext.byCourseProfile),
+  );
+  check(
+    "courseContext.imageAttachment sums across days",
+    result.courseContext.imageAttachment.withImages === 1 && result.courseContext.imageAttachment.withoutImages === 3,
+  );
+  check(
+    "courseContext.rPackagesCustomized sums across days",
+    result.courseContext.rPackagesCustomized.customized === 1 && result.courseContext.rPackagesCustomized.default === 3,
+  );
+  check(
+    "courseContext.byRequestedPackage sums across days",
+    result.courseContext.byRequestedPackage["tidyverse"] === 2,
+    JSON.stringify(result.courseContext.byRequestedPackage),
+  );
+
+  // normalizeBucket: a raw KV blob with NO course-topic fields at all (an
+  // actual pre-branch bucket) must still normalize to safe empty defaults,
+  // never throw/undefined.
+  const preBranchRaw = JSON.parse(JSON.stringify(emptyBucket("2026-08-02")));
+  delete preBranchRaw.server.byTopic;
+  delete preBranchRaw.server.byCourseProfile;
+  delete preBranchRaw.server.imageAttachment;
+  delete preBranchRaw.server.rPackagesCustomized;
+  delete preBranchRaw.server.byRequestedPackage;
+  const normalized = normalizeBucket(preBranchRaw, "2026-08-02");
+  check(
+    "normalizeBucket backfills all 5 course-topic fields when reading a pre-branch bucket",
+    JSON.stringify(normalized.server.byTopic) === "{}" &&
+      normalized.server.byCourseProfile.sta301 === 0 &&
+      normalized.server.imageAttachment.withImages === 0 &&
+      normalized.server.rPackagesCustomized.customized === 0 &&
+      JSON.stringify(normalized.server.byRequestedPackage) === "{}",
+    JSON.stringify(normalized.server),
+  );
 }
 
 // ---------------------------------------------------------------------------

@@ -218,6 +218,63 @@ const BY_ERROR_TYPE = splitByWeights(ERRORS_TOTAL, {
   unknown: 0.02,
 });
 
+// course-topic branch: course-context + behavioral demo data (Part 2 + 3, plus
+// the preset-package telemetry that replaced the original per-package-picker
+// design mid-flight). QUESTIONS_ANSWERED-scaled, internally consistent with
+// the rest of this deterministic mock payload.
+const BY_TOPIC = splitByWeights(QUESTIONS_ANSWERED, {
+  probability: 0.09,
+  plots: 0.06,
+  summary_statistics: 0.08,
+  data_wrangling: 0.07,
+  linear_regression: 0.14,
+  clt: 0.1,
+  bootstrap: 0.08,
+  hypothesis_testing: 0.13,
+  large_sample_inference: 0.09,
+  experiments_causation: 0.05,
+  multiple_regression: 0.07,
+  probability_models: 0.03,
+  non_stats: 0.005,
+  other: 0.005,
+  unknown: 0.005,
+});
+
+// Pre-launch, single-course product: the overwhelming majority of installs
+// have never touched the course preset — the UT STA 301 default IS the
+// sacred, untouched path (see the golden test in packages/solver-core).
+const COURSE_PROFILE_SPLIT = splitByWeights(QUESTIONS_ANSWERED, { sta301: 0.94, generic: 0.06 });
+const BY_COURSE_PROFILE = {
+  sta301: COURSE_PROFILE_SPLIT["sta301"] ?? 0,
+  generic: COURSE_PROFILE_SPLIT["generic"] ?? 0,
+};
+
+const IMAGE_ATTACHMENT_SPLIT = splitByWeights(QUESTIONS_ANSWERED, { withImages: 0.22, withoutImages: 0.78 });
+const IMAGE_ATTACHMENT = {
+  withImages: IMAGE_ATTACHMENT_SPLIT["withImages"] ?? 0,
+  withoutImages: IMAGE_ATTACHMENT_SPLIT["withoutImages"] ?? 0,
+};
+
+const RPKG_CUSTOMIZED_SPLIT = splitByWeights(QUESTIONS_ANSWERED, { customized: 0.15, default: 0.85 });
+const RPACKAGES_CUSTOMIZED = {
+  customized: RPKG_CUSTOMIZED_SPLIT["customized"] ?? 0,
+  default: RPKG_CUSTOMIZED_SPLIT["default"] ?? 0,
+};
+
+// A handful of real intro-stats R package names, weighted toward the UT STA
+// 301 defaults (tidyverse/mosaic/moderndive) with a long tail of one-off asks
+// — the shape this "promote a popular preset to official" card exists to show.
+const BY_REQUESTED_PACKAGE: Record<string, number> = {
+  tidyverse: Math.round(QUESTIONS_ANSWERED * 0.04),
+  mosaic: Math.round(QUESTIONS_ANSWERED * 0.032),
+  moderndive: Math.round(QUESTIONS_ANSWERED * 0.024),
+  ggplot2: Math.round(QUESTIONS_ANSWERED * 0.01),
+  car: Math.round(QUESTIONS_ANSWERED * 0.006),
+  broom: Math.round(QUESTIONS_ANSWERED * 0.004),
+  lme4: Math.round(QUESTIONS_ANSWERED * 0.003),
+  infer: Math.round(QUESTIONS_ANSWERED * 0.002),
+};
+
 const WEBR_USAGE = Math.round(MODE_SPLIT.calc * 0.87);
 
 // Latency distributions (item 11) — 9 fixed buckets matching
@@ -448,6 +505,13 @@ export function buildMockMetrics(): MetricsResponse {
       nextDayRetentionPct: 38.4,
       sevenDayRetentionPct: 22.1,
       returningSharePct: 61.3,
+    },
+    courseContext: {
+      byTopic: BY_TOPIC,
+      byCourseProfile: BY_COURSE_PROFILE,
+      imageAttachment: IMAGE_ATTACHMENT,
+      rPackagesCustomized: RPACKAGES_CUSTOMIZED,
+      byRequestedPackage: BY_REQUESTED_PACKAGE,
     },
   };
 }

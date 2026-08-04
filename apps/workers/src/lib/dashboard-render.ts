@@ -43,6 +43,7 @@ type RevenueMetrics = MetricsResponse["revenue"];
 type FunnelMetrics = MetricsResponse["funnel"];
 type RetentionMetrics = MetricsResponse["retention"];
 type ComparisonMetrics = MetricsResponse["comparison"];
+type CourseContextMetrics = MetricsResponse["courseContext"];
 
 /** Time-range options for the ?range= selector (item 14). */
 const RANGE_OPTIONS = [7, 30, 90] as const;
@@ -1399,6 +1400,72 @@ function renderRetentionSection(retention: RetentionMetrics, days: number): stri
 }
 
 // ---------------------------------------------------------------------------
+// Course & Behavior (course-topic branch) — content-free course-context +
+// cheap behavioral signals: which topic a completed question was about, the
+// UT STA 301 vs. generic course-profile split, image-attached solves, R
+// preset customization, and requested-package demand. Everything here is
+// counts + validated enum/package-name keys only — never question/answer
+// text, and never a preset's user-chosen NAME (that never leaves the device
+// at all — see apps/extension/src/r-packages.ts).
+// ---------------------------------------------------------------------------
+
+function renderCourseContextSection(cc: CourseContextMetrics, days: number): string {
+  const topicEntries: BarListEntry[] = Object.entries(cc.byTopic)
+    .map(([label, value]) => ({ label: prettyKey(label), value }))
+    .sort((a, b) => b.value - a.value);
+  const packageEntries: BarListEntry[] = Object.entries(cc.byRequestedPackage)
+    .map(([label, value]) => ({ label, value })) // package names are already human-readable R identifiers — no prettyKey needed
+    .sort((a, b) => b.value - a.value);
+
+  const profileTotal = cc.byCourseProfile.sta301 + cc.byCourseProfile.generic;
+  const imageTotal = cc.imageAttachment.withImages + cc.imageAttachment.withoutImages;
+  const customizedTotal = cc.rPackagesCustomized.customized + cc.rPackagesCustomized.default;
+
+  const tiles = renderStatGrid([
+    renderStatTile({
+      label: "UT STA 301 profile",
+      value: fmtPctValue(profileTotal > 0 ? (cc.byCourseProfile.sta301 / profileTotal) * 100 : 0),
+      tone: "blue",
+      caption: `${fmtInt(cc.byCourseProfile.sta301)} of ${fmtInt(profileTotal)} solves — the default, untouched path`,
+    }),
+    renderStatTile({
+      label: "Generic-profile solves",
+      value: fmtInt(cc.byCourseProfile.generic),
+      caption: "opted out of STA 301 course conventions",
+    }),
+    renderStatTile({
+      label: "Solves with images",
+      value: fmtPctValue(imageTotal > 0 ? (cc.imageAttachment.withImages / imageTotal) * 100 : 0),
+      caption: `${fmtInt(cc.imageAttachment.withImages)} of ${fmtInt(imageTotal)} attached at least one image`,
+    }),
+    renderStatTile({
+      label: "Customized R preset",
+      value: fmtPctValue(customizedTotal > 0 ? (cc.rPackagesCustomized.customized / customizedTotal) * 100 : 0),
+      caption: `${fmtInt(cc.rPackagesCustomized.customized)} of ${fmtInt(customizedTotal)} used a non-default preset`,
+    }),
+  ]);
+
+  const inner = `${tiles}<div class="twoCol">
+    ${renderCard(
+      `<p class="statLabel">By topic</p>${
+        topicEntries.length > 0
+          ? renderBarList(topicEntries)
+          : `<p class="caption">No topic data in range.</p>`
+      }`,
+    )}
+    ${renderCard(
+      `<p class="statLabel">Requested R packages</p><p class="statCaption" style="margin: 0 0 0.4rem">Validated package names from custom presets — up to 20 distinct/day. The "promote a popular preset to official" signal.</p>${
+        packageEntries.length > 0
+          ? renderBarList(packageEntries, { showPct: false })
+          : `<p class="caption">No custom package requests in range.</p>`
+      }`,
+    )}
+  </div>`;
+
+  return renderSection("Course & Behavior", `content-free course context · last ${days}d`, inner);
+}
+
+// ---------------------------------------------------------------------------
 // 2. Quality
 // ---------------------------------------------------------------------------
 
@@ -1895,6 +1962,7 @@ export function renderDashboardPage(
     ${renderRevenueSection(m.revenue, m.funnel, m.comparison, days)}
     ${renderVolumeSection(m.volume, m.comparison, days)}
     ${renderRetentionSection(m.retention, days)}
+    ${renderCourseContextSection(m.courseContext, days)}
     ${renderQualitySection(m.quality, m.comparison, m.volume.apiCalls)}
     ${renderPerformanceSection(m.performance)}
     ${renderRRunnerSection(m.rRunner)}

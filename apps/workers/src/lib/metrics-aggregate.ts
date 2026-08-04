@@ -8,8 +8,11 @@
 
 import {
   type ConfidenceCounts,
+  type CourseProfileCounts,
   type DailyMetricsBucket,
+  type ImageAttachmentCounts,
   type ModelUsage,
+  type RPackagesCustomizedCounts,
   type WriteBackOutcomeCounts,
 } from "./metrics-store";
 import {
@@ -187,6 +190,25 @@ export interface MetricsResponse {
     sevenDayRetentionPct: number | null;
     returningSharePct: number | null;
   };
+  /** course-topic branch: content-free course-context + cheap behavioral
+   *  signals — counts and validated enum/package-name keys only, never
+   *  question/answer text and never a preset's user-chosen NAME (that never
+   *  leaves the device in the first place — see apps/extension/src/
+   *  r-packages.ts). */
+  courseContext: {
+    /** Model self-reported topic tag per completed question (Part 2) —
+     *  same shape/spirit as volume.byQuestionType, just keyed by
+     *  solver-core's TOPICS taxonomy instead of DOM-scraped question shape. */
+    byTopic: Record<string, number>;
+    byCourseProfile: CourseProfileCounts;
+    imageAttachment: ImageAttachmentCounts;
+    rPackagesCustomized: RPackagesCustomizedCounts;
+    /** Validated R package names requested via the preset picker's `packages`
+     *  field (preset redesign) — "promote a popular preset to official"
+     *  evidence. Capped server-side at 20 distinct names/day (see
+     *  metrics-store.ts's REQUESTED_PACKAGE_CAP). */
+    byRequestedPackage: Record<string, number>;
+  };
   /** Cloud Run infra health for the R-runner service (R-runner health
    *  tracking phase 2) — live-fetched from GCP Cloud Monitoring on every
    *  metrics-load.ts call (see lib/gcp-monitoring.ts's fetchCloudRunMetrics),
@@ -263,6 +285,11 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
   const confidence: ConfidenceCounts = { High: 0, Med: 0, Low: 0, "": 0 };
   const confidenceCalc: ConfidenceCounts = { High: 0, Med: 0, Low: 0, "": 0 };
   const byErrorType: Record<string, number> = {};
+  const byTopic: Record<string, number> = {};
+  const byCourseProfile: CourseProfileCounts = { sta301: 0, generic: 0 };
+  const imageAttachment: ImageAttachmentCounts = { withImages: 0, withoutImages: 0 };
+  const rPackagesCustomized: RPackagesCustomizedCounts = { customized: 0, default: 0 };
+  const byRequestedPackage: Record<string, number> = {};
   const modeSplit = { concept: 0, calc: 0 };
   const writeBackByOutcome: WriteBackOutcomeCounts = { written: 0, nowrite: 0, error: 0 };
   const byFailure: Record<string, number> = {};
@@ -312,6 +339,18 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
     });
     for (const [cls, n] of Object.entries(b.server.byErrorType)) {
       byErrorType[cls] = (byErrorType[cls] ?? 0) + n;
+    }
+    for (const [topic, n] of Object.entries(b.server.byTopic)) {
+      byTopic[topic] = (byTopic[topic] ?? 0) + n;
+    }
+    byCourseProfile.sta301 += b.server.byCourseProfile.sta301;
+    byCourseProfile.generic += b.server.byCourseProfile.generic;
+    imageAttachment.withImages += b.server.imageAttachment.withImages;
+    imageAttachment.withoutImages += b.server.imageAttachment.withoutImages;
+    rPackagesCustomized.customized += b.server.rPackagesCustomized.customized;
+    rPackagesCustomized.default += b.server.rPackagesCustomized.default;
+    for (const [pkg, n] of Object.entries(b.server.byRequestedPackage)) {
+      byRequestedPackage[pkg] = (byRequestedPackage[pkg] ?? 0) + n;
     }
     modeSplit.concept += b.server.modeSplit.concept;
     modeSplit.calc += b.server.modeSplit.calc;
@@ -530,6 +569,13 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
       nextDayRetentionPct: null,
       sevenDayRetentionPct: null,
       returningSharePct: null,
+    },
+    courseContext: {
+      byTopic,
+      byCourseProfile,
+      imageAttachment,
+      rPackagesCustomized,
+      byRequestedPackage,
     },
     cloudRun: {
       available: false,
