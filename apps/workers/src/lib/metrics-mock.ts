@@ -1,6 +1,7 @@
 import type { DailyPoint, MetricsResponse, WriteBackTypeStat } from "./metrics-aggregate";
 import type { ModelUsage, WriteBackOutcomeCounts } from "./metrics-store";
 import { IMAGE_VISION_MODEL, PRIMARY_TEXT_MODEL } from "./cost";
+import { UTEXAS_HOST_HASH } from "./dashboard-render";
 import { LATENCY_BUCKET_BOUNDARIES_MS, percentileFromHistogram } from "./histogram";
 
 /**
@@ -134,6 +135,28 @@ const BY_QUESTION_TYPE = splitByWeights(QUESTIONS_ANSWERED, {
   short_answer_question: 0.03,
   essay_question: 0.01,
 });
+
+// Host-domain split (host-telemetry addition) — "are these organic users
+// even UT students?" Mock: mostly UT Austin, a little unrecognized-but-valid
+// Canvas-school noise, and a thin non-Canvas/rejected-origin sliver. Keys
+// mirror the real shape routes/solve.ts writes: a hashBucket() digest (or the
+// fixed "other" literal) — see lib/metrics-store.ts's hostHashCounts doc.
+// UTEXAS_HOST_HASH is the SAME hardcoded constant dashboard-render.ts labels
+// by name, so the demo view actually exercises that labeling path; the two
+// "unknown" hex strings below are demo-only placeholders, NOT derived from
+// any real hash input.
+const BY_HOST_HASH_RAW = splitByWeights(QUESTIONS_ANSWERED, {
+  utexas: 0.74,
+  unknown1: 0.14,
+  unknown2: 0.08,
+  other: 0.04,
+});
+const BY_HOST_HASH: Record<string, number> = {
+  [UTEXAS_HOST_HASH]: BY_HOST_HASH_RAW["utexas"] ?? 0,
+  "7a3c9f0e21b6d485c0a7e93f5b6d1c42": BY_HOST_HASH_RAW["unknown1"] ?? 0,
+  "48f0d2b1e6a97c3d5f0b2e8a1c6d9f74": BY_HOST_HASH_RAW["unknown2"] ?? 0,
+  other: BY_HOST_HASH_RAW["other"] ?? 0,
+};
 
 const MODE_SPLIT_RAW = splitByWeights(QUESTIONS_ANSWERED, {
   concept: 0.726,
@@ -340,6 +363,7 @@ export function buildMockMetrics(): MetricsResponse {
       mau: MAU,
       newInstalls: NEW_INSTALLS_30D,
       daily: DAILY,
+      byHostHash: BY_HOST_HASH,
     },
     quality: {
       solveSuccessRate: round4((API_CALLS - ERRORS_TOTAL) / Math.max(1, API_CALLS)),

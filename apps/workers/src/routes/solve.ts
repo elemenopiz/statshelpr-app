@@ -32,11 +32,12 @@ import { chatStreamWithFallback, FallbackGateRejectedError } from "@/lib/llm";
 import {
   createMetricsBatch,
   flushMetricsBatchInBackground,
+  HOST_HASH_OTHER,
   recordPaywallHitInBackground,
 } from "@/lib/metrics-store";
 import { repairRCode } from "@/lib/r-repair";
 import { runRRemote, type RunRResult } from "@/lib/r-runner";
-import { getClientIp, hashBucket } from "@/lib/rate-limit";
+import { extractCanvasHost, getClientIp, hashBucket } from "@/lib/rate-limit";
 import { makeSseStream, sseHeaders } from "@/lib/sse";
 import {
   buildFollowupContent,
@@ -83,6 +84,21 @@ solve.post("/", async (c) => {
   // the day — recordPaywallHit adds this hash to the active set. Only depends
   // on the install id, so it's safe to hoist above body parsing / resolveModel.
   const installHash = await hashBucket(installId || "anon");
+
+  // Host-domain telemetry (2026-08, owner question: "are these organic users
+  // even UT students?"). The extension's content script fetch()es this
+  // endpoint directly from the Canvas page context (apps/extension/src/
+  // content.ts's onSolve, injected only on *.instructure.com pages per
+  // manifest.json's content_scripts), so the browser attaches the school's
+  // own Canvas origin as this request's Origin header with NO extension
+  // changes needed — this is a worker-only data change. Read + validated
+  // ONCE per request, here; only ever a hashBucket() digest of the accepted
+  // hostname or the fixed HOST_HASH_OTHER literal reaches metrics storage
+  // (via metricsBatch.hostHash below) — an unvalidated Origin string is
+  // NEVER used as a key itself. See lib/rate-limit.ts's extractCanvasHost and
+  // lib/metrics-store.ts's hostHashCounts doc.
+  const canvasHost = extractCanvasHost(c.req.header("origin"));
+  const hostBucketKey = canvasHost ? await hashBucket(canvasHost) : HOST_HASH_OTHER;
 
   // Paid licenses are unlimited, but only once activated for *this* install —
   // activation_limit=1 on the LS side means a paid key is bound to a single
@@ -217,6 +233,9 @@ solve.post("/", async (c) => {
   // path above keeps its immediate single-event write — it returns before
   // this batch exists.
   const metricsBatch = createMetricsBatch();
+  // Rides this SAME batch/flush — zero new independent KV writes for host
+  // telemetry (see hostBucketKey's computation above).
+  metricsBatch.hostHash = hostBucketKey;
 
   const stream = makeSseStream(async (write) => {
     const startedAt = Date.now(); // wall time around the stream, for serverLatencyMs

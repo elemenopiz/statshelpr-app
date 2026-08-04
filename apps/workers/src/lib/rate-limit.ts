@@ -80,6 +80,45 @@ export async function hashBucket(bucketId: string): Promise<string> {
 }
 
 /**
+ * Validates and normalizes a request's Origin header against Canvas's
+ * school-subdomain shape, returning the bare hostname (e.g.
+ * "utexas.instructure.com") on a match, or null for everything else —
+ * missing header, wrong scheme, an extra subdomain level, a path/port/query
+ * tacked on, or any other shape. The regex is anchored (^...$) so the WHOLE
+ * (lowercased, length-capped) header must be exactly
+ * `https://<1-63 lowercase alnum/hyphen chars>.instructure.com` — no partial
+ * match, no trailing junk.
+ *
+ * Host-domain telemetry (2026-08, "are these organic users even UT
+ * students?"): routes/solve.ts calls this ONCE per /api/solve request on the
+ * Origin header the extension's content script's fetch() naturally carries
+ * (the page's own Canvas origin — see apps/extension/src/content.ts's
+ * onSolve, matched against *.instructure.com by manifest.json), then hashes
+ * whatever this returns via hashBucket() above before it's ever used as a
+ * metrics record key. An unvalidated Origin string must NEVER become that
+ * key itself, raw or otherwise — this is the same class of hole the
+ * gemini-9.9-ultra-pro client-string-poisoning incident exploited (an
+ * attacker-controlled string reaching a metrics key). Every caller falls
+ * back to a single fixed sentinel (lib/metrics-store.ts's HOST_HASH_OTHER)
+ * on a null result, never the raw header.
+ *
+ * Pure/sync — no crypto, no Env — so it's independently unit-testable
+ * (scripts/self-test-metrics.ts) without any KV/Context setup.
+ */
+const CANVAS_ORIGIN_MAX_CHARS = 100; // real instructure.com origins run ~30-45 chars; generous headroom before the regex even runs
+const CANVAS_ORIGIN_RE = /^https:\/\/([a-z0-9-]{1,63}\.instructure\.com)$/;
+
+export function extractCanvasHost(origin: string | null | undefined): string | null {
+  if (!origin) return null;
+  // Lowercase FIRST, then cap length — so the length bound applies to the
+  // string the regex will actually see, regardless of any (rare) Unicode
+  // case-folding expansion.
+  const normalized = origin.toLowerCase().slice(0, CANVAS_ORIGIN_MAX_CHARS);
+  const match = normalized.match(CANVAS_ORIGIN_RE);
+  return match ? match[1]! : null;
+}
+
+/**
  * Best-effort client IP for the per-IP rate-limit backstop (defense-in-depth
  * against install-id rotation — the extension's install id is just
  * `crypto.randomUUID()` in chrome.storage.sync with no server issuance, see

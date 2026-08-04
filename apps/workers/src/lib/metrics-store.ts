@@ -36,6 +36,15 @@ const KV_PREFIX = "metrics:";
 // have a populated prior window instead of expired-to-empty buckets.
 const BUCKET_TTL_SEC = 70 * 86_400;
 const INSTALL_HASH_CAP = 5000; // per-day cap; see addInstallHash
+const HOST_HASH_CAP = 50; // per-day cap on distinct hostHashCounts keys; see addHostHash
+
+/** Fixed non-key literal for `hostHashCounts` — every request whose Origin
+ *  didn't match the accepted Canvas-host shape (lib/rate-limit.ts's
+ *  extractCanvasHost, called once per request from routes/solve.ts) buckets
+ *  here instead of ever hashing/storing its raw Origin value. Shared so the
+ *  writer (routes/solve.ts) and the reader/labeler (dashboard-render.ts)
+ *  can't drift on the literal. */
+export const HOST_HASH_OTHER = "other";
 
 export interface RouteCounters {
   attempts: number;
@@ -181,6 +190,24 @@ export interface DailyMetricsBucket {
    *  (see lib/rate-limit.ts's hashBucket, reused here for the exact same hash
    *  so the same install id dedupes across both event sources). */
   installHashes: string[];
+  /** Count of /api/solve requests per hashed Canvas host domain — the
+   *  owner's "are these organic users even UT students?" question. Written
+   *  ONCE per request (via MetricsBatch.hostHash, see flushMetricsBatch
+   *  below), regardless of how many LLM-call legs that request also records.
+   *  Keys are EITHER a hashBucket() SHA-256 digest (lib/rate-limit.ts) of a
+   *  validated Origin hostname (routes/solve.ts calls
+   *  lib/rate-limit.ts's extractCanvasHost — only
+   *  `https://<school>.instructure.com` shapes are ever hashed), OR the
+   *  fixed HOST_HASH_OTHER literal for every request whose Origin didn't
+   *  match that shape (missing header, non-Canvas origin, malformed) — an
+   *  unvalidated Origin string must NEVER become a key itself (see the
+   *  2026-07 gemini-9.9-ultra-pro client-string-poisoning incident this
+   *  guards against). Capped at HOST_HASH_CAP (50) distinct keys/day.
+   *  dashboard-render.ts labels ONLY the one hash it hardcodes (UT Austin's)
+   *  by name via a small known-domain dictionary; every other hash renders
+   *  as "unknown (<first 8 hex chars>)" — this field never holds a readable
+   *  school name. */
+  hostHashCounts: Record<string, number>;
   /** Count of free-tier solves rejected at the daily cap (the HTTP 402 in
    *  solve.ts) — the paywall-hit event, the #1 leading indicator of
    *  conversion (dashboard-v2 item 7). Written by recordPaywallHit. */
@@ -229,6 +256,7 @@ export function emptyBucket(date: string): DailyMetricsBucket {
       byFailure: {},
     },
     installHashes: [],
+    hostHashCounts: {},
     paywallHits: 0,
     revenue: emptyRevenue(),
   };
@@ -315,6 +343,7 @@ export function normalizeBucket(raw: unknown, date: string): DailyMetricsBucket 
     installHashes: Array.isArray(r.installHashes)
       ? r.installHashes.filter((h: unknown) => typeof h === "string")
       : [],
+    hostHashCounts: okCountRecord(r.hostHashCounts),
     paywallHits: typeof r.paywallHits === "number" ? r.paywallHits : 0,
     revenue: { ...empty.revenue, ...r.revenue },
   };
@@ -361,6 +390,26 @@ function addInstallHash(bucket: DailyMetricsBucket, hash: string): void {
   if (bucket.installHashes.length >= INSTALL_HASH_CAP) return; // cap reached for the day — DAU/WAU
   // undercount past this point; acceptable at current scale (see module header).
   bucket.installHashes.push(hash);
+}
+
+/** Pure per-event mutation for the ONE host-hash bucket key a request
+ *  resolved to (routes/solve.ts, via MetricsBatch.hostHash) — mirrors
+ *  addInstallHash's per-day cap pattern above, but keyed by COUNT instead of
+ *  a plain array: an ALREADY-PRESENT key keeps incrementing past the cap (a
+ *  popular school's count must never freeze just because 50 distinct keys
+ *  exist) — only a brand-new key past the cap is silently dropped, the same
+ *  "acceptable undercount at current scale" tradeoff as every other counter
+ *  in this module. Exported (unlike addInstallHash) specifically so
+ *  scripts/self-test-metrics.ts can exercise the cap without a KV binding —
+ *  see the `hostHashCounts` field doc above. */
+export function addHostHash(bucket: DailyMetricsBucket, key: string | undefined): void {
+  if (!key) return;
+  if (bucket.hostHashCounts[key] !== undefined) {
+    bucket.hostHashCounts[key] += 1;
+    return;
+  }
+  if (Object.keys(bucket.hostHashCounts).length >= HOST_HASH_CAP) return; // cap reached for the day
+  bucket.hostHashCounts[key] = 1;
 }
 
 export interface ServerEventInput {
@@ -524,6 +573,13 @@ export function recordRRunnerEventInBackground(c: EnvContext, input: RRunnerEven
 export interface MetricsBatch {
   server: ServerEventInput[];
   rRunner: RRunnerEventInput[];
+  /** This request's resolved host-hash bucket key (routes/solve.ts) — either
+   *  a hashBucket() digest or HOST_HASH_OTHER, computed ONCE per request
+   *  regardless of how many server/rRunner events the same request also
+   *  produces. Undefined when the caller never set it (defensive default;
+   *  every real /api/solve request sets this before flushing) — see the
+   *  `hostHashCounts` field doc above. */
+  hostHash?: string;
 }
 
 export function createMetricsBatch(): MetricsBatch {
@@ -531,11 +587,12 @@ export function createMetricsBatch(): MetricsBatch {
 }
 
 export async function flushMetricsBatch(env: Env, batch: MetricsBatch): Promise<void> {
-  if (batch.server.length === 0 && batch.rRunner.length === 0) return;
+  if (batch.server.length === 0 && batch.rRunner.length === 0 && batch.hostHash === undefined) return;
   try {
     const bucket = await readBucket(env, todayUtc());
     for (const ev of batch.server) applyServerEvent(bucket, ev);
     for (const ev of batch.rRunner) applyRRunnerEvent(bucket, ev);
+    addHostHash(bucket, batch.hostHash);
     await writeBucket(env, bucket);
   } catch {
     // Best-effort — metrics must never break or delay a solve.

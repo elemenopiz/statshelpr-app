@@ -71,6 +71,13 @@ export interface MetricsResponse {
     /** Installs first seen within the window (item 7/8). */
     newInstalls: number;
     daily: DailyPoint[];
+    /** /api/solve requests per hashed Canvas host domain, summed across the
+     *  window (host-telemetry addition — "are these organic users even UT
+     *  students?"). Keys are opaque hashBucket() digests or the fixed
+     *  HOST_HASH_OTHER literal — see lib/metrics-store.ts's hostHashCounts
+     *  doc. dashboard-render.ts is the only place a hash is ever labeled with
+     *  a readable school name. */
+    byHostHash: Record<string, number>;
   };
   quality: {
     solveSuccessRate: number;
@@ -260,6 +267,7 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
   let errorsTotal = 0;
   let paywallHits30d = 0;
   const byQuestionType: Record<string, number> = {};
+  const byHostHash: Record<string, number> = {};
   const confidence: ConfidenceCounts = { High: 0, Med: 0, Low: 0, "": 0 };
   const confidenceCalc: ConfidenceCounts = { High: 0, Med: 0, Low: 0, "": 0 };
   const byErrorType: Record<string, number> = {};
@@ -305,6 +313,9 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
 
     for (const [k, v] of Object.entries(b.client.byQuestionType)) {
       byQuestionType[k] = (byQuestionType[k] ?? 0) + v;
+    }
+    for (const [k, v] of Object.entries(b.hostHashCounts)) {
+      byHostHash[k] = (byHostHash[k] ?? 0) + v;
     }
     (Object.keys(confidence) as Array<keyof ConfidenceCounts>).forEach((k) => {
       confidence[k] += b.server.confidence[k] ?? 0;
@@ -457,7 +468,7 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
     generatedAt: now,
     range: { days },
     comparison: { prevRangeDays: 0, deltaPct: {} },
-    volume: { questionsAnswered, apiCalls, byQuestionType, dau, wau, mau, newInstalls: 0, daily },
+    volume: { questionsAnswered, apiCalls, byQuestionType, dau, wau, mau, newInstalls: 0, daily, byHostHash },
     quality: {
       solveSuccessRate: roundRate(solveSuccessRate),
       writeBackSuccessRate: roundRate(writeBackSuccessRate),

@@ -21,9 +21,11 @@ import {
   percentileFromHistogram,
 } from "../src/lib/histogram";
 import { aggregateMetrics } from "../src/lib/metrics-aggregate";
-import { emptyBucket, type DailyMetricsBucket } from "../src/lib/metrics-store";
+import { addHostHash, emptyBucket, HOST_HASH_OTHER, normalizeBucket, type DailyMetricsBucket } from "../src/lib/metrics-store";
 import { classifyError } from "../src/lib/classify-error";
 import { computeCohorts, type CohortDay } from "../src/lib/cohort";
+import { extractCanvasHost, hashBucket } from "../src/lib/rate-limit";
+import { UTEXAS_HOST_HASH } from "../src/lib/dashboard-render";
 
 let pass = 0;
 let fail = 0;
@@ -519,6 +521,143 @@ check("no signal -> unknown", classifyError({ message: "weird failure" }) === "u
 check("null -> unknown", classifyError(null) === "unknown");
 check("Error instance reads its message", classifyError(new Error("quota exceeded")) === "quota");
 check("quota regex wins over a 429 status", classifyError({ status: 429, message: "quota exhausted" }) === "quota");
+
+// ---------------------------------------------------------------------------
+console.log("lib/rate-limit.ts (extractCanvasHost — host-telemetry origin validation)");
+
+// --- accept cases ---
+check(
+  "accepts a plain school subdomain",
+  extractCanvasHost("https://utexas.instructure.com") === "utexas.instructure.com",
+);
+check(
+  "lowercases before matching (mixed-case Origin)",
+  extractCanvasHost("https://UTexas.Instructure.COM") === "utexas.instructure.com",
+);
+check(
+  "accepts hyphenated/numeric school ids",
+  extractCanvasHost("https://some-school-2.instructure.com") === "some-school-2.instructure.com",
+);
+check(
+  "accepts a single-character school id (lower length bound)",
+  extractCanvasHost("https://a.instructure.com") === "a.instructure.com",
+);
+
+// --- reject cases -> caller must fall back to HOST_HASH_OTHER, never the raw string ---
+check("rejects a missing Origin (undefined)", extractCanvasHost(undefined) === null);
+check("rejects a missing Origin (null)", extractCanvasHost(null) === null);
+check("rejects an empty Origin", extractCanvasHost("") === null);
+check("rejects http (not https)", extractCanvasHost("http://utexas.instructure.com") === null);
+check("rejects a path suffix", extractCanvasHost("https://utexas.instructure.com/courses/1") === null);
+check("rejects a bare trailing slash", extractCanvasHost("https://utexas.instructure.com/") === null);
+check("rejects an unrelated domain", extractCanvasHost("https://evil.com") === null);
+check(
+  "rejects an instructure.com-lookalike suffix attack",
+  extractCanvasHost("https://utexas.instructure.com.evil.com") === null,
+);
+check(
+  "rejects instructure.com prefixed as a path on another host",
+  extractCanvasHost("https://evil.com/utexas.instructure.com") === null,
+);
+check("rejects a multi-level Canvas subdomain", extractCanvasHost("https://sub.utexas.instructure.com") === null);
+check("rejects an explicit port", extractCanvasHost("https://utexas.instructure.com:443") === null);
+check(
+  "rejects an oversized school-id label (past the 63-char DNS bound)",
+  extractCanvasHost(`https://${"a".repeat(64)}.instructure.com`) === null,
+);
+check(
+  "rejects a giant garbage Origin without throwing (length cap holds)",
+  (() => {
+    try {
+      return extractCanvasHost(`https://${"a".repeat(100_000)}.instructure.com`) === null;
+    } catch {
+      return false;
+    }
+  })(),
+);
+
+// ---------------------------------------------------------------------------
+console.log("lib/metrics-store.ts (hostHashCounts — cap enforcement + normalize round-trip)");
+
+{
+  // cap enforcement: the 51st distinct key is dropped; an EXISTING key keeps
+  // incrementing past the cap (a popular school must never freeze).
+  const b = emptyBucket("2026-08-04");
+  for (let i = 0; i < 60; i++) addHostHash(b, `hash-${i}`);
+  check(
+    "hostHashCounts caps at 50 distinct keys/day",
+    Object.keys(b.hostHashCounts).length === 50,
+    `got ${Object.keys(b.hostHashCounts).length}`,
+  );
+  check("the first 50 keys were kept (insertion order)", b.hostHashCounts["hash-0"] === 1 && b.hostHashCounts["hash-49"] === 1);
+  check("the 51st+ keys were dropped", b.hostHashCounts["hash-50"] === undefined && b.hostHashCounts["hash-59"] === undefined);
+
+  addHostHash(b, "hash-0"); // an EXISTING key, added before the cap was hit
+  check("an existing key still increments past the cap", b.hostHashCounts["hash-0"] === 2, `got ${b.hostHashCounts["hash-0"]}`);
+
+  addHostHash(b, "hash-999"); // a brand-new key after the cap is already full
+  check("a brand-new key past the cap is dropped, not added", b.hostHashCounts["hash-999"] === undefined);
+  check("cap stays at exactly 50 keys after both calls above", Object.keys(b.hostHashCounts).length === 50);
+}
+
+{
+  // undefined key is a safe no-op — defensive; every real caller always
+  // supplies HOST_HASH_OTHER or a real hash, never "".
+  const b = emptyBucket("2026-08-04");
+  addHostHash(b, undefined);
+  check("addHostHash(undefined) is a no-op", Object.keys(b.hostHashCounts).length === 0);
+}
+
+{
+  // normalize round-trip: counts survive a JSON-serialize -> normalizeBucket
+  // pass unchanged (simulates a real KV get/put cycle).
+  const b = emptyBucket("2026-08-04");
+  addHostHash(b, UTEXAS_HOST_HASH);
+  addHostHash(b, UTEXAS_HOST_HASH);
+  addHostHash(b, HOST_HASH_OTHER);
+  const roundTripped = normalizeBucket(JSON.parse(JSON.stringify(b)), "2026-08-04");
+  check(
+    "hostHashCounts normalize round-trip preserves per-key counts",
+    roundTripped.hostHashCounts[UTEXAS_HOST_HASH] === 2 && roundTripped.hostHashCounts[HOST_HASH_OTHER] === 1,
+    JSON.stringify(roundTripped.hostHashCounts),
+  );
+}
+
+{
+  // a bucket written by an OLDER schema version (predates this field
+  // entirely) must default to {}, not throw or return undefined.
+  const legacy = normalizeBucket({ date: "2026-08-04" }, "2026-08-04");
+  check(
+    "normalizeBucket defaults a missing hostHashCounts to {} (pre-existing bucket)",
+    typeof legacy.hostHashCounts === "object" && Object.keys(legacy.hostHashCounts).length === 0,
+  );
+}
+
+{
+  // corrupt/non-object hostHashCounts (KV corruption, or a bad manual edit)
+  // must also default to {}, matching okCountRecord's contract for every
+  // other Record<string, number> field in this bucket.
+  const corrupt = normalizeBucket({ date: "2026-08-04", hostHashCounts: "not-an-object" }, "2026-08-04");
+  check("normalizeBucket defaults a corrupt hostHashCounts to {}", Object.keys(corrupt.hostHashCounts).length === 0);
+}
+
+// ---------------------------------------------------------------------------
+// This is the one async check in the file — placed LAST, after every
+// synchronous check above has already run, so a single top-level `await`
+// here (apps/workers is an ESM package, "type": "module") only delays the
+// final summary below, never reorders anything. hashBucket is the sole
+// async primitive host-telemetry depends on (crypto.subtle.digest), and this
+// is the guard against dashboard-render.ts's hardcoded UTEXAS_HOST_HASH
+// silently drifting from what hashBucket() would actually compute.
+console.log("lib/rate-limit.ts + dashboard-render.ts (UTEXAS_HOST_HASH matches a live hashBucket computation)");
+{
+  const live = await hashBucket("utexas.instructure.com");
+  check(
+    "UTEXAS_HOST_HASH constant matches hashBucket('utexas.instructure.com') today",
+    live === UTEXAS_HOST_HASH,
+    `got ${live}, want ${UTEXAS_HOST_HASH}`,
+  );
+}
 
 // ---------------------------------------------------------------------------
 console.log(`\n${pass} passed, ${fail} failed`);

@@ -30,6 +30,7 @@ import {
 } from "./dashboard-format";
 import { LATENCY_BUCKET_BOUNDARIES_MS } from "./histogram";
 import { IMAGE_VISION_MODEL, MODEL_RATES } from "./cost";
+import { HOST_HASH_OTHER } from "./metrics-store";
 
 type Tone = "blue" | "green" | "red" | "amber" | "ink";
 
@@ -1306,6 +1307,56 @@ function renderRevenueSection(
 }
 
 // ---------------------------------------------------------------------------
+// host-hash labeling (Canvas school-domain telemetry) — owner question:
+// "are these organic users even UT students?" Every stored key is an opaque
+// SHA-256 hash or the fixed HOST_HASH_OTHER literal (see lib/metrics-store.ts's
+// hostHashCounts doc) — this dictionary is the ONLY place a hash is ever
+// associated with a readable school name, and it deliberately covers just the
+// one school chosen to label. Every other real Canvas hash renders as
+// "unknown (<first 8 hex chars>)" so the owner still sees the UT-vs-not split
+// at a glance without this file (or KV) ever storing a second readable
+// domain.
+// ---------------------------------------------------------------------------
+
+/** hashBucket("utexas.instructure.com") (lib/rate-limit.ts), precomputed and
+ *  hardcoded: dashboard-render.ts's rendering functions are synchronous
+ *  template builders, and the real hashBucket is async (crypto.subtle), so
+ *  calling it at render time isn't practical here. Cross-checked against a
+ *  LIVE hashBucket("utexas.instructure.com") call in
+ *  scripts/self-test-metrics.ts so this constant can never silently drift
+ *  from what routes/solve.ts actually stores. Source string:
+ *  "utexas.instructure.com". */
+export const UTEXAS_HOST_HASH = "de9bb12b00b6cd85beaccbcbbbbc5d7e";
+
+const KNOWN_HOST_HASHES: Record<string, string> = {
+  [UTEXAS_HOST_HASH]: "UT Austin",
+};
+
+/** hash -> display label. Never reveals a school name beyond the hardcoded
+ *  dictionary above. */
+function labelHostHash(hash: string): string {
+  if (hash === HOST_HASH_OTHER) return "Other / non-Canvas origin";
+  return KNOWN_HOST_HASHES[hash] ?? `unknown (${hash.slice(0, 8)})`;
+}
+
+/** Amber for the rejected/non-Canvas bucket (an anomaly worth a second
+ *  look), blue for a school we've explicitly named, neutral ink for every
+ *  other real-but-unlabeled Canvas school. */
+function toneForHostHash(hash: string): Tone {
+  if (hash === HOST_HASH_OTHER) return "amber";
+  return KNOWN_HOST_HASHES[hash] ? "blue" : "ink";
+}
+
+function renderHostHashCard(byHostHash: Record<string, number>): string {
+  const entries: BarListEntry[] = Object.entries(byHostHash)
+    .map(([hash, value]) => ({ label: labelHostHash(hash), value, tone: toneForHostHash(hash) }))
+    .sort((a, b) => b.value - a.value);
+  const caption = `<p class="statCaption" style="margin: 0 0 0.4rem">Each request's Canvas host domain, hashed — never stored as a readable domain except the one label above.</p>`;
+  const body = entries.length > 0 ? renderBarList(entries) : `<p class="caption">No host data in range.</p>`;
+  return renderCard(`<p class="statLabel">By school — hashed</p>${caption}${body}`);
+}
+
+// ---------------------------------------------------------------------------
 // 1. Volume
 // ---------------------------------------------------------------------------
 
@@ -1365,7 +1416,8 @@ function renderVolumeSection(volume: VolumeMetrics, comparison: ComparisonMetric
   ${renderCard(
     `<p class="statLabel">Concept vs. calc over time</p>${renderCompositionChart(daily)}`,
     "chartCard",
-  )}`;
+  )}
+  ${renderHostHashCard(volume.byHostHash)}`;
 
   return renderSection("Volume", `last ${days}d`, inner);
 }
