@@ -237,12 +237,46 @@ solve.post("/", async (c) => {
   // telemetry (see hostBucketKey's computation above).
   metricsBatch.hostHash = hostBucketKey;
 
+  // Computed here (not inside the stream closure below) so it's available for
+  // both the prompt build AND requestFacts without being computed twice.
+  // Request-level facts (course-topic Part 3 + preset-package telemetry):
+  // known up front from `body`, unlike the model's self-reported TOPIC, so
+  // they're recorded ONCE per request — see RequestFacts's doc in
+  // lib/metrics-store.ts for why this can't just ride each per-leg
+  // ServerEventInput (a calc question's repair/interpret legs would
+  // otherwise double- or triple-count a single request's facts). Recorded
+  // regardless of whether the request goes on to succeed or fail.
+  const hasImage = (body.images?.length ?? 0) > 0;
+  metricsBatch.requestFacts = {
+    courseProfile: body.courseProfile === "generic" ? "generic" : "sta301",
+    imageAttached: hasImage,
+    ...(typeof body.rPackagesCustomized === "boolean"
+      ? { rPackagesCustomized: body.rPackagesCustomized }
+      : {}),
+    ...(body.packages && body.packages.length ? { requestedPackages: body.packages } : {}),
+  };
+
   const stream = makeSseStream(async (write) => {
     const startedAt = Date.now(); // wall time around the stream, for serverLatencyMs
     try {
-      const hasImage = (body.images?.length ?? 0) > 0;
       const hasBlanks = (body.blanks?.length ?? 0) >= 2;
-      const system = buildSystemPrompt({ dataContext, imageMode: hasImage, hasBlanks, rPackages: body.packages });
+      // PINNED MODEL-OUTPUT-CONTRACT CHANGE (course-topic branch): `courseProfile`
+      // swaps course-specific guidance for `body.courseProfile === "generic"`
+      // requests, and — for EVERY request, both profiles — the prompt now
+      // additionally instructs a trailing `TOPIC: <topic>` output line (see
+      // solver-core's TOPIC_INSTRUCTION_LINE). Gated on a post-funding eval
+      // re-run (scripts/run-evals.ts, cleaned set — denominators 130/85/48,
+      // excluding all 23 known-leaky matching-question fixtures) before any
+      // deploy — see packages/solver-core/scripts/self-test-prompt.ts's golden
+      // test, which locks the default (courseProfile omitted) profile's prompt
+      // to byte-identical except for that one added TOPIC block.
+      const system = buildSystemPrompt({
+        dataContext,
+        imageMode: hasImage,
+        hasBlanks,
+        rPackages: body.packages,
+        courseProfile: body.courseProfile,
+      });
       const questionPrompt = buildQuestionPrompt(body);
       const userContent = buildUserContent(questionPrompt, body.images);
 
@@ -335,7 +369,19 @@ solve.post("/", async (c) => {
 
         if (mode === "concept") {
           const cleaned = buf.replace(/^\s*\[(CONCEPT|RCODE|CALC)\]\s*\n?/i, "");
-          const display = cleaned.replace(/\n?CONFIDENCE:\s*\w+\s*$/i, "");
+          // course-topic: TOPIC now streams in as a THIRD trailing line, after
+          // CONFIDENCE (see solver-core's TOPIC_INSTRUCTION_LINE). Strip it
+          // FIRST — while it's (partially or fully) trailing — so CONFIDENCE
+          // becomes the new trailing line again and the second replace below
+          // still hides it exactly as it always has. Without this, once TOPIC
+          // starts streaming in, the CONFIDENCE regex would stop matching
+          // (CONFIDENCE is no longer at the string's end) and both lines would
+          // flash into `display` for one chunk. No consumer currently renders
+          // `delta` text (content.ts ignores it — see its module doc), so this
+          // is currently latent, but it's the same append-only bug either way.
+          const display = cleaned
+            .replace(/\n?TOPIC:\s*\w*\s*$/i, "")
+            .replace(/\n?CONFIDENCE:\s*\w+\s*$/i, "");
           const newSlice = display.slice(userVisibleSent.length);
           if (newSlice) {
             userVisibleSent = display;
@@ -378,7 +424,7 @@ solve.post("/", async (c) => {
           serverLatencyMs: Date.now() - startedAt,
           installHash,
           costMode: "concept",
-          completedQuestion: { mode: "concept", confidence: parsed.confidence },
+          completedQuestion: { mode: "concept", confidence: parsed.confidence, topic: parsed.topic },
         });
         await write({
           type: "result",
@@ -698,7 +744,11 @@ solve.post("/", async (c) => {
         if (!delta.text) continue;
         fbuf += delta.text;
         const cleaned = fbuf.replace(/^\s*\[(CONCEPT|RCODE|CALC)\]\s*\n?/i, "");
-        const display = cleaned.replace(/\n?CONFIDENCE:\s*\w+\s*$/i, "");
+        // course-topic: same TOPIC-before-CONFIDENCE stripping order as the
+        // first-pass loop above — see that site's comment for why.
+        const display = cleaned
+          .replace(/\n?TOPIC:\s*\w*\s*$/i, "")
+          .replace(/\n?CONFIDENCE:\s*\w+\s*$/i, "");
         const newSlice = display.slice(fSent.length);
         if (newSlice) {
           fSent = display;
@@ -736,7 +786,10 @@ solve.post("/", async (c) => {
         serverLatencyMs: Date.now() - startedAt,
         installHash,
         costMode: "calc",
-        completedQuestion: { mode: "calc", confidence: finalParsed.confidence },
+        // topic comes from THIS leg's own parse (finalParsed), not the first
+        // pass's — same reasoning as confidence just above: the interpret leg
+        // has seen the R output and is the request's real final assessment.
+        completedQuestion: { mode: "calc", confidence: finalParsed.confidence, topic: finalParsed.topic },
       });
 
       // Final result — PINNED shape (the extension is being updated against
@@ -825,10 +878,22 @@ const MAX_DATA_FILE_CHARS = 10_000_000; // 10MB per file
 const MAX_DATA_TOTAL_CHARS = 20_000_000; // 20MB across files
 const MAX_PACKAGES = 15;
 const MAX_PACKAGE_CHARS = 60;
+// course-topic: strict enum whitelist for the course-content profile — absent
+// means UT Austin STA 301 (the historical default; see solver-core's
+// buildSystemPrompt CourseProfile option), and "generic" is the ONLY other
+// accepted value. Anything else 400s rather than silently falling back, so a
+// typo/future-client-bug can never quietly serve the wrong prompt content.
+const ALLOWED_COURSE_PROFILES = new Set(["generic"]);
 
 function validateSolveBody(body: SolveBody): string | null {
   if (body.model && !ALLOWED_MODELS.has(body.model)) {
     return "Unsupported model.";
+  }
+  if (body.courseProfile !== undefined && !ALLOWED_COURSE_PROFILES.has(body.courseProfile)) {
+    return "Unsupported courseProfile.";
+  }
+  if (body.rPackagesCustomized !== undefined && typeof body.rPackagesCustomized !== "boolean") {
+    return "Invalid rPackagesCustomized.";
   }
   if ((body.questionText?.length ?? 0) > MAX_QUESTION_CHARS) {
     return "questionText too long.";

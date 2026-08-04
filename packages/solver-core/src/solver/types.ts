@@ -41,6 +41,22 @@ export interface SolveBody {
    * runner actually execute. Absent → the prompt keeps its historical default
    * wording; empty array → base R only. */
   packages?: string[];
+  /** Which course-content profile to steer the tutor's prompt with (see
+   * solver-core's buildSystemPrompt CourseProfile option). Absent — the
+   * default, and the ONLY value a stock/untouched install ever sends — keeps
+   * UT Austin STA 301's historical prompt content byte-identical. "generic"
+   * is the only other accepted value; the extension's R-preset picker sends
+   * it only for a custom preset explicitly marked as NOT based on UT STA 301
+   * (see apps/extension/src/r-packages.ts's resolveActivePreset). Strictly
+   * whitelisted server-side (routes/solve.ts's validateSolveBody) — anything
+   * else 400s. */
+  courseProfile?: "generic";
+  /** Content-free behavioral signal: true when the active R-preset is NOT the
+   * built-in UT STA 301 preset (i.e. `packages` above reflects a real user
+   * choice, not the seeded default) — independent of whether `packages`
+   * happens to equal the defaults verbatim. Optional/absent for older
+   * extension builds; telemetry only, never read by the prompt builder. */
+  rPackagesCustomized?: boolean;
   stream?: boolean;
   debug?: boolean;
   /** Optional per-request model override (for eval/benchmarking A/B); falls

@@ -1,4 +1,13 @@
-import { STATS_REFERENCE } from "./stats-reference";
+import { buildStatsReference } from "./stats-reference";
+import { TOPICS } from "./topics";
+
+/** Which course-content profile to build the prompt for. undefined (the
+ *  default, matching every request before this option existed) = UT Austin
+ *  STA 301 — this app's original/home course. "generic" = a course-neutral
+ *  swap of ONLY the STA-301-specific blocks (see buildRoutingRules and
+ *  stats-reference.ts's buildStatsReference); everything else in the prompt
+ *  is shared verbatim across both profiles. */
+export type CourseProfile = "generic";
 
 /**
  * Sanitize a user-supplied R package list before it goes into the system
@@ -40,7 +49,53 @@ function rcodePackageDirective(rPackages?: readonly string[]): string {
   return `For [RCODE], prioritize ${clean.join(", ")}, and base R — use whichever is most appropriate.`;
 }
 
-function buildRoutingRules(rPackages?: readonly string[]): string[] {
+/**
+ * STA301's answer-key convention for sampling-distribution select-alls — see
+ * GENERIC_SAMPLING_DISTRIBUTION_LINE below for the course-neutral replacement
+ * used when courseProfile is "generic". Kept as its own named constant (not
+ * inlined in the array below) so the golden test in
+ * packages/solver-core/scripts/self-test-prompt.ts can assert against it by
+ * reference instead of duplicating the literal string.
+ */
+export const STA301_SAMPLING_DISTRIBUTION_LINE =
+  "Course convention for sampling-distribution select-alls: when a select-all question asks which statistics or estimators generally have approximately normal (unimodal and symmetric) sampling distributions, treat ALL standard summary estimators as approximately normal — means, medians, proportions, differences of means or proportions, regression coefficients, standard deviations, interquartile ranges, and regression model fit statistics — and select EVERY listed option of these kinds. Do not exclude medians, standard deviations, or IQRs on advanced asymptotic-theory grounds; this course's answer keys count them all as approximately normal.";
+
+/**
+ * Course-neutral replacement for STA301_SAMPLING_DISTRIBUTION_LINE. Standard
+ * asymptotic theory, not any one course's answer-key convention: the CLT
+ * guarantees an approximately normal sampling distribution (for large n) for
+ * means, proportions, differences of means/proportions, and regression
+ * coefficients. Medians, standard deviations, and IQRs are deliberately left
+ * OUT of that guarantee — their sampling distributions depend on the shape of
+ * the underlying population (skew, kurtosis, tail weight) and generally need
+ * stronger conditions or larger samples than the mean does, so a generic
+ * course should not get credit for assuming them normal by default.
+ */
+export const GENERIC_SAMPLING_DISTRIBUTION_LINE =
+  "Sampling-distribution select-alls: when a select-all question asks which statistics or estimators generally have approximately normal (unimodal and symmetric) sampling distributions for large n, apply standard asymptotic theory. Means, proportions, differences of means or proportions, and regression coefficients are approximately normal for large n by the Central Limit Theorem / standard asymptotic theory — select these. Medians, standard deviations, and interquartile ranges are NOT generally guaranteed to be approximately normal — their sampling distributions depend on the shape of the underlying population and typically need stronger conditions or larger samples than the mean does — do not select these unless the question gives a specific reason to.";
+
+/**
+ * TOPIC output-line instruction, shared verbatim by both course profiles.
+ * Built from solver-core's TOPICS taxonomy (topics.ts) so the prompt's listed
+ * tokens and parse-response.ts's accepted tokens can never drift apart.
+ *
+ * PINNED MODEL-OUTPUT-CONTRACT CHANGE: adding this line means every future
+ * response carries one more trailing line the model must produce. Gated on a
+ * post-funding eval re-run before deploy (scripts/run-evals.ts against the
+ * cleaned eval set — denominators 130/85/48 — excluding the 23 known-leaky
+ * matching-question fixtures) — see the buildSystemPrompt call site's comment
+ * and packages/solver-core/scripts/self-test-prompt.ts's golden test.
+ */
+export const TOPIC_INSTRUCTION_LINE =
+  `After the CONFIDENCE line, append one more line: TOPIC: <topic>, where <topic> is exactly one lowercase token from this fixed list: ${TOPICS.join(", ")}. Pick the single closest match to what the question is actually testing. Use "non_stats" when the question has no statistics/data-analysis content at all, and "other" only when genuinely none of the listed topics fit.`;
+
+/** The QUICK_REFERENCE reinforcement bullet for the same TOPIC contract —
+ *  exported so the golden test can reconstruct the expected QUICK_REFERENCE
+ *  block without re-typing the literal string a second time. */
+export const TOPIC_QUICK_REFERENCE_LINE =
+  "7. TOPIC line goes after CONFIDENCE, on its own line: exactly one token from the fixed topic list above.";
+
+function buildRoutingRules(rPackages?: readonly string[], courseProfile?: CourseProfile): string[] {
   return [
   "Your first non-empty line must be exactly one routing tag: [CONCEPT] or [RCODE].",
   "Use [CONCEPT] for multiple choice, true/false, dropdown, definitions, interpretation, or explanation questions.",
@@ -73,8 +128,9 @@ function buildRoutingRules(rPackages?: readonly string[]): string[] {
   "When reporting direction (increase/decrease) for a computed value, always derive the label from the sign: direction <- if(value > 0) 'an increase' else 'a decrease'. Report abs(value) for the magnitude. Never hardcode 'an increase' when the computed value could be negative (e.g., net interaction effects: main_effect + interaction_coef may be negative even if the main effect alone is positive).",
   "Avoid verbose intermediate output unless explicitly requested.",
   "If required data is missing, add a short comment at top explaining what is missing.",
-  "Course convention for sampling-distribution select-alls: when a select-all question asks which statistics or estimators generally have approximately normal (unimodal and symmetric) sampling distributions, treat ALL standard summary estimators as approximately normal — means, medians, proportions, differences of means or proportions, regression coefficients, standard deviations, interquartile ranges, and regression model fit statistics — and select EVERY listed option of these kinds. Do not exclude medians, standard deviations, or IQRs on advanced asymptotic-theory grounds; this course's answer keys count them all as approximately normal.",
+  courseProfile === "generic" ? GENERIC_SAMPLING_DISTRIBUTION_LINE : STA301_SAMPLING_DISTRIBUTION_LINE,
   "After your answer (whether [CONCEPT] or [RCODE]), append on a new line: CONFIDENCE: High, CONFIDENCE: Med, or CONFIDENCE: Low. Use Low only when genuinely uncertain or the question is ambiguous.",
+  TOPIC_INSTRUCTION_LINE,
   ];
 }
 
@@ -124,6 +180,7 @@ const QUICK_REFERENCE = [
   "4. If question asks which numbered/lettered statements are true: evaluate each independently, print TRUE/FALSE for each, then Final answer: [choice].",
   "5. Interaction wording matters: 'decrease after accounting for main effects' = check interaction CI alone. 'Does Y decrease for subgroup Z?' = check main + interaction total. Same table, different calculations depending on exact wording.",
   "6. CONFIDENCE line goes after the answer on its own line. Low confidence prints a warning.",
+  TOPIC_QUICK_REFERENCE_LINE,
   "===",
 ].join("\n");
 
@@ -139,6 +196,11 @@ export interface SystemPromptOptions {
    * the [RCODE] package-priority directive. Undefined (old clients / evals)
    * keeps the historical default wording; [] means base R only. */
   rPackages?: readonly string[];
+  /** undefined (old clients / evals) or "sta301" -> UT Austin STA 301's
+   *  historical prompt content, byte-identical to before this option existed
+   *  (see the golden test). "generic" swaps ONLY the STA-301-specific blocks
+   *  for course-neutral guidance — see CourseProfile's doc comment above. */
+  courseProfile?: CourseProfile;
 }
 
 export function buildSystemPrompt({
@@ -146,6 +208,7 @@ export function buildSystemPrompt({
   imageMode = false,
   hasBlanks = false,
   rPackages,
+  courseProfile,
 }: SystemPromptOptions = {}): string {
   const roleLines: string[] = [
     "You are a statistics quiz assistant.",
@@ -176,9 +239,9 @@ export function buildSystemPrompt({
   const parts: string[] = [
     ...roleLines,
     ...imageOnlyLines,
-    ...buildRoutingRules(rPackages),
+    ...buildRoutingRules(rPackages, courseProfile),
     REGRESSION_INTERPRETATION,
-    STATS_REFERENCE,
+    buildStatsReference(courseProfile),
   ];
 
   if (dataContext.trim()) {

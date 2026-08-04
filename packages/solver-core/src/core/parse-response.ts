@@ -1,3 +1,5 @@
+import { isTopic, type Topic } from "./topics";
+
 export type Mode = "concept" | "calc";
 
 export interface ParsedResponse {
@@ -5,6 +7,12 @@ export interface ParsedResponse {
   body: string;
   confidence: "High" | "Med" | "Low" | "";
   lowConfidence: boolean;
+  /** Model self-reported topic tag (system-prompt.ts's `TOPIC: <topic>`
+   *  output line), one of solver-core's TOPICS taxonomy. "unknown" — NEVER a
+   *  thrown/failed parse — when the line is missing (any response produced
+   *  before this feature existed, or a model that didn't comply) or names
+   *  something outside the taxonomy. */
+  topic: Topic | "unknown";
 }
 
 export function looksLikeRCode(text: string): boolean {
@@ -74,14 +82,41 @@ function extractConfidence(answer: string): {
   return { body: answer, confidence: "", lowConfidence: false };
 }
 
+/**
+ * Strip a trailing `TOPIC: <token>` line (system-prompt.ts's TOPIC_INSTRUCTION_LINE)
+ * off the LAST line of `answer`, mirroring extractConfidence's shape exactly.
+ * Runs BEFORE extractConfidence in parseResponse below — TOPIC is the outermost
+ * trailing line (it comes after CONFIDENCE in the prompt's own instructions),
+ * so it has to be peeled off first for extractConfidence to still find
+ * CONFIDENCE at the new last line.
+ *
+ * Accepts a hyphenated or differently-cased token (a model could plausibly
+ * echo "Linear-Regression") and normalizes before the whitelist check — but
+ * the whitelist itself (isTopic) is the only thing that decides validity, so
+ * a normalized-but-unrecognized token still falls back to "unknown", never a
+ * raw pass-through string.
+ */
+function extractTopic(answer: string): { body: string; topic: Topic | "unknown" } {
+  const lines = (answer ?? "").trim().split("\n");
+  if (lines.length === 0) return { body: answer, topic: "unknown" };
+  const last = (lines[lines.length - 1] ?? "").trim();
+  const m = last.match(/^TOPIC:\s*([a-zA-Z_-]+)\s*$/i);
+  if (!m || !m[1]) return { body: answer, topic: "unknown" };
+  const body = lines.slice(0, -1).join("\n").trim();
+  const candidate = m[1].trim().toLowerCase().replace(/-/g, "_");
+  return { body, topic: isTopic(candidate) ? candidate : "unknown" };
+}
+
 export function parseResponse(rawText: string): ParsedResponse {
   const { mode, body } = extractModeAndBody(rawText);
-  const conf = extractConfidence(body);
+  const t = extractTopic(body);
+  const conf = extractConfidence(t.body);
   return {
     mode,
     body: conf.body,
     confidence: conf.confidence,
     lowConfidence: conf.lowConfidence,
+    topic: t.topic,
   };
 }
 
