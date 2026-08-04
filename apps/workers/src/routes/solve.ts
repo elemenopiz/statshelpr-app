@@ -417,6 +417,20 @@ solve.post("/", async (c) => {
       // leg further down streams its own `delta` events as tokens arrive, so
       // it never goes quiet on its own and doesn't need this.
       //
+      // This is also what makes lib/r-runner.ts's extended timeout SAFE for
+      // a `packages`-carrying request (up to 180s worst case vs. the normal
+      // 30s — see runRRemote's INSTALL_TIMEOUT_MS): this interval wraps the
+      // ENTIRE runCalcPipeline() below via the try/finally further down,
+      // which is what both runRSafe() call sites (the initial run and the
+      // post-repair rerun) run inside — so it keeps ticking every 10s
+      // regardless of how long any single awaited runRRemote call takes.
+      // Verified this covers the packages-present path specifically (not
+      // just asserted): runCalcPipeline's first statement is
+      // `runRSafe(rCode)`, which is the SAME closure that now forwards
+      // body.packages into runRRemote — there is no separate, unheartbeated
+      // call path for a customized request. No new heartbeat was needed for
+      // on-demand installs; this pre-existing one already covers it.
+      //
       // Why a tick can never write after the stream has closed: `write`
       // bottoms out in lib/sse.ts's makeSseStream at `controller.enqueue`,
       // which throws once the stream is closed — and the ONLY thing that
@@ -471,19 +485,38 @@ solve.post("/", async (c) => {
       // Real prod samples showed a clean bimodal split: warm calls finish
       // under ~7s, cold starts land at ~11.6s/~15.7s — 8s sits in the gap.
       const R_RUNNER_COLD_START_THRESHOLD_MS = 8_000;
+      // body.packages is undefined for every request without a customized
+      // picker selection (the default preset — see solver-core's SolveBody
+      // doc and apps/extension/src/r-packages.ts, which omits the field
+      // entirely rather than sending an empty array in that case) —
+      // runRRemote's own doc comment is explicit that passing `undefined`
+      // through here is what keeps that path byte-identical to before
+      // on-demand installs existed (unchanged body shape, unchanged 30s
+      // timeout). Shared by BOTH runRRemote call sites this closure serves
+      // (the initial run and the post-repair rerun below), so one edit here
+      // covers both — matches this function's existing "shared by both call
+      // sites" framing for the failure-recording behavior above.
       const runRSafe = async (code: string): Promise<RunRResult | undefined> => {
         try {
-          const result = await runRRemote(c.env, code, dataFiles);
+          const result = await runRRemote(c.env, code, dataFiles, body.packages);
           // Evidence-based "which packages do users actually need" signal —
           // see extractMissingRPackageNames' doc below. Raw candidates only;
           // metrics-store.ts's applyRRunnerEvent/addMissingRPackage is what
           // actually sanitizes before anything is persisted.
           const missingPackages = extractMissingRPackageNames(result.stderr);
+          // Runtime-installed packages (r-runner/plumber.R's
+          // install_missing_packages, only ever populated when body.packages
+          // was sent above) — same "raw candidates in, sanitize at the KV
+          // write boundary" split as missingPackages: metrics-store.ts's
+          // applyRRunnerEvent/addRuntimeInstalledRPackage does the actual
+          // grammar-check + cap before anything is persisted.
+          const installedPackages = result.installedPackages ?? [];
           metricsBatch.rRunner.push({
             success: true,
             durationMs: result.durationMs,
             coldStart: result.durationMs > R_RUNNER_COLD_START_THRESHOLD_MS,
             ...(missingPackages.length > 0 ? { missingPackages } : {}),
+            ...(installedPackages.length > 0 ? { installedPackages } : {}),
           });
           return result;
         } catch {
