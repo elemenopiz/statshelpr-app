@@ -21,10 +21,24 @@
  * kill-switch limits below still apply to /api/solve and are still
  * exercised here.
  *
+ * 2026-08-04 (owner directive — caps rework) added three more sections,
+ * still against the SAME FakeCountersNamespace (now extended to mirror
+ * counters-do.ts's `incr`/`setConfig` additions exactly, not just
+ * `gate`/`addSpend`):
+ *  - lib/kill-switch.ts's computeEffectiveSpendLimitUsd (pure formula) and
+ *    checkGlobalKillSwitch's end-to-end pickup of a cron-persisted
+ *    subscriber-scaled ceiling, including the floor/stale/corrupt-value
+ *    fallback paths — CHANGE 2.
+ *  - lib/kill-switch.ts's decidePaidSoftThrottle (pure threshold arithmetic)
+ *    and counters-do.ts's `incr` op (always applies, even when a blocking
+ *    check in the same gate call fails) — CHANGE 3.
+ *  - fail-open behavior for BOTH of the above when the DO is unreachable
+ *    (a BrokenCountersNamespace whose fetch always throws).
+ *
  * Same plain-tsx pattern as self-test-metrics.ts (no vitest in this
  * workspace) — run via:
  *
- *   pnpm --filter @statshelpr/api exec tsx ../workers/scripts/self-test-security.ts
+ *   <repo-root>/node_modules/.pnpm/node_modules/.bin/tsx apps/workers/scripts/self-test-security.ts
  *
  * rate-limit.ts / kill-switch.ts need a KVNamespace — faked in-memory below
  * (just the get/put subset these modules actually call) rather than pulled
@@ -34,7 +48,17 @@
  */
 
 import type { Context } from "hono";
-import { checkGlobalKillSwitch, GLOBAL_SPEND_KEY } from "../src/lib/kill-switch";
+import { doGate, doSetConfig } from "../src/lib/counters-do";
+import {
+  GLOBAL_SPEND_KEY,
+  GLOBAL_SPEND_LIMIT_CFG_KEY,
+  SPEND_LIMIT_STALENESS_MS,
+  buildPaidSoftCapIncrItems,
+  checkGlobalKillSwitch,
+  computeEffectiveSpendLimitUsd,
+  decidePaidSoftThrottle,
+  persistEffectiveSpendLimit,
+} from "../src/lib/kill-switch";
 import {
   activateForInstall,
   activationHash,
@@ -82,15 +106,21 @@ async function main() {
   }
 
   // ---------------------------------------------------------------------------
-  // In-memory fake of the CountersDO fetch contract (DO switch, 2026-07-29) —
+  // In-memory fake of the CountersDO fetch contract (DO switch, 2026-07-29;
+  // extended 2026-08-04 for the caps-rework `incr`/`setConfig` ops) —
   // lib/kill-switch.ts's checkGlobalKillSwitch now gates through
   // lib/counters-do.ts's doGate instead of KV, so the kill-switch checks
   // below need a namespace whose stub answers the {op:"gate"} /
-  // {op:"addSpend"} JSON ops with the same in-order/stop-at-first-failure
-  // semantics the real SQLite-backed class implements. Tsx runs outside the
-  // workers runtime, so this replicates the row semantics over a Map — the
-  // REAL class's behavior is exercised end-to-end by the wrangler-dev curl
-  // checks and prod verification, not by this file.
+  // {op:"addSpend"} / {op:"setConfig"} JSON ops with the SAME
+  // in-order/stop-at-first-failure/unconditional-incr semantics the real
+  // SQLite-backed class implements (mirrors CountersDO.touch/resolveSpendLimit/
+  // incr/setConfig in ../src/lib/counters-do.ts line for line — keep the two
+  // in sync on any future change to that file). Tsx runs outside the workers
+  // runtime, so this replicates the row semantics over a Map — the REAL
+  // class's SQL execution itself is NOT exercised by this file (no SQLite
+  // available outside the Workers runtime); see the report for what's only
+  // statically reviewed and the post-deploy verification plan for closing
+  // that gap.
   // ---------------------------------------------------------------------------
   class FakeCountersNamespace {
     private rows = new Map<string, { count: number; resetAt: number }>();
@@ -103,41 +133,84 @@ async function main() {
           const body = JSON.parse(init?.body ?? "{}") as {
             op: string;
             checks?: { key: string; limit: number }[];
-            spend?: { key: string; limitUsd: number };
+            spend?: { key: string; limitUsd: number; cfgKey?: string };
+            incr?: { key: string; resetAtIfFresh: number }[];
             key?: string;
             usd?: number;
+            value?: number;
+            staleAfterMs?: number;
           };
           const now = Date.now();
-          const touch = (key: string) => {
+          // Mirrors CountersDO.touch, including the 2026-08-04
+          // caller-chosen `freshResetAt` param.
+          const touch = (key: string, freshResetAt = now + 86_400_000) => {
             const row = this.rows.get(key);
-            if (!row || row.resetAt < now) return { count: 0, resetAt: now + 86_400_000 };
+            if (!row || row.resetAt < now) return { count: 0, resetAt: freshResetAt };
             return row;
           };
+          const upsert = (key: string, count: number, resetAt: number) => {
+            this.rows.set(key, { count, resetAt });
+          };
+          // Mirrors CountersDO.resolveSpendLimit.
+          const resolveSpendLimit = (spend: { limitUsd: number; cfgKey?: string }): number => {
+            if (!spend.cfgKey) return spend.limitUsd;
+            const cfg = touch(spend.cfgKey);
+            return Math.max(spend.limitUsd, cfg.count);
+          };
+          // Mirrors CountersDO.incr.
+          const incr = (key: string, resetAtIfFresh: number) => {
+            const cur = touch(key, resetAtIfFresh);
+            const newCount = cur.count + 1;
+            upsert(key, newCount, cur.resetAt);
+            return { count: newCount, resetAt: cur.resetAt };
+          };
+
           if (body.op === "gate") {
             const results: { count: number; limit: number; resetAt: number }[] = [];
+            let failedAt: number | "spend" | undefined;
             for (let i = 0; i < (body.checks ?? []).length; i++) {
               const check = body.checks![i]!;
               const cur = touch(check.key);
               if (cur.count >= check.limit) {
                 results.push({ count: cur.count, limit: check.limit, resetAt: cur.resetAt });
-                return Response.json({ allowed: false, failed: i, results });
+                failedAt = i;
+                break;
               }
               const next = { count: cur.count + 1, resetAt: cur.resetAt };
-              this.rows.set(check.key, next);
+              upsert(check.key, next.count, next.resetAt);
               results.push({ count: next.count, limit: check.limit, resetAt: next.resetAt });
             }
-            if (body.spend) {
+            let spendUsd: number | undefined;
+            if (failedAt === undefined && body.spend) {
               const spendRow = touch(body.spend.key);
-              if (spendRow.count >= body.spend.limitUsd) {
-                return Response.json({ allowed: false, failed: "spend", results, spendUsd: spendRow.count });
-              }
-              return Response.json({ allowed: true, results, spendUsd: spendRow.count });
+              const limitUsd = resolveSpendLimit(body.spend);
+              spendUsd = spendRow.count;
+              if (spendRow.count >= limitUsd) failedAt = "spend";
             }
-            return Response.json({ allowed: true, results });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- test double; mirrors GateResponse loosely
+            const response: any =
+              failedAt !== undefined
+                ? { allowed: false, failed: failedAt, results, ...(spendUsd !== undefined ? { spendUsd } : {}) }
+                : { allowed: true, results, ...(spendUsd !== undefined ? { spendUsd } : {}) };
+            // Unconditional — applies regardless of `failedAt` above, same
+            // as the real gate()'s incr step (2026-08-04).
+            if (body.incr && body.incr.length > 0) {
+              response.incrResults = body.incr.map((item) => incr(item.key, item.resetAtIfFresh));
+            }
+            return Response.json(response);
           }
           if (body.op === "addSpend") {
             const cur = touch(body.key!);
-            this.rows.set(body.key!, { count: cur.count + (body.usd ?? 0), resetAt: cur.resetAt });
+            upsert(body.key!, cur.count + (body.usd ?? 0), cur.resetAt);
+            return Response.json({ ok: true });
+          }
+          if (body.op === "setConfig") {
+            // Mirrors CountersDO.setConfig's defensive non-finite/non-positive
+            // guard exactly — a bad value is silently never written, not
+            // clamped or corrected.
+            if (Number.isFinite(body.value) && (body.value as number) > 0) {
+              upsert(body.key!, body.value as number, Date.now() + Math.max(0, body.staleAfterMs ?? 0));
+            }
             return Response.json({ ok: true });
           }
           return Response.json({ error: "unknown op" }, { status: 400 });
@@ -148,6 +221,32 @@ async function main() {
      *  is fire-and-forget via waitUntil, awkward to await from here). */
     seedSpend(key: string, usd: number): void {
       this.rows.set(key, { count: usd, resetAt: Date.now() + 86_400_000 });
+    }
+    /** Test hook (2026-08-04): seed an arbitrary row directly — used to set
+     *  up a deliberately STALE (resetAt already in the past) or CORRUPT
+     *  (non-positive count) config row, which the normal write path
+     *  (doSetConfig -> op:"setConfig") can't produce since setConfig itself
+     *  refuses bad values and always stamps a fresh future resetAt. */
+    seedRow(key: string, count: number, resetAt: number): void {
+      this.rows.set(key, { count, resetAt });
+    }
+  }
+
+  /** A COUNTERS_DO stub whose fetch always throws — exercises doGate's
+   *  fail-open catch path (counters-do.ts) end-to-end, including the
+   *  2026-08-04 `incrResults` fallback, and therefore
+   *  checkGlobalKillSwitch's / the paid-soft-cap path's behavior on a DO
+   *  outage. */
+  class BrokenCountersNamespace {
+    idFromName(_name: string): unknown {
+      return "broken-id";
+    }
+    get(_id: unknown): { fetch: (url: string, init?: { body?: string }) => Promise<Response> } {
+      return {
+        fetch: async () => {
+          throw new Error("simulated CountersDO outage");
+        },
+      };
     }
   }
 
@@ -287,6 +386,245 @@ async function main() {
       "global switch: dollar ceiling refuses independently of the call count",
       r.allowed === false,
       JSON.stringify(r),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  console.log("kill-switch.ts (computeEffectiveSpendLimitUsd — subscriber-scaled ceiling formula, CHANGE 2)");
+
+  {
+    const env = fakeEnv(); // default floor $25, default per-sub $2/day
+    check(
+      "0 subscribers: effective ceiling is exactly the floor (today's behavior, unchanged)",
+      computeEffectiveSpendLimitUsd(env, 0) === 25,
+      `got ${computeEffectiveSpendLimitUsd(env, 0)}`,
+    );
+  }
+  {
+    const env = fakeEnv();
+    // 5 subs x $2 = $10, well under the $25 floor -> floor wins.
+    check(
+      "a handful of subscribers: scaled amount under the floor -> floor still wins",
+      computeEffectiveSpendLimitUsd(env, 5) === 25,
+      `got ${computeEffectiveSpendLimitUsd(env, 5)}`,
+    );
+  }
+  {
+    const env = fakeEnv();
+    // 100 subs x $2 = $200 > $25 floor -> scaled wins (the brief's worked example).
+    check(
+      "100 subscribers: max(25, 100 x 2) = $200/day",
+      computeEffectiveSpendLimitUsd(env, 100) === 200,
+      `got ${computeEffectiveSpendLimitUsd(env, 100)}`,
+    );
+  }
+  {
+    const env = fakeEnv({ GLOBAL_DAILY_SPEND_LIMIT_USD: "50", PER_SUB_DAILY_SPEND_USD: "3" });
+    check(
+      "custom floor + per-sub rate, below crossover: max(50, 10 x 3) = 50",
+      computeEffectiveSpendLimitUsd(env, 10) === 50,
+      `got ${computeEffectiveSpendLimitUsd(env, 10)}`,
+    );
+    check(
+      "custom floor + per-sub rate, above crossover: max(50, 30 x 3) = 90",
+      computeEffectiveSpendLimitUsd(env, 30) === 90,
+      `got ${computeEffectiveSpendLimitUsd(env, 30)}`,
+    );
+  }
+  {
+    const env = fakeEnv();
+    check(
+      "a negative/garbage subscriber count floors at 0 -- never pulls the ceiling below the floor",
+      computeEffectiveSpendLimitUsd(env, -5) === 25,
+      `got ${computeEffectiveSpendLimitUsd(env, -5)}`,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  console.log("kill-switch.ts (checkGlobalKillSwitch — cron -> CountersDO -> gate ceiling override, CHANGE 2)");
+
+  {
+    // End-to-end through the REAL write path (persistEffectiveSpendLimit ->
+    // doSetConfig -> {op:"setConfig"}) and the REAL read path
+    // (checkGlobalKillSwitch -> doGate -> {op:"gate", spend:{cfgKey}}) — not
+    // just the fake's seed hooks. This is the closest this tsx harness can
+    // get to exercising the actual cron -> storage -> gate flow without the
+    // real Workers/DO runtime.
+    const env = fakeEnv({ GLOBAL_DAILY_SPEND_LIMIT_USD: "25", GLOBAL_DAILY_CALL_LIMIT: "1000" });
+    env.COUNTERS_DO.seedSpend(GLOBAL_SPEND_KEY, 30); // $30 spent today
+
+    const before = await checkGlobalKillSwitch(env);
+    check(
+      "MISSING config (cron never ran): $30 spend trips the bare $25 floor",
+      before.allowed === false,
+      JSON.stringify(before),
+    );
+
+    const persisted = await persistEffectiveSpendLimit(env, 100); // 100 subs x $2 = $200
+    check("persistEffectiveSpendLimit computes and returns the scaled ceiling", persisted === 200, `got ${persisted}`);
+
+    const after = await checkGlobalKillSwitch(env);
+    check(
+      "after persisting: the SAME $30 spend no longer trips the now-$200 effective ceiling",
+      after.allowed === true,
+      JSON.stringify(after),
+    );
+  }
+  {
+    // STALE: a config row whose OWN staleness deadline (its resetAt) has
+    // already passed — simulates a cron that stopped running >48h ago.
+    // Can't be produced via the normal write path (setConfig always stamps
+    // a fresh future resetAt), so this seeds the row directly.
+    const env = fakeEnv();
+    env.COUNTERS_DO.seedSpend(GLOBAL_SPEND_KEY, 30);
+    env.COUNTERS_DO.seedRow(GLOBAL_SPEND_LIMIT_CFG_KEY, 200, Date.now() - 1_000);
+    const r = await checkGlobalKillSwitch(env);
+    check(
+      "STALE cron-persisted ceiling (past its own staleness deadline) falls back to the floor",
+      r.allowed === false,
+      JSON.stringify(r),
+    );
+  }
+  {
+    // CORRUPT: a non-positive value sitting in a row with a FRESH resetAt —
+    // simulates storage corruption bypassing setConfig's own guard. Math.max
+    // against the floor must still win.
+    const env = fakeEnv();
+    env.COUNTERS_DO.seedSpend(GLOBAL_SPEND_KEY, 30);
+    env.COUNTERS_DO.seedRow(GLOBAL_SPEND_LIMIT_CFG_KEY, -50, Date.now() + 999_999);
+    const r = await checkGlobalKillSwitch(env);
+    check(
+      "CORRUPT (non-positive) cron-persisted value never lowers the ceiling below the floor",
+      r.allowed === false,
+      JSON.stringify(r),
+    );
+  }
+  {
+    // setConfig's OWN defensive guard (distinct from resolveSpendLimit's
+    // Math.max safety net above) — a bad value passed through the REAL
+    // doSetConfig write path must never even be written, so a later gate
+    // call sees "missing", not "corrupt-but-present".
+    const env = fakeEnv();
+    env.COUNTERS_DO.seedSpend(GLOBAL_SPEND_KEY, 30);
+    await doSetConfig(env, GLOBAL_SPEND_LIMIT_CFG_KEY, -10, SPEND_LIMIT_STALENESS_MS);
+    const r = await checkGlobalKillSwitch(env);
+    check(
+      "doSetConfig/setConfig refuse to persist a non-positive value at write time",
+      r.allowed === false,
+      JSON.stringify(r),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  console.log("kill-switch.ts (decidePaidSoftThrottle — paid-tier soft-cap threshold arithmetic, CHANGE 3)");
+
+  {
+    check("at the daily threshold exactly (100): not throttled", decidePaidSoftThrottle(100, 0).throttle === false);
+    const d101 = decidePaidSoftThrottle(101, 0);
+    check(
+      "one past the daily threshold (101): throttled, reason 'daily'",
+      d101.throttle === true && d101.reason === "daily",
+      JSON.stringify(d101),
+    );
+    check("at the monthly threshold exactly (600): not throttled", decidePaidSoftThrottle(0, 600).throttle === false);
+    const m601 = decidePaidSoftThrottle(0, 601);
+    check(
+      "one past the monthly threshold (601): throttled, reason 'monthly'",
+      m601.throttle === true && m601.reason === "monthly",
+      JSON.stringify(m601),
+    );
+    const both = decidePaidSoftThrottle(150, 700);
+    check(
+      "past BOTH thresholds: daily takes precedence (checked first)",
+      both.throttle === true && both.reason === "daily",
+      JSON.stringify(both),
+    );
+    check("under both thresholds: not throttled", decidePaidSoftThrottle(50, 300).throttle === false);
+  }
+
+  // ---------------------------------------------------------------------------
+  console.log("kill-switch.ts / counters-do.ts (buildPaidSoftCapIncrItems + incr — CHANGE 3)");
+
+  {
+    const items = buildPaidSoftCapIncrItems("install-hash-x");
+    const now = Date.now();
+    check(
+      "daily resetAtIfFresh is ~24h out",
+      items.daily.resetAtIfFresh > now && items.daily.resetAtIfFresh <= now + 86_400_000 + 1_000,
+    );
+    check(
+      "monthly resetAtIfFresh is in the future, within one calendar month",
+      items.monthly.resetAtIfFresh > now && items.monthly.resetAtIfFresh <= now + 31 * 86_400_000,
+    );
+    check(
+      "daily/monthly keys use distinct prefixes (paid:d: / paid:m:)",
+      items.daily.key.startsWith("paid:d:") && items.monthly.key.startsWith("paid:m:"),
+    );
+    check(
+      "both keys are scoped to the SAME install hash",
+      items.daily.key.endsWith("install-hash-x") && items.monthly.key.endsWith("install-hash-x"),
+    );
+  }
+  {
+    // incr counts up across calls, exactly, via the SAME doGate round trip
+    // solve.ts uses.
+    const env = fakeEnv();
+    const items = buildPaidSoftCapIncrItems("install-hash-1");
+    const g1 = await doGate(env, [], undefined, [items.daily, items.monthly]);
+    const g2 = await doGate(env, [], undefined, [items.daily, items.monthly]);
+    check(
+      "incr counts up across calls (daily): 1, then 2",
+      g1.incrResults?.[0]?.count === 1 && g2.incrResults?.[0]?.count === 2,
+      JSON.stringify([g1.incrResults, g2.incrResults]),
+    );
+    check(
+      "incr counts up across calls (monthly): 1, then 2",
+      g1.incrResults?.[1]?.count === 1 && g2.incrResults?.[1]?.count === 2,
+      JSON.stringify([g1.incrResults, g2.incrResults]),
+    );
+  }
+  {
+    // incr is UNCONDITIONAL: it still applies even when a BLOCKING check in
+    // the SAME gate call fails — a paid solve past some OTHER ceiling still
+    // needs an exact soft-cap count (see gate()'s doc in counters-do.ts).
+    const env = fakeEnv();
+    const items = buildPaidSoftCapIncrItems("install-hash-2");
+    const g = await doGate(env, [{ key: "some:blocking:check", limit: 0 }], undefined, [items.daily]);
+    check(
+      "incr applies even when a blocking check in the SAME call fails",
+      g.allowed === false && g.incrResults?.[0]?.count === 1,
+      JSON.stringify(g),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  console.log("counters-do.ts / kill-switch.ts (fail-open on counter error)");
+
+  {
+    const env = fakeEnv({ COUNTERS_DO: new BrokenCountersNamespace() as unknown as Env["COUNTERS_DO"] });
+    const r = await checkGlobalKillSwitch(env);
+    check("checkGlobalKillSwitch fails OPEN (allowed) when the DO is unreachable", r.allowed === true, JSON.stringify(r));
+  }
+  {
+    const env = fakeEnv({ COUNTERS_DO: new BrokenCountersNamespace() as unknown as Env["COUNTERS_DO"] });
+    const items = buildPaidSoftCapIncrItems("install-broken");
+    const g = await doGate(env, [], undefined, [items.daily, items.monthly]);
+    check(
+      "doGate fails open on a DO outage even with incr requested",
+      g.allowed === true && g.failOpen === true,
+      JSON.stringify(g),
+    );
+    const [dailyRes, monthlyRes] = g.incrResults ?? [];
+    check(
+      "failed-open incrResults are zeroed, never undefined/missing",
+      dailyRes?.count === 0 && monthlyRes?.count === 0,
+      JSON.stringify(g.incrResults),
+    );
+    const decision = decidePaidSoftThrottle(dailyRes?.count ?? 0, monthlyRes?.count ?? 0);
+    check(
+      "a zeroed fail-open count correctly decides 'do not throttle' (fail OPEN, not fail-throttle)",
+      decision.throttle === false,
+      JSON.stringify(decision),
     );
   }
 

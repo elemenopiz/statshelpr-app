@@ -23,6 +23,7 @@ import {
 import { aggregateMetrics } from "../src/lib/metrics-aggregate";
 import {
   addHostHash,
+  applyPaidThrottle,
   applyRequestFacts,
   applyRRunnerEvent,
   applyServerEvent,
@@ -1179,6 +1180,92 @@ console.log("lib/metrics-store.ts (hostHashCounts — cap enforcement + normaliz
   // other Record<string, number> field in this bucket.
   const corrupt = normalizeBucket({ date: "2026-08-04", hostHashCounts: "not-an-object" }, "2026-08-04");
   check("normalizeBucket defaults a corrupt hostHashCounts to {}", Object.keys(corrupt.hostHashCounts).length === 0);
+}
+
+// ---------------------------------------------------------------------------
+console.log("lib/metrics-store.ts (paidThrottleHits — owner directive 2026-08-04, CHANGE 3)");
+
+{
+  const b = emptyBucket("2026-08-04");
+  check(
+    "emptyBucket starts paidThrottleHits at {daily: 0, monthly: 0}",
+    b.paidThrottleHits.daily === 0 && b.paidThrottleHits.monthly === 0,
+    JSON.stringify(b.paidThrottleHits),
+  );
+}
+
+{
+  // applyPaidThrottle — the pure per-batch mutation flushMetricsBatch calls
+  // (MetricsBatch.paidThrottle), same "exported so this file can exercise it
+  // directly" reasoning as applyRequestFacts/applyServerEvent above.
+  const b = emptyBucket("2026-08-04");
+  applyPaidThrottle(b, "daily");
+  applyPaidThrottle(b, "daily");
+  applyPaidThrottle(b, "monthly");
+  check(
+    "applyPaidThrottle increments the right key, independently",
+    b.paidThrottleHits.daily === 2 && b.paidThrottleHits.monthly === 1,
+    JSON.stringify(b.paidThrottleHits),
+  );
+}
+
+{
+  // a bucket written by an OLDER schema version (predates this field
+  // entirely, e.g. anything written before the caps-rework branch) must
+  // default to {daily: 0, monthly: 0}, not throw or return undefined.
+  const legacy = normalizeBucket({ date: "2026-08-04" }, "2026-08-04");
+  check(
+    "normalizeBucket backfills a missing paidThrottleHits to {daily: 0, monthly: 0}",
+    legacy.paidThrottleHits.daily === 0 && legacy.paidThrottleHits.monthly === 0,
+    JSON.stringify(legacy.paidThrottleHits),
+  );
+}
+
+{
+  // normalize round-trip: counts survive a JSON-serialize -> normalizeBucket
+  // pass unchanged (simulates a real KV get/put cycle).
+  const b = emptyBucket("2026-08-04");
+  applyPaidThrottle(b, "daily");
+  applyPaidThrottle(b, "monthly");
+  applyPaidThrottle(b, "monthly");
+  const roundTripped = normalizeBucket(JSON.parse(JSON.stringify(b)), "2026-08-04");
+  check(
+    "paidThrottleHits normalize round-trip preserves both counters",
+    roundTripped.paidThrottleHits.daily === 1 && roundTripped.paidThrottleHits.monthly === 2,
+    JSON.stringify(roundTripped.paidThrottleHits),
+  );
+}
+
+{
+  // a well-formed record passes through untouched (mirrors the
+  // hostHashCounts "passes through a well-formed record" check above).
+  const raw = { date: "2026-08-04", paidThrottleHits: { daily: 7, monthly: 42 } };
+  const normalized = normalizeBucket(raw, "2026-08-04");
+  check(
+    "normalizeBucket passes through a well-formed paidThrottleHits record",
+    normalized.paidThrottleHits.daily === 7 && normalized.paidThrottleHits.monthly === 42,
+    JSON.stringify(normalized.paidThrottleHits),
+  );
+}
+
+{
+  // A partially-malformed paidThrottleHits (e.g. one key overwritten with a
+  // non-number by a bad manual KV edit) must not throw. normalizeBucket
+  // blind-spreads this fixed-shape object exactly like every sibling small
+  // counts object in this bucket (confidence, revenue, courseProfile, etc. —
+  // none of them individually type-check each field either, see their own
+  // `{ ...empty.X, ...s.X }` lines above), so the malformed value passes
+  // through as-is and only the ABSENT key (monthly, never supplied here)
+  // gets the zero default.
+  const corrupt = normalizeBucket(
+    { date: "2026-08-04", paidThrottleHits: { daily: "not-a-number" } },
+    "2026-08-04",
+  );
+  check(
+    "normalizeBucket doesn't throw on a partially-malformed paidThrottleHits, and backfills the ABSENT key",
+    corrupt.paidThrottleHits.monthly === 0,
+    JSON.stringify(corrupt.paidThrottleHits),
+  );
 }
 
 // ---------------------------------------------------------------------------
