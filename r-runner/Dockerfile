@@ -21,8 +21,13 @@ FROM rocker/tidyverse:4.4.3
 # with apps/extension/src/r-packages.ts's INSTALLED_CATALOG. The base image
 # (rocker/tidyverse) already ships tidyverse, ggplot2, broom, MASS, and knitr,
 # so those are NOT reinstalled here; the intro-stats core (mosaic/moderndive/
-# infer) is added below. INFRA (openssl/base64enc for the data-file handling,
-# plumber for the HTTP layer) rounds out the vector.
+# infer) is added below. MatchIt and effectsize are also added: the tutor's
+# stats-reference prompt (packages/solver-core/src/core/stats-reference.ts)
+# already directs the model to use both (matching on confounders in L12;
+# eta_squared() effect size in L15), so without them here the model would
+# generate code against a package that was never installed. INFRA (openssl/
+# base64enc for the data-file handling, plumber for the HTTP layer) rounds
+# out the vector.
 #
 # Kept deliberately to the small intro-stats core we actually use, NOT a broad
 # cross-curriculum catalog. Broadening the pre-baked set (so the picker could
@@ -47,7 +52,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libsodium-dev &
 # request needs the missing package. stopifnot(...) below asserts every
 # requested package actually landed in the library, so a broken install fails
 # the build loudly instead.
-RUN R -e "pkgs <- c('mosaic', 'moderndive', 'infer', 'openssl', 'base64enc', 'plumber'); install.packages(pkgs, repos = 'https://cloud.r-project.org', Ncpus = 4); stopifnot(all(pkgs %in% rownames(installed.packages())))"
+RUN R -e "pkgs <- c('mosaic', 'moderndive', 'infer', 'MatchIt', 'effectsize', 'openssl', 'base64enc', 'plumber'); install.packages(pkgs, repos = 'https://cloud.r-project.org', Ncpus = 4); stopifnot(all(pkgs %in% rownames(installed.packages())))"
 
 COPY plumber.R /app/plumber.R
 WORKDIR /app

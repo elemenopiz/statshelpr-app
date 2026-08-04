@@ -45,6 +45,8 @@ export const INSTALLED_CATALOG: readonly string[] = [
   "mosaic",
   "moderndive",
   "infer",
+  "MatchIt",
+  "effectsize",
 ];
 
 /** Cap on how many packages we'll store/send — a sane bound so the list can't
