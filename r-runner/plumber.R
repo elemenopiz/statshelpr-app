@@ -181,6 +181,187 @@ run_r_code <- function(code) {
   list(stdout = "", stderr = "", exitCode = 0L)
 }
 
+# --- On-demand package installs ------------------------------------------------
+# A customized user's `packages` selection (the extension's library picker,
+# apps/extension/src/r-packages.ts) can name a package that is NOT baked into
+# this image (the fixed catalog in r-runner/Dockerfile). Rather than failing
+# outright, install it here on demand -- bounded so this NEVER touches the
+# default preset's behavior (no `packages` field in the request -- see the
+# `/runR` handler's `if (!is.null(body$packages))` gate below, which skips
+# this entire section, not just "installs nothing") and NEVER risks the
+# Cloud Run request timeout (README.md's Deploy section -- 180s, raised from
+# 30s specifically for this feature). This phase gets its own <=90s budget,
+# well clear of that ceiling; script EXECUTION (run_r_code above) keeps
+# exactly the timeout budget it always had -- implicitly bounded by the
+# outer Cloud Run request timeout, unchanged by this feature.
+
+# Grammar mirrors apps/workers/src/lib/metrics-store.ts's
+# MISSING_R_PACKAGE_NAME_RE / packages/solver-core's system-prompt.ts
+# sanitizePackageNames -- independently re-validated HERE too (never trust
+# the Worker layer alone, same stance the rest of this file takes on the
+# request body) since a validated name is about to build a child-process
+# command line and an install.packages() call -- the most consequential
+# place in this entire file for an unsanitized string to reach.
+PACKAGE_NAME_RE <- "^[A-Za-z][A-Za-z0-9.]{0,40}$"
+MAX_REQUESTED_PACKAGES <- 15L      # matches the Worker's own MAX_PACKAGES cap (routes/solve.ts)
+MAX_MISSING_TO_INSTALL <- 10L      # more than this and we skip installing entirely -- see the handler below
+INSTALL_BUDGET_SECS <- 90          # whole-phase ceiling; see README's 180s Cloud Run timeout
+MIN_INSTALL_SLICE_SECS <- 2        # don't bother spawning a child for a sliver of leftover budget
+
+# Dedicated writable library, prepended AHEAD of the image's read-only system
+# library (rocker's baked-in catalog lives under R_HOME/library, and even if
+# it happened to be writable at runtime, installing into it would blur the
+# line between "baked into the image" and "installed on demand" that the
+# Dockerfile's own catalog comment relies on). tempdir() resolves to a
+# directory under Cloud Run's in-memory writable filesystem and is stable for
+# the life of this container/process -- so a package installed for one
+# request is still on .libPaths() for the NEXT request on the same warm
+# container, the same warm-container-reuse characteristic README.md's "Known
+# limitations" section already documents for library() state.
+#
+# MEMORY TRADEOFF: Cloud Run's writable filesystem is RAM-backed (see
+# README.md's Memory note on the 2Gi instance size), so every byte installed
+# here is a byte off the same budget the already-loaded tidyverse/mosaic/
+# moderndive/infer stack draws from. Fine for a handful of small on-demand
+# packages; worth revisiting if usage ever pushes many/large packages onto
+# one warm container.
+.runtime_lib_dir <- file.path(tempdir(), "runtime-r-libs")
+dir.create(.runtime_lib_dir, showWarnings = FALSE, recursive = TRUE)
+.libPaths(c(.runtime_lib_dir, .libPaths()))
+
+#' Validate + cap a raw `packages` request field. Ignores invalid entries
+#' rather than failing the request (matches this file's existing stance on
+#' malformed sub-fields -- e.g. a bad `files` entry above is skipped, not
+#' fatal): the request as a whole must never 400 just because one requested
+#' package name was junk. jsonlite::fromJSON(..., simplifyVector = FALSE)
+#' parses a JSON array into a `list`, one element per array entry, each
+#' still its own native type (a crafted body could send numbers/objects, not
+#' just strings) -- the vapply below coerces anything that isn't a single
+#' character string to NA and drops it before the regex ever sees it.
+#' Verified directly against real R (see the worktree's scratch smoke test
+#' referenced in this branch's commit message): non-string entries, regex-
+#' invalid names (spaces, semicolons, leading dashes/digits, backticks,
+#' path-traversal, shell metacharacters), duplicates, the >41-char case, and
+#' the >15-names cap all behave as documented here.
+validate_package_names <- function(pkgs) {
+  if (is.null(pkgs) || length(pkgs) == 0) return(character(0))
+  chars <- vapply(
+    pkgs,
+    function(p) if (is.character(p) && length(p) == 1L) p else NA_character_,
+    character(1)
+  )
+  chars <- chars[!is.na(chars)]
+  valid <- unique(chars[grepl(PACKAGE_NAME_RE, chars)])
+  if (length(valid) > MAX_REQUESTED_PACKAGES) valid <- valid[seq_len(MAX_REQUESTED_PACKAGES)]
+  valid
+}
+
+#' Which of `names` (already validated) are not currently loadable from
+#' .libPaths() -- either the system catalog (r-runner/Dockerfile) or a
+#' previous request's runtime install still resident on this same warm
+#' container. quietly=TRUE matches this file's existing preference for
+#' silence from anything that isn't the script's own captured output (see
+#' run_r_code's doc above).
+missing_package_names <- function(names) {
+  if (length(names) == 0) return(character(0))
+  names[!vapply(names, requireNamespace, logical(1), quietly = TRUE)]
+}
+
+#' Install `names` (already validated + already confirmed missing) from the
+#' image's configured binary repo (Dockerfile's site Rprofile -- Posit
+#' Package Manager, binary-only; NEVER remotes/GitHub/arbitrary-URL installs)
+#' into .runtime_lib_dir, inside a shared `budget_secs` wall-clock ceiling
+#' that this function guarantees is never exceeded by more than the last
+#' package's own per-call overhead.
+#'
+#' REAL timeout, deliberately NOT R's setTimeLimit(): setTimeLimit() only
+#' interrupts evaluation at R-level bytecode steps and does NOT interrupt a
+#' blocked system call -- confirmed directly against this R (4.5.2) while
+#' building this function: a 1s elapsed limit failed to stop a 3s
+#' Sys.sleep(), but DID stop a pure R-level busy loop after ~1s.
+#' install.packages() spends nearly all of its time inside exactly the kind
+#' of blocking C-level network I/O setTimeLimit() cannot see, so it would
+#' silently fail to bound a stalled download -- precisely the hang this
+#' function exists to make impossible. Each package installs in its OWN
+#' child `Rscript` process via system2(..., timeout=), enforced by the OS
+#' killing the child process after the given number of seconds regardless of
+#' what it's blocked on (confirmed: system2(timeout=1) against a 3s `sleep`
+#' returned status 124, a warning, and control back to the caller at ~1.0s,
+#' not 3s) -- that OS-level guarantee is what makes "the whole install phase
+#' in the <=90s budget" actually true rather than aspirational.
+#'
+#' The child is invoked WITHOUT --vanilla: --vanilla implies --no-site-file,
+#' which would skip loading Rprofile.site -- exactly where the Dockerfile
+#' configures the P3M binary repo this function relies on. Confirmed
+#' directly: with --vanilla a site file's options(repos=...) never took
+#' effect (repos stayed the unset "@CRAN@" placeholder); with
+#' --no-save --no-restore --no-init-file --no-environ (site file NOT
+#' suppressed) it did. Package names are shQuote()'d before being embedded
+#' in the child's `-e` expression, then that whole expression is shQuote()'d
+#' again as the argument system2() hands to the shell -- confirmed
+#' necessary: system2() does NOT auto-quote args elements, so an
+#' unquoted ";" in a value would be read as a shell command separator. Belt-
+#' and-suspenders here since PACKAGE_NAME_RE already forbids every character
+#' that would matter, but this is the single most sensitive string-assembly
+#' point in the file, so it gets the same "never trust the previous layer
+#' alone" treatment as everything else in this section.
+#'
+#' Never throws -- a per-package failure or the shared budget running out
+#' both log one structured line and move on, same contract as every other
+#' best-effort corner of this file (metrics-shaped logging, not control
+#' flow). Returns list(installed = character(...), failed = character(...)).
+install_missing_packages <- function(names, budget_secs = INSTALL_BUDGET_SECS) {
+  installed <- character(0)
+  failed <- character(0)
+  if (length(names) == 0) return(list(installed = installed, failed = failed))
+
+  rscript_bin <- file.path(R.home("bin"), "Rscript")
+  deadline <- Sys.time() + budget_secs
+  for (name in names) {
+    remaining <- as.numeric(difftime(deadline, Sys.time(), units = "secs"))
+    if (remaining < MIN_INSTALL_SLICE_SECS) {
+      message(sprintf("[r-runner-install] package=%s outcome=budget-exhausted", name))
+      failed <- c(failed, name)
+      next
+    }
+
+    child_expr <- sprintf(
+      "install.packages(%s, lib = %s, repos = getOption(\"repos\"), quiet = TRUE, Ncpus = 1)",
+      shQuote(name), shQuote(.runtime_lib_dir)
+    )
+    status <- tryCatch(
+      withCallingHandlers(
+        system2(
+          rscript_bin,
+          args = c("--no-save", "--no-restore", "--no-init-file", "--no-environ", "-e", shQuote(child_expr)),
+          stdout = FALSE, stderr = FALSE,
+          timeout = as.integer(ceiling(remaining))
+        ),
+        warning = function(w) invokeRestart("muffleWarning")
+      ),
+      error = function(e) -1L
+    )
+
+    # Ground truth is a fresh requireNamespace() check, not the child's exit
+    # status -- install.packages() itself doesn't reliably fail its OWN
+    # process's exit code just because one package failed (see the
+    # Dockerfile's own comment on this same behavior for the image's build-
+    # time install), and a killed-mid-install child can leave a partial,
+    # non-loadable package directory behind either way. This also means a
+    # SIGKILLed child (status 124) is handled by the SAME check as a clean
+    # but unsuccessful one, with the status only used to label WHY in the log.
+    if (requireNamespace(name, quietly = TRUE)) {
+      installed <- c(installed, name)
+      message(sprintf("[r-runner-install] package=%s outcome=installed", name))
+    } else {
+      outcome <- if (identical(status, 124L)) "timeout" else "failed"
+      failed <- c(failed, name)
+      message(sprintf("[r-runner-install] package=%s outcome=%s", name, outcome))
+    }
+  }
+  list(installed = installed, failed = failed)
+}
+
 # --- Filters ------------------------------------------------------------------
 
 #* @filter auth
@@ -244,6 +425,40 @@ function(req, res) {
   files <- body$files
   if (is.null(files)) files <- list()
 
+  # On-demand package installs -- ONLY when the request explicitly names
+  # packages (a customized picker selection, see apps/extension/src/
+  # r-packages.ts). Absent `packages` -- the default-preset path every UT
+  # student is on -- never enters this block at all: it is not merely "installs
+  # nothing", the block is not even EVALUATED, so the response shape and
+  # timing for that path stay byte-identical to before this feature existed.
+  # Placed before the workdir switch below so this phase never depends on
+  # (or interferes with) the per-request tempfile() isolation the file-upload
+  # loop sets up next. See the "On-demand package installs" section above for
+  # the full design (validate -> detect-missing -> cap -> install-with-budget).
+  install_result <- NULL
+  if (!is.null(body$packages)) {
+    valid_names <- validate_package_names(body$packages)
+    missing <- missing_package_names(valid_names)
+    install_result <- if (length(missing) == 0) {
+      list(installed = character(0), failed = character(0))
+    } else if (length(missing) > MAX_MISSING_TO_INSTALL) {
+      # Too many at once to safely fit the shared budget -- install NONE and
+      # proceed to script execution. The script will hit R's normal "there is
+      # no package called ..." error for whichever it actually library()s/
+      # require()s, which routes/solve.ts's extractMissingRPackageNames
+      # already parses into the existing missingRPackages telemetry -- so
+      # this path is never silent, it just reuses telemetry that already
+      # exists rather than needing a new one.
+      message(sprintf(
+        "[r-runner-install] skipped=%d packages (exceeds cap of %d) -- proceeding without installing",
+        length(missing), MAX_MISSING_TO_INSTALL
+      ))
+      list(installed = character(0), failed = missing)
+    } else {
+      install_missing_packages(missing, INSTALL_BUDGET_SECS)
+    }
+  }
+
   # Per-request isolated workdir: a warm container serves many requests in
   # sequence (never concurrently -- see README.md's --concurrency 1), so a
   # fixed directory would leak one request's data files into the next. Every
@@ -282,5 +497,15 @@ function(req, res) {
 
   result <- run_r_code(code)
   result$durationMs <- as.integer(round(as.numeric(difftime(Sys.time(), start_time, units = "secs")) * 1000))
+  # Only appended when the request had a `packages` field (see the gate
+  # above) -- so a default-preset request's response body is byte-identical
+  # to before this feature existed, not just functionally equivalent. as.list()
+  # so a single-element result serializes as a JSON array (["pwr"]), not a
+  # bare scalar, matching @serializer unboxedJSON's array-vs-scalar
+  # convention for every other list-valued field in this file.
+  if (!is.null(install_result)) {
+    result$installedPackages <- as.list(install_result$installed)
+    result$installFailed <- as.list(install_result$failed)
+  }
   result
 }
