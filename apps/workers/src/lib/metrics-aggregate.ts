@@ -124,6 +124,13 @@ export interface MetricsResponse {
     /** coldStartCount/successCount*100, 0..100 (only successful calls have a
      *  durationMs to classify as cold-started). */
     coldStartRatePct: number;
+    /** Distinct R package names requested (library()/require()) that aren't
+     *  installed on the runner, summed across the range — already
+     *  sanitized + capped at write time (lib/metrics-store.ts's
+     *  addMissingRPackage), so this is a plain merge, not a re-validation.
+     *  The evidence-based "which packages do users actually need" signal —
+     *  see the dashboard's "Missing R packages requested" card. */
+    missingRPackages: Record<string, number>;
   };
   economics: {
     model: string;
@@ -278,6 +285,7 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
   let rRunnerRequestCount = 0;
   let rRunnerSuccessCount = 0;
   let rRunnerColdStartCount = 0;
+  const rRunnerMissingPackages: Record<string, number> = {};
   const dailyByDate = new Map<string, DailyPoint>();
   const mauSet = new Set<string>();
 
@@ -351,6 +359,9 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
     rRunnerRequestCount += b.server.rRunner.requestCount;
     rRunnerSuccessCount += b.server.rRunner.successCount;
     rRunnerColdStartCount += b.server.rRunner.coldStartCount;
+    for (const [name, n] of Object.entries(b.server.missingRPackages)) {
+      rRunnerMissingPackages[name] = (rRunnerMissingPackages[name] ?? 0) + n;
+    }
 
     for (const h of b.installHashes) mauSet.add(h);
 
@@ -487,6 +498,7 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
       latencyMsP95: rRunnerLatencyMsP95,
       latencyHistogram: rRunnerHist,
       coldStartRatePct: roundPct(rRunnerColdStartRatePct),
+      missingRPackages: rRunnerMissingPackages,
     },
     economics: {
       model: PRIMARY_TEXT_MODEL,

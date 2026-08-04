@@ -474,10 +474,16 @@ solve.post("/", async (c) => {
       const runRSafe = async (code: string): Promise<RunRResult | undefined> => {
         try {
           const result = await runRRemote(c.env, code, dataFiles);
+          // Evidence-based "which packages do users actually need" signal —
+          // see extractMissingRPackageNames' doc below. Raw candidates only;
+          // metrics-store.ts's applyRRunnerEvent/addMissingRPackage is what
+          // actually sanitizes before anything is persisted.
+          const missingPackages = extractMissingRPackageNames(result.stderr);
           metricsBatch.rRunner.push({
             success: true,
             durationMs: result.durationMs,
             coldStart: result.durationMs > R_RUNNER_COLD_START_THRESHOLD_MS,
+            ...(missingPackages.length > 0 ? { missingPackages } : {}),
           });
           return result;
         } catch {
@@ -893,4 +899,40 @@ function stripExt(name: string) {
 function isUnrecoverableMissingData(rCode: string, files: DataFile[]): boolean {
   if (files.length > 0) return false;
   return /\bread[._](csv|table|delim2?)\s*\(|\bread_(csv|tsv|delim|table)\s*\(|\bfread\s*\(/i.test(rCode);
+}
+
+/** Detects R's fixed "package not installed" error text so it can feed the
+ *  missingRPackages telemetry (lib/metrics-store.ts) — an evidence-based
+ *  signal for which packages the tutor's generated R code actually reaches
+ *  for that the runner doesn't have installed (r-runner/Dockerfile), distinct
+ *  from the prompt's hardcoded recommendations (packages/solver-core/src/
+ *  core/stats-reference.ts).
+ *
+ *  Scoped to `stderr` alone, not `stdout` too: r-runner/plumber.R's
+ *  run_r_code() always returns the bare error/warning text as `stderr` — for
+ *  a terminal library() error, `stderr` IS that text exactly; for a
+ *  non-terminal require() warning, `stderr` is the accumulated
+ *  warning/message text. `stdout` on a terminal error is that SAME text
+ *  combined with any prior printed output, so also scanning it would just
+ *  re-match the identical occurrence a second time (see run_r_code's doc
+ *  comment in plumber.R for the exact stdout/stderr construction). Results
+ *  are deduped (Set) so one call can only contribute each distinct name once
+ *  — metrics-store.ts's cap is on distinct names/day, but a single request
+ *  (or one hostile script printing the same phrase repeatedly) should never
+ *  itself inflate one name's count.
+ *
+ *  Untrusted input: this is R's OWN error text, but the package name inside
+ *  it came from whatever the model's R code tried to library()/require(),
+ *  which is downstream of free-form user input (r-runner/README.md's
+ *  "Sandbox model" — assume every script is hostile). This function only
+ *  extracts candidate substrings; it does NOT decide what's safe to persist
+ *  — the allow-list grammar check + per-day cap live in
+ *  lib/metrics-store.ts's addMissingRPackage, the actual KV-write boundary. */
+function extractMissingRPackageNames(stderr: string): string[] {
+  const re = /there is no package called\s*[‘’'"`]([^‘’'"`]*)[‘’'"`]/g;
+  const names = new Set<string>();
+  for (const m of stderr.matchAll(re)) {
+    if (m[1]) names.add(m[1]);
+  }
+  return [...names];
 }

@@ -249,6 +249,18 @@ const R_RUNNER_LATENCY_HISTOGRAM = boundariesSplit(R_RUNNER_SUCCESS_COUNT, [
   0.03, 0.22, 0.3, 0.22, 0.11, 0.05, 0.02, 0.03, 0.02,
 ]);
 
+// Missing R packages requested (evidence-based catalog-gap signal) — a
+// plausible handful of common intro/intermediate-stats packages NOT in
+// INSTALLED_CATALOG (apps/extension/src/r-packages.ts) / r-runner/Dockerfile,
+// so the demo dashboard shows the card doing something illustrative rather
+// than sitting empty.
+const R_RUNNER_MISSING_PACKAGES: Record<string, number> = {
+  car: 9,
+  psych: 5,
+  rstatix: 3,
+  pwr: 1,
+};
+
 // Cloud Run infra (R-runner health tracking phase 2) — a modest month-to-date
 // burn well under the free tier, plus a cold-start p50/p95 a bit tighter than
 // the R-runner section's inferred (durationMs > 8000) heuristic above, since
@@ -380,6 +392,7 @@ export function buildMockMetrics(): MetricsResponse {
       ),
       latencyHistogram: R_RUNNER_LATENCY_HISTOGRAM,
       coldStartRatePct: round2((R_RUNNER_COLD_START_COUNT / Math.max(1, R_RUNNER_SUCCESS_COUNT)) * 100),
+      missingRPackages: R_RUNNER_MISSING_PACKAGES,
     },
     cloudRun: {
       available: true,

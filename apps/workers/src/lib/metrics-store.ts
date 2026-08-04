@@ -36,6 +36,19 @@ const KV_PREFIX = "metrics:";
 // have a populated prior window instead of expired-to-empty buckets.
 const BUCKET_TTL_SEC = 70 * 86_400;
 const INSTALL_HASH_CAP = 5000; // per-day cap; see addInstallHash
+const MISSING_R_PACKAGE_CAP = 20; // per-day DISTINCT-name cap; see addMissingRPackage
+
+/** Valid R package name grammar (letters/digits/dots, starting with a
+ *  letter, capped at 41 chars via the quantifier itself) — mirrors apps/
+ *  extension/src/r-packages.ts's isValidPackageName intent, independently
+ *  enforced here since these names arrive from a completely different,
+ *  untrusted source: R's own error text after a model-generated script's
+ *  library()/require() call failed (routes/solve.ts's
+ *  extractMissingRPackageNames), not the picker's chrome.storage value. Same
+ *  "client-side gate, server re-sanitizes" split as that file's own
+ *  isValidPackageName doc — this is the re-sanitize side for a different
+ *  input channel. */
+const MISSING_R_PACKAGE_NAME_RE = /^[A-Za-z][A-Za-z0-9.]{0,40}$/;
 
 export interface RouteCounters {
   attempts: number;
@@ -157,6 +170,23 @@ export interface DailyMetricsBucket {
       coldStartCount: number;
       latencyHistogram: number[];
     };
+    /** Counts of distinct R package names a model-generated script tried to
+     *  library()/require() that are NOT installed on the runner (r-runner/
+     *  Dockerfile) — parsed from R's fixed error text "there is no package
+     *  called '<name>'" (routes/solve.ts's runRSafe, via
+     *  extractMissingRPackageNames -> applyRRunnerEvent below). This is the
+     *  evidence-based counterpart to the tutor prompt's hardcoded package
+     *  recommendations (packages/solver-core/src/core/stats-reference.ts) —
+     *  which packages users' generated R code ACTUALLY reaches for that we
+     *  haven't installed yet. Keys are untrusted (R output from a
+     *  model-generated script run against free-form user input, same threat
+     *  model as r-runner/README.md's "Sandbox model" section) — every key is
+     *  gated through MISSING_R_PACKAGE_NAME_RE and the set is capped at
+     *  MISSING_R_PACKAGE_CAP distinct names/day (see addMissingRPackage)
+     *  before ever reaching this record. Still escape on render like every
+     *  other free-form key in this bucket (dashboard-render.ts's
+     *  renderBarList already does via escapeHtml). */
+    missingRPackages: Record<string, number>;
   };
   client: {
     byQuestionType: Record<string, number>;
@@ -220,6 +250,7 @@ export function emptyBucket(date: string): DailyMetricsBucket {
       byModel: {},
       latencyHistogram: emptyHistogram(),
       rRunner: { requestCount: 0, successCount: 0, errorCount: 0, coldStartCount: 0, latencyHistogram: emptyHistogram() },
+      missingRPackages: {},
     },
     client: {
       byQuestionType: {},
@@ -304,6 +335,7 @@ export function normalizeBucket(raw: unknown, date: string): DailyMetricsBucket 
         ...s.rRunner,
         latencyHistogram: okHist(s.rRunner?.latencyHistogram, empty.server.rRunner.latencyHistogram.length),
       },
+      missingRPackages: okCountRecord(s.missingRPackages),
     },
     client: {
       byQuestionType: typeof cl.byQuestionType === "object" && cl.byQuestionType ? { ...cl.byQuestionType } : {},
@@ -361,6 +393,26 @@ function addInstallHash(bucket: DailyMetricsBucket, hash: string): void {
   if (bucket.installHashes.length >= INSTALL_HASH_CAP) return; // cap reached for the day — DAU/WAU
   // undercount past this point; acceptable at current scale (see module header).
   bucket.installHashes.push(hash);
+}
+
+/** Sanitize + merge one candidate R package name into the day's bucket — the
+ *  actual security/storage boundary for missingRPackages (see that field's
+ *  doc on DailyMetricsBucket above). `name` is untrusted (R output from a
+ *  model-generated script run against free-form user input): anything not
+ *  matching MISSING_R_PACKAGE_NAME_RE is dropped outright, never persisted —
+ *  this is what stops a hostile script from writing arbitrary junk "package
+ *  names" into KV (the exact class of incident this repo has already hit
+ *  once with an unsanitized client-reported model string). Cap mirrors
+ *  addInstallHash's pattern: once MISSING_R_PACKAGE_CAP distinct names are
+ *  recorded for the day, additional NEW names are dropped while existing
+ *  names keep incrementing — an acceptable undercount at current scale, same
+ *  tradeoff as addInstallHash. */
+function addMissingRPackage(bucket: DailyMetricsBucket, name: string): void {
+  if (!MISSING_R_PACKAGE_NAME_RE.test(name)) return;
+  const rec = bucket.server.missingRPackages;
+  const existing = rec[name];
+  if (existing === undefined && Object.keys(rec).length >= MISSING_R_PACKAGE_CAP) return; // cap reached for the day
+  rec[name] = (existing ?? 0) + 1;
 }
 
 export interface ServerEventInput {
@@ -469,6 +521,15 @@ export interface RRunnerEventInput {
    *  since the R-runner doesn't report a cold-start flag itself. Ignored when
    *  success is false. */
   coldStart?: boolean;
+  /** Distinct candidate R package names extracted from THIS call's R output
+   *  (routes/solve.ts's extractMissingRPackageNames) when the script's
+   *  library()/require() failed against a package not installed on the
+   *  runner. Raw candidates only — NOT yet grammar-checked or capped;
+   *  applyRRunnerEvent below is what actually sanitizes (via
+   *  addMissingRPackage) before anything is persisted. Ignored when success
+   *  is false (a failed runRRemote call throws before any RunRResult/output
+   *  exists to extract from — see recordRRunnerFailure in routes/solve.ts). */
+  missingPackages?: string[];
 }
 
 /** Records one Cloud Run R-execution service call (success or failure),
@@ -484,8 +545,11 @@ export async function recordRRunnerEvent(env: Env, input: RRunnerEventInput): Pr
   }
 }
 
-/** Pure per-event mutation — see applyServerEvent's note. */
-function applyRRunnerEvent(bucket: DailyMetricsBucket, input: RRunnerEventInput): void {
+/** Pure per-event mutation — see applyServerEvent's note. Exported (unlike
+ *  applyServerEvent) so self-test-metrics.ts can exercise the
+ *  missingRPackages sanitize+cap path (addMissingRPackage) directly against
+ *  a plain in-memory bucket, without needing a mock KV/Env. */
+export function applyRRunnerEvent(bucket: DailyMetricsBucket, input: RRunnerEventInput): void {
   const rr = bucket.server.rRunner;
   rr.requestCount += 1;
   if (input.success) {
@@ -493,6 +557,9 @@ function applyRRunnerEvent(bucket: DailyMetricsBucket, input: RRunnerEventInput)
     if (input.coldStart) rr.coldStartCount += 1;
     if (typeof input.durationMs === "number") {
       addToHistogram(rr.latencyHistogram, LATENCY_BUCKET_BOUNDARIES_MS, input.durationMs);
+    }
+    if (input.missingPackages) {
+      for (const name of input.missingPackages) addMissingRPackage(bucket, name);
     }
   } else {
     rr.errorCount += 1;

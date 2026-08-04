@@ -1566,7 +1566,27 @@ function renderRRunnerSection(rRunner: RRunnerMetrics): string {
     "chartCard",
   );
 
-  const inner = `${tiles}<div class="stack">${histCard}</div>`;
+  // Evidence-based "which packages do users actually need" signal — distinct
+  // R package names a model-generated script tried to library()/require()
+  // that aren't pre-installed (r-runner/Dockerfile). Often NOT a hard
+  // failure from the student's POV (the repair loop can recover by avoiding
+  // the package), so this rarely shows up in the Quality section's error
+  // breakdown — this card is the only place the gap is visible at all.
+  // Names are already sanitized + capped at write time
+  // (lib/metrics-store.ts's addMissingRPackage) — still escapeHtml'd here
+  // like every other free-form label via renderBarList, belt-and-suspenders.
+  const missingPackageEntries: BarListEntry[] = Object.entries(rRunner.missingRPackages)
+    .map(([label, value]) => ({ label, value, tone: "amber" as Tone }))
+    .sort((a, b) => b.value - a.value);
+  const missingPackagesCard = renderCard(
+    `<p class="statLabel">Missing R packages requested</p><p class="statCaption" style="margin: 0 0 0.4rem">library()/require() calls that failed because the package isn't installed on the runner — candidates to add to r-runner/Dockerfile.</p>${
+      missingPackageEntries.length > 0
+        ? renderBarList(missingPackageEntries)
+        : `<p class="caption">None requested in range.</p>`
+    }`,
+  );
+
+  const inner = `${tiles}<div class="stack">${histCard}${missingPackagesCard}</div>`;
   return renderSection("R-Runner Health", "Cloud Run R-execution service — volume, latency, cold starts", inner);
 }
 

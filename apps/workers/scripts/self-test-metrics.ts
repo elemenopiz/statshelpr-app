@@ -21,7 +21,7 @@ import {
   percentileFromHistogram,
 } from "../src/lib/histogram";
 import { aggregateMetrics } from "../src/lib/metrics-aggregate";
-import { emptyBucket, type DailyMetricsBucket } from "../src/lib/metrics-store";
+import { applyRRunnerEvent, emptyBucket, normalizeBucket, type DailyMetricsBucket } from "../src/lib/metrics-store";
 import { classifyError } from "../src/lib/classify-error";
 import { computeCohorts, type CohortDay } from "../src/lib/cohort";
 
@@ -142,6 +142,149 @@ console.log("histogram.ts");
   addToHistogram(hist, LATENCY_BUCKET_BOUNDARIES_MS, 999_999); // way past the last boundary
   const p50 = percentileFromHistogram(hist, LATENCY_BUCKET_BOUNDARIES_MS, 0.5);
   check("overflow bucket returns its lower edge (documented underestimate), not +inf/NaN", p50 === 32000, `got ${p50}`);
+}
+
+// ---------------------------------------------------------------------------
+console.log("metrics-store.ts (missingRPackages: normalize + apply)");
+
+{
+  // normalizeBucket: a bucket written by an OLDER schema version (before
+  // missingRPackages existed) must backfill to {}, not throw/return
+  // undefined -- the exact defensive-backfill guarantee normalizeBucket's
+  // own doc comment describes ("protects reads against a bucket written by
+  // an older/newer version of this schema").
+  const legacyRaw = { date: "2026-08-01", server: { rRunner: { requestCount: 3 } }, client: {} };
+  const normalized = normalizeBucket(legacyRaw, "2026-08-01");
+  check(
+    "normalizeBucket backfills missing missingRPackages to {} on an old-schema bucket",
+    typeof normalized.server.missingRPackages === "object" &&
+      Object.keys(normalized.server.missingRPackages).length === 0,
+    JSON.stringify(normalized.server.missingRPackages),
+  );
+}
+
+{
+  // normalizeBucket: a well-formed record passes through untouched.
+  const raw = { date: "2026-08-01", server: { missingRPackages: { MatchIt: 3, effectsize: 1 } }, client: {} };
+  const normalized = normalizeBucket(raw, "2026-08-01");
+  check(
+    "normalizeBucket passes through a well-formed missingRPackages record",
+    normalized.server.missingRPackages["MatchIt"] === 3 && normalized.server.missingRPackages["effectsize"] === 1,
+    JSON.stringify(normalized.server.missingRPackages),
+  );
+}
+
+{
+  // normalizeBucket: malformed (non-object) input degrades to {}, matching
+  // okCountRecord's guard for every other Record<string, number> field on
+  // this bucket (byErrorType, byFailure, ...).
+  const raw = { date: "2026-08-01", server: { missingRPackages: "not an object" }, client: {} };
+  const normalized = normalizeBucket(raw, "2026-08-01");
+  check(
+    "normalizeBucket degrades a malformed missingRPackages to {}, not a throw",
+    Object.keys(normalized.server.missingRPackages).length === 0,
+    JSON.stringify(normalized.server.missingRPackages),
+  );
+}
+
+{
+  // applyRRunnerEvent: a valid package name is recorded, and repeat
+  // occurrences of the SAME name across separate calls increment rather
+  // than being treated as a second distinct entry.
+  const bucket = emptyBucket("2026-08-01");
+  applyRRunnerEvent(bucket, { success: true, durationMs: 1200, missingPackages: ["MatchIt"] });
+  applyRRunnerEvent(bucket, { success: true, durationMs: 900, missingPackages: ["MatchIt", "effectsize"] });
+  check(
+    "applyRRunnerEvent counts repeat occurrences of the same name",
+    bucket.server.missingRPackages["MatchIt"] === 2,
+    JSON.stringify(bucket.server.missingRPackages),
+  );
+  check(
+    "applyRRunnerEvent records a second distinct valid name",
+    bucket.server.missingRPackages["effectsize"] === 1,
+    JSON.stringify(bucket.server.missingRPackages),
+  );
+  check(
+    "applyRRunnerEvent still drives rRunner.requestCount/successCount as before",
+    bucket.server.rRunner.requestCount === 2 && bucket.server.rRunner.successCount === 2,
+  );
+}
+
+{
+  // applyRRunnerEvent: names violating the R package grammar
+  // (^[A-Za-z][A-Za-z0-9.]{0,40}$) are dropped outright -- the
+  // security-critical sanitize path (this repo has already hit one
+  // client-string-poisoning incident from an unsanitized model-name field,
+  // hence the explicit "gemini-9.9-ultra-pro"-shaped case below).
+  const bucket = emptyBucket("2026-08-01");
+  applyRRunnerEvent(bucket, {
+    success: true,
+    missingPackages: [
+      "gemini-9.9-ultra-pro", // hyphens -- the exact junk-model-row shape
+      "123abc", // must start with a letter
+      "", // empty
+      "a".repeat(42), // one past the 41-char bound
+      "<script>alert(1)</script>",
+      "rm -rf /",
+    ],
+  });
+  check(
+    "applyRRunnerEvent drops every grammar-invalid candidate name",
+    Object.keys(bucket.server.missingRPackages).length === 0,
+    JSON.stringify(bucket.server.missingRPackages),
+  );
+}
+
+{
+  // applyRRunnerEvent: a name right AT the 41-char bound (1 letter + 40
+  // letters/digits/dots) is accepted -- the boundary the {0,40} quantifier
+  // pins.
+  const bucket = emptyBucket("2026-08-01");
+  const name41 = "a".repeat(41);
+  applyRRunnerEvent(bucket, { success: true, missingPackages: [name41] });
+  check("applyRRunnerEvent accepts a name exactly at the 41-char bound", bucket.server.missingRPackages[name41] === 1);
+}
+
+{
+  // applyRRunnerEvent: the per-day DISTINCT-name cap (20) blocks brand-new
+  // names once reached, but an existing name keeps incrementing past it --
+  // mirrors addInstallHash's documented undercount tradeoff.
+  const bucket = emptyBucket("2026-08-01");
+  for (let i = 0; i < 25; i++) {
+    applyRRunnerEvent(bucket, { success: true, missingPackages: [`pkg${i}`] });
+  }
+  const distinctCount = Object.keys(bucket.server.missingRPackages).length;
+  check("applyRRunnerEvent caps distinct names at 20/day", distinctCount === 20, `got ${distinctCount}`);
+  check(
+    "applyRRunnerEvent keeps the first-seen 20 distinct names, dropping the rest",
+    bucket.server.missingRPackages["pkg0"] === 1 &&
+      bucket.server.missingRPackages["pkg19"] === 1 &&
+      bucket.server.missingRPackages["pkg20"] === undefined,
+    JSON.stringify(bucket.server.missingRPackages),
+  );
+
+  // A 26th event for an ALREADY-recorded name still increments -- the cap
+  // only blocks brand-new keys, never repeat occurrences of existing ones.
+  applyRRunnerEvent(bucket, { success: true, missingPackages: ["pkg5"] });
+  check(
+    "applyRRunnerEvent still increments an existing name after the cap is reached",
+    bucket.server.missingRPackages["pkg5"] === 2,
+    `got ${bucket.server.missingRPackages["pkg5"]}`,
+  );
+}
+
+{
+  // applyRRunnerEvent: missingPackages on a FAILURE event is ignored --
+  // matches routes/solve.ts's recordRRunnerFailure, which never has R
+  // output to extract from (runRRemote threw before any RunRResult existed).
+  const bucket = emptyBucket("2026-08-01");
+  applyRRunnerEvent(bucket, { success: false, missingPackages: ["MatchIt"] });
+  check(
+    "applyRRunnerEvent ignores missingPackages when success is false",
+    Object.keys(bucket.server.missingRPackages).length === 0,
+    JSON.stringify(bucket.server.missingRPackages),
+  );
+  check("applyRRunnerEvent still counts the failure in rRunner.errorCount", bucket.server.rRunner.errorCount === 1);
 }
 
 // ---------------------------------------------------------------------------
@@ -349,6 +492,7 @@ console.log("metrics-aggregate.ts (dashboard-v2 enriched fields)");
       confidence: { High: 4, Med: 2, Low: 0, "": 0 },
       confidenceCalc: { High: 3, Med: 1, Low: 1, "": 0 },
       byErrorType: { quota: 2, upstream: 1 },
+      missingRPackages: { car: 2, psych: 1 },
       tokens: { promptTokens: 1_000_000, completionTokens: 200_000, cachedTokens: 400_000 },
       costUsd: 0.5,
       costUsdByMode: { concept: 0.25, calc: 0.25 },
@@ -387,6 +531,16 @@ console.log("metrics-aggregate.ts (dashboard-v2 enriched fields)");
     "byErrorType passes through per-class counts",
     result.quality.byErrorType["quota"] === 2 && result.quality.byErrorType["upstream"] === 1,
     JSON.stringify(result.quality.byErrorType),
+  );
+
+  // R-runner health: missingRPackages merges the same way byErrorType does
+  // (single-day passthrough here; the earlier "metrics-store.ts" section
+  // covers the sanitize+cap logic that runs BEFORE anything reaches this
+  // aggregation step).
+  check(
+    "rRunner.missingRPackages passes through per-package counts",
+    result.rRunner.missingRPackages["car"] === 2 && result.rRunner.missingRPackages["psych"] === 1,
+    JSON.stringify(result.rRunner.missingRPackages),
   );
 
   // item 16: calc-path confidence, kept separate from concept confidence
