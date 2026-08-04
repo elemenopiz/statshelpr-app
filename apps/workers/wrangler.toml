@@ -76,8 +76,10 @@ IP_DAILY_LIMIT = "1000"
 # lib/kill-switch.ts ($0.08 — worst-case model/token mix, not typical
 # traffic), 2500 calls/day bounds worst-case ADVERSARIAL exposure at ~$200/day
 # — reaching that requires a deliberate attacker maxing token cost per call
-# across 13+ rotating IPs (IP_DAILY_LIMIT bounds each one); the same 2500
-# calls of ORGANIC flash-lite traffic costs ~$15–25. Sized for the launch
+# across at least 3 rotating IPs (IP_DAILY_LIMIT bounds each one at 1000 —
+# raised from 200 on 2026-08-04, so this used to require 13+ IPs; see
+# IP_DAILY_LIMIT's own comment below for that tradeoff write-up); the same
+# 2500 calls of ORGANIC flash-lite traffic costs ~$15–25. Sized for the launch
 # target (2026-07-29 capacity review): one 30-student class session solving a
 # ~10-question calc-heavy quiz burns 600–900 calls (~$4–6 real cost), so 2500
 # covers a full section plus a second one the same UTC day with headroom —
