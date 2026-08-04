@@ -115,3 +115,62 @@ export function buildTelemetryBody(params: TelemetryBody): TelemetryBody {
     clientLatencyMs: params.clientLatencyMs,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Failure beacon — the counterpart contract for solves that never produced a
+// result at all (2026-08-04 blind-spot fix: onSolve()'s early error returns
+// previously left no telemetry trace, so real-user breakage was invisible to
+// the founder dashboard). Same privacy contract as above: a fixed category
+// enum and counts only — never error MESSAGE strings (an Error message can
+// quote page content), never question text.
+// ---------------------------------------------------------------------------
+
+export type FailureCategory =
+  | "files_failed"
+  | "scrape_failed"
+  | "config_failed"
+  | "network_failed"
+  | "timeout"
+  | "stream_failed"
+  | "http_402"
+  | "http_403"
+  | "http_429"
+  | "http_4xx"
+  | "http_5xx";
+
+export interface FailureTelemetryBody {
+  failure: FailureCategory;
+  questionType: QuestionType;
+  clientLatencyMs: number;
+}
+
+/** Map how the /api/solve round trip died to a category. `status` is the
+ * HTTP status ONLY when a non-OK response was received (undefined for
+ * fetch-level failures and post-OK stream failures); `gotOkResponse` marks
+ * that an OK response arrived before the failure (an SSE stream/contract
+ * break). Timeout wins over everything — the idle watchdog aborts the
+ * fetch, which would otherwise misread as a network failure. */
+export function deriveFailureCategory(args: {
+  timedOut: boolean;
+  status?: number;
+  gotOkResponse: boolean;
+}): FailureCategory {
+  if (args.timedOut) return "timeout";
+  if (args.status !== undefined) {
+    if (args.status === 402) return "http_402";
+    if (args.status === 403) return "http_403";
+    if (args.status === 429) return "http_429";
+    return args.status >= 500 ? "http_5xx" : "http_4xx";
+  }
+  return args.gotOkResponse ? "stream_failed" : "network_failed";
+}
+
+/** Assemble the exact (content-free) failure POST body — centralized here
+ * for the same one-pure-unit-test reason as buildTelemetryBody above. */
+export function buildFailureBody(params: FailureTelemetryBody): FailureTelemetryBody {
+  return {
+    failure: params.failure,
+    questionType: params.questionType,
+    clientLatencyMs: params.clientLatencyMs,
+  };
+}

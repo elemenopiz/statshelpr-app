@@ -1424,6 +1424,10 @@ function renderQualitySection(quality: QualityMetrics, comparison: ComparisonMet
   const errorEntries: BarListEntry[] = Object.entries(quality.byErrorType)
     .map(([label, value]) => ({ label: prettyKey(label), value, tone: "red" as Tone }))
     .sort((a, b) => b.value - a.value);
+  const failureEntries: BarListEntry[] = Object.entries(quality.byFailure)
+    .map(([label, value]) => ({ label: prettyKey(label), value, tone: "red" as Tone }))
+    .sort((a, b) => b.value - a.value);
+  const failureTotal = failureEntries.reduce((sum, e) => sum + e.value, 0);
   const calcTotal = Math.max(1, quality.modeSplit.calc);
   const errorRate = apiCalls > 0 ? quality.errorsTotal / apiCalls : 0;
 
@@ -1467,6 +1471,15 @@ function renderQualitySection(quality: QualityMetrics, comparison: ComparisonMet
               fmtInt(quality.errorsTotal),
             )} failed solve/interpret calls in range.</p>`
           : `<p class="caption">No errors in range.</p>`
+      }`,
+    )}
+  </div>
+  <div class="twoCol" style="margin-top: 0.9rem">
+    ${renderCard(
+      `<p class="statLabel">Failed before a result</p><p class="statCaption" style="margin: 0 0 0.4rem">Client-reported attempts that never produced an answer — invisible to every server metric above.</p>${
+        failureTotal > 0
+          ? renderBarList(failureEntries)
+          : `<p class="caption">None reported in range.</p>`
       }`,
     )}
   </div>

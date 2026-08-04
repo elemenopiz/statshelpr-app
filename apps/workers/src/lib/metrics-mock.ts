@@ -357,6 +357,7 @@ export function buildMockMetrics(): MetricsResponse {
       modeSplit: MODE_SPLIT,
       webrUsage: WEBR_USAGE,
       byErrorType: BY_ERROR_TYPE,
+      byFailure: { scrape_failed: 4, timeout: 2, network_failed: 1 },
       errorsTotal: ERRORS_TOTAL,
     },
     performance: {

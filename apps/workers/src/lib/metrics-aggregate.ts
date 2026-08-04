@@ -92,6 +92,12 @@ export interface MetricsResponse {
     byErrorType: Record<string, number>;
     /** Total failed solve+interpret calls in range (item 2). */
     errorsTotal: number;
+    /** Client-reported solve attempts that died BEFORE any result existed
+     *  (scrape/config/network/HTTP-reject/timeout), by failure category —
+     *  the extension's failure beacon (2026-08 blind-spot fix). Server-side
+     *  errors live in byErrorType; these never reached the solve pipeline
+     *  at all (or were rejected/timed out at the HTTP layer). */
+    byFailure: Record<string, number>;
   };
   performance: {
     serverLatencyMsP50: number;
@@ -259,6 +265,7 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
   const byErrorType: Record<string, number> = {};
   const modeSplit = { concept: 0, calc: 0 };
   const writeBackByOutcome: WriteBackOutcomeCounts = { written: 0, nowrite: 0, error: 0 };
+  const byFailure: Record<string, number> = {};
   const writeBackByType: Record<string, WriteBackOutcomeCounts> = {};
   const modelsUsed: Record<string, ModelUsage> = {};
   const tokens = { promptTokens: 0, completionTokens: 0, cachedTokens: 0 };
@@ -311,6 +318,9 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
     writeBackByOutcome.written += b.client.writeBackByOutcome.written;
     writeBackByOutcome.nowrite += b.client.writeBackByOutcome.nowrite;
     writeBackByOutcome.error += b.client.writeBackByOutcome.error;
+    for (const [k, v] of Object.entries(b.client.byFailure)) {
+      byFailure[k] = (byFailure[k] ?? 0) + v;
+    }
     for (const [type, o] of Object.entries(b.client.writeBackByQuestionType)) {
       const acc = writeBackByType[type] ?? { written: 0, nowrite: 0, error: 0 };
       acc.written += o.written;
@@ -459,6 +469,7 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
       webrUsage: modeSplit.calc,
       byErrorType,
       errorsTotal,
+      byFailure,
     },
     performance: {
       serverLatencyMsP50,

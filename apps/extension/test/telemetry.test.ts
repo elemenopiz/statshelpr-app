@@ -19,7 +19,13 @@ import {
   buildSingleDropdown,
   buildTextFillQuestion,
 } from "./fixtures/canvas-classic";
-import { buildTelemetryBody, deriveOutcome, deriveQuestionType } from "../src/telemetry";
+import {
+  buildFailureBody,
+  buildTelemetryBody,
+  deriveFailureCategory,
+  deriveOutcome,
+  deriveQuestionType,
+} from "../src/telemetry";
 
 describe("deriveQuestionType", () => {
   it("2 radios reading True/False -> true_false", () => {
@@ -201,5 +207,39 @@ describe("buildTelemetryBody", () => {
       writeCount: 0,
       clientLatencyMs: 12345,
     });
+  });
+});
+
+describe("deriveFailureCategory", () => {
+  it("timeout wins over everything — the idle watchdog aborts the fetch, which would otherwise misread as network/stream", () => {
+    expect(deriveFailureCategory({ timedOut: true, status: 500, gotOkResponse: true })).toBe("timeout");
+    expect(deriveFailureCategory({ timedOut: true, gotOkResponse: false })).toBe("timeout");
+  });
+
+  it("maps the specifically-tracked HTTP rejections to their own buckets", () => {
+    expect(deriveFailureCategory({ timedOut: false, status: 402, gotOkResponse: false })).toBe("http_402");
+    expect(deriveFailureCategory({ timedOut: false, status: 403, gotOkResponse: false })).toBe("http_403");
+    expect(deriveFailureCategory({ timedOut: false, status: 429, gotOkResponse: false })).toBe("http_429");
+  });
+
+  it("buckets remaining statuses into http_4xx / http_5xx", () => {
+    expect(deriveFailureCategory({ timedOut: false, status: 400, gotOkResponse: false })).toBe("http_4xx");
+    expect(deriveFailureCategory({ timedOut: false, status: 503, gotOkResponse: false })).toBe("http_5xx");
+  });
+
+  it("no status + an OK response arrived -> stream_failed (SSE/contract break after 200)", () => {
+    expect(deriveFailureCategory({ timedOut: false, gotOkResponse: true })).toBe("stream_failed");
+  });
+
+  it("no status + no OK response -> network_failed (fetch never connected)", () => {
+    expect(deriveFailureCategory({ timedOut: false, gotOkResponse: false })).toBe("network_failed");
+  });
+});
+
+describe("buildFailureBody", () => {
+  it("assembles exactly the failure-contract fields, nothing added or dropped — never an error message string", () => {
+    const body = buildFailureBody({ failure: "scrape_failed", questionType: "unknown", clientLatencyMs: 61 });
+    expect(body).toEqual({ failure: "scrape_failed", questionType: "unknown", clientLatencyMs: 61 });
+    expect(Object.keys(body).sort()).toEqual(["clientLatencyMs", "failure", "questionType"].sort());
   });
 });

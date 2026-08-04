@@ -164,6 +164,12 @@ export interface DailyMetricsBucket {
      *  escape on render). */
     writeBackByQuestionType: Record<string, WriteBackOutcomeCounts>;
     latencyHistogram: number[];
+    /** Solve attempts that FAILED BEFORE any result existed (scrape/config/
+     *  network/HTTP-reject/timeout), by failure category — the blind spot
+     *  writeBackByOutcome can't see (it only hears from attempts that got a
+     *  result). Keys are whitelisted server-side in routes/telemetry.ts's
+     *  VALID_FAILURES — never raw client strings. */
+    byFailure: Record<string, number>;
   };
   /** Distinct SHA-256 install-id hashes seen today, from EITHER a server
    *  event (solve/interpret) or a client telemetry beacon — capped at
@@ -216,6 +222,7 @@ export function emptyBucket(date: string): DailyMetricsBucket {
       writeBackByOutcome: emptyWriteBack(),
       writeBackByQuestionType: {},
       latencyHistogram: emptyHistogram(),
+      byFailure: {},
     },
     installHashes: [],
     paywallHits: 0,
@@ -299,6 +306,7 @@ export function normalizeBucket(raw: unknown, date: string): DailyMetricsBucket 
       writeBackByOutcome: { ...empty.client.writeBackByOutcome, ...cl.writeBackByOutcome },
       writeBackByQuestionType: okWriteBackByType(cl.writeBackByQuestionType),
       latencyHistogram: okHist(cl.latencyHistogram, empty.client.latencyHistogram.length),
+      byFailure: okCountRecord(cl.byFailure),
     },
     installHashes: Array.isArray(r.installHashes)
       ? r.installHashes.filter((h: unknown) => typeof h === "string")
@@ -574,6 +582,36 @@ export function recordServerEventInBackground(c: EnvContext, input: ServerEventI
 
 export function recordClientEventInBackground(c: EnvContext, input: ClientEventInput): void {
   const p = recordClientEvent(c.env, input);
+  try {
+    c.executionCtx.waitUntil(p);
+  } catch {
+    /* no ExecutionContext — promise is already running on its own */
+  }
+}
+
+export interface ClientFailureInput {
+  failure: string;
+  installHash: string;
+}
+
+/** Record a failure beacon — one bucket increment, the same single
+ *  read-modify-write every client beacon already costs (no new KV write
+ *  pattern). The failing install still counts as ACTIVE (same reasoning as
+ *  recordPaywallHit: a user whose solve died is a user we'd otherwise
+ *  undercount in DAU). Best-effort; never throws. */
+export async function recordClientFailure(env: Env, input: ClientFailureInput): Promise<void> {
+  try {
+    const bucket = await readBucket(env, todayUtc());
+    bucket.client.byFailure[input.failure] = (bucket.client.byFailure[input.failure] ?? 0) + 1;
+    addInstallHash(bucket, input.installHash);
+    await writeBucket(env, bucket);
+  } catch {
+    // Best-effort.
+  }
+}
+
+export function recordClientFailureInBackground(c: EnvContext, input: ClientFailureInput): void {
+  const p = recordClientFailure(c.env, input);
   try {
     c.executionCtx.waitUntil(p);
   } catch {

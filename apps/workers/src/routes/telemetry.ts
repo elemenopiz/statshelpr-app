@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { Env } from "../types";
 import { hashBucket } from "@/lib/rate-limit";
-import { recordClientEventInBackground } from "@/lib/metrics-store";
+import { recordClientEventInBackground, recordClientFailureInBackground } from "@/lib/metrics-store";
 
 /**
  * POST /api/telemetry — content-free client beacon from the extension.
@@ -25,9 +25,27 @@ interface TelemetryBody {
   outcome?: unknown;
   writeCount?: unknown;
   clientLatencyMs?: unknown;
+  failure?: unknown;
 }
 
 const VALID_OUTCOMES = new Set(["written", "nowrite", "error"]);
+/** Failure-beacon categories (see apps/extension/src/telemetry.ts's
+ *  FailureCategory — the two lists must stay in sync). A strict whitelist,
+ *  not a length cap: these become KV bucket keys, and unwhitelisted client
+ *  strings must never reach storage (the `gemini-9.9-ultra-pro` lesson). */
+const VALID_FAILURES = new Set([
+  "files_failed",
+  "scrape_failed",
+  "config_failed",
+  "network_failed",
+  "timeout",
+  "stream_failed",
+  "http_402",
+  "http_403",
+  "http_429",
+  "http_4xx",
+  "http_5xx",
+]);
 const MAX_QUESTION_TYPE_LEN = 64;
 const MAX_LATENCY_MS = 10 * 60_000; // 10 min ceiling — clamp obviously-bogus values
 
@@ -48,6 +66,22 @@ telemetry.post("/", async (c) => {
     body = (await c.req.json()) as TelemetryBody;
   } catch {
     return c.body(null, 204); // malformed beacon — nothing to record, still 204
+  }
+
+  // Failure beacon — a solve attempt that never produced a result (pre-
+  // request failure, HTTP rejection, timeout). Kept DISJOINT from the
+  // write-back outcome aggregates below: outcome events describe how a
+  // RESULT landed, failure events describe never getting one — folding them
+  // together would poison writeBackByOutcome's meaning.
+  if (typeof body.failure === "string") {
+    if (VALID_FAILURES.has(body.failure)) {
+      const failInstallId = c.req.header("x-install-id") ?? "";
+      recordClientFailureInBackground(c, {
+        failure: body.failure,
+        installHash: await hashBucket(failInstallId || "anon"),
+      });
+    }
+    return c.body(null, 204);
   }
 
   // Validate/clamp per the pinned wire contract. `mode`/`confidence`/

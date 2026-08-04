@@ -48,7 +48,15 @@ import {
   selectAnswerChoice,
   writeBlanks,
 } from "./canvas-dom";
-import { type QuestionType, buildTelemetryBody, deriveOutcome, deriveQuestionType } from "./telemetry";
+import {
+  type FailureCategory,
+  type QuestionType,
+  buildFailureBody,
+  buildTelemetryBody,
+  deriveFailureCategory,
+  deriveOutcome,
+  deriveQuestionType,
+} from "./telemetry";
 import { loadRPackages } from "./r-packages";
 import { buildExportBundle, hasExportableCode, recordCalcCode } from "./r-export";
 
@@ -358,6 +366,7 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
     await loadFiles();
   } catch (e) {
     setBtnState(btn, "error", (e as Error).message);
+    fireFailureBeacon({ category: "files_failed", startedAt: solveStartedAt });
     return;
   }
 
@@ -366,6 +375,7 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
     scraped = await scrapeQuestion(question);
   } catch (e) {
     setBtnState(btn, "error", (e as Error).message);
+    fireFailureBeacon({ category: "scrape_failed", startedAt: solveStartedAt });
     return;
   }
 
@@ -376,6 +386,11 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
     installId = await getInstallId();
   } catch (e) {
     setBtnState(btn, "error", (e as Error).message);
+    fireFailureBeacon({
+      category: "config_failed",
+      startedAt: solveStartedAt,
+      questionType: deriveQuestionType(scraped),
+    });
     return;
   }
   const apiUrl = (cfg.apiUrl ?? "https://api.statshelpr.com").replace(/\/$/, "");
@@ -407,6 +422,11 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
   const solveCtrl = new AbortController();
   const solveIdle = armIdleAbort(solveCtrl, SSE_IDLE_TIMEOUT_MS);
 
+  // Failure-beacon bookkeeping for the catch below — which HTTP status the
+  // server rejected with (if any), and whether an OK response arrived before
+  // the failure (SSE stream/contract break vs. never-connected).
+  let rejectStatus: number | undefined;
+  let gotOkResponse = false;
   let final: ConceptResult | CalcResult;
   try {
     const solveRes = await fetch(`${apiUrl}/api/solve`, {
@@ -423,6 +443,7 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
       signal: solveCtrl.signal,
     });
     if (!solveRes.ok) {
+      rejectStatus = solveRes.status;
       const bodyText = await solveRes.text();
       if (solveRes.status === 402) {
         // Daily limit — sync the local counter to the server's window.
@@ -446,6 +467,7 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
       }
       throw new Error(extractErrorMsg(bodyText));
     }
+    gotOkResponse = true;
     // Passed the rate limiter — the server counted this solve, mirror it.
     void recordSolveUse();
     // A solve went through, so this device holds the activation — clear any
@@ -469,6 +491,16 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
       ? `No response for ${SSE_IDLE_TIMEOUT_MS / 1000}s — check your connection and try again.`
       : (e as Error).message;
     setBtnState(btn, "error", message);
+    fireFailureBeacon({
+      category: deriveFailureCategory({
+        timedOut: solveIdle.timedOut,
+        status: rejectStatus,
+        gotOkResponse,
+      }),
+      startedAt: solveStartedAt,
+      questionType: deriveQuestionType(scraped),
+      known: { apiUrl, installId, telemetryDisabled: cfg.telemetryDisabled === true },
+    });
     return;
   } finally {
     solveIdle.clear();
@@ -607,6 +639,57 @@ function fireTelemetryBeacon(args: {
     // Fire-and-forget — a 404 (e.g. a local dev API with no telemetry route
     // yet) or any network failure is silently ignored, never surfaced.
   });
+}
+
+/**
+ * Failure-path sibling of fireTelemetryBeacon — fired from onSolve()'s early
+ * error returns, which previously left NO trace anywhere (the 2026-08 "zero
+ * backend traffic while users hit errors" blind spot). Same rules: never
+ * blocks the button state (callers invoke it AFTER setBtnState), never
+ * throws, and never carries text — a fixed category enum + question-type
+ * enum only (error MESSAGES deliberately excluded: they can quote page
+ * content).
+ *
+ * Config may not have loaded yet when an early failure hits (or its load IS
+ * the failure), so when `known` is absent this does its own guarded read —
+ * and if the telemetry opt-out can't be read, it sends nothing: the opt-out
+ * always wins over observability.
+ */
+function fireFailureBeacon(args: {
+  category: FailureCategory;
+  startedAt: number;
+  questionType?: QuestionType;
+  known?: { apiUrl: string; installId: string; telemetryDisabled: boolean };
+}): void {
+  void (async () => {
+    let apiUrl: string;
+    let installId: string;
+    if (args.known) {
+      if (args.known.telemetryDisabled) return;
+      ({ apiUrl, installId } = args.known);
+    } else {
+      try {
+        const cfg = await getConfig();
+        if (cfg.telemetryDisabled === true) return;
+        apiUrl = (cfg.apiUrl ?? "https://api.statshelpr.com").replace(/\/$/, "");
+        installId = await getInstallId();
+      } catch {
+        return;
+      }
+    }
+    const body = buildFailureBody({
+      failure: args.category,
+      questionType: args.questionType ?? "unknown",
+      clientLatencyMs: Math.round(performance.now() - args.startedAt),
+    });
+    await fetch(`${apiUrl}/api/telemetry`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Install-Id": installId },
+      body: JSON.stringify(body),
+    }).catch(() => {
+      // Fire-and-forget — mirror fireTelemetryBeacon's silence on failure.
+    });
+  })();
 }
 
 function extractErrorMsg(body: string): string {
