@@ -40,7 +40,7 @@ Check exactly these:
 | Personal communications | No | — |
 | Location | No | — |
 | Web history | No | Content script runs only on matched Canvas quiz/assignment pages; no browsing data is recorded. |
-| User activity | **Yes** | Content-free usage telemetry per solve (mode, coarse question-type, confidence level, timing, install id). Never includes question text or answers. User can disable it in the popup. When the user starts an upgrade, the random install id is also attached to the Lemon Squeezy checkout as order metadata so the license can auto-activate on that install (disclosed in privacy policy item 7). |
+| User activity | **Yes** | Content-free usage telemetry per solve (mode, coarse question-type, confidence level, timing, install id, and a one-way hashed Canvas school-domain identifier derived from the request's origin — never a readable school name). Never includes question text or answers. The per-solve mode/timing/install-id telemetry can be disabled in the popup; the hashed school-domain identifier is derived from every solve request's origin regardless of that setting. When the user starts an upgrade, the random install id is also attached to the Lemon Squeezy checkout as order metadata so the license can auto-activate on that install (disclosed in privacy policy item 7). |
 | Website content | **Yes** | The quiz question's text, answer options, and attached images — sent only when the user clicks solve, only to generate the answer. User-uploaded CSV data files are included with solve requests for calculation questions. |
 
 ## Certifications (all three are true — check them)
