@@ -29,6 +29,7 @@ import {
   shortModelLabel,
 } from "./dashboard-format";
 import { LATENCY_BUCKET_BOUNDARIES_MS } from "./histogram";
+import { IMAGE_VISION_MODEL } from "./cost";
 
 type Tone = "blue" | "green" | "red" | "amber" | "ink";
 
@@ -1636,12 +1637,32 @@ function renderEconomicsSection(
   days: number,
 ): string {
   const modelsUsedEntries = economics.modelsUsed ? Object.entries(economics.modelsUsed) : [];
-  const otherModelId = modelsUsedEntries.map(([id]) => id).find((id) => id !== economics.model);
-  const rateCaption = otherModelId
-    ? `text: ${shortModelLabel(economics.model)} · images: ${shortModelLabel(otherModelId)} — the headline COGS/margin math above uses the text rate only.`
-    : `text: ${shortModelLabel(economics.model)} · images use a separate, pricier vision model not shown here.`;
+  // Only the legacy vision id may ever be presented as OUR image model.
+  // Anything else that isn't the headline text model came in through a
+  // `body.model` override (eval runs — or, pre-whitelist, junk like the
+  // 2026-07-29 `gemini-9.9-ultra-pro` probe) and must never be dressed up
+  // as a product model, so those ids render verbatim under an explicit
+  // "unrecognized" label instead of through shortModelLabel's prettifier.
+  const hasLegacyVision = modelsUsedEntries.some(([id]) => id === IMAGE_VISION_MODEL);
+  const unrecognizedIds = modelsUsedEntries
+    .map(([id]) => id)
+    .filter((id) => id !== economics.model && id !== IMAGE_VISION_MODEL);
+  const rateModelBits = [
+    `text: ${shortModelLabel(economics.model)}`,
+    ...(hasLegacyVision ? [`images (legacy vision model): ${shortModelLabel(IMAGE_VISION_MODEL)}`] : []),
+    ...(unrecognizedIds.length ? [`unrecognized model ids: ${unrecognizedIds.join(", ")}`] : []),
+  ].join(" · ");
+  const rateCaption = `${rateModelBits} — ${
+    hasLegacyVision || unrecognizedIds.length
+      ? "the headline COGS/margin math above uses the text rate only."
+      : "image solves bill at this same rate; there is no separate vision model."
+  }`;
 
-  const cacheTone = toneHigherBetter(economics.cacheHitRate, 0.25, 0.12);
+  // A model whose cached-input rate equals its input rate has no cache
+  // discount, so "COGS lever" framing would contradict the rate card printed
+  // below — derive the framing from the same rates the card shows.
+  const cacheDiscounted = economics.rates.cachedInputPer1M < economics.rates.inputPer1M;
+  const cacheTone = cacheDiscounted ? toneHigherBetter(economics.cacheHitRate, 0.25, 0.12) : undefined;
   const realMarginTone = toneHigherBetter(revenue.realGrossMarginPct, 70, 45);
 
   const modelsUsedCard =
@@ -1655,7 +1676,11 @@ function renderEconomicsSection(
             ${modelsUsedEntries
               .map(
                 ([id, usage]) => `<tr>
-                  <td class="mono">${escapeHtml(shortModelLabel(id))}</td>
+                  <td class="mono">${escapeHtml(
+                    id === economics.model || id === IMAGE_VISION_MODEL
+                      ? shortModelLabel(id)
+                      : `${id} (unrecognized)`,
+                  )}</td>
                   <td>${escapeHtml(fmtInt(usage.calls))}</td>
                   <td>${escapeHtml(fmtUsd(usage.costUsd))}</td>
                   <td>${escapeHtml(fmtUsd4(usage.calls > 0 ? usage.costUsd / usage.calls : 0))}</td>
@@ -1723,8 +1748,10 @@ function renderEconomicsSection(
     renderStatTile({
       label: "Cache hit rate",
       value: fmtPct(economics.cacheHitRate),
-      tone: cacheTone,
-      caption: "cached / prompt tokens — main COGS lever",
+      ...(cacheTone ? { tone: cacheTone } : {}),
+      caption: cacheDiscounted
+        ? "cached / prompt tokens — main COGS lever"
+        : "cached / prompt tokens — no cached-input discount on this model",
       deltaHtml: renderDeltaFor(comparison, "cacheHitRate"),
     }),
     renderStatTile({
