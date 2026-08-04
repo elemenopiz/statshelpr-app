@@ -47,7 +47,7 @@ import {
 import { classifyError } from "../src/lib/classify-error";
 import { computeCohorts, type CohortDay } from "../src/lib/cohort";
 import { extractCanvasHost, hashBucket } from "../src/lib/rate-limit";
-import { UTEXAS_HOST_HASH } from "../src/lib/dashboard-render";
+import { fallbackRateTileDisplay, UTEXAS_HOST_HASH } from "../src/lib/dashboard-render";
 
 let pass = 0;
 let fail = 0;
@@ -1285,6 +1285,119 @@ console.log("metrics-store.ts (installSolveCounts — cap enforcement + normaliz
 }
 
 // ---------------------------------------------------------------------------
+console.log("metrics-store.ts (byProvider — fallback-signal work: normalize backfill + applyServerEvent attribution)");
+
+{
+  // normalizeBucket: a bucket written BEFORE the fallback-signal rollout
+  // (no byProvider field in the raw JSON at all — the exact shape every
+  // real historical bucket predating this work has) must backfill to
+  // {luna: 0, gemini: 0}, never throw/undefined — same "delete the field,
+  // normalize, check the zero-default backfill" contract the course-topic
+  // suite above already covers for byCourseProfile/imageAttachment/
+  // rPackagesCustomized. This is the shape metrics-aggregate.ts's
+  // fallbackRatePct treats as "no data yet" (null), not a real 0%.
+  const preRolloutRaw = JSON.parse(JSON.stringify(emptyBucket("2026-08-02")));
+  delete preRolloutRaw.server.byProvider;
+  const normalized = normalizeBucket(preRolloutRaw, "2026-08-02");
+  check(
+    "normalizeBucket backfills a missing byProvider to {luna: 0, gemini: 0} on a pre-rollout bucket",
+    normalized.server.byProvider.luna === 0 && normalized.server.byProvider.gemini === 0,
+    JSON.stringify(normalized.server.byProvider),
+  );
+}
+
+{
+  // normalizeBucket: a well-formed byProvider record passes through untouched.
+  const raw = { date: "2026-08-04", server: { byProvider: { luna: 41, gemini: 3 } } };
+  const normalized = normalizeBucket(raw, "2026-08-04");
+  check(
+    "normalizeBucket passes through a well-formed byProvider record",
+    normalized.server.byProvider.luna === 41 && normalized.server.byProvider.gemini === 3,
+    JSON.stringify(normalized.server.byProvider),
+  );
+}
+
+{
+  // applyServerEvent: a successful event carrying provider:"luna" increments
+  // ONLY byProvider.luna.
+  const bucket = emptyBucket("2026-08-04");
+  const lunaEvent: ServerEventInput = {
+    route: "solve",
+    success: true,
+    model: PRIMARY_TEXT_MODEL,
+    provider: "luna",
+    promptTokens: 500,
+    completionTokens: 200,
+    cachedTokens: 0,
+    costUsd: 0.001,
+    serverLatencyMs: 900,
+    installHash: "inst-luna",
+  };
+  applyServerEvent(bucket, lunaEvent);
+  check(
+    "applyServerEvent(provider: 'luna') increments byProvider.luna only",
+    bucket.server.byProvider.luna === 1 && bucket.server.byProvider.gemini === 0,
+    JSON.stringify(bucket.server.byProvider),
+  );
+}
+
+{
+  // applyServerEvent: a successful event carrying provider:"gemini"
+  // (Luna failed over — lib/llm.ts's ServedBy) increments ONLY
+  // byProvider.gemini, and both providers accumulate independently across
+  // multiple events on the same bucket (mirrors a calc question's
+  // first-pass + repair + interpret legs landing on different providers).
+  const bucket = emptyBucket("2026-08-04");
+  const base = {
+    route: "solve" as const,
+    success: true,
+    promptTokens: 500,
+    completionTokens: 200,
+    cachedTokens: 0,
+    costUsd: 0.002,
+    serverLatencyMs: 900,
+    installHash: "inst-mixed",
+  };
+  applyServerEvent(bucket, { ...base, model: GEMINI_TEXT_MODEL, provider: "gemini" });
+  applyServerEvent(bucket, { ...base, model: PRIMARY_TEXT_MODEL, provider: "luna" });
+  applyServerEvent(bucket, { ...base, model: PRIMARY_TEXT_MODEL, provider: "luna" });
+  check(
+    "applyServerEvent accumulates BOTH providers independently across events",
+    bucket.server.byProvider.luna === 2 && bucket.server.byProvider.gemini === 1,
+    JSON.stringify(bucket.server.byProvider),
+  );
+}
+
+{
+  // applyServerEvent: a request-level FAILURE event (kill-switch rejection,
+  // R-runner failure, outer catch — routes/solve.ts sets `model` to the
+  // request-level resolved model on these but deliberately omits
+  // `provider`, since there's no single serving attempt left to attribute)
+  // must NOT inflate either byProvider count — see ServerEventInput.
+  // provider's doc for why `undefined` here is the correct, common case,
+  // not an oversight.
+  const bucket = emptyBucket("2026-08-04");
+  const failureEvent: ServerEventInput = {
+    route: "solve",
+    success: false,
+    model: PRIMARY_TEXT_MODEL, // request-level resolved model, no provider attached
+    promptTokens: 0,
+    completionTokens: 0,
+    cachedTokens: 0,
+    costUsd: 0,
+    serverLatencyMs: 500,
+    installHash: "inst-fail",
+    errorType: "quota",
+  };
+  applyServerEvent(bucket, failureEvent);
+  check(
+    "applyServerEvent on a providerless failure event leaves byProvider at {luna: 0, gemini: 0}",
+    bucket.server.byProvider.luna === 0 && bucket.server.byProvider.gemini === 0,
+    JSON.stringify(bucket.server.byProvider),
+  );
+}
+
+// ---------------------------------------------------------------------------
 console.log("metrics-aggregate.ts (tier split + fallback rate + top-consumer aggregation)");
 
 {
@@ -1296,6 +1409,11 @@ console.log("metrics-aggregate.ts (tier split + fallback rate + top-consumer agg
     [PRIMARY_TEXT_MODEL]: { calls: 30, costUsd: 0.1 },
     [GEMINI_TEXT_MODEL]: { calls: 2, costUsd: 0.006 },
   };
+  // Deliberately NOT derived from byModel above (e.g. NOT "= the
+  // GEMINI_TEXT_MODEL calls") -- byProvider is now an INDEPENDENT explicit
+  // counter (fallback-signal work), not something read back out of the
+  // model-id breakdown. See ServerEventInput.provider's doc.
+  day0.server.byProvider = { luna: 25, gemini: 4 };
   day0.server.routes = {
     solve: { attempts: 30, successes: 29, errors: 1 },
     interpret: { attempts: 12, successes: 12, errors: 0 },
@@ -1310,6 +1428,13 @@ console.log("metrics-aggregate.ts (tier split + fallback rate + top-consumer agg
     [PRIMARY_TEXT_MODEL]: { calls: 18, costUsd: 0.08 },
     [IMAGE_VISION_MODEL]: { calls: 4, costUsd: 0.02 },
   };
+  // day1's byModel has a 4-call IMAGE_VISION_MODEL slice and NO
+  // GEMINI_TEXT_MODEL row at all -- exactly the shape that used to make the
+  // OLD id-inference fallbackCalls over-count (it would have added this 4
+  // to the fallback total even though byProvider below says only 1 call
+  // this day was actually Gemini-served). Kept deliberately mismatched from
+  // byProvider to prove the new field is truly independent of byModel.
+  day1.server.byProvider = { luna: 15, gemini: 1 };
   day1.server.routes = {
     solve: { attempts: 18, successes: 18, errors: 0 },
     interpret: { attempts: 8, successes: 8, errors: 0 },
@@ -1361,16 +1486,34 @@ console.log("metrics-aggregate.ts (tier split + fallback rate + top-consumer agg
     `got ${result.volume.maxSolvesByOneInstall}`,
   );
 
-  const expectedFallbackCalls = 2 + 4; // day0's GEMINI_TEXT_MODEL + day1's IMAGE_VISION_MODEL
-  const expectedApiCalls = 30 + 12 + 18 + 8;
+  // byProvider merge (fallback-signal work): day0 {luna:25,gemini:4} +
+  // day1 {luna:15,gemini:1} -> {luna:40,gemini:5}. Both these days ALSO
+  // carry byModel Gemini-id rows (day0's GEMINI_TEXT_MODEL: 2 calls, day1's
+  // IMAGE_VISION_MODEL: 4 calls) that the OLD id-inference version of this
+  // field would have summed instead (2+4=6, against apiCalls=68) -- the
+  // checks below prove the new field ignores byModel entirely and uses
+  // ONLY the explicit counter.
+  const expectedLuna = 25 + 15;
+  const expectedGemini = 4 + 1;
+  const expectedFallbackServedCalls = expectedLuna + expectedGemini;
   check(
-    "economics.fallbackCalls sums BOTH Gemini model ids across days",
-    result.economics.fallbackCalls === expectedFallbackCalls,
-    `got ${result.economics.fallbackCalls}, want ${expectedFallbackCalls}`,
+    "economics.byProvider sums BOTH luna and gemini across days",
+    result.economics.byProvider.luna === expectedLuna && result.economics.byProvider.gemini === expectedGemini,
+    JSON.stringify(result.economics.byProvider),
   );
   check(
-    "economics.fallbackRatePct = fallbackCalls/apiCalls*100",
-    approxEqual(result.economics.fallbackRatePct, (expectedFallbackCalls / expectedApiCalls) * 100, 1e-2),
+    "economics.fallbackCalls === byProvider.gemini (explicit attribution, not the old byModel-id inference)",
+    result.economics.fallbackCalls === expectedGemini,
+    `got ${result.economics.fallbackCalls}, want ${expectedGemini}`,
+  );
+  check(
+    "economics.fallbackRatePct = byProvider.gemini / (luna+gemini) * 100 -- NOT gemini/apiCalls",
+    approxEqual(result.economics.fallbackRatePct ?? NaN, (expectedGemini / expectedFallbackServedCalls) * 100, 1e-2),
+    `got ${result.economics.fallbackRatePct}`,
+  );
+  check(
+    "economics.fallbackRatePct is NOT the old apiCalls-denominator figure (proves the denominator actually changed)",
+    !approxEqual(result.economics.fallbackRatePct ?? NaN, (expectedGemini / (30 + 12 + 18 + 8)) * 100, 1e-2),
     `got ${result.economics.fallbackRatePct}`,
   );
 }
@@ -1388,7 +1531,27 @@ console.log("metrics-aggregate.ts (tier split + fallback rate + top-consumer agg
     assumedSolvesPerUserPerMonth: 90,
   });
   check("empty range: economics.tier.freeCostSharePct is 0, not NaN", result.economics.tier.freeCostSharePct === 0);
-  check("empty range: economics.fallbackRatePct is 0, not NaN", result.economics.fallbackRatePct === 0);
+  // The critical "no byProvider data at all" contract (fallback-signal
+  // work): an all-empty-bucket window is EXACTLY what every real
+  // pre-cutover historical bucket normalizes to (normalizeBucket backfills
+  // byProvider to {luna:0, gemini:0} when the field is missing entirely).
+  // fallbackRatePct must be `null` here -- an explicit "unknown" -- NEVER
+  // 0 (which would misread as "checked, nothing failed over") and NEVER
+  // NaN. This is the aggregate-level half of that contract; dashboard-
+  // render.ts's fallbackRateTileDisplay (tested separately below) is the
+  // rendering-side half.
+  check(
+    "empty range: economics.fallbackRatePct is null (no byProvider data), NOT 0 -- the explicit no-data state",
+    result.economics.fallbackRatePct === null,
+    `got ${result.economics.fallbackRatePct}`,
+  );
+  check(
+    "empty range: economics.fallbackCalls is 0 and economics.byProvider is {luna: 0, gemini: 0}",
+    result.economics.fallbackCalls === 0 &&
+      result.economics.byProvider.luna === 0 &&
+      result.economics.byProvider.gemini === 0,
+    JSON.stringify({ fallbackCalls: result.economics.fallbackCalls, byProvider: result.economics.byProvider }),
+  );
   check("empty range: volume.maxSolvesByOneInstall is 0", result.volume.maxSolvesByOneInstall === 0);
   check(
     "empty range: economics.tier solves/cost all 0",
@@ -1401,6 +1564,65 @@ console.log("metrics-aggregate.ts (tier split + fallback rate + top-consumer agg
     "empty range: courseContext.byTopicByTier is empty on both legs",
     Object.keys(result.courseContext.byTopicByTier.free).length === 0 &&
       Object.keys(result.courseContext.byTopicByTier.paid).length === 0,
+  );
+}
+
+// ---------------------------------------------------------------------------
+console.log("dashboard-render.ts (fallbackRateTileDisplay — the 'no data -> no-data state, not 0%' rendering decision)");
+
+{
+  // The critical branch: economics.fallbackRatePct === null (this window
+  // has zero byProvider data -- see the aggregate-level tests just above)
+  // must render as an explicit "no data" state, NEVER "0%" (implies
+  // "checked, nothing failed over" -- false, nothing was ever
+  // instrumented) and NEVER a percentage computed some other way.
+  const display = fallbackRateTileDisplay({ fallbackRatePct: null, fallbackCalls: 0 });
+  check(
+    "fallbackRateTileDisplay(null) renders the literal em-dash, not '0%' or 'NaN%'",
+    display.value === "—",
+    `got ${JSON.stringify(display)}`,
+  );
+  check(
+    "fallbackRateTileDisplay(null) uses the neutral 'ink' tone, not a green/red health color",
+    display.tone === "ink",
+    `got ${display.tone}`,
+  );
+  check(
+    "fallbackRateTileDisplay(null) captions it as no-data, not a fake call count",
+    /no data/i.test(display.caption),
+    `got ${JSON.stringify(display.caption)}`,
+  );
+}
+
+{
+  // Real-data branch: a genuine (non-null) rate still renders as a
+  // percentage with the pre-existing green/amber/red health thresholds and
+  // call-count caption -- this fix must not change that behavior for a
+  // window that DOES have data.
+  const healthy = fallbackRateTileDisplay({ fallbackRatePct: 0.5, fallbackCalls: 3 });
+  check(
+    "fallbackRateTileDisplay(0.5%) renders a percentage, not the no-data dash",
+    healthy.value === "0.5%",
+    `got ${JSON.stringify(healthy)}`,
+  );
+  check("fallbackRateTileDisplay(0.5%) is green (<=1%)", healthy.tone === "green", `got ${healthy.tone}`);
+  check(
+    "fallbackRateTileDisplay(0.5%) captions the real call count",
+    healthy.caption === "3 calls · Luna failed → Gemini served",
+    `got ${JSON.stringify(healthy.caption)}`,
+  );
+
+  const unhealthy = fallbackRateTileDisplay({ fallbackRatePct: 12, fallbackCalls: 40 });
+  check("fallbackRateTileDisplay(12%) is red (>5%)", unhealthy.tone === "red", `got ${unhealthy.tone}`);
+
+  // 0% is itself a legitimate, real answer (byProvider has data, and it's
+  // ALL luna) -- must render as an actual "0.0%", not be conflated with
+  // the null/no-data case above.
+  const zero = fallbackRateTileDisplay({ fallbackRatePct: 0, fallbackCalls: 0 });
+  check(
+    "fallbackRateTileDisplay(0) renders a real '0.0%', distinct from the null no-data case",
+    zero.value === "0.0%" && zero.tone === "green",
+    `got ${JSON.stringify(zero)}`,
   );
 }
 

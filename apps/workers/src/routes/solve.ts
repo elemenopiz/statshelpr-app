@@ -468,8 +468,8 @@ solve.post("/", async (c) => {
         metricsBatch.server.push({
           route: "solve",
           success: true,
-          model,
-          provider: "luna",
+          model: firstPassServedBy.model,
+          provider: firstPassServedBy.provider,
           ...usageTokens,
           costUsd,
           serverLatencyMs: Date.now() - startedAt,
@@ -494,8 +494,8 @@ solve.post("/", async (c) => {
       metricsBatch.server.push({
         route: "solve",
         success: true,
-        model,
-        provider: "luna",
+        model: firstPassServedBy.model,
+        provider: firstPassServedBy.provider,
         ...usageTokens,
         costUsd,
         serverLatencyMs: Date.now() - startedAt,
@@ -710,8 +710,8 @@ solve.post("/", async (c) => {
           metricsBatch.server.push({
             route: "solve",
             success: true,
-            model,
-            provider: "luna",
+            model: repair.servedBy.model,
+            provider: repair.servedBy.provider,
             ...repairUsageTokens,
             costUsd: repairCostUsd,
             serverLatencyMs: Date.now() - startedAt,
@@ -832,8 +832,8 @@ solve.post("/", async (c) => {
       metricsBatch.server.push({
         route: "interpret",
         success: true,
-        model,
-        provider: "luna",
+        model: interpretServedBy.model,
+        provider: interpretServedBy.provider,
         ...finalUsageTokens,
         costUsd: interpretCostUsd,
         serverLatencyMs: Date.now() - startedAt,

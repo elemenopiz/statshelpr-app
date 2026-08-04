@@ -12,6 +12,7 @@ import {
   type DailyMetricsBucket,
   type ImageAttachmentCounts,
   type ModelUsage,
+  type ProviderCounts,
   type RPackagesCustomizedCounts,
   type WriteBackOutcomeCounts,
 } from "./metrics-store";
@@ -21,7 +22,7 @@ import {
   mergeHistogramInto,
   percentileFromHistogram,
 } from "./histogram";
-import { GEMINI_TEXT_MODEL, IMAGE_VISION_MODEL, PRIMARY_TEXT_MODEL, rateForModel } from "./cost";
+import { IMAGE_VISION_MODEL, PRIMARY_TEXT_MODEL, rateForModel } from "./cost";
 
 /** One day of the enriched time series (dashboard-v2 items 10 & 12). Every
  *  field is a per-DAY value so the renderer can draw trend lines / sparklines
@@ -192,20 +193,42 @@ export interface MetricsResponse {
     imageCalls: number;
     imageCallSharePct: number;
     imageCostSharePct: number;
-    /** Calls served by a Gemini FALLBACK model (lib/cost.ts's
-     *  GEMINI_TEXT_MODEL/IMAGE_VISION_MODEL — "the Gemini models"), summed
-     *  directly from modelsUsed — a pure derived view, not a new counter,
-     *  so it's always consistent with the "Cost by model" card. Luna is
-     *  primary (lib/llm.ts); a non-zero count here means Luna failed and
-     *  Gemini served instead (gemini-fallback work). NOTE: IMAGE_VISION_MODEL
-     *  is also the LEGACY pre-Luna-migration vision-model id (see that
-     *  constant's own doc in lib/cost.ts), so a bucket containing pre-
-     *  migration days will over-count this — accurate going forward. */
+    /** Sum, across the window, of lib/metrics-store.ts's DailyMetricsBucket.
+     *  server.byProvider (fallback-signal work) — EXPLICIT per-call provider
+     *  attribution, written at routes/solve.ts's first-pass/repair/interpret
+     *  legs from lib/llm.ts's own ServedBy, not inferred from a model id. A
+     *  bucket that predates this field normalizes to {luna: 0, gemini: 0}
+     *  (see normalizeBucket) and simply contributes nothing here — it does
+     *  NOT get misread as "all Luna" or "all Gemini". This replaced an
+     *  earlier version of this field that summed byModel entries matching a
+     *  Gemini model id, which broke the instant real history entered the
+     *  window: Gemini ran as the PRIMARY provider before the Luna cutover,
+     *  so every pre-cutover bucket was full of Gemini ids that were NEVER
+     *  fallbacks (on top of lib/cost.ts's IMAGE_VISION_MODEL id being shared
+     *  by both the legacy vision model and the Gemini image-fallback model,
+     *  which made the two eras impossible to tell apart by id alone). */
+    byProvider: ProviderCounts;
+    /** byProvider.gemini — the calls THIS window explicitly saw Luna fail
+     *  over on. Always a plain count (0 is a real, meaningful answer even
+     *  when byProvider has no data at all this window) — see
+     *  fallbackRatePct below for the field that actually needs a distinct
+     *  "no data" state. */
     fallbackCalls: number;
-    /** fallbackCalls / apiCalls * 100, 0 when apiCalls is 0. Operational
-     *  health signal for the dashboard's Fallback rate tile — green at 0,
-     *  amber >1%, red >5% (dashboard-render.ts). */
-    fallbackRatePct: number;
+    /** byProvider.gemini / (byProvider.luna + byProvider.gemini) * 100 —
+     *  computed ONLY over calls this window actually has provider
+     *  attribution for, never against the unrelated `apiCalls` total (which
+     *  includes error/kill-switch events with no servedBy at all). `null`
+     *  — NOT 0 — when byProvider.luna + byProvider.gemini is 0, i.e. this
+     *  window has ZERO provider-attributed calls (every contributing bucket
+     *  predates the fallback-signal rollout). That distinction is load-
+     *  bearing: a stale/pre-cutover window must render as explicitly
+     *  unknown on the dashboard, never as a real 0% (implies "checked, nothing
+     *  failed over" — false, nothing was ever checked) and never as ~100%
+     *  (the old id-inference bug's failure mode on that exact same history).
+     *  See dashboard-render.ts's fallbackRateTileDisplay for the rendering
+     *  side of this contract, and its "green at <=1%, amber <=5%, red above"
+     *  thresholds for when there IS data. */
+    fallbackRatePct: number | null;
     /** Free-vs-paid split (owner's #1 dashboard ask) — solves + cost by
      *  entitlement tier, feeding the paid-abuse/COGS decision. Reconciles
      *  exactly to volume.questionsAnswered / totalCostUsd when every
@@ -360,6 +383,7 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
   const byCourseProfile: CourseProfileCounts = { sta301: 0, generic: 0 };
   const imageAttachment: ImageAttachmentCounts = { withImages: 0, withoutImages: 0 };
   const rPackagesCustomized: RPackagesCustomizedCounts = { customized: 0, default: 0 };
+  const byProvider: ProviderCounts = { luna: 0, gemini: 0 };
   const byRequestedPackage: Record<string, number> = {};
   const modeSplit = { concept: 0, calc: 0 };
   const writeBackByOutcome: WriteBackOutcomeCounts = { written: 0, nowrite: 0, error: 0 };
@@ -436,6 +460,8 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
     imageAttachment.withoutImages += b.server.imageAttachment.withoutImages;
     rPackagesCustomized.customized += b.server.rPackagesCustomized.customized;
     rPackagesCustomized.default += b.server.rPackagesCustomized.default;
+    byProvider.luna += b.server.byProvider.luna;
+    byProvider.gemini += b.server.byProvider.gemini;
     for (const [pkg, n] of Object.entries(b.server.byRequestedPackage)) {
       byRequestedPackage[pkg] = (byRequestedPackage[pkg] ?? 0) + n;
     }
@@ -577,13 +603,19 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
   const imageCallSharePct = apiCalls > 0 ? (imageUsage.calls / apiCalls) * 100 : 0;
   const imageCostSharePct = totalCostUsd > 0 ? (imageUsage.costUsd / totalCostUsd) * 100 : 0;
 
-  // --- fallback rate (gemini-fallback work): calls served by EITHER Gemini
-  // model ("the Gemini models" per lib/cost.ts) vs total calls — a non-zero
-  // rate means Luna failed and Gemini answered instead. Pure derived view
-  // over modelsUsed, no new counter (imageUsage is reused from above). ---
-  const geminiTextUsage = modelsUsed[GEMINI_TEXT_MODEL] ?? { calls: 0, costUsd: 0 };
-  const fallbackCalls = geminiTextUsage.calls + imageUsage.calls;
-  const fallbackRatePct = apiCalls > 0 ? (fallbackCalls / apiCalls) * 100 : 0;
+  // --- fallback rate (fallback-signal work): EXPLICIT per-call provider
+  // attribution (byProvider, summed above from lib/metrics-store.ts's
+  // DailyMetricsBucket.server.byProvider) — never inferred from a Gemini
+  // model id appearing in modelsUsed. See EconomicsMetrics.fallbackRatePct's
+  // doc for why that inference broke on real historical data (Gemini ran as
+  // PRIMARY before the Luna cutover) and why `null`, not 0, is this
+  // window's "no provider data at all" state — every pre-cutover bucket
+  // normalizes to {luna: 0, gemini: 0} (metrics-store.ts's normalizeBucket),
+  // so fallbackServedCalls stays 0 for a window built entirely from them.
+  const fallbackServedCalls = byProvider.luna + byProvider.gemini;
+  const fallbackCalls = byProvider.gemini;
+  const fallbackRatePct =
+    fallbackServedCalls > 0 ? roundPct((fallbackCalls / fallbackServedCalls) * 100) : null;
 
   // --- tier split (owner's #1 dashboard ask): free-vs-paid solves + COGS ---
   const tierCostTotal = costUsdByTier.free + costUsdByTier.paid;
@@ -671,8 +703,9 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
       imageCalls: imageUsage.calls,
       imageCallSharePct: roundPct(imageCallSharePct),
       imageCostSharePct: roundPct(imageCostSharePct),
+      byProvider,
       fallbackCalls,
-      fallbackRatePct: roundPct(fallbackRatePct),
+      fallbackRatePct,
       tier: {
         solvesFree: solvesByTier.free,
         solvesPaid: solvesByTier.paid,

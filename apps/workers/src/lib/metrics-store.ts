@@ -155,6 +155,32 @@ export interface RPackagesCustomizedCounts {
 }
 
 // ===========================================================================
+// === fallback-signal work: explicit provider attribution ===================
+// Which provider actually SERVED each completed LLM call, recorded directly
+// from lib/llm.ts's ServedBy at the point of success — see ServerEventInput.
+// provider below. Replaces an earlier dashboard tile that INFERRED a
+// fallback by checking whether byModel contained a Gemini model id, which
+// breaks the moment real history enters the aggregation window: Gemini ran
+// as the PRIMARY provider before the Luna cutover, so every pre-cutover
+// bucket is full of Gemini ids that were never fallbacks (and
+// lib/cost.ts's IMAGE_VISION_MODEL id is shared by the legacy vision model
+// AND the Gemini image-fallback model, so id-matching can't even tell those
+// two eras apart). Explicit per-event attribution has no such ambiguity —
+// a bucket that predates this field just has {luna: 0, gemini: 0}, which
+// metrics-aggregate.ts's fallbackRatePct treats as "no data", never 0%.
+// ===========================================================================
+
+/** Fixed keys (not a free-form Record) — same pattern as CourseProfileCounts/
+ *  ImageAttachmentCounts above, since the provider set is closed and small
+ *  (mirrors lib/llm.ts's ProviderId, duplicated here rather than imported —
+ *  same "small closed type, independently declared per module" precedent as
+ *  lib/cost.ts's LUNA_MODEL/GEMINI_TEXT_MODEL constants). */
+export interface ProviderCounts {
+  luna: number;
+  gemini: number;
+}
+
+// ===========================================================================
 // === dashboard-v2 metrics contract (frozen) ================================
 // Any agent editing this file MUST branch off the `dashboard-v2` commit that
 // introduced this marker. If this comment is absent from your base, STOP —
@@ -274,11 +300,28 @@ export interface DailyMetricsBucket {
      *  but a leg that fell back to Gemini (gemini-fallback work, lib/llm.ts)
      *  keys under GEMINI_TEXT_MODEL/IMAGE_VISION_MODEL (lib/cost.ts)
      *  instead. Each event is costed at ITS OWN model's rate, never a
-     *  blended rate — this is the audit trail for that split, AND (a
-     *  non-Luna row appearing here at all) the content-free signal that
-     *  fallback fired — see GET /api/metrics' economics.modelsUsed and the
-     *  /dashboard "Cost by model" card, both fed straight from this field. */
+     *  blended rate — this is the audit trail for that split, feeding GET
+     *  /api/metrics' economics.modelsUsed and the /dashboard "Cost by model"
+     *  card. NOT the fallback-rate signal (a non-Luna row appearing here
+     *  used to be read that way, but a Gemini id can mean either "Luna
+     *  failed over" OR "this bucket predates the Luna cutover, Gemini was
+     *  PRIMARY" — id-matching can't tell those apart, and IMAGE_VISION_MODEL
+     *  is shared by BOTH the legacy vision model and the Gemini
+     *  image-fallback model on top of that). `byProvider` below is the real
+     *  fallback-rate signal — explicit, not inferred. */
     byModel: Record<string, ModelUsage>;
+    /** Which provider actually SERVED each completed call (fallback-signal
+     *  work) — see ProviderCounts' module-level doc above for the full
+     *  rationale and ServerEventInput.provider for the write boundary.
+     *  Incremented ONLY on a genuine serving success (applyServerEvent
+     *  checks `input.provider` against the closed "luna"|"gemini" enum, so a
+     *  request-level failure event — kill-switch rejections, the R-runner
+     *  failure event, the outer catch — never inflates either count, since
+     *  by the time those fire there is no single serving attempt to
+     *  attribute). GET /api/metrics' economics.fallbackRatePct sums this
+     *  across the window; see that field's doc for the "zero data in this
+     *  window at all" vs. "a real 0%" distinction. */
+    byProvider: ProviderCounts;
     latencyHistogram: number[];
     /** Cloud Run R-execution service health (R-runner health tracking phase
      *  1) — recorded from routes/solve.ts's runRSafe/recordRRunnerFailure on
@@ -436,6 +479,10 @@ function emptyRPackagesCustomized(): RPackagesCustomizedCounts {
   return { customized: 0, default: 0 };
 }
 
+function emptyProviderCounts(): ProviderCounts {
+  return { luna: 0, gemini: 0 };
+}
+
 export function emptyBucket(date: string): DailyMetricsBucket {
   return {
     date,
@@ -457,6 +504,7 @@ export function emptyBucket(date: string): DailyMetricsBucket {
       costUsd: 0,
       costUsdByMode: { concept: 0, calc: 0 },
       byModel: {},
+      byProvider: emptyProviderCounts(),
       latencyHistogram: emptyHistogram(),
       rRunner: { requestCount: 0, successCount: 0, errorCount: 0, coldStartCount: 0, latencyHistogram: emptyHistogram() },
       missingRPackages: {},
@@ -560,6 +608,7 @@ export function normalizeBucket(raw: unknown, date: string): DailyMetricsBucket 
       costUsd: typeof s.costUsd === "number" ? s.costUsd : 0,
       costUsdByMode: { ...empty.server.costUsdByMode, ...s.costUsdByMode },
       byModel: okByModel(s.byModel),
+      byProvider: { ...empty.server.byProvider, ...s.byProvider },
       latencyHistogram: okHist(s.latencyHistogram, empty.server.latencyHistogram.length),
       rRunner: {
         ...empty.server.rRunner,
@@ -745,6 +794,22 @@ export interface ServerEventInput {
    *  resolved model, not a specific attempt's, since a fully-failed request
    *  has no single call left to attribute it to. */
   model: string;
+  /** Which provider actually SERVED this call (fallback-signal work) —
+   *  lib/llm.ts's ServedBy.provider, read straight off the SAME servedBy
+   *  value `model` above comes from (routes/solve.ts's firstPassServedBy /
+   *  repair.servedBy / interpretServedBy). Undefined — NOT a guess — on a
+   *  request-level failure event (kill-switch pre-checks, the R-runner
+   *  failure event, the outer catch), matching `model`'s own "no single
+   *  attempt to attribute this to" fallback there: those events set `model`
+   *  to the request-level resolved model rather than a servedBy, so there is
+   *  no real provider to report either. Always exactly "luna" | "gemini"
+   *  when present — this is server-computed from lib/llm.ts's return value,
+   *  never a raw/client-supplied string — but applyServerEvent below still
+   *  whitelists it explicitly before it can become a byProvider counter key,
+   *  the same "closed enum, re-validated at the write boundary" stance as
+   *  every other Record/counter key in this file (safeTopicKey, the R
+   *  package name regexes, etc.). */
+  provider?: "luna" | "gemini";
   promptTokens: number;
   completionTokens: number;
   cachedTokens: number;
@@ -800,6 +865,15 @@ export function applyServerEvent(bucket: DailyMetricsBucket, input: ServerEventI
   modelUsage.calls += 1;
   modelUsage.costUsd += input.costUsd;
   bucket.server.byModel[input.model] = modelUsage;
+
+  // Explicit fallback-signal attribution (see ServerEventInput.provider's
+  // doc) — whitelisted to exactly the closed "luna"|"gemini" enum right
+  // here at the write boundary, same stance as safeTopicKey below. Anything
+  // else (including the common case of `undefined`, on a request-level
+  // failure event with no single serving attempt to attribute) is silently
+  // NOT counted, rather than guessed into one bucket or the other.
+  if (input.provider === "luna") bucket.server.byProvider.luna += 1;
+  else if (input.provider === "gemini") bucket.server.byProvider.gemini += 1;
 
   bucket.server.tokens.promptTokens += input.promptTokens;
   bucket.server.tokens.completionTokens += input.completionTokens;
