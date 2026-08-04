@@ -1,6 +1,6 @@
 import type { DailyPoint, MetricsResponse, WriteBackTypeStat } from "./metrics-aggregate";
 import type { ModelUsage, WriteBackOutcomeCounts } from "./metrics-store";
-import { IMAGE_VISION_MODEL, PRIMARY_TEXT_MODEL } from "./cost";
+import { GEMINI_TEXT_MODEL, IMAGE_VISION_MODEL, PRIMARY_TEXT_MODEL } from "./cost";
 import { UTEXAS_HOST_HASH } from "./dashboard-render";
 import { LATENCY_BUCKET_BOUNDARIES_MS, percentileFromHistogram } from "./histogram";
 
@@ -263,6 +263,58 @@ const BY_TOPIC = splitByWeights(QUESTIONS_ANSWERED, {
   unknown: 0.005,
 });
 
+// By-topic split by tier (tier-split work) — tier annotation on the
+// course-context "By topic" card. Paid skews slightly toward the harder/
+// calc-heavy topics (engaged paying students push further into the
+// course); free skews slightly the other way. Splits each topic's OWN
+// count so the two Records always sum back to BY_TOPIC exactly.
+function splitTopicByTier(byTopic: Record<string, number>): {
+  free: Record<string, number>;
+  paid: Record<string, number>;
+} {
+  const rand = mulberry32(20260802);
+  const free: Record<string, number> = {};
+  const paid: Record<string, number> = {};
+  for (const [topic, total] of Object.entries(byTopic)) {
+    const paidShare = 0.55 + rand() * 0.16; // 0.55 - 0.71
+    const paidN = Math.round(total * paidShare);
+    paid[topic] = paidN;
+    free[topic] = total - paidN;
+  }
+  return { free, paid };
+}
+const BY_TOPIC_BY_TIER = splitTopicByTier(BY_TOPIC);
+
+// Top-consumer / fair-use evidence gate — per-install solve counts, summed
+// over the whole 30d window. Most installs solve lightly (1-9 over the
+// window) with a short heavy tail, topped by one clear "heaviest user"
+// deliberately kept well under the contemplated 600/mo fair-use line — the
+// demo shows the gate WORKING (nobody's close yet), not already tripped.
+// Keys are demo-only placeholder strings, same "clearly not a real hash"
+// precedent as BY_HOST_HASH's unknown1/unknown2 keys above — dashboard-
+// render.ts only ever renders a slice of the string, never depends on its
+// shape. Server-side this is capped at 200 distinct hashes/DAY (lib/
+// metrics-store.ts's INSTALL_SOLVE_COUNT_CAP); this mock models a full 30d
+// window's worth of distinct installs, well under that per-day ceiling.
+function buildInstallSolveCounts(): Record<string, number> {
+  const rand = mulberry32(20260801);
+  const out: Record<string, number> = {};
+  // Index placed FIRST in the key so each entry's first-8-chars prefix —
+  // what dashboard-render.ts's labelInstallHash actually displays — is
+  // distinct. A real hashBucket() SHA-256 digest is unique there by
+  // construction; these are demo placeholder strings, so the shape has to
+  // earn it (a shared "demo-heavy-install-" prefix would render all 5 top
+  // rows as the identical-looking "install demo-hea").
+  const heavy = [340, 210, 165, 118, 96]; // top 5 -- the "Top consumers" table
+  heavy.forEach((n, i) => (out[`${i}-heavy-demo-install`] = n));
+  for (let i = 0; i < 180; i++) {
+    out[`${i}-light-demo-install`] = 1 + Math.floor(rand() * 9); // 1-9 solves
+  }
+  return out;
+}
+const BY_INSTALL_SOLVE_COUNT = buildInstallSolveCounts();
+const MAX_SOLVES_BY_ONE_INSTALL = Math.max(0, ...Object.values(BY_INSTALL_SOLVE_COUNT));
+
 // Pre-launch, single-course product: the overwhelming majority of installs
 // have never touched the course preset — the UT STA 301 default IS the
 // sacred, untouched path (see the golden test in packages/solver-core).
@@ -366,6 +418,17 @@ const TOTAL_COST_USD = Number((QUESTIONS_ANSWERED * AVG_COST_PER_QUESTION_USD).t
 const PRICE_MONTHLY_USD = 15;
 const ASSUMED_SOLVES_PER_USER_PER_MONTH = 90;
 
+// Free-vs-paid tier split (tier-split work, owner's #1 dashboard ask). Paid
+// users solve far more per-capita (no daily cap) so paid volume dominates
+// despite there being fewer of them than free installs; free-tier spend is
+// the "bleed." Kept internally consistent with the headline totals:
+// free+paid solves === QUESTIONS_ANSWERED, free+paid cost === TOTAL_COST_USD.
+const SOLVES_PAID = Math.round(QUESTIONS_ANSWERED * 0.61);
+const SOLVES_FREE = QUESTIONS_ANSWERED - SOLVES_PAID;
+const COST_FREE_USD = round6(TOTAL_COST_USD * 0.39);
+const COST_PAID_USD = round6(TOTAL_COST_USD - COST_FREE_USD);
+const FREE_COST_SHARE_PCT = round2((COST_FREE_USD / TOTAL_COST_USD) * 100);
+
 // Token totals (item 1) — plausible per-question shape with a ~24% cache hit.
 const PROMPT_TOKENS = Math.round(QUESTIONS_ANSWERED * 1320);
 const COMPLETION_TOKENS = Math.round(QUESTIONS_ANSWERED * 430);
@@ -394,10 +457,33 @@ const TEXT_MODEL_COST_USD = Number((TEXT_CALLS * TEXT_COST_PER_CALL).toFixed(2))
 // always sum to exactly TOTAL_COST_USD.
 const IMAGE_MODEL_COST_USD = Number((TOTAL_COST_USD - TEXT_MODEL_COST_USD).toFixed(2));
 
+// Gemini-fallback demo data (gemini-fallback work) — a small slice of the
+// TEXT bucket represents calls where Luna failed and Gemini's text model
+// (GEMINI_TEXT_MODEL) served instead, the new Fallback-rate tile's signal.
+// Carved OUT of TEXT_CALLS/TEXT_MODEL_COST_USD below (not added on top), so
+// MODELS_USED's rows keep summing to exactly API_CALLS/TOTAL_COST_USD —
+// same "assign the remainder" reconciliation IMAGE_MODEL_COST_USD uses
+// above. Kept under 1% of text calls so this slice alone reads healthy.
+// NOTE: IMAGE_MODEL_ID's bucket below is ALSO one of "the Gemini models"
+// economics.fallbackRatePct sums (lib/cost.ts's IMAGE_VISION_MODEL is both
+// the fallback vision model AND the legacy pre-Luna vision-model id — see
+// that constant's own doc) — this mock's ~18% image-call share is inherited
+// pre-Luna-migration demo data, unrelated to this addition, so the overall
+// Fallback rate tile will read elevated (RED) in the demo even though this
+// slice alone is small. Flagged here rather than silently reshaped, since
+// fixing that legacy shape is a separate concern from wiring up the tile.
+const FALLBACK_TEXT_CALLS = Math.max(1, Math.round(TEXT_CALLS * 0.004)); // ~0.4% of text calls
+const FALLBACK_TEXT_COST_USD = round6(FALLBACK_TEXT_CALLS * TEXT_COST_PER_CALL * 1.5); // Gemini text costs more/call than Luna
+const LUNA_TEXT_CALLS = TEXT_CALLS - FALLBACK_TEXT_CALLS;
+const LUNA_TEXT_COST_USD = Number((TEXT_MODEL_COST_USD - FALLBACK_TEXT_COST_USD).toFixed(6));
+
 const MODELS_USED: Record<string, ModelUsage> = {
-  [TEXT_MODEL_ID]: { calls: TEXT_CALLS, costUsd: TEXT_MODEL_COST_USD },
+  [TEXT_MODEL_ID]: { calls: LUNA_TEXT_CALLS, costUsd: LUNA_TEXT_COST_USD },
+  [GEMINI_TEXT_MODEL]: { calls: FALLBACK_TEXT_CALLS, costUsd: FALLBACK_TEXT_COST_USD },
   [IMAGE_MODEL_ID]: { calls: IMAGE_CALLS, costUsd: IMAGE_MODEL_COST_USD },
 };
+const FALLBACK_CALLS = FALLBACK_TEXT_CALLS + IMAGE_CALLS; // both "the Gemini models" — see economics.fallbackCalls' doc
+const FALLBACK_RATE_PCT = round2((FALLBACK_CALLS / API_CALLS) * 100);
 
 // Revenue (items 6 & 9) — point-in-time active subs (from the `sub:` KV scan
 // in prod). MRR = active × price. Real blended margin reconciles COGS vs
@@ -444,6 +530,8 @@ export function buildMockMetrics(): MetricsResponse {
       newInstalls: NEW_INSTALLS_30D,
       daily: DAILY,
       byHostHash: BY_HOST_HASH,
+      byInstallSolveCount: BY_INSTALL_SOLVE_COUNT,
+      maxSolvesByOneInstall: MAX_SOLVES_BY_ONE_INSTALL,
     },
     quality: {
       solveSuccessRate: round4((API_CALLS - ERRORS_TOTAL) / Math.max(1, API_CALLS)),
@@ -530,6 +618,15 @@ export function buildMockMetrics(): MetricsResponse {
       imageCalls: IMAGE_CALLS,
       imageCallSharePct: round2((IMAGE_CALLS / API_CALLS) * 100),
       imageCostSharePct: round2((IMAGE_MODEL_COST_USD / TOTAL_COST_USD) * 100),
+      fallbackCalls: FALLBACK_CALLS,
+      fallbackRatePct: FALLBACK_RATE_PCT,
+      tier: {
+        solvesFree: SOLVES_FREE,
+        solvesPaid: SOLVES_PAID,
+        costFreeUsd: COST_FREE_USD,
+        costPaidUsd: COST_PAID_USD,
+        freeCostSharePct: FREE_COST_SHARE_PCT,
+      },
     },
     revenue: {
       activeSubscribers: ACTIVE_SUBSCRIBERS,
@@ -557,6 +654,7 @@ export function buildMockMetrics(): MetricsResponse {
     },
     courseContext: {
       byTopic: BY_TOPIC,
+      byTopicByTier: BY_TOPIC_BY_TIER,
       byCourseProfile: BY_COURSE_PROFILE,
       imageAttachment: IMAGE_ATTACHMENT,
       rPackagesCustomized: RPACKAGES_CUSTOMIZED,

@@ -1358,6 +1358,44 @@ function renderHostHashCard(byHostHash: Record<string, number>): string {
 }
 
 // ---------------------------------------------------------------------------
+// top-consumer visibility (fair-use evidence gate) — owner question: "does
+// ANY single user approach the contemplated 600/mo fair-use line before
+// enforcement gets built?" Every stored key is an opaque hashBucket() digest
+// (lib/metrics-store.ts's installSolveCounts doc) — this renders ONLY a
+// short hash PREFIX, same privacy stance as labelHostHash's "unknown
+// (<first 8 hex chars>)" fallback above; never a full hash, never a
+// readable identity.
+// ---------------------------------------------------------------------------
+
+/** hash -> "install <prefix>" label — never a full hash or readable
+ *  identity, same privacy stance as labelHostHash. */
+function labelInstallHash(hash: string): string {
+  return `install ${hash.slice(0, 8)}`;
+}
+
+function renderTopConsumersCard(byInstallSolveCount: Record<string, number>, days: number): string {
+  const top5 = Object.entries(byInstallSolveCount)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  const caption = `<p class="statCaption" style="margin: 0 0 0.4rem">Top solvers by hashed install id — never a readable identity. Fair-use evidence: does any one user approach the contemplated 600/mo line?</p>`;
+  const body =
+    top5.length > 0
+      ? `<table class="rateTable">
+          <thead><tr><th>Install</th><th>Solves (${days}d)</th></tr></thead>
+          <tbody>${top5
+            .map(
+              ([hash, count]) =>
+                `<tr><td class="mono">${escapeHtml(labelInstallHash(hash))}</td><td>${escapeHtml(
+                  fmtInt(count),
+                )}</td></tr>`,
+            )
+            .join("")}</tbody>
+        </table>`
+      : `<p class="caption">No install-solve data in range.</p>`;
+  return renderCard(`<p class="statLabel">Top consumers</p>${caption}${body}`);
+}
+
+// ---------------------------------------------------------------------------
 // 1. Volume
 // ---------------------------------------------------------------------------
 
@@ -1409,6 +1447,12 @@ function renderVolumeSection(volume: VolumeMetrics, comparison: ComparisonMetric
       caption: `first seen · last ${days}d`,
       sparklineHtml: renderSparkline(daily.map((d) => d.newInstalls), "var(--blue)", { label: "New installs per day" }),
     }),
+    renderStatTile({
+      label: "Max solves by one install",
+      value: fmtInt(volume.maxSolvesByOneInstall),
+      tone: toneLowerBetter(volume.maxSolvesByOneInstall, 300, 600),
+      caption: `heaviest single user · last ${days}d — fair-use line is ~600/mo`,
+    }),
   ])}
   <div class="twoCol">
     ${renderCard(`<p class="statLabel">Daily activity</p>${renderDailyChart(daily)}`, "chartCard")}
@@ -1418,7 +1462,10 @@ function renderVolumeSection(volume: VolumeMetrics, comparison: ComparisonMetric
     `<p class="statLabel">Concept vs. calc over time</p>${renderCompositionChart(daily)}`,
     "chartCard",
   )}
-  ${renderHostHashCard(volume.byHostHash)}`;
+  <div class="twoCol">
+    ${renderHostHashCard(volume.byHostHash)}
+    ${renderTopConsumersCard(volume.byInstallSolveCount, days)}
+  </div>`;
 
   return renderSection("Volume", `last ${days}d`, inner);
 }
@@ -1465,6 +1512,21 @@ function renderCourseContextSection(cc: CourseContextMetrics, days: number): str
   const topicEntries: BarListEntry[] = Object.entries(cc.byTopic)
     .map(([label, value]) => ({ label: prettyKey(label), value }))
     .sort((a, b) => b.value - a.value);
+  // Tier annotation on the topic card (tier-split work) — "does the free
+  // tier skew toward different topics than paid?" Summed from
+  // byTopicByTier's own two Records rather than re-deriving from byTopic,
+  // so this stays correct even if the two ever diverge (e.g. a future
+  // bucket written before the tier split existed — see normalizeBucket's
+  // backfill, which zeroes byTopicByTier independently of byTopic).
+  const topicPaidTotal = Object.values(cc.byTopicByTier.paid).reduce((s, v) => s + v, 0);
+  const topicFreeTotal = Object.values(cc.byTopicByTier.free).reduce((s, v) => s + v, 0);
+  const topicTierTotal = topicPaidTotal + topicFreeTotal;
+  const topicTierCaption =
+    topicTierTotal > 0
+      ? `<p class="statCaption" style="margin: 0 0 0.4rem">By tier: ${escapeHtml(
+          fmtPctValue((topicPaidTotal / topicTierTotal) * 100),
+        )} paid · ${escapeHtml(fmtPctValue((topicFreeTotal / topicTierTotal) * 100))} free</p>`
+      : "";
   const packageEntries: BarListEntry[] = Object.entries(cc.byRequestedPackage)
     .map(([label, value]) => ({ label, value })) // package names are already human-readable R identifiers — no prettyKey needed
     .sort((a, b) => b.value - a.value);
@@ -1499,7 +1561,7 @@ function renderCourseContextSection(cc: CourseContextMetrics, days: number): str
 
   const inner = `${tiles}<div class="twoCol">
     ${renderCard(
-      `<p class="statLabel">By topic</p>${
+      `<p class="statLabel">By topic</p>${topicTierCaption}${
         topicEntries.length > 0
           ? renderBarList(topicEntries)
           : `<p class="caption">No topic data in range.</p>`
@@ -1801,6 +1863,39 @@ function renderCloudRunSection(cloudRun: CloudRunMetrics): string {
 // 4. Unit economics — the full audit trail behind the headline banner
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Paid vs free (tier-split work) — owner's #1 dashboard ask, feeding the
+// paid-abuse/COGS decision: how much solve volume and inference spend is
+// free-tier "bleed" vs paying subscribers. Solves + cost both come straight
+// from economics.tier (lib/metrics-aggregate.ts), which reconciles exactly
+// to the headline volume.questionsAnswered/economics.totalCostUsd totals —
+// see lib/metrics-store.ts's solvesByTier/costUsdByTier doc.
+// ---------------------------------------------------------------------------
+
+function renderTierSplitCard(tier: EconomicsMetrics["tier"], days: number): string {
+  const solvesTotal = tier.solvesFree + tier.solvesPaid;
+  const bleedTone = toneLowerBetter(tier.freeCostSharePct, 30, 55);
+  return renderCard(`<p class="statLabel">Paid vs free · last ${days}d</p>
+    <p class="statCaption" style="margin: 0 0 0.5rem">Solve volume and inference spend by entitlement tier.</p>
+    ${renderBarList(
+      [
+        { label: "Paid solves", value: tier.solvesPaid, tone: "green" },
+        { label: "Free solves", value: tier.solvesFree, tone: "amber" },
+      ],
+      { showPct: solvesTotal > 0 },
+    )}
+    ${renderBarList(
+      [
+        { label: "Paid COGS", value: tier.costPaidUsd, tone: "green" },
+        { label: "Free COGS (bleed)", value: tier.costFreeUsd, tone: "amber" },
+      ],
+      { formatValue: (v) => fmtUsd(v) },
+    )}
+    <p class="statCaption" style="margin-top: 0.5rem">Free-tier COGS bleed — share of spend going to non-payers: <span class="${cx(
+      `tone-${bleedTone}`,
+    )}">${escapeHtml(fmtPctValue(tier.freeCostSharePct))}</span></p>`);
+}
+
 function renderEconomicsSection(
   economics: EconomicsMetrics,
   revenue: RevenueMetrics,
@@ -1953,6 +2048,12 @@ function renderEconomicsSection(
       caption: "of total COGS",
     }),
     renderStatTile({
+      label: "Fallback rate",
+      value: fmtPctValue(economics.fallbackRatePct),
+      tone: toneLowerBetter(economics.fallbackRatePct, 1, 5),
+      caption: `${fmtInt(economics.fallbackCalls)} calls · Luna failed → Gemini served`,
+    }),
+    renderStatTile({
       label: "Real blended margin",
       value: fmtPctValue(revenue.realGrossMarginPct ?? NaN),
       tone: realMarginTone,
@@ -1978,6 +2079,7 @@ function renderEconomicsSection(
     ${modelsUsedCard}
   </div>
   <div class="twoCol" style="margin-top: 0.9rem">
+    ${renderTierSplitCard(economics.tier, days)}
     ${reconcileCard}
   </div>
   <p class="caption" style="margin-top: 0.6rem">
