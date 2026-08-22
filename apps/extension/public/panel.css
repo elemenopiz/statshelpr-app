@@ -89,45 +89,6 @@
 }
 
 /* =========================================================================
- * Transient notice toast (e.g. "dataset not found") — small, discreet, fixed
- * to the bottom-right of the viewport (so scroll never moves it), sliding up
- * as it fades in. Amber, not red: an informational heads-up, not a failure.
- * Auto-dismisses (content.ts's showToast) or on click.
- * ========================================================================= */
-
-.statshelpr-toast {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  z-index: 2147483647; /* above Canvas chrome */
-  max-width: 240px;
-  box-sizing: border-box;
-  padding: 8px 11px;
-  background: #7a4a00;
-  color: #fff;
-  border: 1px solid #92590a;
-  border-radius: 8px;
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.22);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 12px;
-  line-height: 1.4;
-  cursor: pointer;
-  opacity: 0;
-  transform: translateY(8px);
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-
-.statshelpr-toast.shown {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-.statshelpr-toast.leaving {
-  opacity: 0;
-  transform: translateY(8px);
-}
-
-/* =========================================================================
  * Spinner (inside the loading button)
  * ========================================================================= */
 

@@ -28,9 +28,8 @@
  *
  * Course-wide CSV data files are managed in the extension popup (see
  * popup.ts's DATA FILES section) and persisted in chrome.storage.local; this
- * content script reads them on each solve. The only thing this file renders in
- * the bottom-right corner is a small transient toast (showToast) — e.g. the
- * "dataset not found" notice on a data-less calc answer.
+ * content script reads them on each solve. Canvas gets only the inline solve
+ * button; diagnostics stay in telemetry/dev logging and never become page UI.
  *
  * DOM scraping and write-back (reading the question, clicking/filling the
  * answer into the page) live in ./canvas-dom, which is chrome-free — this
@@ -46,6 +45,7 @@ import {
   findStem,
   scrapeQuestion,
   selectAnswerChoice,
+  verifyAnswerSelection,
   writeBlanks,
 } from "./canvas-dom";
 import {
@@ -59,6 +59,18 @@ import {
 } from "./telemetry";
 import { loadRPackages } from "./r-packages";
 import { buildExportBundle, hasExportableCode, recordCalcCode } from "./r-export";
+// Dev logger — type-only import keeps the module out of the production bundle.
+// The runtime functions are accessed via dynamic import inside STATSHELPR_DEV
+// blocks, so esbuild won't inline the module in the production output.
+import type { DevEntry } from "./dev-logger";
+
+// Compile-time flag injected by build.mjs (--dev flag). esbuild replaces this
+// with the literal `false` in production builds so all dev code branches are
+// dead-code-eliminated before the bundle ships to the Chrome Web Store.
+declare const STATSHELPR_DEV: boolean;
+/** The wrangler.toml DEV_BYPASS_KEY value, baked in at compile time by
+ * build.mjs for dev builds. Empty string in production. */
+declare const STATSHELPR_DEV_KEY: string;
 
 interface DataFile {
   filename: string;
@@ -154,6 +166,21 @@ const STORAGE_KEY_SOLVE_STATS = "statshelpr.solveStats";
 const FREE_DAILY_LIMIT = 5;
 const SOLVE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
+// sessionStorage key used to persist activation within one tab session so
+// question-by-question quizzes (Next → new page load) re-inject solve buttons
+// without requiring another popup click. sessionStorage is tab-scoped and
+// origin-scoped, and cleared automatically when the tab closes. We key on the
+// quiz base URL so activation is quiz-specific, not site-wide.
+const SESSION_ACTIVATED_KEY = "statshelpr.quizActivated";
+
+/** Returns the canonical base path for the current quiz, e.g.
+ * "https://utexas.instructure.com/courses/123/quizzes/456"
+ * Used as the sessionStorage activation key. Returns "" on non-quiz pages. */
+function quizBaseUrl(): string {
+  const m = location.pathname.match(/^\/courses\/\d+\/quizzes\/\d+/);
+  return m ? location.origin + m[0] : "";
+}
+
 interface SolveStats {
   count: number;
   resetAt: number;
@@ -183,6 +210,16 @@ function boot() {
   // reads. Set on the document root so they apply to every injected
   // button, and re-applied whenever the user drags the popup slider.
   void applyButtonOpacityFromStorage();
+
+  // Question-by-question quizzes (Next → next question URL) do a real page
+  // load which resets `activated`. If the student already clicked the popup
+  // earlier in this same tab session for this exact quiz, re-activate without
+  // requiring another popup click. The check is synchronous (sessionStorage),
+  // so buttons appear on the first DOMContentLoaded paint.
+  const base = quizBaseUrl();
+  if (base && sessionStorage.getItem(SESSION_ACTIVATED_KEY) === base) {
+    activate();
+  }
 
   // Re-load CSVs (and re-apply opacity) whenever the popup updates them so
   // freshly-uploaded files / settings changes are picked up without reload.
@@ -224,6 +261,11 @@ function boot() {
 function activate() {
   if (activated) return;
   activated = true;
+  // Persist this quiz's activation for the lifetime of this tab so that
+  // navigating Next/Prev restores the solve buttons on every page load
+  // without requiring another popup click.
+  const base = quizBaseUrl();
+  if (base) sessionStorage.setItem(SESSION_ACTIVATED_KEY, base);
   scanAndInject();
   const observer = new MutationObserver(() => scanAndInject());
   observer.observe(document.body, { childList: true, subtree: true });
@@ -252,7 +294,9 @@ function scanAndInject() {
 }
 
 function injectButtonFor(question: HTMLElement) {
-  if (question.dataset["statshelprAttached"] === "1") return;
+  if (!question.isConnected) return;
+  const existingBtn = question.querySelector(".statshelpr-btn-tutor");
+  if (question.dataset["statshelprAttached"] === "1" && existingBtn && existingBtn.isConnected) return;
   if (hasQuestionAncestor(question)) return;
   if (!findStem(question)) return;
 
@@ -345,12 +389,27 @@ function armIdleAbort(ctrl: AbortController, ms: number) {
   };
 }
 
+/** Give React/Canvas one task to commit controlled input/select state before
+ * the write-back verification runs. This is intentionally tiny: it adds no
+ * user-visible retry state and only applies after a model answer arrives. */
+function waitForCanvasCommit(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
   if (btn.disabled) return;
   // Wall-clock start for the telemetry beacon's clientLatencyMs — captured
   // here (solve click) so it includes the full round trip through to a
   // written/nowrite/error result below.
   const solveStartedAt = performance.now();
+  // In dev builds: check chrome.storage for the dev-mode flag.
+  // In production: STATSHELPR_DEV is compile-time false, the condition is
+  // dead-code-eliminated by esbuild, and the dynamic import never runs.
+  let devActive = false;
+  if (STATSHELPR_DEV) {
+    const { isDevModeActive } = await import("./dev-logger");
+    devActive = await isDevModeActive();
+  }
   setBtnState(btn, "loading");
   // Clear any prior visual marker on this question
   question.querySelectorAll(".statshelpr-suggested").forEach((el) =>
@@ -394,7 +453,14 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
     return;
   }
   const apiUrl = (cfg.apiUrl ?? "https://api.statshelpr.com").replace(/\/$/, "");
-  const licenseKey = cfg.licenseKey ?? "";
+  // In dev builds: always use the bypass key so we never accidentally send
+  // a stale/invalid key that was left in chrome.storage.sync by a previous
+  // extension install. The ?? pattern only catches null/undefined, not ""
+  // (empty string from old sync storage), so we must use a hard override.
+  // STATSHELPR_DEV_KEY is "" in production → esbuild eliminates this branch.
+  const licenseKey = (STATSHELPR_DEV && STATSHELPR_DEV_KEY)
+    ? STATSHELPR_DEV_KEY
+    : (cfg.licenseKey ?? "");
   // Sent with /api/solve below — the install id lets the server bucket the
   // free-tier rate limit per install (see install-id.ts).
   const headers: HeadersInit = {
@@ -519,6 +585,26 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
       questionType: deriveQuestionType(scraped),
       known: { apiUrl, installId, telemetryDisabled: cfg.telemetryDisabled === true },
     });
+    if (STATSHELPR_DEV && devActive) {
+      const { logSolve } = await import("./dev-logger");
+      void logSolve({
+        id: crypto.randomUUID(),
+        ts: Date.now(),
+        latencyMs: Math.round(performance.now() - solveStartedAt),
+        questionText: scraped?.text ?? "",
+        choices: (scraped?.choices ?? []).map((c) => ({ label: c.label, text: c.text })),
+        blanks: (scraped?.blanks ?? []).map((b) => ({ key: b.key, label: b.label, options: b.options.map((o) => o.text) })),
+        images: scraped?.images ?? [],
+        dataFilenames: dataFiles.map((f) => f.filename),
+        mode: "concept",
+        answer: "",
+        selectedChoices: [],
+        confidence: "",
+        lowConfidence: false,
+        writeCount: 0,
+        error: message,
+      } satisfies DevEntry);
+    }
     return;
   } finally {
     solveIdle.clear();
@@ -548,32 +634,44 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
       final.blanks && final.blanks.length > 0 && scraped.blanks.length > 0
         ? writeBlanks(question, final.blanks)
         : selectAnswerChoice(question, cleaned, final.selectedChoices ?? [], scraped.choices);
+
+    // Canvas controls can be React-controlled and re-render on the next task
+    // after input/change. An action count is not enough: wait for that commit,
+    // verify the exact original choice text is selected, and make one safe
+    // text-based retry if the framework discarded the first write. If it
+    // still does not match, report a no-write outcome rather than pretending
+    // the answer was successfully placed.
+    const selectedLabels = final.selectedChoices ?? [];
+    const isFlatChoiceWrite = !(final.blanks && final.blanks.length > 0 && scraped.blanks.length > 0);
+    if (writeCount > 0 && isFlatChoiceWrite && selectedLabels.length > 0) {
+      await waitForCanvasCommit();
+      if (!verifyAnswerSelection(question, selectedLabels, scraped.choices)) {
+        writeCount = selectAnswerChoice(question, cleaned, selectedLabels, scraped.choices);
+        if (writeCount > 0) {
+          await waitForCanvasCommit();
+        }
+        if (!verifyAnswerSelection(question, selectedLabels, scraped.choices)) {
+          writeCount = 0;
+        }
+      }
+    }
   } catch (e) {
     // A result came back but the write-back call itself threw. This catch
-    // exists ONLY to report that fact to telemetry — it deliberately
-    // rethrows immediately after so control flow (today: an uncaught
-    // rejection, since onSolve() is invoked as `void onSolve(...)` from the
-    // click handler and had no try/catch around this block before) is
-    // byte-for-byte unchanged from before this beacon existed.
+    // exists to report that fact to telemetry and clear the loading spinner
+    // on the button.
     fireTelemetryBeacon({ ...telemetryBase, writeCount: 0, threw: true });
-    throw e;
+    setBtnState(btn, "error", (e as Error).message);
+    return;
   }
 
   if (writeCount === 0) {
-    // Nothing in the page could be auto-selected/filled (e.g. no scrapable
-    // inputs, or every matcher missed) — don't claim success. Surface the
-    // answer itself via the tooltip so the student can still apply it by hand.
+    // Nothing in the page could be auto-selected/filled — don't claim
+    // success. Surface the answer itself via the hover title so the student
+    // can still apply it by hand instead of it being silently lost.
     setBtnState(btn, "nowrite", `Couldn't auto-select — answer: ${cleaned.slice(0, 200)}`);
   } else {
     // No success flash — the selected answer choice is feedback enough.
     setBtnState(btn, "default");
-  }
-
-  // The server answered a calc question without the dataset it referenced
-  // (reasoned, not computed). Tell the student so a data-less answer isn't
-  // mistaken for a data-backed one, and point them at the CSV upload.
-  if (final.mode === "calc" && final.dataMissing) {
-    showToast("Dataset not found — answered from reasoning. Upload the CSV for an exact result.");
   }
 
   // Buffer this question's R code for the popup's "copy R code for this
@@ -583,36 +681,36 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
     recordCalcCode(final.rCode);
   }
 
-  fireTelemetryBeacon({ ...telemetryBase, writeCount, threw: false });
-}
-
-/**
- * Small transient notice fixed to the bottom-right of the viewport,
- * auto-dismissing after a few seconds (or on click). Used for the "dataset
- * not found" backstop notice — a non-blocking, discreet heads-up, never an
- * error state on the button itself. Position + size live in panel.css
- * (.statshelpr-toast). Stacked-safe: any prior toast is removed before a new
- * one shows, so rapid solves don't pile them up in the corner.
- */
-let activeToast: { el: HTMLElement; timer: ReturnType<typeof setTimeout> } | null = null;
-function showToast(message: string, ms = 5000): void {
-  if (activeToast) {
-    clearTimeout(activeToast.timer);
-    activeToast.el.remove();
-    activeToast = null;
+  // Dev mode: capture full solve entry to chrome.storage and DevTools console.
+  if (STATSHELPR_DEV && devActive) {
+    const { logSolve } = await import("./dev-logger");
+    const devEntry: DevEntry = {
+      id: crypto.randomUUID(),
+      ts: Date.now(),
+      latencyMs: Math.round(performance.now() - solveStartedAt),
+      questionText: scraped.text,
+      choices: scraped.choices.map((c) => ({ label: c.label, text: c.text })),
+      blanks: scraped.blanks.map((b) => ({ key: b.key, label: b.label, options: b.options.map((o) => o.text) })),
+      images: scraped.images,
+      dataFilenames: dataFiles.map((f) => f.filename),
+      mode: final.mode,
+      answer: final.answer,
+      selectedChoices: final.selectedChoices ?? [],
+      confidence: final.confidence,
+      lowConfidence: final.lowConfidence,
+      writeCount,
+      ...(final.mode === "calc" ? {
+        rCode: final.rCode,
+        rOutput: final.rOutput,
+        rExitCode: final.rExitCode,
+        rDurationMs: final.rDurationMs,
+        dataMissing: final.dataMissing,
+      } : {}),
+    };
+    void logSolve(devEntry);
   }
-  const toast = mkEl("div", { className: "statshelpr-toast", text: message });
-  const dismiss = () => {
-    if (activeToast?.el !== toast) return;
-    toast.classList.add("leaving");
-    setTimeout(() => toast.remove(), 220); // let the fade-out finish
-    activeToast = null;
-  };
-  toast.addEventListener("click", dismiss);
-  document.body.appendChild(toast);
-  // Trigger the enter transition on the next frame (class added post-attach).
-  requestAnimationFrame(() => toast.classList.add("shown"));
-  activeToast = { el: toast, timer: setTimeout(dismiss, ms) };
+
+  fireTelemetryBeacon({ ...telemetryBase, writeCount, threw: false });
 }
 
 /**
@@ -837,6 +935,11 @@ function setBtnState(btn: HTMLButtonElement, state: BtnState, msg?: string) {
       btn.appendChild(mkEl("span", { className: "statshelpr-spinner" }));
       return;
     case "error":
+      // A solve that failed for any reason (network, timeout, backend
+      // error) used to leave the button looking exactly like it does when
+      // idle — a real failure was indistinguishable from a misclick. This
+      // "!" + red fill + hover title makes the failure visible without a
+      // disruptive popup; it stays until the next click (no auto-revert).
       btn.classList.add("error");
       btn.disabled = false;
       btn.textContent = "!";
