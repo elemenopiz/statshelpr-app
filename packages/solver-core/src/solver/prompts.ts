@@ -95,6 +95,19 @@ function buildBlanksPrompt(base: string, blanks: SolveBlank[]): string {
   return lines.join("\n");
 }
 
+/** Keep the head (setup/context) and tail (final printed results) of R
+ * output instead of always cutting the tail. The routing rules have the R
+ * code end with `cat('Final answer:', ...)` as its LAST printed line, so a
+ * pure head-truncation silently drops the actual answer on any verbose run
+ * (printed per-statement checks, group summaries, etc.) — the model then has
+ * to guess. */
+function truncateROutput(output: string, maxChars = 6000, tailChars = 2000): string {
+  if (output.length <= maxChars) return output;
+  const note = "\n... (output truncated) ...\n";
+  const headChars = maxChars - tailChars - note.length;
+  return `${output.slice(0, headChars)}${note}${output.slice(-tailChars)}`;
+}
+
 export function buildFollowupContent(
   body: SolveBody,
   rCode: string,
@@ -113,10 +126,11 @@ ${rCode}
 
 R OUTPUT:
 \`\`\`
-${rOutput.slice(0, 6000)}
+${truncateROutput(rOutput)}
 \`\`\`
 
 Now respond with the routing tag [CONCEPT] followed by:
 Answer: <best answer>
-CONFIDENCE: <High/Med/Low>`;
+CONFIDENCE: <High/Med/Low>
+TOPIC: <one topic token from the system prompt's fixed list>`;
 }

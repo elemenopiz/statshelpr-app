@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import type { Env } from "../types";
-import { recordRevenueEvent } from "@/lib/metrics-store";
-import { activateForInstall } from "@/lib/license-activation";
+import { recordRevenueEvent } from "../lib/metrics-store";
+import { activateForInstall } from "../lib/license-activation";
 
 /**
  * Lemon Squeezy webhook receiver.
@@ -91,9 +91,51 @@ lsWebhook.post("/", async (c) => {
   }
 });
 
+/** Resolve a webhook's license key via LS's license-keys API, keyed on the
+ *  subscription's order_id. Subscription webhook payloads do NOT carry a
+ *  `license_key` or `first_subscription_item.license_key` field despite
+ *  those names suggesting they would (confirmed against LS's documented
+ *  subscription attributes and the Subscription Item object) — the key only
+ *  ever arrives directly on a separate `license_key_created` event this
+ *  handler doesn't subscribe to. `order_id` IS present on every
+ *  subscription_* webhook, so resolve through the same license-keys lookup
+ *  routes/license-from-order.ts already uses for the checkout success page.
+ *
+ *  Unlike that route, this applies NO recency window: license-from-order.ts
+ *  needs one because it's a public, unauthenticated endpoint being defended
+ *  against order-id enumeration (see its module doc). This function is only
+ *  ever reached after the HMAC signature check above, and a cancellation can
+ *  legitimately land months after the original order — a recency gate would
+ *  make deactivation silently fail exactly like the bug this replaces. */
+async function resolveLicenseKeyFromOrder(
+  env: Env,
+  orderId: string | number | undefined,
+): Promise<string | null> {
+  if (orderId === undefined || orderId === null || orderId === "") return null;
+  const apiKey = env.LEMONSQUEEZY_API_KEY;
+  if (!apiKey) return null;
+
+  try {
+    const res = await fetch(
+      `https://api.lemonsqueezy.com/v1/license-keys?filter[order_id]=${encodeURIComponent(String(orderId))}`,
+      {
+        headers: {
+          Accept: "application/vnd.api+json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+      },
+    );
+    if (!res.ok) return null;
+    const json = (await res.json()) as { data?: Array<{ attributes?: { key?: string } }> };
+    return json.data?.[0]?.attributes?.key ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function activateLicense(env: Env, payload: LSWebhookPayload) {
   const attrs = payload.data?.attributes;
-  const licenseKey = attrs?.license_key ?? attrs?.first_subscription_item?.license_key;
+  const licenseKey = await resolveLicenseKeyFromOrder(env, attrs?.order_id);
   if (!licenseKey) return;
 
   const record = {
@@ -122,7 +164,7 @@ async function activateLicense(env: Env, payload: LSWebhookPayload) {
  *  legitimately reset it onto a new device. */
 async function writeInstallClaim(env: Env, payload: LSWebhookPayload) {
   const attrs = payload.data?.attributes;
-  const licenseKey = attrs?.license_key ?? attrs?.first_subscription_item?.license_key;
+  const licenseKey = await resolveLicenseKeyFromOrder(env, attrs?.order_id);
   const installId = payload.meta?.custom_data?.["install_id"];
   if (!licenseKey || typeof installId !== "string" || !installId) return;
 
@@ -142,7 +184,7 @@ async function writeInstallClaim(env: Env, payload: LSWebhookPayload) {
 
 async function deactivateLicense(env: Env, payload: LSWebhookPayload) {
   const attrs = payload.data?.attributes;
-  const licenseKey = attrs?.license_key ?? attrs?.first_subscription_item?.license_key;
+  const licenseKey = await resolveLicenseKeyFromOrder(env, attrs?.order_id);
   if (!licenseKey) return;
 
   await env.STATSHELPR_KV.put(
@@ -233,10 +275,9 @@ interface LSWebhookPayload {
   data?: {
     id?: string;
     attributes?: {
-      license_key?: string;
+      order_id?: string | number;
       user_email?: string;
       customer_id?: number;
-      first_subscription_item?: { license_key?: string };
     };
   };
 }
