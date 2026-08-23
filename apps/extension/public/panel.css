@@ -69,17 +69,12 @@
   color: white;
   font-size: 10px;
   font-weight: 700;
-}
-
-/* Answer came back but nothing in the page could be auto-selected/filled —
-   amber, distinct from the red error state. The answer itself is in the
-   hover title so the student still gets it. */
-.statshelpr-btn-tutor.nowrite {
-  background: #b06000;
-  border-color: #b06000;
-  color: white;
-  font-size: 10px;
-  font-weight: 700;
+  /* Discreet mode governs EVERY button state, no exceptions — without this,
+     an error (network/server failure) would pop to full solid-red visibility
+     regardless of how far down the slider is, the one moment a discreet-mode
+     user is least prepared for a sudden on-screen tell. Same mechanism as
+     .loading above. */
+  opacity: var(--sh-outline-opacity, 1);
 }
 
 .statshelpr-btn-tutor:disabled { cursor: progress; }
@@ -118,7 +113,11 @@
 }
 
 .statshelpr-toast.shown {
-  opacity: 1;
+  /* Same discreet-mode variable as the button, not a hardcoded 1 — a
+     dial-independent notice box appearing bottom-right would be exactly the
+     kind of on-screen tell discreet mode exists to prevent. At slider=0 this
+     resolves to fully invisible, same as everything else. */
+  opacity: var(--sh-outline-opacity, 1);
   transform: translateY(0);
 }
 
@@ -154,7 +153,13 @@
 .answer.statshelpr-suggested,
 .answer_row.statshelpr-suggested {
   position: relative;
-  border-left: 2px solid rgba(19, 115, 51, 0.5);
+  /* This fires on every successful write, not just an edge case — it MUST
+     track discreet mode. The alpha channel (not a separate opacity property)
+     scales with the same --sh-outline-opacity the button uses, so at
+     slider=0 the border is truly gone rather than merely faint, while the
+     row's own Canvas content (the actual answer text/control) is untouched —
+     only our added accent is affected. */
+  border-left: 2px solid rgba(19, 115, 51, calc(0.5 * var(--sh-outline-opacity, 1)));
   padding-left: 6px !important;
   transition: border-color 0.2s;
 }

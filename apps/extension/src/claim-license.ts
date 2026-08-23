@@ -58,7 +58,10 @@ async function stopClaiming(): Promise<void> {
 export async function tryClaimLicense(): Promise<"claimed" | "pending" | "none"> {
   const r = await chrome.storage.local.get(STORAGE_KEY_CLAIM_STARTED);
   const startedAt = r[STORAGE_KEY_CLAIM_STARTED] as number | undefined;
-  if (!startedAt) return "none";
+  if (!startedAt) {
+    await stopClaiming();
+    return "none";
+  }
   if (Date.now() - startedAt > CLAIM_WINDOW_MS) {
     await stopClaiming();
     return "none";

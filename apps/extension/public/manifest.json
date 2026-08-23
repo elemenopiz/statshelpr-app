@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "statshelpr",
-  "version": "1.1.2",
+  "version": "1.1.6",
   "description": "Stats quiz tutor — fills in the answer on your quiz questions, with the R code behind it in the extension popup.",
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"

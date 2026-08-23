@@ -10,6 +10,16 @@ import {
 } from "./r-packages";
 import { getInstallId } from "./install-id";
 import { startClaiming, tryClaimLicense } from "./claim-license";
+// Dev logger — type-only import so the module is excluded from the production
+// bundle. Runtime symbols are accessed via dynamic import inside the
+// if(STATSHELPR_DEV) block below.
+import type { DevEntry } from "./dev-logger";
+
+// Compile-time flag — same define as content.ts. False in production → the
+// entire dev mode UI block below is dead-code-eliminated by esbuild.
+declare const STATSHELPR_DEV: boolean;
+/** Bypass key baked into the dev build at compile time — "" in production. */
+declare const STATSHELPR_DEV_KEY: string;
 
 interface StoredConfig {
   apiUrl?: string;
@@ -25,11 +35,6 @@ interface StoredConfig {
 // button before discreet mode means anything to them (fading is opt-in).
 const DEFAULT_OPACITY = 1;
 const API_URL = "https://api.statshelpr.com";
-
-/** Manual light/dark override — unset means "follow the OS", same as the
- * CSS's default @media (prefers-color-scheme: dark) behavior. */
-const STORAGE_KEY_THEME = "statshelpr.theme";
-type Theme = "light" | "dark";
 
 interface HealthResponse {
   ok?: boolean;
@@ -91,7 +96,6 @@ const solvesMeterEl = document.getElementById("solves-meter") as HTMLDivElement;
 const upgradeCtaEl = document.getElementById("upgrade-cta") as HTMLAnchorElement;
 const planNoteEl = document.getElementById("plan-note") as HTMLDivElement;
 const versionEl = document.getElementById("ext-version") as HTMLSpanElement;
-const themeToggleEl = document.getElementById("theme-toggle") as HTMLButtonElement | null;
 const telemetryToggle = document.getElementById("telemetry-toggle") as HTMLInputElement | null;
 const deviceLimitNoteEl = document.getElementById("device-limit-note") as HTMLDivElement;
 const resetDeviceBtn = document.getElementById("reset-device-btn") as HTMLButtonElement;
@@ -105,105 +109,6 @@ let dataFiles: DataFile[] = [];
 // the plan check comes back we treat the user as free (never accidentally
 // persist a discreet setting for someone who hasn't paid).
 let currentPlan: "free" | "paid" = "free";
-
-// =============================================================================
-// theme (light/dark toggle, next to the status dot)
-// =============================================================================
-
-// Dark is the product default — it's what the popup is designed around, and it
-// sits better over Canvas. The OS preference no longer decides; a user who
-// wants light picks it with the toggle and that choice is what persists.
-function defaultTheme(): Theme {
-  return "dark";
-}
-
-const SVG_NS = "http://www.w3.org/2000/svg";
-
-function svgEl<K extends keyof SVGElementTagNameMap>(
-  tag: K,
-  attrs: Record<string, string>,
-): SVGElementTagNameMap[K] {
-  const node = document.createElementNS(SVG_NS, tag);
-  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
-  return node;
-}
-
-// Hand-drawn (not a system emoji font) so it renders identically and crisply
-// across platforms, and inherits --ink-3 / hover --blue via currentColor.
-// The crescent is a circle with a second, offset circle masked out of it —
-// no fragile arc-path math.
-function buildMoonIcon(): SVGSVGElement {
-  const svg = svgEl("svg", { width: "16", height: "16", viewBox: "0 0 24 24", "aria-hidden": "true" });
-  const mask = svgEl("mask", { id: "sh-moon-mask" });
-  mask.appendChild(svgEl("rect", { width: "24", height: "24", fill: "#fff" }));
-  mask.appendChild(svgEl("circle", { cx: "15", cy: "9", r: "7", fill: "#000" }));
-  svg.appendChild(mask);
-  svg.appendChild(
-    svgEl("circle", { cx: "12", cy: "12", r: "9", fill: "currentColor", mask: "url(#sh-moon-mask)" }),
-  );
-  return svg;
-}
-
-function buildSunIcon(): SVGSVGElement {
-  const svg = svgEl("svg", {
-    width: "16",
-    height: "16",
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    "stroke-width": "2",
-    "stroke-linecap": "round",
-    "aria-hidden": "true",
-  });
-  svg.appendChild(svgEl("circle", { cx: "12", cy: "12", r: "5", fill: "currentColor", stroke: "none" }));
-  const rays: [string, string, string, string][] = [
-    ["12", "2", "12", "5"],
-    ["12", "19", "12", "22"],
-    ["2", "12", "5", "12"],
-    ["19", "12", "22", "12"],
-    ["4.9", "4.9", "7", "7"],
-    ["17", "17", "19.1", "19.1"],
-    ["4.9", "19.1", "7", "17"],
-    ["17", "7", "19.1", "4.9"],
-  ];
-  for (const [x1, y1, x2, y2] of rays) {
-    svg.appendChild(svgEl("line", { x1, y1, x2, y2 }));
-  }
-  return svg;
-}
-
-function applyTheme(theme: Theme) {
-  document.documentElement.setAttribute("data-theme", theme);
-  if (themeToggleEl) {
-    const next: Theme = theme === "dark" ? "light" : "dark";
-    themeToggleEl.replaceChildren(theme === "dark" ? buildMoonIcon() : buildSunIcon());
-    themeToggleEl.setAttribute("aria-label", `Switch to ${next} theme`);
-    themeToggleEl.title = "Switch theme";
-  }
-}
-
-(async () => {
-  let theme = defaultTheme();
-  try {
-    const r = await chrome.storage.local.get(STORAGE_KEY_THEME);
-    const stored = r[STORAGE_KEY_THEME] as Theme | undefined;
-    if (stored === "light" || stored === "dark") theme = stored;
-  } catch {
-    /* file:// preview — fall back to the system theme computed above */
-  }
-  applyTheme(theme);
-})();
-
-themeToggleEl?.addEventListener("click", () => {
-  const current: Theme = document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
-  const next: Theme = current === "dark" ? "light" : "dark";
-  applyTheme(next);
-  try {
-    void chrome.storage.local.set({ [STORAGE_KEY_THEME]: next });
-  } catch {
-    /* file:// preview — theme choice just won't persist */
-  }
-});
 
 // =============================================================================
 // settings + health + plan
@@ -228,7 +133,12 @@ chrome.storage.sync.get(SYNC_KEYS, (cfg: StoredConfig) => {
   // Unset (a fresh install) = telemetry on = box checked.
   if (telemetryToggle) telemetryToggle.checked = cfg.telemetryDisabled !== true;
   void pingHealth(API_URL);
-  void refreshPlan(API_URL, cfg.licenseKey ?? "");
+  // In dev builds: use the compile-time bypass key so the popup shows
+  // "Unlimited" immediately, mirroring what content.ts sends to the worker.
+  const effectiveLicenseKey = (STATSHELPR_DEV && STATSHELPR_DEV_KEY)
+    ? STATSHELPR_DEV_KEY
+    : (cfg.licenseKey ?? "");
+  void refreshPlan(API_URL, effectiveLicenseKey);
   // One-shot zero-click claim check: if an upgrade was started from this
   // popup and the purchase webhook has landed, this stores the license key
   // right now — the storage.onChanged listener below then re-runs
@@ -499,10 +409,24 @@ function applyOpacityGate(plan: "free" | "paid") {
     if (plan === "free") {
       opacityInput.value = "100";
       if (opacityValueEl) opacityValueEl.textContent = "100%";
+      // A downgrade (cancellation, device reset, payment failure) must clear
+      // any PERSISTED dim value too, not just this popup's display — the
+      // free-tier slider's "change" handler below only ever live-previews,
+      // it never writes to storage, so without this a user who dimmed the
+      // button while paid keeps a dim/invisible on-page button forever with
+      // no way to undo it after losing paid status.
+      void resetPersistedOpacityIfDimmed();
     }
   }
   if (opacityLockEl) {
     opacityLockEl.style.display = plan === "free" ? "flex" : "none";
+  }
+}
+
+async function resetPersistedOpacityIfDimmed(): Promise<void> {
+  const stored = (await chrome.storage.sync.get(["buttonOpacity"])) as { buttonOpacity?: number };
+  if (typeof stored.buttonOpacity === "number" && stored.buttonOpacity !== 1) {
+    await chrome.storage.sync.set({ buttonOpacity: 1 });
   }
 }
 
@@ -753,6 +677,16 @@ async function ingestFiles(files: File[]) {
   renderFilesList();
 }
 
+/** "2h ago" / "3d ago" — coarse enough for a hover tooltip, not a clock. */
+function relativeAge(addedAt: number): string {
+  const mins = Math.max(0, Math.round((Date.now() - addedAt) / 60000));
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
+
 function renderFilesList() {
   while (filesList.firstChild) filesList.removeChild(filesList.firstChild);
   if (dataFiles.length === 0) {
@@ -761,29 +695,28 @@ function renderFilesList() {
   }
   filesEmpty.style.display = "none";
   for (const f of dataFiles) {
-    const row = document.createElement("div");
-    row.className = "row";
-    const name = document.createElement("span");
-    name.className = "name";
-    name.textContent = f.filename;
-    name.title = f.filename;
-    const size = document.createElement("span");
-    size.className = "size";
-    size.textContent = `${(f.size / 1024).toFixed(1)} kb`;
+    // Same .chip pill as the R package list (#preset-pkg-chips) — one
+    // pattern for "removable tag" instead of two. Size/added-at move from
+    // always-visible text to a hover tooltip to keep the pill compact.
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.title = `${(f.size / 1024).toFixed(1)} kb · added ${relativeAge(f.addedAt)}`;
+    const label = document.createElement("span");
+    label.className = "chip-label";
+    label.textContent = f.filename;
     const rm = document.createElement("button");
-    rm.className = "remove";
+    rm.className = "rm";
+    rm.type = "button";
     rm.textContent = "×";
-    rm.title = "remove";
     rm.setAttribute("aria-label", `remove ${f.filename}`);
     rm.addEventListener("click", async () => {
       dataFiles = dataFiles.filter((d) => d.filename !== f.filename);
       await saveFiles();
       renderFilesList();
     });
-    row.appendChild(name);
-    row.appendChild(size);
-    row.appendChild(rm);
-    filesList.appendChild(row);
+    chip.appendChild(label);
+    chip.appendChild(rm);
+    filesList.appendChild(chip);
   }
 }
 
@@ -862,11 +795,17 @@ function renderPresetSelect(): void {
     opt.textContent = p.name || "(untitled preset)";
     presetSelectEl.appendChild(opt);
   }
-  // A stale reference (the active preset was deleted elsewhere) falls back to
-  // the UT option automatically: setting .value to an id with no matching
-  // <option> leaves the select showing its first entry, which IS UT_PRESET_ID.
-  presetSelectEl.value = presetsState.activePresetId;
-  presetDeleteBtn.style.display = presetsState.activePresetId === UT_PRESET_ID ? "none" : "";
+  // A stale reference (the active preset was deleted elsewhere) normalizes to
+  // UT_PRESET_ID so the select never displays blank and the delete button stays hidden.
+  const hasActivePreset =
+    presetsState.activePresetId === UT_PRESET_ID ||
+    presetsState.presets.some((p) => p.id === presetsState.activePresetId);
+  const effectiveActiveId = hasActivePreset ? presetsState.activePresetId : UT_PRESET_ID;
+  if (!hasActivePreset) {
+    presetsState = { ...presetsState, activePresetId: UT_PRESET_ID };
+  }
+  presetSelectEl.value = effectiveActiveId;
+  presetDeleteBtn.style.display = effectiveActiveId === UT_PRESET_ID ? "none" : "";
 }
 
 function renderActivePresetChips(): void {
@@ -1036,3 +975,121 @@ rcodeCopyBtn.addEventListener("click", () => {
     }, 1500);
   });
 });
+
+// =============================================================================
+// Dev mode — practice test session inspector
+// Only active when built with `pnpm build:dev` (STATSHELPR_DEV = true).
+// esbuild eliminates the entire block in production builds (STATSHELPR_DEV =
+// false at compile time → if(false) → tree-shaken). The HTML section is
+// hidden by default via CSS; we show it here only in dev builds.
+// =============================================================================
+
+if (STATSHELPR_DEV) {
+  // Reveal the dev panel (hidden by default in popup.html so it's invisible
+  // even if somehow loaded in a production context).
+  const devDetailsEl = document.getElementById("dev-details") as HTMLDetailsElement | null;
+  if (devDetailsEl) devDetailsEl.style.display = "";
+
+  const devToggle = document.getElementById("dev-mode-toggle") as HTMLInputElement | null;
+  const devBadge = document.getElementById("dev-badge") as HTMLSpanElement | null;
+  const devLogEl = document.getElementById("dev-session-log") as HTMLDivElement | null;
+  const devEmptyEl = document.getElementById("dev-empty") as HTMLDivElement | null;
+  const devExportBtn = document.getElementById("dev-export-btn") as HTMLButtonElement | null;
+  const devClearBtn = document.getElementById("dev-clear-btn") as HTMLButtonElement | null;
+
+  function renderDevEntry(entry: DevEntry): HTMLDivElement {
+    const isErr = Boolean(entry.error);
+    const el = document.createElement("div");
+    el.className = "dev-entry" + (isErr ? " dev-err" : "");
+
+    const modeIcon = isErr ? "❌" : entry.mode === "calc" ? "📊" : "💡";
+    const stem = entry.questionText.slice(0, 60).replace(/\n/g, " ");
+    const confClass = entry.lowConfidence ? " low" : "";
+    const confLabel = entry.confidence ? `<span class="dev-entry-conf${confClass}">${entry.confidence}</span>` : "";
+
+    const timeStr = new Date(entry.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+    const answerLine = isErr
+      ? `<div class="dev-entry-answer">Error: ${entry.error?.slice(0, 120) ?? "unknown"}</div>`
+      : `<div class="dev-entry-answer">${entry.answer.slice(0, 120)}${confLabel}</div>`;
+
+    const rcodeLine = entry.rCode
+      ? `<pre class="dev-entry-rcode">${entry.rCode.slice(0, 600)}</pre>`
+      : "";
+
+    el.innerHTML = [
+      `<div class="dev-entry-head">`,
+      `  <span class="dev-entry-mode">${modeIcon}</span>`,
+      `  <span class="dev-entry-stem" title="${stem}">${stem}…</span>`,
+      `  <span class="dev-entry-ms">${entry.latencyMs}ms &middot; ${timeStr}</span>`,
+      `</div>`,
+      answerLine,
+      rcodeLine,
+    ].join("");
+
+    return el;
+  }
+
+  async function refreshDevLog(): Promise<void> {
+    if (!devLogEl || !devEmptyEl || !devExportBtn || !devClearBtn) return;
+    const { getDevLog } = await import("./dev-logger");
+    const log = await getDevLog();
+    devLogEl.innerHTML = "";
+    if (log.length === 0) {
+      devEmptyEl.style.display = "";
+      devExportBtn.disabled = true;
+      devClearBtn.disabled = true;
+    } else {
+      devEmptyEl.style.display = "none";
+      log.forEach((entry) => devLogEl.appendChild(renderDevEntry(entry)));
+      devExportBtn.disabled = false;
+      devClearBtn.disabled = false;
+    }
+  }
+
+  async function syncDevToggle(): Promise<void> {
+    if (!devToggle || !devBadge) return;
+    const { isDevModeActive } = await import("./dev-logger");
+    const active = await isDevModeActive();
+    devToggle.checked = active;
+    devBadge.textContent = active ? "on" : "off";
+    devBadge.classList.toggle("active", active);
+  }
+
+  void syncDevToggle();
+  void refreshDevLog();
+
+  if (devToggle) {
+    devToggle.addEventListener("change", async () => {
+      const { toggleDevMode } = await import("./dev-logger");
+      const next = await toggleDevMode();
+      if (devBadge) {
+        devBadge.textContent = next ? "on" : "off";
+        devBadge.classList.toggle("active", next);
+      }
+      await refreshDevLog();
+    });
+  }
+
+  if (devExportBtn) {
+    devExportBtn.addEventListener("click", async () => {
+      const { getDevLog, exportDevLog } = await import("./dev-logger");
+      const log = await getDevLog();
+      exportDevLog(log);
+    });
+  }
+
+  if (devClearBtn) {
+    devClearBtn.addEventListener("click", async () => {
+      const { clearDevLog } = await import("./dev-logger");
+      await clearDevLog();
+      await refreshDevLog();
+    });
+  }
+
+  if (devDetailsEl) {
+    devDetailsEl.addEventListener("toggle", () => {
+      if (devDetailsEl.open) void refreshDevLog();
+    });
+  }
+}

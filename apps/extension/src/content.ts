@@ -559,15 +559,15 @@ async function onSolve(question: HTMLElement, btn: HTMLButtonElement) {
     throw e;
   }
 
-  if (writeCount === 0) {
-    // Nothing in the page could be auto-selected/filled (e.g. no scrapable
-    // inputs, or every matcher missed) — don't claim success. Surface the
-    // answer itself via the tooltip so the student can still apply it by hand.
-    setBtnState(btn, "nowrite", `Couldn't auto-select — answer: ${cleaned.slice(0, 200)}`);
-  } else {
-    // No success flash — the selected answer choice is feedback enough.
-    setBtnState(btn, "default");
-  }
+  // Nothing in the page could be auto-selected/filled (e.g. no scrapable
+  // inputs, or every matcher missed) — the button reverts to its normal idle
+  // look either way. Discreetness comes first: a distinct on-screen state for
+  // a miss (an amber "?" + a tooltip revealing the answer) is itself a tell,
+  // and this tool's whole job is for that miss to never need to be visible in
+  // the first place. writeCount is still reported below via the telemetry
+  // beacon (no page content, just the outcome) so misses stay trackable for
+  // driving the underlying cause down, without ever surfacing to the student.
+  setBtnState(btn, "default");
 
   // The server answered a calc question without the dataset it referenced
   // (reasoned, not computed). Tell the student so a data-less answer isn't
@@ -823,10 +823,10 @@ async function consumeSseResult(res: Response, poke: () => void): Promise<SolveR
   return result;
 }
 
-type BtnState = "default" | "loading" | "error" | "nowrite";
+type BtnState = "default" | "loading" | "error";
 
 function setBtnState(btn: HTMLButtonElement, state: BtnState, msg?: string) {
-  btn.classList.remove("loading", "error", "nowrite");
+  btn.classList.remove("loading", "error");
   btn.removeAttribute("title");
 
   switch (state) {
@@ -840,16 +840,16 @@ function setBtnState(btn: HTMLButtonElement, state: BtnState, msg?: string) {
       btn.classList.add("error");
       btn.disabled = false;
       btn.textContent = "!";
-      btn.setAttribute("title", msg ?? "");
-      return;
-    case "nowrite":
-      // Answer came back but nothing in the page could be auto-written —
-      // stays put (no auto-revert) so the student has time to read the
-      // answer off the tooltip instead of it vanishing like "success" does.
-      btn.classList.add("nowrite");
-      btn.disabled = false;
-      btn.textContent = "?";
-      btn.setAttribute("title", msg ?? "");
+      // CSS opacity:0 hides the fill/border/text, but does NOT stop the
+      // element from being hit-tested — the browser's native title-attribute
+      // tooltip still fires on hover even though nothing is visibly rendered
+      // (verified: document.elementFromPoint returns the button at opacity
+      // 0). At full discreet-mode dim, suppress the tooltip text itself so a
+      // stray hover can't surface real content ("The required dataset is
+      // missing.") from an invisible element — cursor: pointer still gives
+      // the only (silent, textless) hover affordance the button relies on to
+      // be findable at low opacity.
+      btn.setAttribute("title", isButtonFullyDimmed() ? "" : (msg ?? ""));
       return;
     default:
       btn.disabled = false;
@@ -908,6 +908,22 @@ function applyButtonOpacity(dial: number): void {
   const opacity = Math.pow(clamped, DIM_GAMMA).toFixed(4);
   document.documentElement.style.setProperty("--sh-text-opacity", opacity);
   document.documentElement.style.setProperty("--sh-outline-opacity", opacity);
+}
+
+/** Whether the button is currently rendering at zero visible opacity — reads
+ * the SAME CSS variable applyButtonOpacity() writes, rather than tracking a
+ * second copy of the dial value, so this can never drift out of sync with
+ * what's actually on screen. `.toFixed(4)` means this is true not just at a
+ * literal dial=0 but for any dial low enough that DIM_GAMMA rounds it to
+ * "0.0000" (roughly dial < 3-4%) — exactly matching the threshold below
+ * which nothing is visibly rendered, which is the property that actually
+ * matters here. Empty string (not yet applied — a brief window during
+ * content-script init) is treated as "not dimmed" so an error can't lose its
+ * message before the stored opacity has loaded. */
+function isButtonFullyDimmed(): boolean {
+  const raw = document.documentElement.style.getPropertyValue("--sh-outline-opacity");
+  if (raw === "") return false;
+  return parseFloat(raw) === 0;
 }
 
 async function getConfig(): Promise<{ apiUrl?: string; licenseKey?: string; telemetryDisabled?: boolean }> {

@@ -10,7 +10,7 @@
  * consumer of this module today.
  */
 
-import { dedupeDoubled } from "@statshelpr/solver-core/core/text";
+import { dedupeDoubled, normalizeText } from "@statshelpr/solver-core/core/text";
 
 export interface ImageBlock {
   data: string;
@@ -30,6 +30,9 @@ const SELECTORS_STEM = [
   "[data-testid='question-stem']",
   ".question-text-container",
   ".stem",
+  "[data-automation-id='question-stem']",
+  "[data-testid='item-stem']",
+  "[data-testid='question-prompt']",
 ];
 
 const CHOICE_INPUT_SELECTOR = 'input[type="radio"], input[type="checkbox"]';
@@ -86,8 +89,9 @@ export async function scrapeQuestion(question: HTMLElement): Promise<ScrapedQues
  * the DOM shifted in between (a choice row inserted/reordered/removed), a
  * label like "B" can silently resolve to a DIFFERENT physical choice than the
  * one the server actually saw and answered. When `originalChoices` is
- * supplied, each backend label is verified against it first — see
- * isLabelStillTrustworthy() — before being acted on. */
+ * supplied, each backend label is resolved back to the original choice text
+ * before being acted on; an ambiguous/stale mapping is rejected instead of
+ * guessed. */
 export function selectAnswerChoice(
   question: HTMLElement,
   answer: string,
@@ -102,13 +106,17 @@ export function selectAnswerChoice(
     return fillTextInput(choices[0].input as HTMLInputElement, answer);
   }
 
-  const selectedByBackend = selectedLabels
-    .map((label) => choices.find((c) => c.label.toUpperCase() === label.toUpperCase()))
-    .filter((c): c is AnswerChoice => Boolean(c))
-    .filter((c) => isLabelStillTrustworthy(c, originalChoices));
-  if (selectedByBackend.length > 0) {
+  if (selectedLabels.length > 0) {
+    const selectedByBackend = selectedLabels.map((label) =>
+      resolveBackendChoice(choices, label, originalChoices),
+    );
+    // Never fall back to parsing the stale answer string after a backend
+    // label failed its baseline check. That fallback is exactly how a DOM
+    // reorder could turn "Answer: C" into a click on the wrong current C.
+    if (selectedByBackend.some((c): c is null => c === null)) return 0;
+
     let count = 0;
-    for (const c of selectedByBackend) count += applyChoice(c);
+    for (const c of selectedByBackend) count += applyChoice(c!);
     return count;
   }
 
@@ -135,36 +143,94 @@ export function selectAnswerChoice(
   return c ? applyChoice(c) : 0;
 }
 
-/** Whether it's still safe to act on `current` (a choice the RE-scrape just
- * resolved a backend label to) as what the backend actually meant. With no
- * baseline supplied, every label is trusted (today's default behavior,
- * unchanged). With a baseline, we look up the SAME label in it and compare
- * normalized text: if the original scrape never had that label at all, this
- * check has nothing to say about it — trust it. If it did, the label is only
- * still trustworthy when the two texts match; a mismatch means the DOM
- * shifted between scrape and write (a row inserted/reordered) and this label
- * now points at a different physical choice than the one the server saw —
- * the caller should fall through to the text-matching fallback instead. */
-function isLabelStillTrustworthy(
-  current: AnswerChoice,
+/** Verify that the physical controls currently selected in Canvas correspond
+ * to the labels the server returned from the original scrape. This is a
+ * second guard after the write: the page can re-render a controlled quiz
+ * control immediately after input/change events, so a returned action count
+ * alone is not proof that the answer stayed selected. */
+export function verifyAnswerSelection(
+  question: HTMLElement,
+  selectedLabels: string[],
   originalChoices?: Array<{ label: string; text: string }>,
 ): boolean {
-  if (!originalChoices) return true;
-  const original = originalChoices.find((o) => o.label.toUpperCase() === current.label.toUpperCase());
-  if (!original) return true;
-  return normalizeText(original.text) === normalizeText(current.text);
+  if (selectedLabels.length === 0) return true;
+  const choices = collectAnswerChoices(question);
+  if (choices.length === 0) return false;
+
+  return selectedLabels.every((label) => {
+    const choice = resolveBackendChoice(choices, label, originalChoices);
+    return choice !== null && isChoiceSelected(choice);
+  });
+}
+
+function isChoiceSelected(choice: AnswerChoice): boolean {
+  if (choice.kind === "dropdown-option") {
+    const sel = choice.input as HTMLSelectElement;
+    return (
+      (choice.optionValue !== undefined && sel.value === choice.optionValue) ||
+      (choice.optionIndex !== undefined && sel.selectedIndex === choice.optionIndex)
+    );
+  }
+  if (choice.kind === "text-fill") return Boolean((choice.input as HTMLInputElement).value);
+  return (choice.input as HTMLInputElement).checked;
+}
+
+/** Whether it's still safe to act on `current` (a choice the RE-scrape just
+ * resolved a backend label to) as what the backend actually meant. The
+ * original label is only a position in the scrape, so it is not safe to use
+ * after Canvas inserts/reorders a row while the solve is in flight. When a
+ * baseline is present, resolve by the original choice text and refuse the
+ * write if that text is missing or ambiguous. Refusing is deliberate: a
+ * stale label must never be allowed to select a different physical answer.
+ * With no baseline supplied, every label is trusted for backwards
+ * compatibility with callers that do not have a pre-flight scrape. */
+function resolveBackendChoice(
+  choices: AnswerChoice[],
+  label: string,
+  originalChoices?: Array<{ label: string; text: string }>,
+): AnswerChoice | null {
+  const currentByLabel = choices.find((c) => c.label.toUpperCase() === label.toUpperCase());
+  if (!originalChoices) return currentByLabel ?? null;
+
+  const original = originalChoices.find((o) => o.label.toUpperCase() === label.toUpperCase());
+  // An unknown backend label is still allowed to use the current DOM label;
+  // this preserves the old behavior for callers whose baseline is partial.
+  if (!original) return currentByLabel ?? null;
+
+  const originalText = normalizeText(original.text);
+  if (currentByLabel && normalizeText(currentByLabel.text) === originalText) return currentByLabel;
+
+  // The DOM moved. Find the original physical choice by its stable text,
+  // not by its newly assigned A/B/C position. Require exactly one match so a
+  // duplicated option cannot silently select an arbitrary row.
+  const textMatches = choices.filter((c) => normalizeText(c.text) === originalText);
+  return textMatches.length === 1 ? textMatches[0]! : null;
 }
 
 function pickByLetterOrText(answer: string, pool: AnswerChoice[]): AnswerChoice | null {
-  const letterMatch = answer.match(/^\s*(?:Answer\s*:?\s*)?\(?([A-Za-z]|\d{1,2})\)?[\s.,)]?/);
-  if (letterMatch && letterMatch[1]) {
-    const tok = letterMatch[1].toUpperCase();
-    let idx = -1;
-    if (/^[A-Z]$/.test(tok)) idx = tok.charCodeAt(0) - 65;
-    else if (/^\d+$/.test(tok)) idx = parseInt(tok, 10) - 1;
-    if (idx >= 0 && idx < pool.length) return pool[idx] ?? null;
+  const answerNormalized = normalizeText(answer);
+  const byLabel = new Map(pool.map((c) => [c.label.toUpperCase(), c]));
+  const labels = [...pool]
+    .map((choice) => choice.label)
+    .sort((a, b) => b.length - a.length)
+    .map(escapeRegExp)
+    .join("|");
+  if (labels) {
+    const labelMatch = answerNormalized.match(
+      new RegExp(`^\\s*(?:Answer|Final answer)?\\s*:?\\s*\\(?(${labels}|\\d{1,2})\\)?[\\s.,)]`, "i"),
+    );
+    if (labelMatch && labelMatch[1]) {
+      const tok = labelMatch[1].toUpperCase();
+      const direct = byLabel.get(tok);
+      if (direct) return direct;
+      if (/^\d+$/.test(tok)) {
+        const idx = parseInt(tok, 10) - 1;
+        if (idx >= 0 && idx < pool.length) return pool[idx] ?? null;
+      }
+    }
   }
-  const answerLower = answer.toLowerCase();
+
+  const answerLower = answerNormalized.toLowerCase();
   let best: AnswerChoice | null = null;
   let bestScore = 0;
   for (const c of pool) {
@@ -198,21 +264,33 @@ function selectDropdownOption(choice: AnswerChoice): number {
 
 /** Set a <select> to an option (by value, falling back to index) using the
  * React-aware native setter so New Quizzes / Canvas reacts to the change, and
- * mark it suggested. On a disabled/read-only select we only mark it. Always
- * returns 1 — a select is either set or marked, never a no-op. */
+ * mark it suggested. On a disabled/read-only select we only mark it. Returns
+ * 1 only when the selected value/index actually stuck (or the disabled
+ * control was intentionally marked). */
 function setSelectValue(sel: HTMLSelectElement, value?: string, index?: number): number {
   if (sel.disabled) {
     sel.classList.add("statshelpr-suggested");
     return 1;
   }
-  const proto = Object.getPrototypeOf(sel);
+  const proto = (typeof window !== "undefined" && window.HTMLSelectElement?.prototype) || Object.getPrototypeOf(sel);
   const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
-  if (setter && value !== undefined) setter.call(sel, value);
-  else if (index !== undefined) sel.selectedIndex = index;
+  let applied = false;
+  if (value !== undefined) {
+    if (setter) setter.call(sel, value);
+    else sel.value = value;
+    applied = sel.value === value;
+  }
+  // Some Canvas controls expose a transient/rewritten option value. If the
+  // value setter did not stick, the scraped option index is the safe fallback
+  // because it was captured from this exact select element.
+  if (!applied && index !== undefined) {
+    sel.selectedIndex = index;
+    applied = sel.selectedIndex === index;
+  }
   sel.dispatchEvent(new Event("input", { bubbles: true }));
   sel.dispatchEvent(new Event("change", { bubbles: true }));
   sel.classList.add("statshelpr-suggested");
-  return 1;
+  return applied ? 1 : 0;
 }
 
 function fillTextInput(input: HTMLInputElement, answer: string): number {
@@ -254,7 +332,10 @@ function isNumericalTarget(input: HTMLInputElement, rawValue: string): boolean {
  * symbol itself. Returns "" if nothing is left to write. */
 function sanitizeNumericValue(value: string, opts: { forceStripCommas?: boolean } = {}): string {
   const hasCurrencyOrPercent = /[$%]/.test(value);
-  let cleaned = value.replace(/[$%]/g, "").replace(/\s+/g, "");
+  let cleaned = value
+    .replace(/[\u2212\u2013\u2014\u2015\uFE63\uFF0D]/g, "-")
+    .replace(/[$%]/g, "")
+    .replace(/\s+/g, "");
   if (hasCurrencyOrPercent || opts.forceStripCommas) cleaned = cleaned.replace(/,/g, "");
   return cleaned;
 }
@@ -262,8 +343,9 @@ function sanitizeNumericValue(value: string, opts: { forceStripCommas?: boolean 
 /** Set a text/number input's value via the React-aware native setter (so New
  * Quizzes / Canvas reacts to the change), fire input+change, and mark
  * suggested — mirrors setSelectValue()'s contract exactly. On a
- * disabled/read-only input we only mark it. Always returns 1 — an input is
- * either set or marked, never a no-op. Shared by fillTextInput (single
+ * disabled/read-only input we only mark it. Returns 1 only when the value
+ * actually stuck (or the disabled control was intentionally marked). Shared
+ * by fillTextInput (single
  * text-fill, which does its own "Answer: X"-prefix extraction/cleanup above)
  * and writeBlanks's input-backed blank path (whose value arrives already
  * cleaned from solver-core's deriveBlankAnswers, so no re-extraction needed). */
@@ -272,14 +354,14 @@ function setTextInputValue(input: HTMLInputElement, value: string): number {
     input.classList.add("statshelpr-suggested");
     return 1;
   }
-  const proto = Object.getPrototypeOf(input);
+  const proto = (typeof window !== "undefined" && window.HTMLInputElement?.prototype) || Object.getPrototypeOf(input);
   const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
   if (setter) setter.call(input, value);
   else input.value = value;
   input.dispatchEvent(new Event("input", { bubbles: true }));
   input.dispatchEvent(new Event("change", { bubbles: true }));
   input.classList.add("statshelpr-suggested");
-  return 1;
+  return input.value === value ? 1 : 0;
 }
 
 export interface AnswerChoice {
@@ -598,7 +680,7 @@ export function writeBlanks(question: HTMLElement, answers: BlankAnswer[]): numb
 function matchBlankOption(answer: string, options: BlankOption[]): BlankOption | null {
   const a = normalizeText(answer).toLowerCase();
   if (!a) return null;
-  for (const o of options) if (o.text.toLowerCase() === a) return o;
+  for (const o of options) if (normalizeText(o.text).toLowerCase() === a) return o;
 
   let best: BlankOption | null = null;
   let bestTier = -1;
@@ -638,25 +720,35 @@ function findSelectedChoices(
   const byLabel = new Map(choices.map((c) => [c.label.toUpperCase(), c]));
   const selected = new Map<HTMLInputElement | HTMLSelectElement, AnswerChoice>();
 
+  const answerNormalized = answer.replace(/[\u2212\u2013\u2014\u2015\uFE63\uFF0D]/g, "-");
   const answerLine =
-    answer.match(/^\s*Answer\s*:?\s*(.+)$/im)?.[1] ??
-    answer.match(/correct(?:\s+interpretation)?(?:\(s\))?\s*:?\s*(.+)$/im)?.[1] ??
-    answer;
+    answerNormalized.match(/^\s*Answer\s*:?\s*(.+)$/im)?.[1] ??
+    answerNormalized.match(/correct(?:\s+interpretation)?(?:\(s\))?\s*:?\s*(.+)$/im)?.[1] ??
+    answerNormalized;
 
-  for (const m of answerLine.matchAll(/\b([A-Z])\b/g)) {
-    const letter = m[1];
-    if (!letter) continue;
-    const c = byLabel.get(letter.toUpperCase());
-    if (c) {
-      selected.set(c.input, c);
-      if (!allowMultiple) return [c];
+  const labels = [...choices]
+    .map((choice) => choice.label)
+    .sort((a, b) => b.length - a.length)
+    .map(escapeRegExp)
+    .join("|");
+  if (labels) {
+    const labelRe = new RegExp(`(?:^|[^A-Za-z0-9])(${labels})(?=$|[^A-Za-z0-9])`, "gi");
+    for (const match of answerLine.matchAll(labelRe)) {
+      const label = match[1]?.toUpperCase();
+      if (!label) continue;
+      const c = byLabel.get(label);
+      if (c) {
+        selected.set(c.input, c);
+        if (!allowMultiple) return [c];
+      }
     }
   }
 
-  const answerLower = answer.toLowerCase();
-  for (const c of choices) {
+  const answerLineLower = normalizeText(answerLine).toLowerCase();
+  const sortedChoices = [...choices].sort((a, b) => b.text.length - a.text.length);
+  for (const c of sortedChoices) {
     const choiceLower = c.text.toLowerCase();
-    if (choiceLower.length >= 12 && answerLower.includes(choiceLower)) {
+    if (choiceLower.length >= 12 && answerLineLower.includes(choiceLower)) {
       selected.set(c.input, c);
     }
   }
@@ -667,28 +759,29 @@ function findSelectedChoices(
 function getChoiceText(input: HTMLInputElement): string {
   if (input.id) {
     const label = document.querySelector(`label[for="${cssEscape(input.id)}"]`);
-    if (label) return dedupeDoubled(textWithImageAlts(label as HTMLElement));
+    if (label) return dedupeDoubled(cleanText(label as HTMLElement));
   }
   const row = getChoiceRow(input);
   if (row) {
     const at = row.querySelector(".answer_text, .answer_html");
-    const atText = at ? textWithImageAlts(at as HTMLElement) : "";
+    const atText = at ? cleanText(at as HTMLElement) : "";
     if (atText.trim()) return dedupeDoubled(atText);
-    return dedupeDoubled(textWithImageAlts(row));
+    return dedupeDoubled(cleanText(row));
   }
   return "";
 }
 
-/** Whether `input`'s choice row (or its `label[for]`) contains an `<img>` at
- * all — used to tell an equation-image-only choice (worth a placeholder
- * instead of being dropped) apart from a genuinely empty non-image row. */
+/** Whether `input`'s choice row (or its `label[for]`) contains an `<img>` or
+ * canvas / equation element — used to tell an equation-image-only choice
+ * (worth a placeholder instead of being dropped) apart from a genuinely empty
+ * non-image row. */
 function choiceHasImage(input: HTMLInputElement): boolean {
   if (input.id) {
     const label = document.querySelector(`label[for="${cssEscape(input.id)}"]`);
-    if (label?.querySelector("img")) return true;
+    if (label?.querySelector("img, canvas, .equation_image, .katex, .MathJax, mjx-container, math")) return true;
   }
   const row = getChoiceRow(input);
-  return Boolean(row?.querySelector("img"));
+  return Boolean(row?.querySelector("img, canvas, .equation_image, .katex, .MathJax, mjx-container, math"));
 }
 
 function getChoiceRow(input: HTMLInputElement): HTMLElement | null {
@@ -711,34 +804,90 @@ function selectChoice(input: HTMLInputElement): number {
   if (!input.checked) {
     // Some React-based UIs (New Quizzes) don't react to .click() — set the
     // checked property via the native descriptor + dispatch input/change.
-    const proto = Object.getPrototypeOf(input);
+    const proto = (typeof window !== "undefined" && window.HTMLInputElement?.prototype) || Object.getPrototypeOf(input);
     const setter = Object.getOwnPropertyDescriptor(proto, "checked")?.set;
-    setter?.call(input, true);
+    if (setter) setter.call(input, true);
+    else input.checked = true;
     input.dispatchEvent(new Event("input", { bubbles: true }));
     input.dispatchEvent(new Event("change", { bubbles: true }));
   }
   row?.classList.add("statshelpr-suggested");
-  return 1;
+  // A DOM action is not a successful write unless Canvas actually reports the
+  // target as checked. This keeps telemetry honest and prevents a later caller
+  // from treating a no-op click as a completed answer.
+  return input.checked ? 1 : 0;
 }
 
 function choiceLabel(index: number): string {
-  return String.fromCharCode(65 + index);
-}
-
-function normalizeText(text: string): string {
-  return text.replace(/\s+/g, " ").trim();
+  let label = "";
+  let n = index;
+  while (n >= 0) {
+    label = String.fromCharCode(65 + (n % 26)) + label;
+    n = Math.floor(n / 26) - 1;
+  }
+  return label;
 }
 
 /** Element text with Canvas's screen-reader helper spans ("Links to an
  * external site.") and script/style removed, so they don't leak into the
- * prompt. Operates on a detached clone — never mutates the page. Every
- * `<img>` is replaced by its `alt` text first (see textWithImageAlts) so an
- * equation-image-only stem/choice/label still yields visible text. */
+ * prompt. Operates on a detached clone — never mutates the page. Extracts
+ * MathJax/KaTeX formulas, injects whitespace around block/table elements, and
+ * replaces every `<img>` with its `alt` text. */
 function cleanText(el: HTMLElement): string {
   const clone = el.cloneNode(true) as HTMLElement;
+  extractMathFormulas(clone);
   clone.querySelectorAll("script, style, .screenreader-only").forEach((n) => n.remove());
+  clone.querySelectorAll("td, th, tr, p, div, li, br, hr, h1, h2, h3, h4, h5, h6, dd, dt, blockquote, pre, caption").forEach((n) => {
+    n.insertAdjacentText("afterend", " ");
+  });
   replaceImagesWithAltText(clone);
   return normalizeText(clone.textContent ?? "");
+}
+
+/** Mutates `root` (expected to already be a detached clone) in place,
+ * extracting math formula containers into plaintext LaTeX representations. */
+function extractMathFormulas(root: HTMLElement): void {
+  // 1. MathJax script tags: <script type="math/tex">
+  root.querySelectorAll<HTMLScriptElement>('script[type^="math/tex"]').forEach((s) => {
+    const tex = s.textContent?.trim() ?? "";
+    if (tex) {
+      s.replaceWith(document.createTextNode(` ${tex} `));
+    }
+  });
+
+  // 2. KaTeX formulas: <span class="katex">
+  root.querySelectorAll<HTMLElement>(".katex").forEach((katex) => {
+    const annotation = katex.querySelector("annotation[encoding*='tex'], annotation");
+    const tex = annotation?.textContent?.trim();
+    if (tex) {
+      katex.replaceWith(document.createTextNode(` ${tex} `));
+    } else {
+      katex.querySelectorAll(".katex-html[aria-hidden='true']").forEach((n) => n.remove());
+    }
+  });
+
+  // 3. MathJax v3 containers: <mjx-container> or .MathJax
+  root.querySelectorAll<HTMLElement>("mjx-container, .MathJax").forEach((mjx) => {
+    const annotation = mjx.querySelector("annotation[encoding*='tex'], annotation");
+    const tex = annotation?.textContent?.trim();
+    if (tex) {
+      mjx.replaceWith(document.createTextNode(` ${tex} `));
+    } else {
+      const aria = mjx.getAttribute("aria-label")?.trim();
+      if (aria) {
+        mjx.replaceWith(document.createTextNode(` ${aria} `));
+      }
+    }
+  });
+
+  // 4. Standalone MathML <math> elements
+  root.querySelectorAll<HTMLElement>("math").forEach((math) => {
+    const annotation = math.querySelector("annotation[encoding*='tex'], annotation");
+    const tex = annotation?.textContent?.trim();
+    if (tex) {
+      math.replaceWith(document.createTextNode(` ${tex} `));
+    }
+  });
 }
 
 /** `el`'s text with every `<img>` replaced by a text node of its `alt`
@@ -748,16 +897,19 @@ function cleanText(el: HTMLElement): string {
  * equation image would otherwise scrape as empty text and get dropped from
  * the letter list. Operates on a detached clone — never mutates the page. */
 function textWithImageAlts(el: HTMLElement): string {
-  const clone = el.cloneNode(true) as HTMLElement;
-  replaceImagesWithAltText(clone);
-  return clone.textContent ?? "";
+  return cleanText(el);
 }
 
 /** Mutates `root` (expected to already be a detached clone) in place,
  * replacing each descendant `<img>` with a text node of its `alt`. */
 function replaceImagesWithAltText(root: HTMLElement): void {
   root.querySelectorAll("img").forEach((img) => {
-    const alt = img.getAttribute("alt") ?? "";
+    let alt =
+      img.getAttribute("alt") ??
+      img.getAttribute("data-equation-content") ??
+      img.getAttribute("data-latex") ??
+      "";
+    alt = alt.replace(/^LaTeX:\s*/i, "").trim();
     img.replaceWith(document.createTextNode(alt ? ` ${alt} ` : ""));
   });
 }
@@ -772,8 +924,8 @@ function cssEscape(s: string): string {
  * content.ts to decide whether a candidate container is a real question. */
 export function findStem(question: HTMLElement): HTMLElement | null {
   for (const sel of SELECTORS_STEM) {
-    const el = question.querySelector<HTMLElement>(sel);
-    if (el && (el.innerText || el.textContent)?.trim()) return el;
+    const el = question.matches(sel) ? question : question.querySelector<HTMLElement>(sel);
+    if (el && (cleanText(el).trim() || el.querySelector("img, canvas, .equation_image, .katex, .MathJax, mjx-container, math"))) return el;
   }
   return null;
 }

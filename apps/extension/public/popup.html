@@ -1,7 +1,5 @@
 <!DOCTYPE html>
-<!-- data-theme is set here, not by script, so the first paint is already dark;
-     popup.ts re-stamps it only if the user has stored a light preference. -->
-<html data-theme="dark">
+<html>
   <head>
     <meta charset="utf-8" />
     <title>statshelpr</title>
@@ -11,60 +9,8 @@
          CSP: no external fonts/scripts). System stacks echo the landing
          page: serif wordmark, humanist UI, mono for data.
          ================================================================== */
+      /* Dark-only palette — statshelpr popup has no light theme. */
       :root {
-        /* Canvas sits a step BELOW the cards so white surfaces read as raised;
-           #FAF9F5 against #FFF was too close to separate. */
-        --paper: #EFEDE4;
-        --card: #FFFFFF;
-        --ink: #1D1C17;
-        --ink-2: #4E4C43;
-        /* was #8D8A7E — 3.3:1 on the canvas, under AA for 10–11px labels */
-        --ink-3: #6E6B5F;
-        --line: rgba(29, 28, 23, 0.18);
-        --line-soft: rgba(29, 28, 23, 0.1);
-        --blue: #2742C8;
-        --blue-deep: #1C31A2;
-        --blue-tint: rgba(39, 66, 200, 0.08);
-        --blue-ring: rgba(39, 66, 200, 0.16);
-        --ok: #0B7A4B;
-        --ok-tint: rgba(11, 122, 75, 0.09);
-        --warn: #8A6410;
-        --warn-tint: rgba(176, 128, 26, 0.12);
-        --err: #C24029;
-        --err-tint: rgba(194, 64, 41, 0.09);
-        --btn-text: #FFFFFF;
-        --shadow: 0 1px 2px rgba(29, 28, 23, 0.07), 0 6px 20px rgba(29, 28, 23, 0.09);
-        --font-serif: 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
-        --font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
-        --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', Consolas, monospace;
-        --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-      }
-      /* The two palettes below are keyed on data-theme only — <html> always
-         carries it (dark in the markup, re-stamped by popup.ts's applyTheme()
-         when the user has chosen light), so there's no OS media query to lose
-         a specificity fight with. */
-      :root[data-theme="light"] {
-        --paper: #EFEDE4;
-        --card: #FFFFFF;
-        --ink: #1D1C17;
-        --ink-2: #4E4C43;
-        --ink-3: #6E6B5F;
-        --line: rgba(29, 28, 23, 0.18);
-        --line-soft: rgba(29, 28, 23, 0.1);
-        --blue: #2742C8;
-        --blue-deep: #1C31A2;
-        --blue-tint: rgba(39, 66, 200, 0.08);
-        --blue-ring: rgba(39, 66, 200, 0.16);
-        --ok: #0B7A4B;
-        --ok-tint: rgba(11, 122, 75, 0.09);
-        --warn: #8A6410;
-        --warn-tint: rgba(176, 128, 26, 0.12);
-        --err: #C24029;
-        --err-tint: rgba(194, 64, 41, 0.09);
-        --btn-text: #FFFFFF;
-        --shadow: 0 1px 2px rgba(29, 28, 23, 0.07), 0 6px 20px rgba(29, 28, 23, 0.09);
-      }
-      :root[data-theme="dark"] {
         --paper: #161614;
         --card: #1E1E1B;
         --ink: #EAE8DF;
@@ -84,13 +30,31 @@
         --err-tint: rgba(229, 136, 115, 0.1);
         --btn-text: #12122B;
         --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.25);
+        --font-serif: 'Iowan Old Style', 'Palatino Linotype', Georgia, serif;
+        --font-ui: system-ui, -apple-system, 'Segoe UI', sans-serif;
+        --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', Consolas, monospace;
+        --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
       }
       * { box-sizing: border-box; margin: 0; padding: 0; }
+      /* Chrome action popups size from the document root. Constraining only
+         body lets a previously wider popup viewport remain alive beside the
+         372px layout, which appears as a large empty dark rectangle. Keep
+         the root and its content at one deterministic width in both dev and
+         production builds. */
+      html {
+        width: 372px;
+        min-width: 372px;
+        max-width: 372px;
+        overflow-x: hidden;
+        background: var(--paper);
+      }
       body {
         font-family: var(--font-ui);
         background: var(--paper);
         color: var(--ink);
-        width: 372px;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
         font-size: 13px;
         line-height: 1.5;
         -webkit-font-smoothing: antialiased;
@@ -129,18 +93,6 @@
       .dot.err { color: var(--err); border-color: transparent; background: var(--err-tint); }
       .dot.err::before { background: var(--err); }
       .header-right { display: flex; align-items: center; gap: 6px; }
-      .theme-toggle {
-        display: inline-flex; align-items: center; justify-content: center;
-        width: 22px; height: 22px; flex: none;
-        border-radius: 999px;
-        border: 1px solid var(--line-soft);
-        background: var(--card);
-        color: var(--ink-3);
-        font-size: 11px; line-height: 1;
-        padding: 0;
-        transition: color 0.15s, border-color 0.15s;
-      }
-      .theme-toggle:hover { color: var(--blue); border-color: var(--blue-ring); }
 
       /* ---------------------------------------------------- plan card */
       .plan-card {
@@ -327,34 +279,15 @@
         color: var(--ink-3);
         font-family: var(--font-mono);
       }
-      .files-list { margin-top: 8px; font-size: 11.5px; }
-      .files-list .row {
-        display: flex; align-items: center; gap: 8px;
-        padding: 5px 2px;
-        border-bottom: 1px solid var(--line-soft);
-        animation: rowIn 0.3s var(--ease-out);
-      }
-      @keyframes rowIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
-      .files-list .row:last-child { border-bottom: none; }
-      .files-list .name {
-        flex: 1; min-width: 0;
+      /* Files render as .chip pills (defined below, shared with the R
+         package list) instead of one row per file — #files-list just adds
+         the top gap under the dropzone and truncates long filenames, since
+         package names never needed that. */
+      #files-list { margin-top: 8px; }
+      #files-list .chip-label {
+        max-width: 168px;
         overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-        color: var(--ink); font-weight: 500;
       }
-      .files-list .size {
-        color: var(--ink-3);
-        font-size: 10px; font-family: var(--font-mono);
-        flex: none;
-      }
-      .files-list .remove {
-        background: none; border: none;
-        color: var(--ink-3);
-        font-size: 14px; line-height: 1;
-        padding: 1px 4px; border-radius: 5px;
-        width: auto; font-weight: 400;
-        transition: color 0.15s, background-color 0.15s;
-      }
-      .files-list .remove:hover { color: var(--err); background: var(--err-tint); }
       .files-empty {
         font-size: 11px;
         color: var(--ink-3);
@@ -380,6 +313,7 @@
         color: var(--ink);
         animation: rowIn 0.25s var(--ease-out);
       }
+      @keyframes rowIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
       .chip .rm {
         background: none; border: none;
         color: var(--ink-3);
@@ -413,7 +347,7 @@
          The select + "+ New preset" sit in one compact row — no full-width
          button dominating the card; "+ New preset"/"Delete preset" read as
          secondary text actions, matching .links a's weight below. */
-      .preset-select-row { display: flex; align-items: center; gap: 8px; }
+      .preset-select-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
       select#preset-select {
         flex: 1;
         min-width: 0;
@@ -529,6 +463,21 @@
       summary::after { content: ""; flex: 1; height: 1px; background: var(--line-soft); }
       summary:hover { color: var(--blue); }
       details > .settings-body { margin-top: 10px; }
+      /* Native <details> snaps the popup to its new height the instant it
+         opens — jarring in a small fixed-width popup, most noticeable on the
+         R section since it's the tallest one. Where the browser supports it
+         (Chrome 131+), animate the disclosure instead; everywhere else this
+         block is inert and the native instant toggle is unchanged, so it's
+         purely additive. */
+      @supports (interpolate-size: allow-keywords) {
+        details { interpolate-size: allow-keywords; }
+        details::details-content {
+          height: 0;
+          overflow: hidden;
+          transition: height 0.28s var(--ease-out), content-visibility 0.28s allow-discrete;
+        }
+        details[open]::details-content { height: auto; }
+      }
       .range-row {
         display: flex; justify-content: space-between; align-items: center;
         margin-bottom: 4px;
@@ -603,8 +552,125 @@
         font-size: 9.5px;
       }
 
+      /* ----------------------------------------------------- dev mode */
+      .dev-toggle-row {
+        display: flex; align-items: center; justify-content: space-between;
+        margin-bottom: 10px;
+      }
+      .dev-toggle-label {
+        font-size: 12px; font-weight: 600; color: var(--ink);
+        display: flex; align-items: center; gap: 7px;
+      }
+      .dev-badge {
+        display: inline-block;
+        padding: 1px 7px; border-radius: 999px;
+        background: var(--warn-tint); color: var(--warn);
+        font-size: 9.5px; font-weight: 700; letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      .dev-badge.active { background: var(--ok-tint); color: var(--ok); }
+      /* toggle switch */
+      .dev-switch {
+        position: relative; display: inline-block;
+        width: 34px; height: 20px; flex: none;
+      }
+      .dev-switch input { opacity: 0; width: 0; height: 0; }
+      .dev-slider {
+        position: absolute; inset: 0;
+        border-radius: 999px;
+        background: var(--line-soft);
+        border: 1px solid var(--line);
+        transition: background-color 0.2s, border-color 0.2s;
+      }
+      .dev-slider::before {
+        content: "";
+        position: absolute; left: 2px; top: 50%; transform: translateY(-50%);
+        width: 14px; height: 14px; border-radius: 50%;
+        background: var(--ink-3);
+        transition: transform 0.2s var(--ease-out), background-color 0.2s;
+      }
+      .dev-switch input:checked + .dev-slider { background: var(--ok); border-color: transparent; }
+      .dev-switch input:checked + .dev-slider::before {
+        transform: translate(14px, -50%);
+        background: #fff;
+      }
+      .dev-hint {
+        font-size: 10px; color: var(--ink-3); line-height: 1.5;
+        margin-bottom: 10px;
+      }
+      .dev-session-log {
+        display: flex; flex-direction: column; gap: 5px;
+        max-height: 240px; overflow-y: auto;
+      }
+      .dev-entry {
+        padding: 8px 10px;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        background: var(--card);
+        font-size: 11px;
+        cursor: default;
+      }
+      .dev-entry.dev-err {
+        border-color: var(--err-tint);
+        background: var(--err-tint);
+      }
+      .dev-entry-head {
+        display: flex; align-items: baseline; justify-content: space-between; gap: 6px;
+        font-weight: 600; margin-bottom: 3px;
+      }
+      .dev-entry-mode { flex: none; }
+      .dev-entry-stem {
+        flex: 1; min-width: 0;
+        overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        color: var(--ink-2);
+      }
+      .dev-entry-ms {
+        flex: none; font-family: var(--font-mono);
+        font-size: 9.5px; color: var(--ink-3);
+      }
+      .dev-entry-answer {
+        color: var(--ok); font-family: var(--font-mono); font-size: 10.5px;
+      }
+      .dev-entry.dev-err .dev-entry-answer { color: var(--err); }
+      .dev-entry-rcode {
+        margin-top: 5px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        background: var(--paper);
+        font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-2);
+        white-space: pre; overflow-x: auto;
+        max-height: 80px; overflow-y: auto;
+        border: 1px solid var(--line-soft);
+        display: none;
+      }
+      .dev-entry:hover .dev-entry-rcode { display: block; }
+      .dev-entry-conf {
+        display: inline-block;
+        margin-left: 5px;
+        padding: 0 5px; border-radius: 999px;
+        font-size: 9px; font-weight: 700;
+        background: var(--ok-tint); color: var(--ok);
+      }
+      .dev-entry-conf.low { background: var(--warn-tint); color: var(--warn); }
+      .dev-empty { font-size: 11px; color: var(--ink-3); text-align: center; padding: 14px 0; }
+      .dev-actions {
+        display: flex; gap: 7px; margin-top: 10px;
+      }
+      .dev-actions button {
+        flex: 1;
+        padding: 7px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--card);
+        color: var(--ink-2);
+        font-size: 11px; font-weight: 600;
+        transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+      }
+      .dev-actions button:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-tint); }
+      .dev-actions button:disabled { color: var(--ink-3); cursor: default; }
+
       @media (prefers-reduced-motion: reduce) {
-        *, *::before, *::after {
+        *, *::before, *::after, *::details-content {
           animation-duration: 0.01ms !important;
           transition-duration: 0.01ms !important;
         }
@@ -615,8 +681,6 @@
     <div class="header">
       <div class="logo">stats<em>helpr</em></div>
       <div class="header-right">
-        <button id="theme-toggle" class="theme-toggle" type="button"
-                aria-label="Switch to dark theme" title="Switch theme">&#9788;</button>
         <span id="status-dot" class="dot">checking…</span>
       </div>
     </div>
@@ -683,7 +747,7 @@
       multiple
       style="display: none"
     />
-    <div id="files-list" class="files-list"></div>
+    <div id="files-list" class="chip-list"></div>
     <div id="files-empty" class="files-empty" style="display: none">
       no data files yet
     </div>
@@ -760,6 +824,37 @@
          findable — docs/cws/privacy-form.md tells Google's reviewers the user
          can disable telemetry in the popup. #meta (diagnostics, usually
          display:none) rides along here rather than owning a header. -->
+    <!-- Dev mode: practice test session inspector. Hidden in production
+         (popup.ts renders the section only when the toggle is on). -->
+    <details id="dev-details" style="display:none">
+      <summary><span class="chev"></span>Dev Mode</summary>
+      <div class="settings-body">
+        <div class="dev-toggle-row">
+          <span class="dev-toggle-label">
+            Practice test logging
+            <span id="dev-badge" class="dev-badge">off</span>
+          </span>
+          <label class="dev-switch" aria-label="Toggle dev mode">
+            <input type="checkbox" id="dev-mode-toggle" />
+            <span class="dev-slider"></span>
+          </label>
+        </div>
+        <div class="dev-hint">
+          When on, every Solve captures the full question, choices, images, R code,
+          and model output — visible in DevTools console and exportable as JSON.
+          Turn off between sessions to stop capturing.
+        </div>
+
+        <div id="dev-session-log" class="dev-session-log"></div>
+        <div id="dev-empty" class="dev-empty" style="display:none">No solves captured yet — take a practice quiz.</div>
+
+        <div class="dev-actions">
+          <button id="dev-export-btn" type="button" disabled>Export session JSON</button>
+          <button id="dev-clear-btn" type="button" disabled>Clear log</button>
+        </div>
+      </div>
+    </details>
+
     <details id="privacy-details">
       <summary><span class="chev"></span>Privacy</summary>
       <div class="settings-body">
@@ -791,7 +886,7 @@
          href="https://app.lemonsqueezy.com/my-orders/login" target="_blank" rel="noopener">
         cancel subscription
       </a>
-      <span class="version" id="ext-version">v1.1.2</span>
+      <span class="version" id="ext-version">v1.1.5</span>
     </div>
     <script src="popup.js"></script>
   </body>

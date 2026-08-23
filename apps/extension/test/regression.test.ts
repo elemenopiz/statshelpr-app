@@ -9,6 +9,7 @@ import { deriveBlankAnswers, deriveSelectedChoices } from "@statshelpr/solver-co
 import {
   collectAnswerChoices,
   collectBlanks,
+  findStem,
   selectAnswerChoice,
   writeBlanks,
   type AnswerChoice,
@@ -16,7 +17,7 @@ import {
 } from "../src/canvas-dom";
 import { buildChoiceQuestion, buildMultipleDropdowns, buildTextFillQuestion } from "./fixtures/canvas-classic";
 import { captureById } from "./fixtures/captures";
-import { FALLBACK_PREFIX, toApiBlanks, toApiChoices } from "./helpers";
+import { toApiBlanks, toApiChoices } from "./helpers";
 
 describe("regression: answer-format parsing (deriveSelectedChoices)", () => {
   it("'Answer: A.' — trailing period after the letter doesn't break label extraction", () => {
@@ -239,7 +240,7 @@ describe("doubled equation text (dedupeDoubled normalization parity with extensi
 });
 
 describe("fixed: verify-before-click (DOM-shift guard)", () => {
-  it("a stale backend label, re-verified against the originally-scraped text, falls through to the text-matching fallback instead of clicking whatever now sits at that letter", () => {
+  it("a stale backend label is remapped by original choice text, even when the answer is only a letter", () => {
     const { question } = buildChoiceQuestion({
       questionType: "multiple_choice_question",
       inputType: "radio",
@@ -281,7 +282,10 @@ describe("fixed: verify-before-click (DOM-shift guard)", () => {
     expect(reScraped.find((c) => c.label === "B")!.text).toBe("alpha choice"); // no longer "bravo choice"
 
     // Backend answered based on the ORIGINAL scrape — it said "B" (bravo choice).
-    const answer = `${FALLBACK_PREFIX}the correct statement is bravo choice, not the others.`;
+    // This mirrors the production log that exposed the bug: the model's
+    // answer is just "Answer: B", so there is no answer-text fallback to save
+    // a stale letter mapping.
+    const answer = "Answer: B";
     const count = selectAnswerChoice(question, answer, ["B"], originalChoices);
     expect(count).toBe(1);
 
@@ -291,6 +295,31 @@ describe("fixed: verify-before-click (DOM-shift guard)", () => {
     // ...and whatever is CURRENTLY labeled "B" (the wrong element) is not.
     const stillLabeledB = reScraped.find((c) => c.label === "B")!;
     expect((stillLabeledB.input as HTMLInputElement).checked).toBe(false);
+  });
+
+  it("refuses an ambiguous stale mapping instead of guessing between duplicate choice texts", () => {
+    const { question } = buildChoiceQuestion({
+      questionType: "multiple_choice_question",
+      inputType: "radio",
+      stemText: "Pick one.",
+      choiceTexts: ["same choice", "different choice", "same choice"],
+    });
+    const originalChoices: AnswerChoice[] = collectAnswerChoices(question);
+    const answersEl = question.querySelector(".answers")!;
+    const newInput = document.createElement("input");
+    newInput.type = "radio";
+    newInput.id = "question_shift_answer_ambiguous_new";
+    const newLabel = document.createElement("label");
+    newLabel.setAttribute("for", newInput.id);
+    newLabel.textContent = "newly inserted choice";
+    const newRow = document.createElement("div");
+    newRow.className = "answer answer_ambiguous_new";
+    newRow.append(newInput, newLabel);
+    answersEl.insertBefore(newRow, answersEl.firstChild);
+
+    const count = selectAnswerChoice(question, "Answer: A", ["A"], originalChoices);
+    expect(count).toBe(0);
+    expect([...question.querySelectorAll<HTMLInputElement>('input[type="radio"]')].every((input) => !input.checked)).toBe(true);
   });
 
   it("with no originalChoices supplied, behavior is unchanged — a backend label is trusted outright (back-compat default)", () => {
@@ -304,5 +333,27 @@ describe("fixed: verify-before-click (DOM-shift guard)", () => {
     expect(count).toBe(1);
     const scraped = collectAnswerChoices(question);
     expect((scraped.find((c) => c.label === "B")!.input as HTMLInputElement).checked).toBe(true);
+  });
+});
+
+describe("regression: multi-letter choice label matching (AA vs A substring safety)", () => {
+  it("deriveSelectedChoices matches AA without falsely matching A when pool contains both", () => {
+    const apiChoices = [
+      { label: "A", text: "Option Alpha", type: "radio" as const },
+      { label: "AA", text: "Option Double Alpha", type: "radio" as const },
+    ];
+    // Length-descending regex order ensures "AA" matches as AA, not as prefix "A"
+    expect(deriveSelectedChoices("Reasoning...\n\nAnswer: AA", apiChoices)).toEqual(["AA"]);
+    expect(deriveSelectedChoices("Reasoning...\n\nAnswer: A", apiChoices)).toEqual(["A"]);
+  });
+});
+
+describe("regression: findStem matching container element directly", () => {
+  it("findStem returns the element itself when it matches a stem selector", () => {
+    const el = document.createElement("div");
+    el.className = "question_text";
+    el.textContent = "What is the standard error?";
+    const stem = findStem(el);
+    expect(stem).toBe(el);
   });
 });

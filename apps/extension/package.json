@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "node scripts/build.mjs",
+    "build:dev": "node scripts/build.mjs --dev",
     "watch": "node scripts/build.mjs --watch",
     "test": "vitest run"
   },
