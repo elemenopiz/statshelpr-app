@@ -256,29 +256,31 @@
       .status:empty { display: none; }
 
       /* ---------------------------------------------------- CSV files */
+      /* Solid accent border + tint at rest (not just on hover) — a data
+         question can't be answered correctly without its CSV, so this needs
+         to read as "an input that matters," not as optional config sitting
+         at the same visual weight as the discreet-mode slider. */
       .dropzone {
-        border: 1.5px dashed var(--line);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 7px;
+        border: 1.5px solid var(--blue);
         border-radius: 10px;
-        padding: 14px 12px;
+        padding: 15px 12px;
         text-align: center;
-        font-size: 11.5px;
-        color: var(--ink-2);
+        font-size: 13.5px;
+        font-weight: 600;
+        color: var(--ink);
         cursor: pointer;
-        background: var(--card);
-        transition: border-color 0.2s, background-color 0.2s, color 0.2s;
+        background: var(--blue-tint);
+        transition: border-color 0.2s, background-color 0.2s;
       }
       .dropzone:hover, .dropzone.drag-over {
-        border-color: var(--blue);
-        background: var(--blue-tint);
-        color: var(--blue);
+        border-color: var(--blue-deep);
+        background: var(--blue-ring);
       }
-      .dropzone .hint {
-        display: block;
-        margin-top: 3px;
-        font-size: 9.5px;
-        color: var(--ink-3);
-        font-family: var(--font-mono);
-      }
+      .dropzone .dz-icon { color: var(--blue); flex: none; }
       /* Files render as .chip pills (defined below, shared with the R
          package list) instead of one row per file — #files-list just adds
          the top gap under the dropzone and truncates long filenames, since
@@ -737,8 +739,14 @@
     <div class="section-label" style="margin-top: 14px">Data files</div>
     <div class="dropzone" id="dropzone" role="button" tabindex="0"
          aria-label="Upload data files: drop a CSV here or press Enter to browse">
-      drop CSV or click to upload
-      <span class="hint">.csv &middot; .tsv &middot; .txt &mdash; persists 7 days</span>
+      <svg class="dz-icon" width="21" height="21" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+           aria-hidden="true">
+        <rect x="3.5" y="3.5" width="17" height="17" rx="2.5" />
+        <line x1="3.5" y1="10" x2="20.5" y2="10" />
+        <line x1="10.5" y1="10" x2="10.5" y2="20.5" />
+      </svg>
+      <span>drop CSV or click to upload</span>
     </div>
     <input
       type="file"
@@ -886,7 +894,7 @@
          href="https://app.lemonsqueezy.com/my-orders/login" target="_blank" rel="noopener">
         cancel subscription
       </a>
-      <span class="version" id="ext-version">v1.1.5</span>
+      <span class="version" id="ext-version">v1.1.7</span>
     </div>
     <script src="popup.js"></script>
   </body>
