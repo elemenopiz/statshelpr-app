@@ -58,6 +58,14 @@ export interface RateLimitOptions {
    *  an explicit prefix costs nothing and keeps raw KV keys self-describing
    *  under `wrangler kv key list`. */
   keyPrefix?: string;
+  /** Overrides the default 24h rolling window (86_400_000 ms) a bucket
+   *  resets on. Every pre-existing caller omits this and keeps the original
+   *  day-long window byte-for-byte unchanged (solve.ts's hot path has since
+   *  moved to lib/counters-do.ts's doGate anyway; this file's own self-tests
+   *  are the only other caller and don't pass it either). Added for
+   *  routes/license-from-order.ts's per-IP lookup budget, which needs an
+   *  hourly window, not a daily one — see that route's doc for why. */
+  windowMs?: number;
 }
 
 interface StoredCount {
@@ -144,8 +152,11 @@ export async function checkAndIncrement(
   bucketId: string,
   options?: RateLimitOptions,
 ): Promise<RateLimitResult> {
-  const limit = options?.limit ?? (Number(env.FREE_TIER_DAILY_LIMIT ?? "5") || 5);
+  const parsedDefault = Number(env.FREE_TIER_DAILY_LIMIT ?? "7");
+  const defaultLimit = Number.isFinite(parsedDefault) && parsedDefault > 0 ? parsedDefault : 7;
+  const limit = options?.limit ?? defaultLimit;
   const prefix = options?.keyPrefix ?? KV_PREFIX;
+  const windowMs = options?.windowMs ?? 86_400_000;
   const hash = await hashBucket(bucketId || "anon");
   const key = `${prefix}${hash}`;
   const now = Date.now();
@@ -157,8 +168,8 @@ export async function checkAndIncrement(
   // count 1 instead of 1-then-2, which self-corrects on either one's NEXT
   // increment (that path below IS recheck-guarded).
   if (!raw || raw.resetAt < now) {
-    const resetAt = now + 86_400_000;
-    await putCountFailOpen(env, key, { count: 1, resetAt }, 86_400 + 60);
+    const resetAt = now + windowMs;
+    await putCountFailOpen(env, key, { count: 1, resetAt }, Math.ceil(windowMs / 1000) + 60);
     return { allowed: true, count: 1, limit, resetAt };
   }
 

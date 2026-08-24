@@ -57,6 +57,9 @@ import {
   checkGlobalKillSwitch,
   computeEffectiveSpendLimitUsd,
   decidePaidSoftThrottle,
+  globalCallLimit,
+  globalSpendLimitUsd,
+  perSubDailySpendUsd,
   persistEffectiveSpendLimit,
 } from "../src/lib/kill-switch";
 import {
@@ -254,7 +257,7 @@ async function main() {
     return {
       OPENAI_API_KEY: "test-key",
       LLM_PROVIDER: "openai",
-      FREE_TIER_DAILY_LIMIT: "5",
+      FREE_TIER_DAILY_LIMIT: "7",
       // Required fields added by the Cloud Run R-execution migration (see
       // docs/cloud-run-r-migration.md §3) — not exercised by any check in
       // this file, but Env now requires both, so fakeEnv needs a value for
@@ -287,7 +290,7 @@ async function main() {
     const r2 = await checkAndIncrement(env, "install-A");
     check("default call: first hit allowed at count 1", r1.allowed === true && r1.count === 1, JSON.stringify(r1));
     check("default call: second hit increments to count 2", r2.allowed === true && r2.count === 2, JSON.stringify(r2));
-    check("default call: limit comes from FREE_TIER_DAILY_LIMIT (5)", r1.limit === 5 && r2.limit === 5);
+    check("default call: limit comes from FREE_TIER_DAILY_LIMIT (7)", r1.limit === 7 && r2.limit === 7);
   }
 
   {
@@ -326,6 +329,19 @@ async function main() {
     const b = await checkAndIncrement(env, "anon");
     check("empty bucket id and literal \"anon\" share one bucket", a.count === 1 && b.count === 2, `${a.count}, ${b.count}`);
   }
+  {
+    // hashBucket: verifies 32 hex chars (128-bit slice of SHA-256)
+    const hash = await hashBucket("test-identifier-12345");
+    check("hashBucket produces exactly 32 hex chars (128-bit slice)", /^[0-9a-f]{32}$/.test(hash) && hash.length === 32, hash);
+    const hash2 = await hashBucket("test-identifier-12345");
+    check("hashBucket is deterministic", hash === hash2);
+  }
+  {
+    // Defensive fallback: negative FREE_TIER_DAILY_LIMIT string falls back to default (7)
+    const env = fakeEnv({ FREE_TIER_DAILY_LIMIT: "-5" });
+    const r = await checkAndIncrement(env, "install-defensive");
+    check("negative FREE_TIER_DAILY_LIMIT falls back to default 7", r.limit === 7, `got ${r.limit}`);
+  }
 
   // ---------------------------------------------------------------------------
   console.log("rate-limit.ts (getClientIp)");
@@ -341,6 +357,26 @@ async function main() {
   {
     const c = fakeContext({});
     check("falls back to \"unknown\" with neither header present", getClientIp(c) === "unknown");
+  }
+
+  // ---------------------------------------------------------------------------
+  console.log("kill-switch.ts (spend/call limit arithmetic validation)");
+
+  {
+    check("globalCallLimit: valid positive string parses", globalCallLimit(fakeEnv({ GLOBAL_DAILY_CALL_LIMIT: "500" })) === 500);
+    check("globalCallLimit: negative string falls back to 1000", globalCallLimit(fakeEnv({ GLOBAL_DAILY_CALL_LIMIT: "-10" })) === 1000);
+    check("globalCallLimit: zero string falls back to 1000", globalCallLimit(fakeEnv({ GLOBAL_DAILY_CALL_LIMIT: "0" })) === 1000);
+    check("globalCallLimit: non-numeric string falls back to 1000", globalCallLimit(fakeEnv({ GLOBAL_DAILY_CALL_LIMIT: "garbage" })) === 1000);
+
+    check("globalSpendLimitUsd: valid positive string parses", globalSpendLimitUsd(fakeEnv({ GLOBAL_DAILY_SPEND_LIMIT_USD: "50" })) === 50);
+    check("globalSpendLimitUsd: negative string falls back to 25", globalSpendLimitUsd(fakeEnv({ GLOBAL_DAILY_SPEND_LIMIT_USD: "-25" })) === 25);
+    check("globalSpendLimitUsd: zero string falls back to 25", globalSpendLimitUsd(fakeEnv({ GLOBAL_DAILY_SPEND_LIMIT_USD: "0" })) === 25);
+    check("globalSpendLimitUsd: non-numeric string falls back to 25", globalSpendLimitUsd(fakeEnv({ GLOBAL_DAILY_SPEND_LIMIT_USD: "abc" })) === 25);
+
+    check("perSubDailySpendUsd: valid positive string parses", perSubDailySpendUsd(fakeEnv({ PER_SUB_DAILY_SPEND_USD: "4.5" })) === 4.5);
+    check("perSubDailySpendUsd: negative string falls back to 2", perSubDailySpendUsd(fakeEnv({ PER_SUB_DAILY_SPEND_USD: "-5" })) === 2);
+    check("perSubDailySpendUsd: zero string falls back to 2", perSubDailySpendUsd(fakeEnv({ PER_SUB_DAILY_SPEND_USD: "0" })) === 2);
+    check("perSubDailySpendUsd: non-numeric string falls back to 2", perSubDailySpendUsd(fakeEnv({ PER_SUB_DAILY_SPEND_USD: "invalid" })) === 2);
   }
 
   // ---------------------------------------------------------------------------

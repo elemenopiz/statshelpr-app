@@ -12,7 +12,7 @@ descriptive ("works on Canvas quiz pages"), which is accepted nominative use.
 ## Summary (max 132 chars) — NOT a pasteable field
 The store title AND summary are pulled READ-ONLY "from package" (the manifest
 `name` and `description`) — the listing form has no editable summary box. So the
-public summary IS the manifest description. As of v1.1.2 that is:
+public summary IS the manifest description. As of v1.1.5 that is:
 > Stats quiz tutor — fills in the answer on your quiz questions, with the R code behind it in the extension popup.
 
 It must describe only what the extension actually does: it WRITES the answer
@@ -46,7 +46,7 @@ Built for intro statistics courses (inference, regression, confidence intervals,
 - **Review where you went wrong** — open a graded quiz and step through the solution for each question you missed.
 - **Pick your libraries** — tell statshelpr which R packages your course uses and solutions follow that style.
 
-Free plan: 5 solves per day. Unlimited: $15/month.
+Free plan: 7 solves per day. Unlimited: $11.99/month.
 
 Privacy: question content is sent to our servers only when you click solve, and used only to generate the answer. Usage telemetry is content-free and can be turned off under "Privacy" in the extension popup. Full policy: https://statshelpr.com/legal
 

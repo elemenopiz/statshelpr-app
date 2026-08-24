@@ -4,13 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>statshelpr &mdash; Stats tutor for students</title>
-  <meta name="description" content="statshelpr is a Chrome extension that shows worked solutions and R code for your stats coursework. 5 free solves per day; unlimited for $15/mo." />
+  <meta name="description" content="statshelpr is a Chrome extension that shows worked solutions and R code for your stats coursework. Free to start, no card required." />
   <meta name="keywords" content="stats tutor, statistics homework help, R programming help, stats problem solver, Chrome extension, study aid" />
   <link rel="canonical" href="https://statshelpr.com/" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://statshelpr.com/" />
   <meta property="og:title" content="statshelpr — Stats tutor for students" />
-  <meta property="og:description" content="Chrome extension for stats students. See worked solutions with runnable R code, right on the question. 5 free solves/day." />
+  <meta property="og:description" content="Chrome extension for stats students. See worked solutions with runnable R code, right on the question." />
   <meta property="og:site_name" content="statshelpr" />
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="statshelpr — Stats tutor for students" />
@@ -751,8 +751,7 @@
     "operatingSystem": "Chrome (Windows, macOS, Linux)",
     "description": "Chrome extension that helps students work through stats coursework. Shows worked solutions with runnable R code, reads uploaded CSVs, streams answers inline on the question.",
     "offers": [
-      {"@type": "Offer", "price": "0", "priceCurrency": "USD", "description": "Free — 5 solves per day"},
-      {"@type": "Offer", "price": "15.00", "priceCurrency": "USD", "description": "Unlimited — $15/mo"}
+      {"@type": "Offer", "price": "0", "priceCurrency": "USD", "description": "Free — 7 solves per day"}
     ]
   }
   </script>
@@ -762,7 +761,7 @@
     "@type": "FAQPage",
     "mainEntity": [
       {"@type": "Question", "name": "What is statshelpr?", "acceptedAnswer": {"@type": "Answer", "text": "statshelpr is a Chrome extension that helps students work through stats coursework, including on Canvas quiz pages. It shows a worked solution with runnable R code inline under each question. Built for practice, ungraded work, and self-study — always confirm your instructor permits outside help before use on graded assessments."}},
-      {"@type": "Question", "name": "Is statshelpr free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. The free tier gives you 5 solves per day, no credit card required. For unlimited solves, upgrade to the $15/month plan — cancel anytime."}},
+      {"@type": "Question", "name": "Is statshelpr free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. The free tier gives you 7 solves per day, no credit card required. For unlimited solves, upgrade to the $11.99/month plan — cancel anytime."}},
       {"@type": "Question", "name": "How does statshelpr work?", "acceptedAnswer": {"@type": "Answer", "text": "Install the Chrome extension. Open any stats quiz — a small button appears next to each question. Click it, and statshelpr's AI works through the reasoning and gives you a worked answer. When a question needs computation, it writes R code, runs it on real R servers, and hands back the finished answer — nothing is retained afterward."}},
       {"@type": "Question", "name": "Does it work with my CSV data files?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Upload course CSVs once via the extension popup and they persist across all your quizzes. When you solve a question, the file goes with the request and R code can read.csv() it just like normal."}},
       {"@type": "Question", "name": "How is my data handled?", "acceptedAnswer": {"@type": "Answer", "text": "Question text, images, and CSVs are transmitted to our API on Cloudflare and to Google Gemini for processing. We do not store quiz content long-term. Your license key lives in chrome.storage.sync. Full details on our privacy page."}},
@@ -781,9 +780,7 @@
       <nav class="nav-links" aria-label="Main">
         <a href="#demo">How it works</a>
         <a href="#features">Features</a>
-        <a href="#pricing">Pricing</a>
         <a href="#faq">FAQ</a>
-        <a href="/checkout.html">Upgrade</a>
         <a class="btn btn-primary btn-nav" href="/free.html">Try free</a>
       </nav>
     </div>
@@ -807,13 +804,6 @@
               <a class="btn btn-primary btn-lg" href="/free.html">Install free <span class="arrow">&rarr;</span></a>
               <a class="btn btn-ghost btn-lg" href="#demo">See how it works</a>
             </div>
-            <p class="hero-meta rise d5">
-              <span><strong>5 free solves</strong> a day</span>
-              <span class="sep">&middot;</span>
-              <span>Unlimited for <strong>$15/mo</strong></span>
-              <span class="sep">&middot;</span>
-              <span>Cancel anytime</span>
-            </p>
           </div>
 
           <!-- product demo: a worked solution streaming onto a quiz question -->
@@ -882,12 +872,12 @@
           <div class="step rv" style="--d:0s">
             <span class="n">01</span>
             <h3>Install the extension</h3>
-            <p>Add statshelpr to Chrome from the <a href="#">Chrome Web Store</a>.<!-- TODO: replace with the real Chrome Web Store listing URL once published --></p>
+            <p>Add statshelpr to Chrome from the <a href="https://chromewebstore.google.com/detail/statshelpr/cggphikgjamfihacemcikadmlpnlanhb" target="_blank" rel="noopener">Chrome Web Store</a>.</p>
           </div>
           <div class="step rv" style="--d:0.09s">
             <span class="n">02</span>
             <h3>Activate</h3>
-            <p>Free tier is on by default &mdash; 5 solves/day, no login. Upgrading? Paste your license key in the extension popup.</p>
+            <p>Free tier is on by default &mdash; 7 solves/day, no login. Upgrading? Paste your license key in the extension popup.</p>
           </div>
           <div class="step rv" style="--d:0.18s">
             <span class="n">03</span>
@@ -1007,40 +997,9 @@
       </div>
     </section>
 
-    <!-- ============================================================== pricing -->
-    <section class="pricing" id="pricing" aria-label="Pricing">
+    <!-- ============================================================== honest -->
+    <section aria-label="A note on academic integrity">
       <div class="wrap">
-        <div class="sec-head center rv">
-          <p class="eyebrow" style="justify-content:center">Pricing</p>
-          <h2>Free every day. <em>Unlimited</em> when you need it.</h2>
-          <p>No card to start. One flat price when five a day isn&rsquo;t enough.</p>
-        </div>
-        <div class="price-grid">
-          <div class="price-card rv" style="--d:0s">
-            <span class="price-name">Free</span>
-            <span class="price-amount">$0 <span class="per">forever</span></span>
-            <span class="price-tag">5 solves per day, no card, no login.</span>
-            <ul class="price-list">
-              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Worked solutions with reasoning</li>
-              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Real R execution on calc questions</li>
-              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>CSV uploads &amp; image questions</li>
-            </ul>
-            <a class="btn btn-ghost btn-lg" href="/free.html">Install free</a>
-          </div>
-          <div class="price-card hot rv" style="--d:0.09s">
-            <span class="price-name">Unlimited</span>
-            <span class="price-amount">$15 <span class="per">/ month</span></span>
-            <span class="price-tag">Every solve, all semester.</span>
-            <ul class="price-list">
-              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Everything in Free</li>
-              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Unlimited solves &mdash; no daily cap</li>
-              <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>Cancel anytime</li>
-            </ul>
-            <a class="btn btn-primary btn-lg" href="/checkout.html">Upgrade to Unlimited <span class="arrow">&rarr;</span></a>
-          </div>
-        </div>
-        <p class="price-note rv">Secure checkout by Lemon Squeezy &middot; cancel from the customer portal, no phone call.</p>
-
         <div class="honest rv">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12.5"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/></svg>
           <p>
@@ -1070,7 +1029,7 @@
             <div class="faq-item">
               <button class="faq-q" aria-expanded="false">Is statshelpr free?<span class="x" aria-hidden="true"></span></button>
               <div class="faq-a"><div>
-                <p>Free tier: 5 solves per day, no card required. Paid: $15/month for unlimited solves, cancel anytime.</p>
+                <p>Free tier: 7 solves per day, no card required. Paid: $11.99/month for unlimited solves, cancel anytime.</p>
               </div></div>
             </div>
             <div class="faq-item">
@@ -1109,7 +1068,6 @@
         <p class="rv" style="--d:0.08s">Install statshelpr and see the first worked solution in about a minute.</p>
         <div class="hero-actions rv" style="--d:0.16s; justify-content:center">
           <a class="btn btn-primary btn-lg" href="/free.html">Install free <span class="arrow">&rarr;</span></a>
-          <a class="btn btn-ghost btn-lg" href="/checkout.html">Go Unlimited &mdash; $15/mo</a>
         </div>
         <p class="hero-meta rv" style="--d:0.24s">
           <span>Chrome &middot; Edge &middot; Arc &middot; Brave</span>
@@ -1127,6 +1085,7 @@
         <a href="/legal.html#terms">Terms</a>
         <a href="/legal.html#privacy">Privacy</a>
         <a href="/legal.html#refunds">Refunds</a>
+        <a href="/checkout.html">Upgrade</a>
         <a href="mailto:statshelpr@gmail.com">statshelpr@gmail.com</a>
       </nav>
       <p class="foot-copy">&copy; 2026 statshelpr &middot; A stats tutor for students. For practice and self-study &mdash; check your instructor&rsquo;s policy before graded work.</p>

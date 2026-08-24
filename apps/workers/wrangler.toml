@@ -6,7 +6,12 @@ compatibility_flags = ["nodejs_compat"]
 # Runtime env vars (non-secret). Secrets set via `wrangler secret put NAME`.
 [vars]
 LLM_PROVIDER = "openai"
-FREE_TIER_DAILY_LIMIT = "5"
+FREE_TIER_DAILY_LIMIT = "7"
+# Internal dev/testing bypass key — recognized by validateLicense as a
+# built-in paid tier, skipping LemonSqueezy entirely. Only ever sent by the
+# --dev extension build; never included in the production CWS bundle.
+# Rotate this if you hand the dev build to anyone outside the team.
+DEV_BYPASS_KEY = "statshelpr-dev-founder-bypass-2026"
 LEMONSQUEEZY_STORE_ID = "300628"
 LEMONSQUEEZY_VARIANT_ID = "1929562"
 # Assumed solves/user/month for GET /api/metrics's economics.grossMarginPerUserPct

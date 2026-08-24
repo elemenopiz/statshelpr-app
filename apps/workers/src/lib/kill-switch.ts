@@ -120,7 +120,8 @@ export const KILL_SWITCH_MESSAGE =
   "statshelpr is temporarily over its daily request volume ceiling. Please try again later.";
 
 export function globalCallLimit(env: Env): number {
-  return Number(env.GLOBAL_DAILY_CALL_LIMIT ?? String(DEFAULT_LIMIT)) || DEFAULT_LIMIT;
+  const parsed = Number(env.GLOBAL_DAILY_CALL_LIMIT ?? String(DEFAULT_LIMIT));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_LIMIT;
 }
 
 /** The FLOOR of the effective spend ceiling — see the "subscriber-scaled
@@ -133,10 +134,8 @@ export function globalCallLimit(env: Env): number {
  *  missing/stale/corrupt) the effective ceiling IS this value, so existing
  *  behavior is byte-identical until there's a paying base to scale from. */
 export function globalSpendLimitUsd(env: Env): number {
-  return (
-    Number(env.GLOBAL_DAILY_SPEND_LIMIT_USD ?? String(DEFAULT_SPEND_LIMIT_USD)) ||
-    DEFAULT_SPEND_LIMIT_USD
-  );
+  const parsed = Number(env.GLOBAL_DAILY_SPEND_LIMIT_USD ?? String(DEFAULT_SPEND_LIMIT_USD));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_SPEND_LIMIT_USD;
 }
 
 // --- subscriber-scaled global spend ceiling (owner directive, 2026-08-04:
@@ -178,10 +177,8 @@ export const GLOBAL_SPEND_LIMIT_CFG_KEY = "ks$:spendLimit:cfg";
 export const SPEND_LIMIT_STALENESS_MS = 2 * 86_400_000; // 48h
 
 export function perSubDailySpendUsd(env: Env): number {
-  return (
-    Number(env.PER_SUB_DAILY_SPEND_USD ?? String(DEFAULT_PER_SUB_DAILY_SPEND_USD)) ||
-    DEFAULT_PER_SUB_DAILY_SPEND_USD
-  );
+  const parsed = Number(env.PER_SUB_DAILY_SPEND_USD ?? String(DEFAULT_PER_SUB_DAILY_SPEND_USD));
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_PER_SUB_DAILY_SPEND_USD;
 }
 
 /** Pure formula — no Env I/O beyond reading the two already-synchronous env
@@ -278,7 +275,7 @@ export function recordGlobalSpendInBackground(
 // assumption (AVG_SOLVES_PER_USER_PER_MONTH = 110, wrangler.toml): 100/day
 // is most of a full heavy-use MONTH in one day, and 600/month is ~5.5x that
 // same monthly assumption while still keeping the margin floor the owner
-// asked for (600 x ~$0.017/solve ~= $10.20, under the $15/mo price). Both
+// asked for (600 x ~$0.017/solve ~= $10.20, under the $11.99/mo price). Both
 // are one-line tunable HERE — deliberately plain TS constants, not
 // wrangler.toml vars, per the brief: these are product/fair-use judgment
 // calls to revisit in code review, not infra ceilings the owner needs to

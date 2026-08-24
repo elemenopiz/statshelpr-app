@@ -598,7 +598,7 @@ async function runWhitelistTest(label: string, keyOverrides: Partial<Pick<Env, "
   const env = {
     OPENAI_API_KEY: "luna-key",
     LLM_PROVIDER: "openai",
-    FREE_TIER_DAILY_LIMIT: "5",
+    FREE_TIER_DAILY_LIMIT: "7",
     R_RUNNER_URL: "https://fake-r-runner.example.com",
     R_RUNNER_SECRET: "fake-runner-secret",
     ACTIVATION_HASH_SECRET: "fake-activation-hash-secret",

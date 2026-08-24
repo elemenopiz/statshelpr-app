@@ -9,14 +9,13 @@ import {
   parseResponse,
 } from "@statshelpr/solver-core/core";
 import {
-  GEMINI_DEFAULT_MODEL,
-  GEMINI_IMAGE_MODEL,
+  openaiProvider,
   type LlmChatUsage,
 } from "@statshelpr/solver-core/core/providers";
-import { classifyError } from "@/lib/classify-error";
-import { doGate, type GateCheck } from "@/lib/counters-do";
-import { costUsdForUsage, LUNA_MODEL } from "@/lib/cost";
-import { summarizeCsv } from "@/lib/data-summary";
+import { classifyError } from "../lib/classify-error";
+import { doGate, type GateCheck } from "../lib/counters-do";
+import { costUsdForUsage, LUNA_MODEL } from "../lib/cost";
+import { summarizeCsv } from "../lib/data-summary";
 import {
   GLOBAL_CALLS_KEY,
   GLOBAL_SPEND_KEY,
@@ -29,20 +28,19 @@ import {
   globalCallLimit,
   globalSpendLimitUsd,
   recordGlobalSpendInBackground,
-} from "@/lib/kill-switch";
-import { validateLicense } from "@/lib/license";
-import { activateForInstall } from "@/lib/license-activation";
-import { chatStreamWithFallback, FallbackGateRejectedError } from "@/lib/llm";
+} from "../lib/kill-switch";
+import { validateLicense } from "../lib/license";
+import { activateForInstall } from "../lib/license-activation";
 import {
   createMetricsBatch,
   flushMetricsBatchInBackground,
   HOST_HASH_OTHER,
   recordPaywallHitInBackground,
-} from "@/lib/metrics-store";
-import { repairRCode } from "@/lib/r-repair";
-import { runRRemote, type RunRResult } from "@/lib/r-runner";
-import { extractCanvasHost, getClientIp, hashBucket } from "@/lib/rate-limit";
-import { makeSseStream, sseHeaders } from "@/lib/sse";
+} from "../lib/metrics-store";
+import { repairRCode } from "../lib/r-repair";
+import { runRRemote, type RunRResult } from "../lib/r-runner";
+import { extractCanvasHost, getClientIp, hashBucket } from "../lib/rate-limit";
+import { makeSseStream, sseHeaders } from "../lib/sse";
 import {
   buildFollowupContent,
   buildQuestionPrompt,
@@ -58,6 +56,15 @@ import {
 
 export const solve = new Hono<{ Bindings: Env }>();
 
+// Interactive solves are latency-sensitive. The old first pass enabled high
+// reasoning and inherited the provider retry defaults (15s per connection,
+// up to 60s total), so one unusually slow reasoning request could sit silent
+// until the extension showed the raw AbortSignal timeout. A short, explicit
+// budget keeps the customer-facing path bounded; the R-repair and interpret
+// legs use the same bounded OpenAI retry policy.
+const FIRST_PASS_MAX_ELAPSED_MS = 8_500;
+const FIRST_PASS_HEARTBEAT_MS = 3_000;
+
 solve.use("*", cors({
   origin: "*",
   allowMethods: ["POST", "OPTIONS"],
@@ -65,13 +72,9 @@ solve.use("*", cors({
 }));
 
 solve.post("/", async (c) => {
-  // Luna (OPENAI_API_KEY) is primary; Gemini (GEMINI_API_KEY) is the
-  // automatic server-side fallback (lib/llm.ts) when Luna's own retry policy
-  // is exhausted. Only fail closed here when NEITHER is configured — a
-  // solo-key deploy (either key alone) is a valid, if degraded, operating
-  // mode. Per-leg key resolution happens inside lib/llm.ts, not here.
-  if (!c.env.OPENAI_API_KEY && !c.env.GEMINI_API_KEY) {
-    return c.json({ error: "No LLM provider configured (OPENAI_API_KEY/GEMINI_API_KEY)" }, 500);
+  // Luna (OPENAI_API_KEY) is the sole solver provider.
+  if (!c.env.OPENAI_API_KEY) {
+    return c.json({ error: "OPENAI_API_KEY not configured" }, 500);
   }
 
   const auth = c.req.header("authorization") ?? "";
@@ -127,7 +130,11 @@ solve.post("/", async (c) => {
 
   let body: SolveBody;
   try {
-    body = (await c.req.json()) as SolveBody;
+    const parsed = await c.req.json();
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return c.json({ error: "Request body must be a JSON object." }, 400);
+    }
+    body = parsed as SolveBody;
   } catch {
     return c.json({ error: "Invalid JSON body" }, 400);
   }
@@ -205,7 +212,7 @@ solve.post("/", async (c) => {
     const ipHash = await hashBucket(getClientIp(c));
     const ipLimit = Number(c.env.IP_DAILY_LIMIT ?? "1000") || 1000;
     ipIdx = gateChecks.push({ key: `rl:ip:solve:${ipHash}`, limit: ipLimit }) - 1;
-    const freeLimit = Number(c.env.FREE_TIER_DAILY_LIMIT ?? "5") || 5;
+    const freeLimit = Number(c.env.FREE_TIER_DAILY_LIMIT ?? "7") || 7;
     installIdx = gateChecks.push({ key: `rl:${installHash}`, limit: freeLimit }) - 1;
   } else {
     paidSoftCap = buildPaidSoftCapIncrItems(installHash);
@@ -348,39 +355,6 @@ solve.post("/", async (c) => {
       const questionPrompt = buildQuestionPrompt(body);
       const userContent = buildUserContent(questionPrompt, body.images);
 
-      // Which Gemini model a fallback for THIS request would use, computed
-      // ONCE and reused for every leg (first pass, repair, interpret) — same
-      // "one model decision for the whole request" precedent the pre-fc35aa5
-      // code used for `model` itself (see lib/r-repair.ts's doc comment).
-      // ALWAYS one of these two server-side constants, NEVER influenced by
-      // `body.model` or any other request field — `hasImage` is a boolean
-      // derived from array length, not a passthrough string (2026-07-28
-      // whitelist-bypass-incident hardening; see lib/llm.ts's top-of-file
-      // SECURITY note and ALLOWED_MODELS below, which independently already
-      // rejects any `body.model` other than LUNA_MODEL before this point).
-      const geminiModel = hasImage ? GEMINI_IMAGE_MODEL : GEMINI_DEFAULT_MODEL;
-
-      // Authorizes a Gemini fallback call — passed to every
-      // chatStreamWithFallback/repairRCode call below as
-      // `authorizeFallback`. A Luna failure means Gemini is about to make a
-      // SECOND, NEW outbound paid-API call for this leg, so it must be gated
-      // exactly like the repair/interpret legs already gate their own FIRST
-      // attempt via checkGlobalKillSwitch — otherwise a forced-Luna-failure
-      // attack (e.g. spamming until Luna 429s on every request) could route
-      // one full extra real provider call per request through the fallback
-      // leg while only ever spending ONE unit of GLOBAL_DAILY_CALL_LIMIT
-      // (2026-07-28 whitelist-bypass-incident hardening — see lib/llm.ts's
-      // authorizeFallback doc for the full rationale). Logs only a closed
-      // error-class string (classifyError) — never the raw error message or
-      // any request content — to wrangler tail for operator visibility.
-      const gateFallback = async (lunaError: unknown): Promise<boolean> => {
-        const gate = await checkGlobalKillSwitch(c.env);
-        console.warn(
-          `[llm-fallback] luna failed (${classifyError(lunaError)}) — gemini gate ${gate.allowed ? "allowed" : "REFUSED"}`,
-        );
-        return gate.allowed;
-      };
-
       await write({ type: "phase", label: "Thinking…" });
 
       let buf = "";
@@ -388,31 +362,50 @@ solve.post("/", async (c) => {
       let userVisibleSent = "";
       let usage: LlmChatUsage | undefined;
 
-      const firstPass = chatStreamWithFallback(c.env, {
+      const firstPassStream = openaiProvider.chatStream(c.env.OPENAI_API_KEY, {
         model,
         system,
         messages: [{ role: "user", content: userContent }],
         maxTokens: MAX_TOKENS_FIRST,
-        thinking: { type: "enabled" },
+        // Low reasoning is enough for the structured [CONCEPT]/[RCODE]
+        // routing decision and keeps the first pass inside the interactive
+        // latency budget. The R execution and final interpretation still
+        // provide the calculation-specific accuracy check.
+        reasoningEffort: "low",
         // A 429/5xx/network hiccup here retries transparently inside
-        // chatStream (core/providers/retry.ts) — this leg has no heartbeat
-        // of its own (unlike the R/repair block below), so a long backoff
-        // wait would otherwise go SSE-silent long enough to trip the
+        // chatStream (core/providers/retry.ts). The heartbeat below keeps the
+        // SSE stream alive while a retry/backoff or slow reasoning interval
+        // is in flight, preventing the
         // extension's 30s idle-abort watchdog (content.ts's
         // SSE_IDLE_TIMEOUT_MS). Re-emit the same "phase" event already sent
         // above — an existing, already-ignored-by-the-UI event shape, not a
-        // new one — every ~10s a retry is waiting, same cadence as the
-        // R-pipeline heartbeat below.
+        // new one — while the request is still active.
         retry: {
+          // Retry transient connection/429/5xx failures inside the same
+          // interactive budget. This is OpenAI-only resilience; it never
+          // switches providers and never emits a retry message to Canvas.
+          maxRetries: 2,
+          maxElapsedMs: FIRST_PASS_MAX_ELAPSED_MS,
+          connectTimeoutMs: 4_000,
+          streamTimeoutMs: FIRST_PASS_MAX_ELAPSED_MS,
+          waitingIntervalMs: 1_500,
           onWaiting: () => {
             write({ type: "phase", label: "Thinking…" }).catch(() => {
               // Stream already closing/closed — nothing else to do here.
             });
           },
         },
-      }, { geminiModel, authorizeFallback: gateFallback });
+      });
 
-      for await (const delta of firstPass.stream) {
+      // OpenAI can send reasoning/in-progress events without user-visible
+      // text. Keep the SSE stream alive while the bounded first pass is
+      // working so a proxy/browser never mistakes that normal gap for a dead
+      // request. This is deliberately shorter than the extension watchdog.
+      const thinkingHeartbeat = setInterval(() => {
+        write({ type: "phase", label: "Thinking…" }).catch(() => {});
+      }, FIRST_PASS_HEARTBEAT_MS);
+      try {
+        for await (const delta of firstPassStream) {
         // Usage arrives on the final chunk, which has no `text` — capture it
         // before the text-only `continue` below would otherwise skip it.
         if (delta.usage) usage = delta.usage;
@@ -456,29 +449,18 @@ solve.post("/", async (c) => {
             await write({ type: "delta", text: newSlice });
           }
         }
+        }
+      } finally {
+        clearInterval(thinkingHeartbeat);
       }
 
-      // Read AFTER the stream is fully drained (the loop above just
-      // finished) — reflects whichever provider actually answered, Luna or a
-      // Gemini fallback (see lib/llm.ts's chatStreamWithFallback doc).
-      const firstPassServedBy = firstPass.servedBy();
       const parsed = parseResponse(buf);
       const usageTokens = {
         promptTokens: usage?.prompt_tokens ?? 0,
         completionTokens: usage?.completion_tokens ?? 0,
         cachedTokens: usage?.cached_tokens ?? 0,
       };
-      // Costed/attributed to the model that ACTUALLY served, not the model
-      // originally requested — a fallback-served event must land in its OWN
-      // Gemini row in lib/cost.ts's MODEL_RATES / GET /api/metrics'
-      // economics.modelsUsed, never blended into Luna's numbers (this is
-      // also the content-free signal the owner sees fallback firing from —
-      // see lib/llm.ts's top-of-file doc).
-      const costUsd = costUsdForUsage(firstPassServedBy.model, usageTokens);
-      // Every leg reports its REAL cost into the global dollar ceiling the
-      // moment its usage is known — this (not the call count) is what makes
-      // GLOBAL_DAILY_SPEND_LIMIT_USD a hard bound on a bad day. See
-      // lib/kill-switch.ts.
+      const costUsd = costUsdForUsage(model, usageTokens);
       recordGlobalSpendInBackground(c, costUsd);
 
       if (parsed.mode === "concept") {
@@ -486,7 +468,8 @@ solve.post("/", async (c) => {
         metricsBatch.server.push({
           route: "solve",
           success: true,
-          model: firstPassServedBy.model,
+          model,
+          provider: "luna",
           ...usageTokens,
           costUsd,
           serverLatencyMs: Date.now() - startedAt,
@@ -508,21 +491,11 @@ solve.post("/", async (c) => {
         return;
       }
 
-      // First leg of the calc pipeline is done (Gemini wrote R code instead
-      // of a concept answer) — record its own cost now. costMode:"calc", but
-      // deliberately NO completedQuestion: the question isn't answered yet
-      // (R hasn't even run). modeSplit.calc increments exactly ONCE, at the
-      // interpret leg's success further down (see lib/metrics-store.ts's
-      // DailyMetricsBucket doc) — the same invariant the old two-route split
-      // preserved (this route recorded the hand-off leg's cost here; the old
-      // /api/interpret route incremented modeSplit.calc at ITS success), just
-      // all three legs (first pass, optional repair, interpret) now run
-      // inside this ONE /api/solve request instead of two separate ones —
-      // see docs/cloud-run-r-migration.md §3.
       metricsBatch.server.push({
         route: "solve",
         success: true,
-        model: firstPassServedBy.model,
+        model,
+        provider: "luna",
         ...usageTokens,
         costUsd,
         serverLatencyMs: Date.now() - startedAt,
@@ -612,7 +585,26 @@ solve.post("/", async (c) => {
         metricsBatch.rRunner.push({ success: false });
         await write({
           type: "error",
-          message: "Couldn't run the R calculation — please try again.",
+          message: "The calculation could not be completed.",
+        });
+      };
+      const recordMissingDataFailure = async (): Promise<void> => {
+        metricsBatch.server.push({
+          route: "solve",
+          success: false,
+          model,
+          promptTokens: 0,
+          completionTokens: 0,
+          cachedTokens: 0,
+          costUsd: 0,
+          serverLatencyMs: Date.now() - startedAt,
+          installHash,
+          errorType: "data_missing",
+        });
+        metricsBatch.rRunner.push({ success: false });
+        await write({
+          type: "error",
+          message: "The required dataset is missing.",
         });
       };
       // Real prod samples showed a clean bimodal split: warm calls finish
@@ -658,13 +650,6 @@ solve.post("/", async (c) => {
         }
       };
 
-      // Set by the fast-fail branch below when the calc pipeline bailed
-      // because the R referenced a data file the student never uploaded. The
-      // interpret leg still produces a best-effort answer from the question
-      // text, but we flag it on the final result so the extension can show the
-      // student a "dataset not found — upload the CSV" notice (content.ts).
-      let dataMissingBackstop = false;
-
       // Steps d/e/f (docs/cloud-run-r-migration.md §3.2) collapsed into one
       // closure so the heartbeat's try/finally below has a single `await` to
       // wrap, and `runResult`'s definite-assignment stays trivial
@@ -674,19 +659,14 @@ solve.post("/", async (c) => {
         if (!result) return undefined; // recordRRunnerFailure already handled it
 
         if (result.exitCode !== 0 && isUnrecoverableMissingData(rCode, dataFiles)) {
-          // Fast-fail: the R reads a data file the student never uploaded, so a
-          // repair could only re-emit code reading the same missing file and
-          // fail identically. Skip the repair Gemini call + second R run and let
-          // the interpret leg answer from the question text. Ideally the model
-          // routes these to [CONCEPT] up front (core/system-prompt.ts's
-          // missing-dataset rule) — this is the server-side backstop. Matches
-          // apps/api/lib/solver/non-streaming.ts's isUnrecoverableMissingData.
-          dataMissingBackstop = true;
-          return result;
+          // A data-derived answer is not valid without the required dataset.
+          // Do not send failed R output to the interpret model as a guess.
+          await recordMissingDataFailure();
+          return undefined;
         }
 
         if (result.exitCode !== 0) {
-          // The repair leg is a NEW Gemini call, so gate it exactly like the
+          // The repair leg is a NEW OpenAI call, so gate it exactly like the
           // pre-stream kill-switch check above solve.post — item D's ceiling
           // is sized in per-Gemini-call dollars (lib/kill-switch.ts), and the
           // old /api/interpret route incremented it separately from
@@ -716,40 +696,22 @@ solve.post("/", async (c) => {
             return undefined;
           }
 
-          // repairRCode routes through lib/llm.ts's chatWithFallback (Luna
-          // first, Gemini on failure — see that file), which itself wraps
-          // each provider's fetch() in the transparent retry/backoff layer
-          // (core/providers/retry.ts) — no retry.onWaiting hook needed at
-          // this call site specifically: it runs inside runCalcPipeline(),
-          // which the `heartbeat` interval above already blankets with a
-          // "Computing…" phase tick every 10s for exactly this "don't go
-          // SSE-silent too long" reason, so a second heartbeat here would
-          // just be a redundant duplicate. `authorizeFallback: gateFallback`
-          // re-gates the repair leg's OWN fallback attempt independently of
-          // the repairKill check just above (that one gates the Luna
-          // attempt; this one gates the Gemini attempt IF Luna fails) — see
-          // lib/llm.ts's authorizeFallback doc.
-          const repair = await repairRCode(c.env, model, system, questionPrompt, rCode, result, {
-            geminiModel,
-            authorizeFallback: gateFallback,
-          });
+          const repair = await repairRCode(c.env.OPENAI_API_KEY, model, system, questionPrompt, rCode, result);
           const repairUsageTokens = {
             promptTokens: repair.usage?.prompt_tokens ?? 0,
             completionTokens: repair.usage?.completion_tokens ?? 0,
             cachedTokens: repair.usage?.cached_tokens ?? 0,
           };
-          const repairCostUsd = costUsdForUsage(repair.servedBy.model, repairUsageTokens);
+          const repairCostUsd = costUsdForUsage(model, repairUsageTokens);
           recordGlobalSpendInBackground(c, repairCostUsd);
           // Repair leg's own metrics event. route:"solve" (a continuation of
           // the solve leg, not the interpret leg) and deliberately NO
           // completedQuestion — same reasoning as the first-pass event above.
-          // model: the ACTUAL serving model (Luna or a Gemini fallback),
-          // never the originally-requested one — see firstPassServedBy's
-          // comment above.
           metricsBatch.server.push({
             route: "solve",
             success: true,
-            model: repair.servedBy.model,
+            model,
+            provider: "luna",
             ...repairUsageTokens,
             costUsd: repairCostUsd,
             serverLatencyMs: Date.now() - startedAt,
@@ -762,6 +724,12 @@ solve.post("/", async (c) => {
             result = await runRSafe(rCode);
             if (!result) return undefined;
           }
+        }
+
+        if (result.exitCode !== 0) {
+          // Never interpret a failed calculation as if it were a valid one.
+          await recordRRunnerFailure();
+          return undefined;
         }
 
         return result;
@@ -813,7 +781,7 @@ solve.post("/", async (c) => {
       let fbuf = "";
       let fSent = "";
       let finalUsage: LlmChatUsage | undefined;
-      const interpret = chatStreamWithFallback(c.env, {
+      const interpretStream = openaiProvider.chatStream(c.env.OPENAI_API_KEY, {
         model,
         system,
         messages: [
@@ -824,29 +792,23 @@ solve.post("/", async (c) => {
         temperature: 0.6,
         maxTokens: MAX_TOKENS_SECOND,
         thinking: { type: "disabled" },
-        // Same rationale as the first-pass leg above: this call sits after
-        // the R-pipeline's heartbeat has already been cleared (its `finally`
-        // ran once runCalcPipeline() returned), so a retry-backoff wait here
-        // would otherwise be unheartbeated. Reuse the "Finalizing…" phase
-        // label already written just above.
         retry: {
+          maxRetries: 2,
+          maxElapsedMs: FIRST_PASS_MAX_ELAPSED_MS,
+          connectTimeoutMs: 4_000,
+          streamTimeoutMs: FIRST_PASS_MAX_ELAPSED_MS,
+          waitingIntervalMs: 1_500,
           onWaiting: () => {
-            write({ type: "phase", label: "Finalizing…" }).catch(() => {
-              // Stream already closing/closed — nothing else to do here.
-            });
+            write({ type: "phase", label: "Finalizing…" }).catch(() => {});
           },
         },
-      }, { geminiModel, authorizeFallback: gateFallback });
+      });
 
-      for await (const delta of interpret.stream) {
-        // Usage arrives on the final chunk, which has no `text` — capture it
-        // before the text-only `continue` below would otherwise skip it.
+      for await (const delta of interpretStream) {
         if (delta.usage) finalUsage = delta.usage;
         if (!delta.text) continue;
         fbuf += delta.text;
         const cleaned = fbuf.replace(/^\s*\[(CONCEPT|RCODE|CALC)\]\s*\n?/i, "");
-        // course-topic: same TOPIC-before-CONFIDENCE stripping order as the
-        // first-pass loop above — see that site's comment for why.
         const display = cleaned
           .replace(/\n?TOPIC:\s*\w*\s*$/i, "")
           .replace(/\n?CONFIDENCE:\s*\w+\s*$/i, "");
@@ -857,9 +819,6 @@ solve.post("/", async (c) => {
         }
       }
 
-      // See firstPassServedBy's comment above — the actual serving model,
-      // read only after the stream is fully drained.
-      const interpretServedBy = interpret.servedBy();
       const finalParsed = parseResponse(fbuf);
       const finalBlanks = deriveBlankAnswers(finalParsed.body, body.blanks);
       const finalUsageTokens = {
@@ -867,29 +826,19 @@ solve.post("/", async (c) => {
         completionTokens: finalUsage?.completion_tokens ?? 0,
         cachedTokens: finalUsage?.cached_tokens ?? 0,
       };
-      const interpretCostUsd = costUsdForUsage(interpretServedBy.model, finalUsageTokens);
+      const interpretCostUsd = costUsdForUsage(model, finalUsageTokens);
       recordGlobalSpendInBackground(c, interpretCostUsd);
 
-      // Interpret leg's metrics — exactly what the old routes/interpret.ts
-      // recorded. route:"interpret" is kept as the label even though the
-      // public route is gone — it now means "the interpret LEG" — so
-      // dashboard cost-by-route continuity holds (see lib/metrics-store.ts).
-      // This is the ONE place modeSplit.calc increments (the first-pass
-      // event above and the repair-leg event both deliberately omit
-      // completedQuestion) — a calc question counts once, not two or three
-      // times, across all the legs that now share a single request.
       metricsBatch.server.push({
         route: "interpret",
         success: true,
-        model: interpretServedBy.model,
+        model,
+        provider: "luna",
         ...finalUsageTokens,
         costUsd: interpretCostUsd,
         serverLatencyMs: Date.now() - startedAt,
         installHash,
         costMode: "calc",
-        // topic comes from THIS leg's own parse (finalParsed), not the first
-        // pass's — same reasoning as confidence just above: the interpret leg
-        // has seen the R output and is the request's real final assessment.
         completedQuestion: { mode: "calc", confidence: finalParsed.confidence, topic: finalParsed.topic },
       });
 
@@ -908,25 +857,9 @@ solve.post("/", async (c) => {
           ...(finalBlanks.length ? { blanks: finalBlanks } : {}),
           confidence: finalParsed.confidence,
           lowConfidence: finalParsed.lowConfidence,
-          // Answered without the dataset the question referenced — the extension
-          // surfaces a transient "dataset not found, upload the CSV" notice so a
-          // reasoned-not-computed answer isn't mistaken for a data-backed one.
-          ...(dataMissingBackstop ? { dataMissing: true } : {}),
         },
       });
     } catch (e) {
-      // A refused fallback (global kill-switch tripped between the primary
-      // attempt and the fallback attempt — see lib/llm.ts's
-      // FallbackGateRejectedError) is a service-wide capacity condition, not
-      // an upstream provider error — classifyError()/humanizeError() would
-      // otherwise describe it as an opaque "Unknown error" since it carries
-      // no HTTP status. Recorded exactly like the repair/interpret legs'
-      // OWN pre-check rejections just above (errorType "quota",
-      // KILL_SWITCH_MESSAGE). `model` stays the resolved, ALLOWED_MODELS-
-      // validated request-level model (never a raw client string, and never
-      // a per-attempt servedBy — by the time an error reaches here there is
-      // no single call to attribute it to).
-      const gateRejected = e instanceof FallbackGateRejectedError;
       metricsBatch.server.push({
         route: "solve",
         success: false,
@@ -937,9 +870,9 @@ solve.post("/", async (c) => {
         costUsd: 0,
         serverLatencyMs: Date.now() - startedAt,
         installHash,
-        errorType: gateRejected ? "quota" : classifyError(e),
+        errorType: classifyError(e),
       });
-      await write({ type: "error", message: gateRejected ? KILL_SWITCH_MESSAGE : humanizeError(e) });
+      await write({ type: "error", message: humanizeError(e) });
     } finally {
       // ONE bucket write for everything the request recorded, success or
       // failure — runs after the catch above has pushed its error event.
@@ -987,6 +920,24 @@ const MAX_PACKAGE_CHARS = 60;
 const ALLOWED_COURSE_PROFILES = new Set(["generic"]);
 
 function validateSolveBody(body: SolveBody): string | null {
+  if (body.questionText !== undefined && typeof body.questionText !== "string") {
+    return "questionText must be a string.";
+  }
+  if (body.choices !== undefined && !Array.isArray(body.choices)) {
+    return "choices must be an array.";
+  }
+  if (body.blanks !== undefined && !Array.isArray(body.blanks)) {
+    return "blanks must be an array.";
+  }
+  if (body.images !== undefined && !Array.isArray(body.images)) {
+    return "images must be an array.";
+  }
+  if (body.dataFiles !== undefined && !Array.isArray(body.dataFiles)) {
+    return "dataFiles must be an array.";
+  }
+  if (body.packages !== undefined && !Array.isArray(body.packages)) {
+    return "packages must be an array.";
+  }
   if (body.model && !ALLOWED_MODELS.has(body.model)) {
     return "Unsupported model.";
   }
@@ -1002,6 +953,9 @@ function validateSolveBody(body: SolveBody): string | null {
   const choices = body.choices ?? [];
   if (choices.length > MAX_CHOICES) return "Too many choices.";
   for (const ch of choices) {
+    if (!ch || typeof ch !== "object" || typeof ch.label !== "string" || typeof ch.text !== "string") {
+      return "Each choice must include a label and text.";
+    }
     if ((ch.text?.length ?? 0) > MAX_CHOICE_CHARS || (ch.label?.length ?? 0) > 20) {
       return "Choice too long.";
     }
@@ -1009,6 +963,9 @@ function validateSolveBody(body: SolveBody): string | null {
   const blanks = body.blanks ?? [];
   if (blanks.length > MAX_BLANKS) return "Too many blanks.";
   for (const b of blanks) {
+    if (!b || typeof b !== "object" || typeof b.key !== "string" || typeof b.label !== "string" || !Array.isArray(b.options)) {
+      return "Each blank must include a key, label, and options array.";
+    }
     if ((b.label?.length ?? 0) > MAX_BLANK_CHARS) return "Blank label too long.";
     if ((b.options?.length ?? 0) > MAX_BLANK_OPTIONS) return "Too many blank options.";
     for (const opt of b.options ?? []) {
@@ -1018,6 +975,9 @@ function validateSolveBody(body: SolveBody): string | null {
   const images = body.images ?? [];
   if (images.length > MAX_IMAGES) return "Too many images.";
   for (const img of images) {
+    if (!img || typeof img !== "object" || typeof img.mediaType !== "string" || typeof img.data !== "string") {
+      return "Each image must include a mediaType and data.";
+    }
     if (!ALLOWED_IMAGE_TYPES.has(img.mediaType)) return "Unsupported image type.";
     if ((img.data?.length ?? 0) > MAX_IMAGE_B64_CHARS) return "Image too large.";
   }
@@ -1025,6 +985,9 @@ function validateSolveBody(body: SolveBody): string | null {
   if (files.length > MAX_DATA_FILES) return "Too many data files.";
   let totalDataChars = 0;
   for (const f of files) {
+    if (!f || typeof f !== "object" || typeof f.filename !== "string" || typeof f.content !== "string") {
+      return "Each data file must include a filename and content.";
+    }
     if ((f.filename?.length ?? 0) > 200) return "Data filename too long.";
     const len = f.content?.length ?? 0;
     if (len > MAX_DATA_FILE_CHARS) return "Data file too large.";
@@ -1034,6 +997,7 @@ function validateSolveBody(body: SolveBody): string | null {
   const packages = body.packages ?? [];
   if (packages.length > MAX_PACKAGES) return "Too many packages.";
   for (const p of packages) {
+    if (typeof p !== "string") return "Each package name must be a string.";
     if (p.length > MAX_PACKAGE_CHARS) return "Package name too long.";
   }
   // Aggregate bound on the prompt-contributing text. The per-field caps
@@ -1063,16 +1027,18 @@ function humanizeError(e: unknown): string {
   const obj = e as { status?: number; message?: string };
   const msg = obj?.message ?? "Unknown error";
   if (/credit balance|insufficient|quota|resource exhausted/i.test(msg))
-    return "The AI tutor is temporarily over its usage quota — please try again shortly.";
+    return "The AI tutor is temporarily unavailable.";
   if (obj?.status === 401 || obj?.status === 403)
     return "The AI tutor's API key is invalid, revoked, or missing permissions.";
   if (obj?.status === 429)
-    return "The AI tutor is rate-limited right now — wait a moment and retry.";
+    return "The AI tutor is temporarily unavailable.";
+  if (/timeout|abort/i.test(msg))
+    return "The solve could not be completed.";
   return msg;
 }
 
 function stripExt(name: string) {
-  return name.replace(/\.(csv|tsv|txt)$/i, "");
+  return name.replace(/\.(csv|tsv|txt)$/i, "").replace(/[^A-Za-z0-9_]/g, "_");
 }
 
 /** A calc failure isn't worth a repair round trip when the model's R tries to

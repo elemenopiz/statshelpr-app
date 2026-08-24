@@ -112,16 +112,22 @@
         font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-3);
       }
       .plan-solves b { color: var(--ink); font-weight: 600; }
+      /* Continuous gauge — replaced the old per-solve segmented bar (which
+         also had a stale repeat(5,1fr) grid left over from the free-tier
+         5->7 bump, wrapping the last two segments to a second row). A single
+         fill track scales to any daily limit without a markup change. */
       .meter {
-        display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px;
+        height: 6px; border-radius: 3px;
+        background: var(--line-soft);
+        overflow: hidden;
         margin: 9px 0 11px;
       }
-      .meter span {
-        height: 4px; border-radius: 2px;
-        background: var(--line-soft);
-        transition: background-color 0.4s;
+      .meter .meter-fill {
+        height: 100%; border-radius: 3px;
+        background: var(--blue);
+        transition: width 0.4s var(--ease-out), background-color 0.3s;
       }
-      .meter span.on { background: var(--blue); }
+      .meter.urgent .meter-fill { background: var(--err); }
       .upgrade-cta {
         display: flex; align-items: center; justify-content: center; gap: 7px;
         width: 100%;
@@ -690,23 +696,33 @@
     <!-- plan / conversion card — popup.ts switches data-plan: free | paid -->
     <div class="plan-card" id="plan-card" data-plan="free">
       <div class="plan-free" id="plan-free">
+        <!-- Both hidden by default (display:none) so a brand-new install
+             shows "Free plan" with no cap in sight — popup.ts's
+             renderSolvesLeft() only reveals the count + gauge after the
+             user's first real solve (STORAGE_KEY_LIFETIME_SOLVES >= 1), same
+             fail-safe-hidden pattern as the upgrade CTA below. -->
         <div class="plan-row">
           <span class="plan-name">Free plan</span>
-          <span class="plan-solves" id="plan-solves"><b>5</b> of 5 solves left today</span>
+          <span class="plan-solves" id="plan-solves" style="display: none"><b>7</b> of 7 solves left today</span>
         </div>
-        <div class="meter" id="solves-meter" aria-hidden="true">
-          <span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span><span class="on"></span>
+        <div class="meter" id="solves-meter" aria-hidden="true" style="display: none">
+          <div class="meter-fill" id="solves-meter-fill" style="width: 100%"></div>
         </div>
         <!-- Points at our own /checkout page, NOT straight at Lemon Squeezy:
              that page carries the required Terms/Privacy/Refund assent
              checkbox and forwards the install id onward to LS as
              checkout[custom][install_id]. popup.ts appends
-             #install_id=<uuid> below. -->
-        <a class="upgrade-cta" id="upgrade-cta"
+             #install_id=<uuid> below.
+             Hidden by default (display:none) so there's no flash of the
+             pitch before popup.ts's renderSolvesLeft() decides visibility
+             — it only reveals this once the user has a few real solves
+             under their belt (STORAGE_KEY_LIFETIME_SOLVES), never on a
+             brand-new install. -->
+        <a class="upgrade-cta" id="upgrade-cta" style="display: none"
            href="https://statshelpr.com/checkout" target="_blank" rel="noopener">
-          Go Unlimited &mdash; $15/mo <span class="arr">&rarr;</span>
+          Go Unlimited &mdash; $11.99/mo <span class="arr">&rarr;</span>
         </a>
-        <div class="plan-sub">Every solve, all semester &middot; cancel anytime</div>
+        <div class="plan-sub" id="plan-sub" style="display: none">Unlimited solves + discreet mode &middot; cancel anytime</div>
       </div>
       <div class="plan-paid" id="plan-paid">
         <span class="plan-paid-word">Unlimited</span>

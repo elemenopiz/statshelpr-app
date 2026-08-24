@@ -65,11 +65,24 @@ const MAX_TOTAL_BYTES = 8 * 1024 * 1024;    // chrome.storage.local has ~10MB
 
 /** Written by content.ts: local mirror of the free tier's daily solve count. */
 const STORAGE_KEY_SOLVE_STATS = "statshelpr.solveStats";
-const FREE_DAILY_LIMIT = 5;
+const FREE_DAILY_LIMIT = 7;
 interface SolveStats {
   count: number;
   resetAt: number;
 }
+
+/** Written by content.ts: never-resets all-time solve count. Gates the
+ * Unlimited pitch (CTA button + "cancel anytime" subtext) so a first-install
+ * user can try the product a few times before ever seeing a price — once
+ * unlocked it stays unlocked (checked as >=, not tied to today's count).
+ * METER_UNLOCK_AFTER gates something narrower and earlier: even the bare
+ * "n of 7 left" count + gauge (no price, no CTA) still tells a brand-new
+ * user "this is capped" before they've felt any value. Hidden until their
+ * FIRST real solve — a popup opened right after install shows just "Free
+ * plan," nothing metered. */
+const STORAGE_KEY_LIFETIME_SOLVES = "statshelpr.lifetimeSolves";
+const METER_UNLOCK_AFTER = 1;
+const UPGRADE_PITCH_UNLOCK_AFTER = 3;
 
 /** Last successful license validation, so a paid user who opens the popup
  * offline isn't shown the free-tier upsell. */
@@ -93,7 +106,9 @@ const filesEmpty = document.getElementById("files-empty") as HTMLDivElement;
 const planCardEl = document.getElementById("plan-card") as HTMLDivElement;
 const planSolvesEl = document.getElementById("plan-solves") as HTMLSpanElement;
 const solvesMeterEl = document.getElementById("solves-meter") as HTMLDivElement;
+const solvesMeterFillEl = document.getElementById("solves-meter-fill") as HTMLDivElement;
 const upgradeCtaEl = document.getElementById("upgrade-cta") as HTMLAnchorElement;
+const planSubEl = document.getElementById("plan-sub") as HTMLDivElement;
 const planNoteEl = document.getElementById("plan-note") as HTMLDivElement;
 const versionEl = document.getElementById("ext-version") as HTMLSpanElement;
 const telemetryToggle = document.getElementById("telemetry-toggle") as HTMLInputElement | null;
@@ -497,21 +512,30 @@ async function writePlanCache(paid: boolean) {
   }
 }
 
-/** Render the "n of 5 left today" meter from the local counter that
+/** Render the "n of 7 left today" meter from the local counter that
  * content.ts maintains. Best-effort mirror of the server's rolling window. */
 async function renderSolvesLeft() {
   let remaining = FREE_DAILY_LIMIT;
   let resetAt = 0;
+  let pitchUnlocked = false;
+  let meterUnlocked = false;
   try {
-    const r = await chrome.storage.local.get(STORAGE_KEY_SOLVE_STATS);
+    const r = await chrome.storage.local.get([STORAGE_KEY_SOLVE_STATS, STORAGE_KEY_LIFETIME_SOLVES]);
     const stats = r[STORAGE_KEY_SOLVE_STATS] as SolveStats | undefined;
     if (stats && stats.resetAt > Date.now()) {
       remaining = Math.max(0, FREE_DAILY_LIMIT - stats.count);
       resetAt = stats.resetAt;
     }
+    const lifetime = (r[STORAGE_KEY_LIFETIME_SOLVES] as number | undefined) ?? 0;
+    pitchUnlocked = lifetime >= UPGRADE_PITCH_UNLOCK_AFTER;
+    meterUnlocked = lifetime >= METER_UNLOCK_AFTER;
   } catch {
-    /* no data — show a full meter */
+    /* no data — meter/pitch both stay locked */
   }
+  upgradeCtaEl.style.display = pitchUnlocked ? "" : "none";
+  planSubEl.style.display = pitchUnlocked ? "" : "none";
+  planSolvesEl.style.display = meterUnlocked ? "" : "none";
+  solvesMeterEl.style.display = meterUnlocked ? "" : "none";
 
   while (planSolvesEl.firstChild) planSolvesEl.removeChild(planSolvesEl.firstChild);
   const b = document.createElement("b");
@@ -528,14 +552,24 @@ async function renderSolvesLeft() {
     );
   }
 
-  const segs = solvesMeterEl.querySelectorAll("span");
-  segs.forEach((seg, i) => seg.classList.toggle("on", i < remaining));
+  solvesMeterFillEl.style.width = `${Math.round((remaining / FREE_DAILY_LIMIT) * 100)}%`;
 
   // Tasteful conversion nudge: intensify once the user is down to their
-  // last solve. Copy stays identical — only the styling escalates.
+  // last solve (styling only — pulse, error-tint). The pitch itself was
+  // already unlocked earlier (UPGRADE_PITCH_UNLOCK_AFTER solves in), so by
+  // the time this fires the CTA is always showing; only its subtext swaps
+  // to the specific, actionable reason ("you're out today") instead of the
+  // generic value-prop line.
   const urgent = remaining <= 1;
   planSolvesEl.classList.toggle("urgent", urgent);
   upgradeCtaEl.classList.toggle("urgent", urgent);
+  solvesMeterEl.classList.toggle("urgent", urgent);
+  if (pitchUnlocked) {
+    planSubEl.textContent =
+      urgent && remaining === 0
+        ? "Out of free solves today — go Unlimited to keep going"
+        : "Unlimited solves + discreet mode · cancel anytime";
+  }
 }
 
 // =============================================================================

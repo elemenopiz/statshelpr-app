@@ -148,11 +148,19 @@ const STORAGE_KEY_FILES = "statshelpr.files";
 const FILE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 /** Local mirror of the server's 24h rolling solve counter so the popup can
- * show "n of 5 left today" without an extra endpoint. Server stays the
+ * show "n of 7 left today" without an extra endpoint. Server stays the
  * authority — on a 402 we sync to its resetAt. */
 const STORAGE_KEY_SOLVE_STATS = "statshelpr.solveStats";
-const FREE_DAILY_LIMIT = 5;
+const FREE_DAILY_LIMIT = 7;
 const SOLVE_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/** Never-resets, all-time solve count — separate from the rolling 24h
+ * SolveStats counter above. Sole purpose: popup.ts gates the Unlimited pitch
+ * on this (not on today's count), so a first-install user can try the
+ * product a few times with zero pricing pressure, and the pitch — once
+ * unlocked — stays unlocked on later days instead of re-hiding every
+ * midnight reset. */
+const STORAGE_KEY_LIFETIME_SOLVES = "statshelpr.lifetimeSolves";
 
 interface SolveStats {
   count: number;
@@ -730,14 +738,18 @@ function stripTags(s: string): string {
  * Fire-and-forget: never lets bookkeeping break a solve. */
 async function recordSolveUse(): Promise<void> {
   try {
-    const r = await chrome.storage.local.get(STORAGE_KEY_SOLVE_STATS);
+    const r = await chrome.storage.local.get([STORAGE_KEY_SOLVE_STATS, STORAGE_KEY_LIFETIME_SOLVES]);
     const prev = r[STORAGE_KEY_SOLVE_STATS] as SolveStats | undefined;
     const now = Date.now();
     const next: SolveStats =
       !prev || prev.resetAt < now
         ? { count: 1, resetAt: now + SOLVE_WINDOW_MS }
         : { count: prev.count + 1, resetAt: prev.resetAt };
-    await chrome.storage.local.set({ [STORAGE_KEY_SOLVE_STATS]: next });
+    const lifetime = (r[STORAGE_KEY_LIFETIME_SOLVES] as number | undefined) ?? 0;
+    await chrome.storage.local.set({
+      [STORAGE_KEY_SOLVE_STATS]: next,
+      [STORAGE_KEY_LIFETIME_SOLVES]: lifetime + 1,
+    });
   } catch {
     /* tracking only */
   }
