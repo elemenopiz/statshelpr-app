@@ -1614,7 +1614,7 @@ function renderQualitySection(quality: QualityMetrics, comparison: ComparisonMet
 
   const inner = `${renderStatGrid([
     renderStatTile({
-      label: "Solve success rate",
+      label: "LLM call success rate",
       value: fmtPct(quality.solveSuccessRate),
       tone: toneHigherBetter(quality.solveSuccessRate, 0.95, 0.9),
       deltaHtml: renderDeltaFor(comparison, "solveSuccessRate"),

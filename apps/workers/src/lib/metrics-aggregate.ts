@@ -97,6 +97,8 @@ export interface MetricsResponse {
     maxSolvesByOneInstall: number;
   };
   quality: {
+    /** Successful LLM legs / all LLM legs (solve + interpret), not a
+     * question-level request completion rate. */
     solveSuccessRate: number;
     writeBackSuccessRate: number;
     writeBackByOutcome: WriteBackOutcomeCounts;

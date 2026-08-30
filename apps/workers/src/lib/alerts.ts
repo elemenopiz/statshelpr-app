@@ -54,7 +54,8 @@ const pct = (n: number): string => `${(n * 100).toFixed(1)}%`;
  * previous day's `prev` snapshot. No side effects — safe to unit-test.
  *
  * Fires:
- *  - success-rate-low  : quality.solveSuccessRate < SUCCESS_RATE_FLOOR.
+ *  - success-rate-low  : quality.solveSuccessRate < SUCCESS_RATE_FLOOR
+ *                        (this is an LLM-leg rate, not a question rate).
  *  - error-spike       : today's daily errors > 2× the trailing-7-day daily
  *                        average AND >= the noise floor (5).
  *  - subscription-churned : a cancellation posted today (daily[last]
@@ -64,13 +65,13 @@ const pct = (n: number): string => `${(n * 100).toFixed(1)}%`;
 export function evaluateAlerts(metrics: MetricsResponse, prev?: Snapshot | null): Alert[] {
   const alerts: Alert[] = [];
 
-  // 1) Solve success rate below the floor.
+  // 1) LLM call success rate below the floor.
   if (metrics.quality.solveSuccessRate < SUCCESS_RATE_FLOOR) {
     alerts.push({
       type: "success-rate-low",
       severity: "critical",
       message:
-        `Solve success rate ${pct(metrics.quality.solveSuccessRate)} is below the ` +
+        `LLM call success rate ${pct(metrics.quality.solveSuccessRate)} is below the ` +
         `${pct(SUCCESS_RATE_FLOOR)} floor over the last ${metrics.range.days}d.`,
     });
   }
