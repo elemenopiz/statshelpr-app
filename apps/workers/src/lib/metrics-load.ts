@@ -36,6 +36,10 @@ export const METRICS_RANGE_DAYS = 30;
 const PRICE_MONTHLY_USD = 14.99;
 const DEFAULT_AVG_SOLVES_PER_USER_PER_MONTH = 110;
 
+function complimentaryCustomerIds(env: Env): Set<string> {
+  return new Set((env.COMPLIMENTARY_CUSTOMER_IDS ?? "").split(",").map((id) => id.trim()).filter(Boolean));
+}
+
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 
 /**
@@ -160,6 +164,7 @@ export async function countActiveSubscribers(env: Env): Promise<number> {
   // active records by customerId; subscription key is only the fallback for
   // legacy records that lack a customer id.
   const activeCustomers = new Set<string>();
+  const complimentary = complimentaryCustomerIds(env);
   let cursor: string | undefined = undefined;
 
   for (;;) {
@@ -176,7 +181,9 @@ export async function countActiveSubscribers(env: Env): Promise<number> {
           const identity = rec.customerId !== undefined
             ? `customer:${rec.customerId}`
             : `subscription:${key.name}`;
-          activeCustomers.add(identity);
+          if (rec.customerId === undefined || !complimentary.has(String(rec.customerId))) {
+            activeCustomers.add(identity);
+          }
         }
       } catch {
         // Unparseable/corrupt record — skip, don't fail the scan.

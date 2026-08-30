@@ -2029,7 +2029,9 @@ function renderEconomicsSection(
           )}</span></td>
         </tr>
         <tr><td>MRR (live)</td><td>${escapeHtml(fmtUsd(revenue.mrrUsd, 0))}</td></tr>
-        <tr><td>COGS this window</td><td>${escapeHtml(fmtUsd(economics.totalCostUsd))}</td></tr>
+        <tr><td>Inference COGS this window</td><td>${escapeHtml(fmtUsd(economics.totalCostUsd))}</td></tr>
+        <tr><td>Payment-processing COGS</td><td>${escapeHtml(fmtUsd(economics.paymentProcessingCogsUsd))}</td></tr>
+        <tr><td>All-in COGS this window</td><td>${escapeHtml(fmtUsd(economics.totalCogsUsd))}</td></tr>
         <tr><td>Real COGS / active user</td><td>${escapeHtml(fmtUsd4(revenue.cogsPerActiveUserUsd ?? NaN))}</td></tr>
       </tbody>
     </table>
@@ -2039,9 +2041,14 @@ function renderEconomicsSection(
 
   const inner = `${renderStatGrid([
     renderStatTile({
-      label: `Total cost (${days}d)`,
+      label: `Inference cost (${days}d)`,
       value: fmtUsd(economics.totalCostUsd),
       deltaHtml: renderDeltaFor(comparison, "totalCostUsd"),
+    }),
+    renderStatTile({
+      label: "Payment-processing COGS",
+      value: fmtUsd(economics.paymentProcessingCogsUsd),
+      caption: "Lemon Squeezy: 5% + $0.50 + 0.5% subscription fee",
     }),
     renderStatTile({
       label: "Avg COGS / question",

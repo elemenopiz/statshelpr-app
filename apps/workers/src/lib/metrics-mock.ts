@@ -641,6 +641,8 @@ export function buildMockMetrics(opts: BuildMockMetricsOpts = {}): MetricsRespon
         cachedInputPer1M: 0.075,
       },
       totalCostUsd: TOTAL_COST_USD,
+      paymentProcessingCogsUsd: 34 * (PRICE_MONTHLY_USD * 0.055 + 0.5),
+      totalCogsUsd: TOTAL_COST_USD + 34 * (PRICE_MONTHLY_USD * 0.055 + 0.5),
       avgCostPerQuestionUsd: AVG_COST_PER_QUESTION_USD,
       avgCostPerCalcQuestionUsd: AVG_COST_PER_CALC_QUESTION_USD,
       priceMonthlyUsd: PRICE_MONTHLY_USD,

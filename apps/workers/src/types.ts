@@ -46,6 +46,9 @@ export interface Env {
    *  Unset means the route hard-fails closed (401 on every request, including
    *  ?demo=1), not open. */
   DASHBOARD_PASSWORD?: string;
+  /** Comma-separated Lemon Squeezy customer IDs receiving complimentary
+   *  access; excluded from billable subscriber/MRR counts but not usage. */
+  COMPLIMENTARY_CUSTOMER_IDS?: string;
   /** Shared-secret auth between this Worker and the Cloud Run R-runner
    *  service (r-runner/plumber.R's `@filter auth`) —
    *  `wrangler secret put R_RUNNER_SECRET`, the SAME value passed to Cloud

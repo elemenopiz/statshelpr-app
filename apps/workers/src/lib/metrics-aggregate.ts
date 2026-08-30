@@ -169,6 +169,10 @@ export interface MetricsResponse {
     model: string;
     rates: { inputPer1M: number; outputPer1M: number; cachedInputPer1M: number };
     totalCostUsd: number;
+    /** Payment-platform COGS modeled at 5% + $0.50 + 0.5% subscription fee. */
+    paymentProcessingCogsUsd: number;
+    /** Inference spend plus payment-processing COGS. */
+    totalCogsUsd: number;
     avgCostPerQuestionUsd: number;
     avgCostPerCalcQuestionUsd: number;
     priceMonthlyUsd: number;
@@ -628,11 +632,16 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
 
   // --- items 6 & 9: real revenue (activeSubscribers passed in from KV scan) ---
   const mrrUsd = activeSubscribers * priceMonthlyUsd;
+  // Lemon Squeezy standard US subscription fee: 5% + $0.50, plus the
+  // documented 0.5% subscription-payment surcharge. Complimentary customers
+  // are already excluded from activeSubscribers by metrics-load.ts.
+  const paymentProcessingCogsUsd = activeSubscribers * (priceMonthlyUsd * 0.055 + 0.5);
+  const totalCogsUsd = totalCostUsd + paymentProcessingCogsUsd;
   const netNewSubs30d = revenueFlow.created - revenueFlow.cancelled;
   const churnRatePct =
     activeSubscribers > 0 ? roundPct((revenueFlow.cancelled / activeSubscribers) * 100) : null;
-  const realGrossMarginPct = mrrUsd > 0 ? roundPct(((mrrUsd - totalCostUsd) / mrrUsd) * 100) : null;
-  const cogsPerActiveUserUsd = activeSubscribers > 0 ? roundMoney(totalCostUsd / activeSubscribers) : null;
+  const realGrossMarginPct = mrrUsd > 0 ? roundPct(((mrrUsd - totalCogsUsd) / mrrUsd) * 100) : null;
+  const cogsPerActiveUserUsd = activeSubscribers > 0 ? roundMoney(totalCogsUsd / activeSubscribers) : null;
 
   // --- item 7: funnel ---
   const paywallToUpgradeRatePct =
@@ -691,6 +700,8 @@ export function aggregateMetrics(input: AggregateMetricsInput): MetricsResponse 
       model: PRIMARY_TEXT_MODEL,
       rates: rate,
       totalCostUsd: roundMoney(totalCostUsd),
+      paymentProcessingCogsUsd: roundMoney(paymentProcessingCogsUsd),
+      totalCogsUsd: roundMoney(totalCogsUsd),
       avgCostPerQuestionUsd: roundMoney(avgCostPerQuestionUsd),
       avgCostPerCalcQuestionUsd: roundMoney(avgCostPerCalcQuestionUsd),
       priceMonthlyUsd,
