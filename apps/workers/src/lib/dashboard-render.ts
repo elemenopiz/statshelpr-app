@@ -1611,8 +1611,14 @@ function renderQualitySection(quality: QualityMetrics, comparison: ComparisonMet
   const failureTotal = failureEntries.reduce((sum, e) => sum + e.value, 0);
   const calcTotal = Math.max(1, quality.modeSplit.calc);
   const errorRate = apiCalls > 0 ? quality.errorsTotal / apiCalls : 0;
+  const sampleNote =
+    apiCalls < 100
+      ? `<p class="statCaption" style="margin: 0 0 0.9rem">Early sample (${escapeHtml(
+          fmtInt(apiCalls),
+        )} LLM calls) — timeout and error rates are directional, not representative yet.</p>`
+      : "";
 
-  const inner = `${renderStatGrid([
+  const inner = `${sampleNote}${renderStatGrid([
     renderStatTile({
       label: "LLM call success rate",
       value: fmtPct(quality.solveSuccessRate),
