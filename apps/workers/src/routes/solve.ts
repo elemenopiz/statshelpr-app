@@ -371,7 +371,6 @@ solve.post("/", async (c) => {
         // routing decision and keeps the first pass inside the interactive
         // latency budget. The R execution and final interpretation still
         // provide the calculation-specific accuracy check.
-        reasoningEffort: "low",
         // A 429/5xx/network hiccup here retries transparently inside
         // chatStream (core/providers/retry.ts). The heartbeat below keeps the
         // SSE stream alive while a retry/backoff or slow reasoning interval
@@ -384,11 +383,6 @@ solve.post("/", async (c) => {
           // Retry transient connection/429/5xx failures inside the same
           // interactive budget. This is OpenAI-only resilience; it never
           // switches providers and never emits a retry message to Canvas.
-          maxRetries: 2,
-          maxElapsedMs: FIRST_PASS_MAX_ELAPSED_MS,
-          connectTimeoutMs: 4_000,
-          streamTimeoutMs: FIRST_PASS_MAX_ELAPSED_MS,
-          waitingIntervalMs: 1_500,
           onWaiting: () => {
             write({ type: "phase", label: "Thinking…" }).catch(() => {
               // Stream already closing/closed — nothing else to do here.
@@ -468,8 +462,8 @@ solve.post("/", async (c) => {
         metricsBatch.server.push({
           route: "solve",
           success: true,
-          model: firstPassServedBy.model,
-          provider: firstPassServedBy.provider,
+          model,
+          provider: "luna",
           ...usageTokens,
           costUsd,
           serverLatencyMs: Date.now() - startedAt,
@@ -494,8 +488,8 @@ solve.post("/", async (c) => {
       metricsBatch.server.push({
         route: "solve",
         success: true,
-        model: firstPassServedBy.model,
-        provider: firstPassServedBy.provider,
+        model,
+        provider: "luna",
         ...usageTokens,
         costUsd,
         serverLatencyMs: Date.now() - startedAt,
@@ -710,8 +704,8 @@ solve.post("/", async (c) => {
           metricsBatch.server.push({
             route: "solve",
             success: true,
-            model: repair.servedBy.model,
-            provider: repair.servedBy.provider,
+            model,
+            provider: "luna",
             ...repairUsageTokens,
             costUsd: repairCostUsd,
             serverLatencyMs: Date.now() - startedAt,
@@ -793,11 +787,6 @@ solve.post("/", async (c) => {
         maxTokens: MAX_TOKENS_SECOND,
         thinking: { type: "disabled" },
         retry: {
-          maxRetries: 2,
-          maxElapsedMs: FIRST_PASS_MAX_ELAPSED_MS,
-          connectTimeoutMs: 4_000,
-          streamTimeoutMs: FIRST_PASS_MAX_ELAPSED_MS,
-          waitingIntervalMs: 1_500,
           onWaiting: () => {
             write({ type: "phase", label: "Finalizing…" }).catch(() => {});
           },
@@ -832,8 +821,8 @@ solve.post("/", async (c) => {
       metricsBatch.server.push({
         route: "interpret",
         success: true,
-        model: interpretServedBy.model,
-        provider: interpretServedBy.provider,
+        model,
+        provider: "luna",
         ...finalUsageTokens,
         costUsd: interpretCostUsd,
         serverLatencyMs: Date.now() - startedAt,

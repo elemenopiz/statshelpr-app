@@ -25,27 +25,24 @@
  */
 
 import { extractRCode, parseResponse } from "@statshelpr/solver-core/core";
-import type { LlmChatUsage } from "@statshelpr/solver-core/core/providers";
+import { chat, type LlmChatUsage } from "@statshelpr/solver-core/core/providers";
 import { MAX_TOKENS_FIRST } from "@statshelpr/solver-core/solver";
-import { chatWithFallback, type FallbackEnv, type FallbackOpts, type ServedBy } from "./llm";
 import type { RunRResult } from "./r-runner";
 
 export interface RepairResult {
   code: string | undefined;
   usage: LlmChatUsage | undefined;
-  servedBy: ServedBy;
 }
 
 export async function repairRCode(
-  env: FallbackEnv,
+  apiKey: string,
   model: string,
   system: string,
   questionPrompt: string,
   rCode: string,
   runResult: RunRResult,
-  fallback: Pick<FallbackOpts, "geminiModel" | "authorizeFallback">,
 ): Promise<RepairResult> {
-  const { result: repair, servedBy } = await chatWithFallback(env, {
+  const repair = await chat(apiKey, {
     model,
     system,
     messages: [
@@ -80,8 +77,8 @@ export async function repairRCode(
     // buildRequestBody comment). Kept only for parity with the apps/api
     // original; harmless no-op here.
     cacheKey: null,
-  }, fallback);
+  });
   const parsed = parseResponse(repair.text);
   const candidate = extractRCode(parsed.body);
-  return { code: candidate || undefined, usage: repair.usage, servedBy };
+  return { code: candidate || undefined, usage: repair.usage };
 }

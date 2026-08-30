@@ -24,6 +24,17 @@ export interface LlmThinkingOptions {
  *  emitting an SSE "still working" heartbeat during a long backoff wait so
  *  the connection doesn't look idle — see retry.ts's `onWaiting` doc). */
 export interface LlmRetryHooks {
+  /** Optional total retry wall-clock budget, honored by providers that
+   * implement bounded retry configuration. */
+  maxElapsedMs?: number;
+  /** Optional per-attempt connection timeout. */
+  connectTimeoutMs?: number;
+  /** Optional per-stream timeout. */
+  streamTimeoutMs?: number;
+  /** Optional heartbeat cadence while waiting between retries. */
+  waitingIntervalMs?: number;
+  /** Optional maximum retries after the initial attempt. */
+  maxRetries?: number;
   /** Fires once right before each retry's backoff sleep begins. */
   onRetry?: (info: { attempt: number; delayMs: number; status?: number }) => void;
   /** Fires every ~10s while a single backoff sleep is still in progress. */
@@ -39,6 +50,8 @@ export interface LlmChatRequest {
   cacheKey?: string | null;
   /** Defaults to disabled. Enable for harder first-pass reasoning. */
   thinking?: LlmThinkingOptions;
+  /** Provider-specific reasoning effort hint used by supported models. */
+  reasoningEffort?: "minimal" | "low" | "medium" | "high";
   /** See LlmRetryHooks. Optional; omit for silent automatic retry. */
   retry?: LlmRetryHooks;
 }
