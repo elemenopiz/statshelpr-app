@@ -204,7 +204,7 @@ interface SubRecord {
   status: "active" | "cancelled";
   email?: string;
   customerId?: number;
-  /** The subscription's monthly price — fixed at the pinned $15 plan. */
+  /** The subscription's monthly price — current plan price is $14.99. */
   priceUsd: number;
   createdAt: number;
   updatedAt: number;
@@ -231,7 +231,7 @@ async function upsertSubRecord(
     status,
     email: attrs?.user_email ?? existing?.email,
     customerId: attrs?.customer_id ?? existing?.customerId,
-    priceUsd: 15,
+    priceUsd: 14.99,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };

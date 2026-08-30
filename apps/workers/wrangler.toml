@@ -21,7 +21,7 @@ AVG_SOLVES_PER_USER_PER_MONTH = "110"
 
 # Dashboard hides all daily metrics buckets dated before this (UTC) — hides
 # founder dev/testing data from the live dashboard without deleting it from KV.
-METRICS_LAUNCH_DATE = "2026-07-25"
+METRICS_LAUNCH_DATE = "2026-08-29"
 
 # Base URL of the Cloud Run R-runner service (r-runner/) that executes calc
 # questions' R code server-side — see docs/cloud-run-r-migration.md. Non-secret

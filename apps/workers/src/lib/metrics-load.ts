@@ -33,7 +33,7 @@ export const METRICS_RANGE_DAYS = 30;
 
 /** Fixed per the pinned contract's `priceMonthlyUsd: 15` — this is the
  *  product's subscription price, not something an env var should move. */
-const PRICE_MONTHLY_USD = 15;
+const PRICE_MONTHLY_USD = 14.99;
 const DEFAULT_AVG_SOLVES_PER_USER_PER_MONTH = 110;
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;
@@ -144,7 +144,7 @@ export async function loadMetrics(env: Env, days: number = METRICS_RANGE_DAYS): 
   return current;
 }
 
-/** Live active-subscriber count from the `sub:` KV keyspace (item 6). Follows
+  /** Live active-subscriber count from the `sub:` KV keyspace (item 6). Follows
  *  the list cursor so it doesn't stop at the first KV page. Records that fail
  *  to parse are skipped rather than aborting the whole scan.
  *
@@ -155,7 +155,11 @@ export async function loadMetrics(env: Env, days: number = METRICS_RANGE_DAYS): 
  *  O(subscriber-count) KV list+get walk, fine once/day, NOT something the
  *  per-solve hot path should ever call directly. */
 export async function countActiveSubscribers(env: Env): Promise<number> {
-  let count = 0;
+  // Lemon Squeezy can emit more than one subscription record for the same
+  // customer during migrations/retries. MRR is customer-based, so dedupe
+  // active records by customerId; subscription key is only the fallback for
+  // legacy records that lack a customer id.
+  const activeCustomers = new Set<string>();
   let cursor: string | undefined = undefined;
 
   for (;;) {
@@ -165,8 +169,15 @@ export async function countActiveSubscribers(env: Env): Promise<number> {
     });
     for (const key of page.keys) {
       try {
-        const rec = (await env.STATSHELPR_KV.get(key.name, "json")) as { status?: string } | null;
-        if (rec?.status === "active") count++;
+        const rec = (await env.STATSHELPR_KV.get(key.name, "json")) as
+          | { status?: string; customerId?: number }
+          | null;
+        if (rec?.status === "active") {
+          const identity = rec.customerId !== undefined
+            ? `customer:${rec.customerId}`
+            : `subscription:${key.name}`;
+          activeCustomers.add(identity);
+        }
       } catch {
         // Unparseable/corrupt record — skip, don't fail the scan.
       }
@@ -175,7 +186,7 @@ export async function countActiveSubscribers(env: Env): Promise<number> {
     cursor = page.cursor;
   }
 
-  return count;
+  return activeCustomers.size;
 }
 
 /** (curr - prev)/prev * 100, rounded; null when prev is 0 (no baseline). */
