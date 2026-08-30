@@ -807,6 +807,21 @@ async function consumeSseResult(res: Response, poke: () => void): Promise<SolveR
   let result: SolveResult | null = null;
   let errorMsg: string | null = null;
 
+  const consumeFrame = (frame: string): void => {
+    const dataLine = frame.split("\n").find((l) => l.startsWith("data:"));
+    if (!dataLine) return;
+    const jsonStr = dataLine.slice(5).trim();
+    if (!jsonStr) return;
+    let evt: SseEvent;
+    try {
+      evt = JSON.parse(jsonStr) as SseEvent;
+    } catch {
+      return; // malformed frame — skip it
+    }
+    if (evt.type === "result") result = evt.result;
+    else if (evt.type === "error") errorMsg = evt.message;
+  };
+
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -814,21 +829,14 @@ async function consumeSseResult(res: Response, poke: () => void): Promise<SolveR
     buf += decoder.decode(value, { stream: true });
     const frames = buf.split("\n\n");
     buf = frames.pop() ?? "";
-    for (const frame of frames) {
-      const dataLine = frame.split("\n").find((l) => l.startsWith("data:"));
-      if (!dataLine) continue;
-      const jsonStr = dataLine.slice(5).trim();
-      if (!jsonStr) continue;
-      let evt: SseEvent;
-      try {
-        evt = JSON.parse(jsonStr) as SseEvent;
-      } catch {
-        continue; // malformed frame — skip it
-      }
-      if (evt.type === "result") result = evt.result;
-      else if (evt.type === "error") errorMsg = evt.message;
-    }
+    for (const frame of frames) consumeFrame(frame);
   }
+
+  // A proxy or browser may close a valid SSE response after the final
+  // newline without delivering the second newline that normally terminates
+  // the frame. Process that leftover frame before declaring the solve lost.
+  buf += decoder.decode();
+  consumeFrame(buf.trim());
 
   if (errorMsg) throw new Error(errorMsg);
   if (!result) throw new Error("No result received from server.");
